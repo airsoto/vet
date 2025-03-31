@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador de Jugadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    input {
+      width: calc(100% - 110px);
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 10px;
+    }
+    .search-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      margin: 0.25rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      padding: 0.5rem;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    tr:hover {
+      background-color: #f0f0f0;
+    }
+    #chartsContainer {
+      margin-top: 3rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    canvas {
+      max-width: 100%;
+      width: 600px;
+      margin: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Buscador y Comparador de Jugadores</h1>
+    <h2>Desarrollado por: Angel Soto</h2>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Buscar por nombre, equipo o puntos...">
+    <button onclick="reiniciarComparacion()">Nueva Comparativa</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Equipo</th>
+        <th>Rival</th>
+        <th>Minutos</th>
+        <th>Puntos</th>
+        <th>Asistencias</th>
+        <th>Bloqueos</th>
+        <th>Robos</th>
+        <th>TC</th>
+        <th>% TC</th>
+        <th>3P</th>
+        <th>% 3P</th>
+        <th>TL</th>
+        <th>% TL</th>
+        <th>Reb. Def.</th>
+        <th>Reb. Of.</th>
+        <th>Reb. Tot.</th>
+        <th>Faltas</th>
+        <th>Pérdidas</th>
+        <th>+/-</th>
+        <th>Comparar</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <div id="chartsContainer">
+    <canvas id="statsChart"></canvas>
+  </div>
+
+  <script>
+    let jugadores = [];
+    const tableBody = document.getElementById('tableBody');
+    const searchInput = document.getElementById('searchInput');
+    let seleccionados = [];
+    let statsChart;
+
+    function renderTabla(filtrados) {
+      tableBody.innerHTML = '';
+      filtrados.forEach(j => {
+        const yaSeleccionado = seleccionados.some(sel => sel.personId == j.personId);
+        const row = `
+          <tr>
+            <td>${j.firstName} ${j.lastName}</td>
+            <td>${j.playerteamName}</td>
+            <td>${j.opponentteamName}</td>
+            <td>${j.numMinutes}</td>
+            <td>${j.points}</td>
+            <td>${j.assists}</td>
+            <td>${j.blocks}</td>
+            <td>${j.steals}</td>
+            <td>${j.fieldGoalsMade}/${j.fieldGoalsAttempted}</td>
+            <td>${j.fieldGoalsPercentage}</td>
+            <td>${j.threePointersMade}/${j.threePointersAttempted}</td>
+            <td>${j.threePointersPercentage}</td>
+            <td>${j.freeThrowsMade}/${j.freeThrowsAttempted}</td>
+            <td>${j.freeThrowsPercentage}</td>
+            <td>${j.reboundsDefensive}</td>
+            <td>${j.reboundsOffensive}</td>
+            <td>${j.reboundsTotal}</td>
+            <td>${j.foulsPersonal}</td>
+            <td>${j.turnovers}</td>
+            <td>${j.plusMinusPoints}</td>
+            <td><button onclick="agregarJugador('${j.personId}')" ${yaSeleccionado ? 'disabled' : ''}>+</button></td>
+          </tr>
+        `;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    function agregarJugador(id) {
+      const jugador = jugadores.find(j => j.personId == id);
+      if (!seleccionados.some(j => j.personId == id)) {
+        seleccionados.push(jugador);
+        renderGraficas();
+        renderTabla(jugadores);
+      }
+    }
+
+    function reiniciarComparacion() {
+      seleccionados = [];
+      if (statsChart) statsChart.destroy();
+      renderTabla(jugadores);
+    }
+
+    function renderGraficas() {
+      if (statsChart) statsChart.destroy();
+
+      const labels = [
+        'Minutos', 'Puntos', 'Asistencias', 'Bloqueos', 'Robos',
+        'TC %', 'Triples %', 'TL %', 'Reb. Def.', 'Reb. Of.', 'Reb. Tot.',
+        'Faltas', 'Pérdidas', '+/-'
+      ];
+
+      const datasets = seleccionados.map(j => ({
+        label: `${j.firstName} ${j.lastName}`,
+        data: [
+          parseFloat(j.numMinutes), parseFloat(j.points), parseFloat(j.assists),
+          parseFloat(j.blocks), parseFloat(j.steals), parseFloat(j.fieldGoalsPercentage),
+          parseFloat(j.threePointersPercentage), parseFloat(j.freeThrowsPercentage),
+          parseFloat(j.reboundsDefensive), parseFloat(j.reboundsOffensive), parseFloat(j.reboundsTotal),
+          parseFloat(j.foulsPersonal), parseFloat(j.turnovers), parseFloat(j.plusMinusPoints)
+        ],
+        fill: false,
+        borderWidth: 2
+      }));
+
+      const ctx = document.getElementById('statsChart').getContext('2d');
+      statsChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels,
+          datasets
+        },
+        options: {
+          responsive: true,
+          scales: {
+            r: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      const filtrados = jugadores.filter(j => {
+        const nombreCompleto = `${j.firstName} ${j.lastName}`.toLowerCase();
+        return nombreCompleto.includes(query) ||
+          j.playerteamName.toLowerCase().includes(query) ||
+          j.opponentteamName.toLowerCase().includes(query) ||
+          j.points.toString().includes(query);
+      });
+      renderTabla(filtrados);
+    });
+
+    // Cargar JSON externo
+    fetch('players.json')
+      .then(response => response.json())
+      .then(data => {
+        jugadores = data;
+        renderTabla(jugadores);
+      })
+      .catch(error => console.error('Error cargando los datos:', error));
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+<div class="footer">
+        <p><a href="https://es.wikipedia.org/wiki/Conjetura_de_Goldbach"><strong>Conjetura de Goldbach</strong></a></p>
+        <h2>Desarrollado por:</h2>
+        <p>Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café, puedes hacerlo aquí:</strong></p>
+        <p><a href="https://buymeacoffee.com/airsoto">BUY ME A COFFEE</a></p>
+        <h2>Licencia WTFPL</h2>
+        <p>Este proyecto está bajo la licencia <strong>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE</strong>.</p>
+        <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto</p>
+        <p>0. You just DO WHAT THE FUCK YOU WANT TO.</p>
