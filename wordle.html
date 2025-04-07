@@ -2,22 +2,60 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Wordle en Español</title>
+  <title>Vet-Wordle</title>
   <style>
     body {
       background-color: #000;
       color: white;
       font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: 40px;
+    }
+
+    h1, h2 {
+      color: #0f0;
+      text-align: center;
+      margin: 5px;
+    }
+
+    #left-panel {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 0;
-      padding: 20px;
     }
 
-    h1 {
-      color: #0f0;
-      margin-bottom: 20px;
+    #used-letters {
+      margin-top: 20px;
+      border: 1px solid #555;
+      padding: 10px;
+      min-height: 100px;
+      width: 120px;
+      background-color: #111;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .used-letter {
+      width: 30px;
+      height: 30px;
+      background-color: #444;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      border-radius: 4px;
+    }
+
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     #game {
@@ -65,7 +103,7 @@
     }
 
     input[type="text"] {
-      width: 260px; /* tamaño como 5 celdas */
+      width: 260px;
       height: 50px;
       font-size: 28px;
       text-align: center;
@@ -98,30 +136,38 @@
   </style>
 </head>
 <body>
-  <h1>Vet-Wordle</h1>
-  <h2>Desarrollado por: Angel Soto</h2>
-
-  <div id="game"></div>
-
-  <div id="input-area">
-    <input type="text" id="guessInput" maxlength="5" />
-    <div class="buttons">
-      <button onclick="submitGuess()">Adivinar</button>
-      <button onclick="resetGame()">Reiniciar</button>
-    </div>
+  <div id="left-panel">
+    <h2>Letras no válidas</h2>
+    <div id="used-letters"></div>
   </div>
 
-  <div id="message"></div>
+  <div id="main">
+    <h1>Vet-Wordle</h1>
+    <h2>Desarrollado por: Angel Soto</h2>
+
+    <div id="game"></div>
+
+    <div id="input-area">
+      <input type="text" id="guessInput" maxlength="5" />
+      <div class="buttons">
+        <button onclick="submitGuess()">Adivinar</button>
+        <button onclick="resetGame()">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="message"></div>
+  </div>
 
   <script>
-    const words = ["gatos", "perro", "pulga", "tenia", "rabia", "sarna", "suero", "utero", "pelos", "dosis", "sodio", "calor", "riñon", "bulto", "toses", "parvo", "torax", "dolor", "letal", "pluma", "perra", "heces", "cepas", "coxis", "patas", "muslo", "pulso", "torax", "hueso", "tibia", "radio", "venas", "tramo", "sacos", "colon", "ciego", "acido", "vello", "leche", "axial", "picos", "mamas", "manos", "nariz", "canal", "vacas", "ovino", "ovina", "peces", "canes", "tumor", "soplo", "ritmo", "ciego", "sacro", "grave", "crias", "cuajo", "corte", "labio", "raspa", "rojez", "quimo", "quilo", "vasos", "anion", "cloro", "gases", "sarro", "renal", "hilio", "gusto", "nudos", "pupas", "flema", "bilis", "semen", "rozar", "canal", "suero", "latex", "dardo", "pauta", "cegar", "bocio", "renal", "techo", "mucos", "cruda", "acido", "viral", "peste", "picor", "linfa", "salud", "acaro", "coxis", "mioma", "sarna", "traza", "lente", "vista", "rayos", "sarna", "dosis", "curar", "patas", "ojete", "vello", "ulcer", "corte", "potro", "cerdo", "ciega", "venas", "piara", "penco", "peste", "uveas", "sopas", "valva", "orina", "bolsa", "viral", "vello"]
-    ;
+    const words = ["gatos", "perro", "pulga", "tenia", "rabia", "sarna", "suero", "utero", "pelos", "dosis", "sodio", "calor", "riñon", "bulto", "toses", "parvo", "torax", "dolor", "letal", "pluma", "perra", "heces", "cepas", "coxis", "patas", "muslo", "pulso", "torax", "hueso", "tibia", "radio", "venas", "tramo", "sacos", "colon", "ciego", "acido", "vello", "leche", "axial", "picos", "mamas", "manos", "nariz", "canal", "vacas", "ovino", "ovina", "peces", "canes", "tumor", "soplo", "ritmo", "ciego", "sacro", "grave", "crias", "cuajo", "corte", "labio", "raspa", "rojez", "quimo", "quilo", "vasos", "anion", "cloro", "gases", "sarro", "renal", "hilio", "gusto", "nudos", "pupas", "flema", "bilis", "semen", "rozar", "canal", "suero", "latex", "dardo", "pauta", "cegar", "bocio", "renal", "techo", "mucos", "cruda", "acido", "viral", "peste", "picor", "linfa", "salud", "acaro", "coxis", "mioma", "sarna", "traza", "lente", "vista", "rayos", "sarna", "dosis", "curar", "patas", "vello", "ulcer", "corte", "potro", "cerdo", "ciega", "venas", "piara", "penco", "peste", "uveas", "sopas", "valva", "orina", "bolsa", "viral", "vello"];
     let secretWord = "";
     let currentRow = 0;
+    let usedAbsentLetters = new Set();
 
     const game = document.getElementById("game");
     const input = document.getElementById("guessInput");
     const message = document.getElementById("message");
+    const usedLettersDiv = document.getElementById("used-letters");
 
     function pickSecretWord() {
       return words[Math.floor(Math.random() * words.length)].toLowerCase();
@@ -141,6 +187,16 @@
       }
     }
 
+    function updateUsedLettersDisplay() {
+      usedLettersDiv.innerHTML = "";
+      [...usedAbsentLetters].sort().forEach(letter => {
+        const span = document.createElement("div");
+        span.className = "used-letter";
+        span.textContent = letter.toUpperCase();
+        usedLettersDiv.appendChild(span);
+      });
+    }
+
     function submitGuess() {
       const guess = input.value.toLowerCase();
       if (guess.length !== 5) {
@@ -155,9 +211,10 @@
 
       for (let i = 0; i < 5; i++) {
         const cell = row.children[i];
-        cell.textContent = guess[i];
+        const letter = guess[i];
+        cell.textContent = letter;
 
-        if (guess[i] === secretWord[i]) {
+        if (letter === secretWord[i]) {
           cell.classList.add("correct");
           usedLetters[i] = null;
         }
@@ -165,15 +222,19 @@
 
       for (let i = 0; i < 5; i++) {
         const cell = row.children[i];
+        const letter = guess[i];
         if (!cell.classList.contains("correct")) {
-          if (usedLetters.includes(guess[i])) {
+          if (usedLetters.includes(letter)) {
             cell.classList.add("present");
-            usedLetters[usedLetters.indexOf(guess[i])] = null;
+            usedLetters[usedLetters.indexOf(letter)] = null;
           } else {
             cell.classList.add("absent");
+            usedAbsentLetters.add(letter);
           }
         }
       }
+
+      updateUsedLettersDisplay();
 
       if (guess === secretWord) {
         message.textContent = "¡Felicidades! Has adivinado la palabra.";
@@ -193,7 +254,9 @@
     function resetGame() {
       secretWord = pickSecretWord();
       currentRow = 0;
+      usedAbsentLetters.clear();
       createBoard();
+      updateUsedLettersDisplay();
       message.textContent = "";
       input.value = "";
       input.disabled = false;
