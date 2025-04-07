@@ -22,19 +22,26 @@
       padding: 15px;
       border-radius: 10px;
     }
-    .star-button {
-      display: inline-block;
-      margin: 5px;
-      padding: 6px 10px;
-      background-color: #333;
+    select {
+      width: 100%;
+      height: 100px;
+      background: #333;
+      color: white;
       border: 1px solid #666;
       border-radius: 5px;
-      color: white;
+      font-size: 16px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background-color: #ffd700;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
       cursor: pointer;
     }
-    .star-button.selected {
-      background-color: #ffd700;
-      color: black;
+    button:hover {
+      background-color: #ffc400;
     }
     svg {
       background-color: #1a1d3a;
@@ -53,17 +60,6 @@
       pointer-events: none;
       opacity: 0;
     }
-    button {
-      padding: 8px 12px;
-      background-color: #ffd700;
-      border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #ffc400;
-    }
   </style>
 </head>
 <body>
@@ -71,8 +67,8 @@
   <h2>Desarrollado por: Angel Soto</h2>
 
   <div class="controls">
-    <label>Selecciona entre 2 y 3 estrellas:</label>
-    <div id="starButtons"></div>
+    <label>Selecciona entre 2 y 3 estrellas (Ctrl/Cmd + clic para seleccionar múltiples):</label>
+    <select id="starSelect" multiple></select>
     <button onclick="updateVisualization()">Comparar</button>
   </div>
 
@@ -9086,36 +9082,25 @@
     ];
 
     const tooltip = d3.select("#tooltip");
-    const buttonContainer = document.getElementById("starButtons");
-    let selectedIndexes = [];
+    const selectEl = document.getElementById("starSelect");
 
-    allStars.forEach((star, index) => {
-      const btn = document.createElement("div");
-      btn.className = "star-button";
-      btn.textContent = star.Name + ` (${index})`;
-      btn.onclick = () => {
-        if (btn.classList.contains("selected")) {
-          btn.classList.remove("selected");
-          selectedIndexes = selectedIndexes.filter(i => i !== index);
-        } else {
-          if (selectedIndexes.length >= 3) {
-            alert("Máximo 3 estrellas");
-            return;
-          }
-          btn.classList.add("selected");
-          selectedIndexes.push(index);
-        }
-      };
-      buttonContainer.appendChild(btn);
+    allStars.forEach((star, i) => {
+      if (star.Name !== "Sol") {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = star.Name;
+        selectEl.appendChild(option);
+      }
     });
 
     function updateVisualization() {
-      if (selectedIndexes.length < 2 || selectedIndexes.length > 3) {
+      const selectedOptions = Array.from(selectEl.selectedOptions);
+      if (selectedOptions.length < 2 || selectedOptions.length > 3) {
         alert("Selecciona entre 2 y 3 estrellas para comparar.");
         return;
       }
 
-      const selectedStars = selectedIndexes.map(i => allStars[i]);
+      const selectedStars = selectedOptions.map(opt => allStars[parseInt(opt.value)]);
       const stars = [...selectedStars, allStars.find(s => s.Name === 'Sol')];
 
       const sizeSvg = d3.select("#sizeViz");
@@ -9156,6 +9141,7 @@
       const maxDistance = d3.max(stars, d => d["Distance (ly)"]);
       const distanceScale = d3.scaleLinear().domain([0, maxDistance]).range([100, 1900]);
 
+      // Línea base de escala
       distanceSvg.append("line")
         .attr("x1", 100)
         .attr("y1", 100)
@@ -9164,33 +9150,34 @@
         .attr("stroke", "#ffd700")
         .attr("stroke-width", 2);
 
-      // Tierra
+      // Tierra (línea inferior)
       distanceSvg.append("circle")
         .attr("cx", 100)
-        .attr("cy", 100)
+        .attr("cy", 160)
         .attr("r", 4)
         .attr("fill", "#3399ff");
 
       distanceSvg.append("text")
         .attr("x", 100)
-        .attr("y", 120)
+        .attr("y", 178)
         .attr("text-anchor", "middle")
         .attr("fill", "white")
         .text("Tierra");
 
+      // Estrellas (incluye Sol, con línea diferente)
       distanceSvg.selectAll("circle.star")
         .data(stars)
         .enter()
         .append("circle")
         .attr("class", "star")
         .attr("cx", d => distanceScale(d["Distance (ly)"]))
-        .attr("cy", 100)
+        .attr("cy", d => d.Name === "Sol" ? 160 : 100)
         .attr("r", 6)
         .attr("fill", d => d.Color)
         .attr("stroke", d => d.Color === "#ffffff" || d.Color === "#ffff00" ? "#000" : "none")
         .on("mouseover", (event, d) => {
           tooltip.transition().duration(200).style("opacity", .9);
-          tooltip.html(`${d.Name}<br/>Distancia: ${d["Distance (ly)"].toFixed(3)} ly`)
+          tooltip.html(`${d.Name}<br/>Distancia: ${d["Distance (ly)"].toFixed(3)} años luz`)
             .style("left", (event.pageX + 10) + "px")
             .style("top", (event.pageY - 28) + "px");
         })
@@ -9202,7 +9189,7 @@
         .append("text")
         .attr("class", "star")
         .attr("x", d => distanceScale(d["Distance (ly)"]))
-        .attr("y", (d, i) => 120 + (i % 2) * 14) // salto de línea
+        .attr("y", d => d.Name === "Sol" ? 178 : 120 + (stars.indexOf(d) % 2) * 14)
         .attr("text-anchor", "middle")
         .attr("fill", "white")
         .text(d => d.Name);
@@ -9210,6 +9197,7 @@
   </script>
 </body>
 </html>
+
 
 
     <!-- FOOTER -->
