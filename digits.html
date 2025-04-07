@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digits Game</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin-top: 1em;
+    }
+    #target {
+      font-size: 3em;
+      margin: 0.5em 0;
+    }
+    .number-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 80px);
+      grid-gap: 15px;
+      justify-content: center;
+      margin: 1em auto;
+    }
+    .number, .operation {
+      background-color: #222;
+      border: 2px dashed #555;
+      border-radius: 50%;
+      font-size: 1.5em;
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .number:hover, .operation:hover {
+      background-color: #444;
+      border-color: #888;
+    }
+    .selected {
+      background-color: #00bcd4 !important;
+      border-color: #00e5ff !important;
+    }
+    .operation.selected-op {
+      background-color: #fbc02d !important;
+      border-color: #fff176 !important;
+    }
+    .operations {
+      margin: 1em 0;
+    }
+    #result {
+      font-size: 1.5em;
+      margin-top: 1em;
+    }
+    #message {
+      font-size: 1.2em;
+      margin-top: 1em;
+      color: #ffd54f;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;"><span style="color: #ff6600;">Digits Game</span></h1>
+  <h2 style="text-align: center;">Desarrollado por: Angel Soto</h2>
+
+  <div id="target">000</div>
+
+  <div class="number-grid" id="numbers"></div>
+
+  <div class="operations">
+    <span class="operation" id="op-add" onclick="selectOperation('+')">+</span>
+    <span class="operation" id="op-sub" onclick="selectOperation('-')">−</span>
+    <span class="operation" id="op-mul" onclick="selectOperation('*')">×</span>
+    <span class="operation" id="op-div" onclick="selectOperation('/')">÷</span>
+    <span class="operation" onclick="undoLast()">↩</span>
+    <span class="operation" onclick="resetGame()">↺</span>
+  </div>
+
+  <div id="result">Resultado: 0</div>
+  <div id="message"></div>
+
+  <script>
+    const predefinedGames = [
+  {
+    "numbers": [
+      3,
+      8,
+      68,
+      2,
+      7,
+      83
+    ],
+    "target": 261
+  },
+  {
+    "numbers": [
+      3,
+      2,
+      8,
+      7,
+      82,
+      20
+    ],
+    "target": 613
+  },
+  {
+    "numbers": [
+      3,
+      1,
+      9,
+      81,
+      7,
+      75
+    ],
+    "target": 683
+  },
+  {
+    "numbers": [
+      3,
+      31,
+      75,
+      9,
+      4,
+      2
+    ],
+    "target": 876
+  },
+  {
+    "numbers": [
+      68,
+      7,
+      2,
+      4,
+      9,
+      17
+    ],
+    "target": 466
+  },
+  {
+    "numbers": [
+      12,
+      1,
+      3,
+      2,
+      21,
+      4
+    ],
+    "target": 101
+  },
+  {
+    "numbers": [
+      1,
+      4,
+      35,
+      7,
+      2,
+      30
+    ],
+    "target": 634
+  },
+  {
+    "numbers": [
+      9,
+      7,
+      98,
+      1,
+      71,
+      4
+    ],
+    "target": 568
+  },
+  {
+    "numbers": [
+      4,
+      3,
+      7,
+      58,
+      5,
+      29
+    ],
+    "target": 449
+  },
+  {
+    "numbers": [
+      7,
+      1,
+      4,
+      15,
+      9,
+      57
+    ],
+    "target": 405
+  },
+  {
+    "numbers": [
+      9,
+      7,
+      14,
+      3,
+      39,
+      6
+    ],
+    "target": 135
+  },
+  {
+    "numbers": [
+      9,
+      8,
+      30,
+      66,
+      4,
+      3
+    ],
+    "target": 373
+  },
+  {
+    "numbers": [
+      1,
+      9,
+      28,
+      7,
+      6,
+      83
+    ],
+    "target": 126
+  },
+  {
+    "numbers": [
+      6,
+      2,
+      41,
+      51,
+      7,
+      8
+    ],
+    "target": 834
+  },
+  {
+    "numbers": [
+      79,
+      29,
+      5,
+      7,
+      2,
+      4
+    ],
+    "target": 373
+  },
+  {
+    "numbers": [
+      21,
+      1,
+      2,
+      9,
+      62,
+      3
+    ],
+    "target": 182
+  },
+  {
+    "numbers": [
+      33,
+      5,
+      9,
+      95,
+      3,
+      7
+    ],
+    "target": 440
+  },
+  {
+    "numbers": [
+      5,
+      1,
+      55,
+      7,
+      48,
+      2
+    ],
+    "target": 307
+  },
+  {
+    "numbers": [
+      81,
+      7,
+      5,
+      70,
+      1,
+      8
+    ],
+    "target": 670
+  },
+  {
+    "numbers": [
+      7,
+      56,
+      59,
+      2,
+      3,
+      5
+    ],
+    "target": 231
+  },
+  {
+    "numbers": [
+      9,
+      70,
+      28,
+      7,
+      2,
+      1
+    ],
+    "target": 996
+  },
+  {
+    "numbers": [
+      5,
+      16,
+      9,
+      1,
+      97,
+      6
+    ],
+    "target": 980
+  },
+  {
+    "numbers": [
+      9,
+      37,
+      95,
+      3,
+      6,
+      4
+    ],
+    "target": 373
+  },
+  {
+    "numbers": [
+      1,
+      7,
+      43,
+      6,
+      3,
+      32
+    ],
+    "target": 666
+  },
+  {
+    "numbers": [
+      4,
+      5,
+      46,
+      84,
+      8,
+      6
+    ],
+    "target": 955
+  },
+  {
+    "numbers": [
+      1,
+      17,
+      6,
+      8,
+      15,
+      5
+    ],
+    "target": 391
+  },
+  {
+    "numbers": [
+      87,
+      1,
+      8,
+      2,
+      89,
+      3
+    ],
+    "target": 188
+  },
+  {
+    "numbers": [
+      6,
+      8,
+      53,
+      76,
+      5,
+      1
+    ],
+    "target": 915
+  },
+  {
+    "numbers": [
+      9,
+      94,
+      7,
+      60,
+      2,
+      6
+    ],
+    "target": 994
+  },
+  {
+    "numbers": [
+      4,
+      3,
+      14,
+      5,
+      46,
+      1
+    ],
+    "target": 336
+  },
+  {
+    "numbers": [
+      99,
+      2,
+      8,
+      7,
+      16,
+      5
+    ],
+    "target": 366
+  },
+  {
+    "numbers": [
+      24,
+      3,
+      6,
+      7,
+      55,
+      5
+    ],
+    "target": 238
+  },
+  {
+    "numbers": [
+      7,
+      3,
+      34,
+      5,
+      8,
+      92
+    ],
+    "target": 86
+  },
+  {
+    "numbers": [
+      73,
+      4,
+      2,
+      62,
+      7,
+      5
+    ],
+    "target": 499
+  },
+  {
+    "numbers": [
+      9,
+      2,
+      3,
+      5,
+      47,
+      68
+    ],
+    "target": 704
+  },
+  {
+    "numbers": [
+      6,
+      73,
+      47,
+      2,
+      7,
+      5
+    ],
+    "target": 102
+  },
+  {
+    "numbers": [
+      3,
+      55,
+      1,
+      7,
+      8,
+      34
+    ],
+    "target": 949
+  },
+  {
+    "numbers": [
+      2,
+      6,
+      8,
+      10,
+      9,
+      24
+    ],
+    "target": 806
+  },
+  {
+    "numbers": [
+      8,
+      1,
+      32,
+      80,
+      4,
+      6
+    ],
+    "target": 393
+  },
+  {
+    "numbers": [
+      6,
+      5,
+      61,
+      3,
+      98,
+      9
+    ],
+    "target": 734
+  },
+  {
+    "numbers": [
+      57,
+      4,
+      8,
+      1,
+      7,
+      91
+    ],
+    "target": 312
+  },
+  {
+    "numbers": [
+      12,
+      7,
+      8,
+      9,
+      82,
+      1
+    ],
+    "target": 395
+  },
+  {
+    "numbers": [
+      8,
+      6,
+      7,
+      95,
+      23,
+      2
+    ],
+    "target": 246
+  },
+  {
+    "numbers": [
+      9,
+      4,
+      14,
+      42,
+      1,
+      8
+    ],
+    "target": 528
+  },
+  {
+    "numbers": [
+      60,
+      5,
+      7,
+      72,
+      6,
+      2
+    ],
+    "target": 939
+  },
+  {
+    "numbers": [
+      2,
+      13,
+      6,
+      62,
+      3,
+      5
+    ],
+    "target": 417
+  },
+  {
+    "numbers": [
+      2,
+      6,
+      79,
+      81,
+      9,
+      1
+    ],
+    "target": 620
+  },
+  {
+    "numbers": [
+      57,
+      8,
+      1,
+      56,
+      5,
+      4
+    ],
+    "target": 343
+  },
+  {
+    "numbers": [
+      7,
+      8,
+      5,
+      4,
+      93,
+      44
+    ],
+    "target": 660
+  },
+  {
+    "numbers": [
+      3,
+      99,
+      5,
+      32,
+      4,
+      7
+    ],
+    "target": 189
+  },
+  {
+    "numbers": [
+      6,
+      9,
+      67,
+      51,
+      3,
+      7
+    ],
+    "target": 448
+  },
+  {
+    "numbers": [
+      2,
+      6,
+      9,
+      35,
+      49,
+      7
+    ],
+    "target": 896
+  },
+  {
+    "numbers": [
+      7,
+      8,
+      25,
+      59,
+      6,
+      3
+    ],
+    "target": 34
+  },
+  {
+    "numbers": [
+      47,
+      9,
+      3,
+      8,
+      23,
+      6
+    ],
+    "target": 60
+  },
+  {
+    "numbers": [
+      51,
+      8,
+      4,
+      30,
+      7,
+      9
+    ],
+    "target": 263
+  },
+  {
+    "numbers": [
+      9,
+      8,
+      23,
+      1,
+      7,
+      35
+    ],
+    "target": 25
+  },
+  {
+    "numbers": [
+      3,
+      9,
+      5,
+      6,
+      48,
+      79
+    ],
+    "target": 507
+  },
+  {
+    "numbers": [
+      6,
+      15,
+      9,
+      4,
+      1,
+      34
+    ],
+    "target": 516
+  },
+  {
+    "numbers": [
+      15,
+      2,
+      9,
+      49,
+      3,
+      8
+    ],
+    "target": 442
+  },
+  {
+    "numbers": [
+      1,
+      8,
+      7,
+      92,
+      49,
+      2
+    ],
+    "target": 481
+  },
+  {
+    "numbers": [
+      5,
+      3,
+      20,
+      84,
+      9,
+      7
+    ],
+    "target": 788
+  },
+  {
+    "numbers": [
+      6,
+      7,
+      52,
+      46,
+      2,
+      1
+    ],
+    "target": 898
+  },
+  {
+    "numbers": [
+      6,
+      85,
+      2,
+      96,
+      4,
+      9
+    ],
+    "target": 889
+  },
+  {
+    "numbers": [
+      10,
+      8,
+      80,
+      7,
+      9,
+      2
+    ],
+    "target": 218
+  },
+  {
+    "numbers": [
+      8,
+      5,
+      97,
+      7,
+      2,
+      38
+    ],
+    "target": 95
+  },
+  {
+    "numbers": [
+      1,
+      5,
+      49,
+      74,
+      6,
+      7
+    ],
+    "target": 829
+  },
+  {
+    "numbers": [
+      2,
+      6,
+      33,
+      5,
+      43,
+      9
+    ],
+    "target": 675
+  },
+  {
+    "numbers": [
+      3,
+      4,
+      6,
+      97,
+      5,
+      72
+    ],
+    "target": 875
+  },
+  {
+    "numbers": [
+      5,
+      23,
+      9,
+      29,
+      7,
+      3
+    ],
+    "target": 238
+  },
+  {
+    "numbers": [
+      8,
+      5,
+      4,
+      89,
+      58,
+      1
+    ],
+    "target": 318
+  },
+  {
+    "numbers": [
+      9,
+      5,
+      43,
+      3,
+      11,
+      2
+    ],
+    "target": 352
+  },
+  {
+    "numbers": [
+      56,
+      3,
+      1,
+      76,
+      6,
+      4
+    ],
+    "target": 726
+  },
+  {
+    "numbers": [
+      34,
+      97,
+      6,
+      7,
+      3,
+      9
+    ],
+    "target": 961
+  },
+  {
+    "numbers": [
+      1,
+      2,
+      5,
+      43,
+      21,
+      7
+    ],
+    "target": 744
+  },
+  {
+    "numbers": [
+      6,
+      4,
+      3,
+      21,
+      9,
+      93
+    ],
+    "target": 340
+  },
+  {
+    "numbers": [
+      18,
+      6,
+      4,
+      44,
+      7,
+      5
+    ],
+    "target": 834
+  },
+  {
+    "numbers": [
+      8,
+      5,
+      4,
+      10,
+      96,
+      7
+    ],
+    "target": 444
+  },
+  {
+    "numbers": [
+      66,
+      7,
+      1,
+      3,
+      75,
+      8
+    ],
+    "target": 116
+  },
+  {
+    "numbers": [
+      5,
+      18,
+      29,
+      9,
+      6,
+      2
+    ],
+    "target": 529
+  },
+  {
+    "numbers": [
+      4,
+      3,
+      14,
+      7,
+      8,
+      54
+    ],
+    "target": 915
+  },
+  {
+    "numbers": [
+      86,
+      7,
+      9,
+      3,
+      98,
+      6
+    ],
+    "target": 365
+  },
+  {
+    "numbers": [
+      85,
+      23,
+      7,
+      6,
+      3,
+      4
+    ],
+    "target": 252
+  },
+  {
+    "numbers": [
+      7,
+      9,
+      35,
+      8,
+      1,
+      79
+    ],
+    "target": 811
+  },
+  {
+    "numbers": [
+      98,
+      9,
+      4,
+      5,
+      3,
+      64
+    ],
+    "target": 181
+  },
+  {
+    "numbers": [
+      52,
+      4,
+      9,
+      32,
+      7,
+      6
+    ],
+    "target": 959
+  },
+  {
+    "numbers": [
+      4,
+      5,
+      44,
+      6,
+      82,
+      3
+    ],
+    "target": 480
+  },
+  {
+    "numbers": [
+      2,
+      3,
+      7,
+      25,
+      88,
+      1
+    ],
+    "target": 961
+  },
+  {
+    "numbers": [
+      43,
+      4,
+      3,
+      21,
+      7,
+      8
+    ],
+    "target": 499
+  },
+  {
+    "numbers": [
+      1,
+      47,
+      3,
+      5,
+      9,
+      46
+    ],
+    "target": 544
+  },
+  {
+    "numbers": [
+      1,
+      8,
+      4,
+      92,
+      75,
+      3
+    ],
+    "target": 928
+  },
+  {
+    "numbers": [
+      7,
+      1,
+      4,
+      25,
+      3,
+      12
+    ],
+    "target": 469
+  },
+  {
+    "numbers": [
+      9,
+      3,
+      95,
+      8,
+      43,
+      1
+    ],
+    "target": 691
+  },
+  {
+    "numbers": [
+      5,
+      3,
+      95,
+      6,
+      87,
+      2
+    ],
+    "target": 659
+  },
+  {
+    "numbers": [
+      4,
+      69,
+      8,
+      5,
+      3,
+      75
+    ],
+    "target": 532
+  },
+  {
+    "numbers": [
+      5,
+      80,
+      97,
+      8,
+      9,
+      4
+    ],
+    "target": 519
+  },
+  {
+    "numbers": [
+      5,
+      3,
+      6,
+      93,
+      7,
+      17
+    ],
+    "target": 631
+  },
+  {
+    "numbers": [
+      69,
+      4,
+      2,
+      1,
+      6,
+      92
+    ],
+    "target": 234
+  },
+  {
+    "numbers": [
+      25,
+      89,
+      1,
+      7,
+      3,
+      6
+    ],
+    "target": 436
+  },
+  {
+    "numbers": [
+      9,
+      8,
+      3,
+      19,
+      4,
+      11
+    ],
+    "target": 515
+  },
+  {
+    "numbers": [
+      52,
+      2,
+      92,
+      4,
+      3,
+      5
+    ],
+    "target": 63
+  }
+];
+
+    let selectedNums = [];
+    let currentNumbers = [];
+    let targetNumber = 0;
+    let currentOperation = null;
+    let history = [];
+    let gameOver = false;
+
+    function getRandomNumbers() {
+      const index = Math.floor(Math.random() * predefinedGames.length);
+      const game = predefinedGames[index];
+      targetNumber = game.target;
+      return [...game.numbers];
+    }
+
+    function renderNumbers() {
+      const container = document.getElementById("numbers");
+      container.innerHTML = "";
+      currentNumbers.forEach((num, i) => {
+        const el = document.createElement("div");
+        el.className = "number";
+        el.textContent = num !== null ? num : '';
+        if (num !== null && !gameOver) {
+          el.onclick = () => selectNumber(i, el);
+        }
+        container.appendChild(el);
+      });
+    }
+
+    function selectNumber(index, element) {
+      if (gameOver || currentNumbers[index] === null || selectedNums.includes(index)) return;
+      if (currentOperation === null) {
+        selectedNums = [];
+        clearNumberSelection();
+        element.classList.add("selected");
+        selectedNums.push(index);
+      } else if (selectedNums.length === 1) {
+        const i1 = selectedNums[0];
+        const i2 = index;
+        if (i1 === i2 || currentNumbers[i2] === null) return;
+
+        let n1 = currentNumbers[i1];
+        let n2 = currentNumbers[i2];
+        let result;
+
+        switch (currentOperation) {
+          case '+': result = n1 + n2; break;
+          case '-': result = n1 - n2; break;
+          case '*': result = n1 * n2; break;
+          case '/': result = n2 !== 0 ? n1 / n2 : null; break;
+        }
+
+        if (result !== null && !isNaN(result)) {
+          history.push([...currentNumbers]);
+          currentNumbers[i1] = result;
+          currentNumbers[i2] = null;
+          selectedNums = [];
+          currentOperation = null;
+          clearOperationSelection();
+          clearNumberSelection();
+
+          if (result === targetNumber) {
+            gameOver = true;
+            renderNumbers();
+            document.getElementById("result").textContent = `Resultado: ${result}`;
+            document.getElementById("message").textContent = "🎉 ¡LO LOGRASTE! ★★★";
+            return;
+          }
+
+          renderNumbers();
+          updateResult();
+        } else {
+          alert("Operación no válida.");
+        }
+      }
+    }
+
+    function clearNumberSelection() {
+      document.querySelectorAll('.number').forEach(num => num.classList.remove('selected'));
+    }
+
+    function selectOperation(op) {
+      if (gameOver) return;
+      if (selectedNums.length !== 1) {
+        alert("Primero selecciona un número.");
+        return;
+      }
+      clearOperationSelection();
+      currentOperation = op;
+      let opId = {
+        '+': 'op-add',
+        '-': 'op-sub',
+        '*': 'op-mul',
+        '/': 'op-div'
+      }[op];
+      document.getElementById(opId).classList.add('selected-op');
+    }
+
+    function clearOperationSelection() {
+      document.querySelectorAll('.operation').forEach(op => op.classList.remove('selected-op'));
+    }
+
+    function updateResult() {
+      const live = currentNumbers.filter(n => n !== null);
+      if (live.length === 1) {
+        const final = live[0];
+        document.getElementById("result").textContent = `Resultado: ${final}`;
+        let message = '';
+        if (final === targetNumber) {
+          gameOver = true;
+          message = "🎉 ¡LO LOGRASTE! ★★★";
+        } else {
+          const diff = Math.abs(final - targetNumber);
+          if (diff <= 10) {
+            message = "Juego terminado. Puntuación: ★★";
+          } else if (diff <= 25) {
+            message = "Juego terminado. Puntuación: ★";
+          } else {
+            message = "Juego terminado: no ha conseguido el número indicado";
+          }
+        }
+        document.getElementById("message").textContent = message;
+      }
+    }
+
+    function undoLast() {
+      if (gameOver || history.length === 0) return;
+      currentNumbers = history.pop();
+      selectedNums = [];
+      currentOperation = null;
+      clearOperationSelection();
+      clearNumberSelection();
+      document.getElementById("message").textContent = "Última operación deshecha.";
+      renderNumbers();
+      const live = currentNumbers.filter(n => n !== null);
+      document.getElementById("result").textContent = live.length === 1 ? `Resultado: ${live[0]}` : "Resultado: 0";
+    }
+
+    function resetGame() {
+      currentNumbers = getRandomNumbers();
+      selectedNums = [];
+      currentOperation = null;
+      history = [];
+      gameOver = false;
+      document.getElementById("target").textContent = targetNumber;
+      document.getElementById("result").textContent = "Resultado: 0";
+      document.getElementById("message").textContent = "";
+      clearOperationSelection();
+      clearNumberSelection();
+      renderNumbers();
+    }
+
+    // Inicializar el juego
+    resetGame();
+  </script>
+</body>
+</html>
+    <!-- FOOTER -->
+    <footer>
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+<p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+<h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+<p><strong>_______________________________________________</strong></p>
+<p>&nbsp;</p>
+<p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+<p>_______________________________________________</p>
