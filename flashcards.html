@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Flashcards Aleatorias - Optimizado</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #ffffff;
+    }
+
+    .flip-card {
+      background-color: transparent;
+      width: 300px;
+      height: 200px;
+      perspective: 1000px;
+      margin-bottom: 40px;
+    }
+
+    .flip-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.8s;
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .flip-card.flipped .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flip-card-front, .flip-card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      font-size: 1.2em;
+    }
+
+    .flip-card-front {
+      color: #e0e0e0;
+    }
+
+    .flip-card-back {
+      color: #90caf9;
+      transform: rotateY(180deg);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .buttons button {
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .success {
+      background-color: #2e7d32;
+      color: white;
+    }
+
+    .success:hover {
+      background-color: #388e3c;
+    }
+
+    .fail {
+      background-color: #c62828;
+      color: white;
+    }
+
+    .fail:hover {
+      background-color: #e53935;
+    }
+
+    .stats {
+      margin: 10px 0;
+    }
+
+    .restart-btn {
+      background-color: #1565c0;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .restart-btn:hover {
+      background-color: #1976d2;
+    }
+  </style>
+</head>
+<body>
+  <h1><span style="color: #000080;">Flashcards de Medicina Interna Veterinaria</span></h1>
+  <h2><span style="color: #339966;">Desarrollado por: Angel Soto</span></h2>
+
+
+  <div class="flip-card" id="card">
+    <div class="flip-card-inner" id="card-inner" onclick="toggleFlip()">
+      <div class="flip-card-front" id="question">Pregunta</div>
+      <div class="flip-card-back" id="answer">Respuesta</div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="success" onclick="handleAnswer(true)">He acertado</button>
+    <button class="fail" onclick="handleAnswer(false)">He fallado</button>
+  </div>
+
+  <div class="stats">
+    <p>Aciertos: <span id="correct">0</span> | Fallos: <span id="incorrect">0</span></p>
+    <p>Porcentaje de acierto: <span id="percentage">0</span>%</p>
+  </div>
+
+  <button class="restart-btn" onclick="restart()">Reiniciar</button>
+
+  <script>
+    // Flashcards originales (puedes ampliar o modificar este JSON)
+    const flashcardsOriginal = [
+  {
+    "question": "¿Antibiótico para Clostridium difficile?",
+    "answer": "Metronidazol"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Raza predispuesta a colapso traqueal?",
+    "answer": "Pomerania"
+  },
+  {
+    "question": "¿Raza predispuesta a enfermedad de Addison?",
+    "answer": "Caniche"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Microorganismo zoonótico en mordeduras felinas?",
+    "answer": "Pasteurella multocida"
+  },
+  {
+    "question": "¿Hallazgo clínico de hipocalcemia?",
+    "answer": "Tetania o espasmos musculares"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Antibiótico para Clostridium difficile?",
+    "answer": "Metronidazol"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Principal causa de otitis externa en perros?",
+    "answer": "Infección por Malassezia o bacterias"
+  },
+  {
+    "question": "¿Hallazgo clínico de hipocalcemia?",
+    "answer": "Tetania o espasmos musculares"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Antibiótico para Clostridium difficile?",
+    "answer": "Metronidazol"
+  },
+  {
+    "question": "¿Tipo de tumor más común en glándula mamaria de gatas?",
+    "answer": "Adenocarcinoma"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Principal causa de otitis externa en perros?",
+    "answer": "Infección por Malassezia o bacterias"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿Raza predispuesta a colapso traqueal?",
+    "answer": "Pomerania"
+  },
+  {
+    "question": "¿Qué estructura se visualiza con una prueba de fluoresceína?",
+    "answer": "Córnea"
+  },
+  {
+    "question": "¿Microorganismo zoonótico en mordeduras felinas?",
+    "answer": "Pasteurella multocida"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Hallazgo clínico de hipocalcemia?",
+    "answer": "Tetania o espasmos musculares"
+  },
+  {
+    "question": "¿Tipo de tumor más común en glándula mamaria de gatas?",
+    "answer": "Adenocarcinoma"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿Causa infecciosa común de uveítis anterior en gatos?",
+    "answer": "Toxoplasma gondii"
+  },
+  {
+    "question": "¿Tipo de tumor más común en glándula mamaria de gatas?",
+    "answer": "Adenocarcinoma"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Hallazgo clínico de hipocalcemia?",
+    "answer": "Tetania o espasmos musculares"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Marcador sérico de pancreatitis felina?",
+    "answer": "fPLI (lipasa pancreática felina)"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Principal causa de otitis externa en perros?",
+    "answer": "Infección por Malassezia o bacterias"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Electrolito que causa arritmias si está elevado?",
+    "answer": "Potasio"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Qué indica una hipocolesterolemia?",
+    "answer": "Síndrome de mala absorción o hepatopatía"
+  },
+  {
+    "question": "¿Qué estructura se visualiza con una prueba de fluoresceína?",
+    "answer": "Córnea"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Indicador específico de función renal en sangre?",
+    "answer": "Creatinina"
+  },
+  {
+    "question": "¿Agente etiológico de la enfermedad de Lyme?",
+    "answer": "Borrelia burgdorferi"
+  },
+  {
+    "question": "¿Alteración principal en hiperlipidemia?",
+    "answer": "Triglicéridos elevados"
+  },
+  {
+    "question": "¿Qué estructura se visualiza con una prueba de fluoresceína?",
+    "answer": "Córnea"
+  },
+  {
+    "question": "¿Qué estructura se visualiza con una prueba de fluoresceína?",
+    "answer": "Córnea"
+  },
+  {
+    "question": "¿Principal causa de colestasis extrahepática en perros?",
+    "answer": "Pancreatitis"
+  },
+  {
+    "question": "¿Tipo de tumor más común en glándula mamaria de gatas?",
+    "answer": "Adenocarcinoma"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Raza predispuesta a colapso traqueal?",
+    "answer": "Pomerania"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Indicador específico de función renal en sangre?",
+    "answer": "Creatinina"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Hallazgo clínico de hipocalcemia?",
+    "answer": "Tetania o espasmos musculares"
+  },
+  {
+    "question": "¿Raza predispuesta a enfermedad de Addison?",
+    "answer": "Caniche"
+  },
+  {
+    "question": "¿Qué causa acantosis nigricans en perros?",
+    "answer": "Hiperpigmentación secundaria a fricción o trastornos endocrinos"
+  },
+  {
+    "question": "¿Qué alteración sugiere una densidad diana en ecografía hepática?",
+    "answer": "Lesión nodular hepática"
+  },
+  {
+    "question": "¿Indicador específico de función renal en sangre?",
+    "answer": "Creatinina"
+  },
+  {
+    "question": "¿Principal causa de otitis externa en perros?",
+    "answer": "Infección por Malassezia o bacterias"
+  },
+  {
+    "question": "¿En qué enfermedad se observa poliglobulia?",
+    "answer": "Hemangiosarcoma o hipoxia crónica"
+  },
+  {
+    "question": "¿Microorganismo zoonótico en mordeduras felinas?",
+    "answer": "Pasteurella multocida"
+  },
+  {
+    "question": "¿Complicación común del linfoma intestinal?",
+    "answer": "Obstrucción o perforación intestinal"
+  },
+  {
+    "question": "¿Raza felina predispuesta a poliquistosis renal?",
+    "answer": "Persa"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Valor normal de fósforo en perros adultos?",
+    "answer": "3,3-5,7 mg/dl"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Raza felina predispuesta a poliquistosis renal?",
+    "answer": "Persa"
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Qué medicamento se usa para tratar hipertiroidismo en gatos?",
+    "answer": "Metimazol"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Raza felina predispuesta a poliquistosis renal?",
+    "answer": "Persa"
+  },
+  {
+    "question": "¿Valor normal de fósforo en perros adultos?",
+    "answer": "3,3-5,7 mg/dl"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Qué indica un aumento de GGT en gatos?",
+    "answer": "Colestasis o inducción en hígado"
+  },
+  {
+    "question": "¿Signo clínico de coagulopatía por intoxicación con warfarina?",
+    "answer": "Hemorragias espontáneas"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Principal función del hígado en la coagulación?",
+    "answer": "Síntesis de factores de coagulación"
+  },
+  {
+    "question": "¿Causa metabólica de convulsiones en neonatos?",
+    "answer": "Hipoglucemia"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Raza felina predispuesta a poliquistosis renal?",
+    "answer": "Persa"
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Principal función del hígado en la coagulación?",
+    "answer": "Síntesis de factores de coagulación"
+  },
+  {
+    "question": "¿Qué indica un aumento de GGT en gatos?",
+    "answer": "Colestasis o inducción en hígado"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Principal función del hígado en la coagulación?",
+    "answer": "Síntesis de factores de coagulación"
+  },
+  {
+    "question": "¿Qué indica un aumento de GGT en gatos?",
+    "answer": "Colestasis o inducción en hígado"
+  },
+  {
+    "question": "¿Dónde se encuentra el shunt portosistémico congénito con mayor frecuencia?",
+    "answer": "Entre vena porta y vena cava caudal"
+  },
+  {
+    "question": "¿Qué enzima hepática es inducida por corticosteroides?",
+    "answer": "Fosfatasa alcalina (ALP)"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Prueba confirmatoria para parvovirus canino?",
+    "answer": "ELISA de antígeno fecal"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Principal función del hígado en la coagulación?",
+    "answer": "Síntesis de factores de coagulación"
+  },
+  {
+    "question": "¿Principal patógeno urinario en perros?",
+    "answer": "Escherichia coli"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Signo clínico de coagulopatía por intoxicación con warfarina?",
+    "answer": "Hemorragias espontáneas"
+  },
+  {
+    "question": "¿Qué examen confirma hipocalcemia?",
+    "answer": "Calcio total o calcio iónico bajo"
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Causa metabólica de convulsiones en neonatos?",
+    "answer": "Hipoglucemia"
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Prueba confirmatoria para parvovirus canino?",
+    "answer": "ELISA de antígeno fecal"
+  },
+  {
+    "question": "¿Valor normal de fósforo en perros adultos?",
+    "answer": "3,3-5,7 mg/dl"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Qué examen confirma hipocalcemia?",
+    "answer": "Calcio total o calcio iónico bajo"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Qué examen confirma hipocalcemia?",
+    "answer": "Calcio total o calcio iónico bajo"
+  },
+  {
+    "question": "¿Agente causal de la peritonitis infecciosa felina?",
+    "answer": "Coronavirus felino mutado"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Qué enzima hepática es inducida por corticosteroides?",
+    "answer": "Fosfatasa alcalina (ALP)"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Qué enzima hepática es inducida por corticosteroides?",
+    "answer": "Fosfatasa alcalina (ALP)"
+  },
+  {
+    "question": "¿Causa metabólica de convulsiones en neonatos?",
+    "answer": "Hipoglucemia"
+  },
+  {
+    "question": "¿Qué medicamento se usa para tratar hipertiroidismo en gatos?",
+    "answer": "Metimazol"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Prueba confirmatoria para parvovirus canino?",
+    "answer": "ELISA de antígeno fecal"
+  },
+  {
+    "question": "¿Qué enzima hepática es inducida por corticosteroides?",
+    "answer": "Fosfatasa alcalina (ALP)"
+  },
+  {
+    "question": "¿Qué significa un tiempo de protrombina prolongado?",
+    "answer": "Déficit de factores de la coagulación"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Qué examen confirma hipocalcemia?",
+    "answer": "Calcio total o calcio iónico bajo"
+  },
+  {
+    "question": "¿Qué medicamento se usa para tratar hipertiroidismo en gatos?",
+    "answer": "Metimazol"
+  },
+  {
+    "question": "¿Causa metabólica de convulsiones en neonatos?",
+    "answer": "Hipoglucemia"
+  },
+  {
+    "question": "¿Causa metabólica de convulsiones en neonatos?",
+    "answer": "Hipoglucemia"
+  },
+  {
+    "question": "¿Causa de hipernatremia?",
+    "answer": "Deshidratación severa o diabetes insípida"
+  },
+  {
+    "question": "¿Valor normal de fósforo en perros adultos?",
+    "answer": "3,3-5,7 mg/dl"
+  },
+  {
+    "question": "¿Signo clínico de coagulopatía por intoxicación con warfarina?",
+    "answer": "Hemorragias espontáneas"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Principal vector de Leishmania infantum?",
+    "answer": "Phlebotomus spp."
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Principal patógeno urinario en perros?",
+    "answer": "Escherichia coli"
+  },
+  {
+    "question": "¿Tipo de arritmia frecuente en miocardiopatía dilatada?",
+    "answer": "Fibrilación auricular"
+  },
+  {
+    "question": "¿Qué indica un aumento de GGT en gatos?",
+    "answer": "Colestasis o inducción en hígado"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Qué provoca una anemia no regenerativa en gatos?",
+    "answer": "Enfermedad renal crónica"
+  },
+  {
+    "question": "¿Raza felina predispuesta a poliquistosis renal?",
+    "answer": "Persa"
+  },
+  {
+    "question": "¿Valor normal de fósforo en perros adultos?",
+    "answer": "3,3-5,7 mg/dl"
+  },
+  {
+    "question": "¿Qué enzima hepática es inducida por corticosteroides?",
+    "answer": "Fosfatasa alcalina (ALP)"
+  },
+  {
+    "question": "¿Tipo de tumor cardíaco más común en perros?",
+    "answer": "Hemangiosarcoma"
+  }
+];
+
+    let flashcards = [];
+    let currentIndex = 0;
+    let correct = 0;
+    let incorrect = 0;
+    let flipped = false;
+
+    const card = document.getElementById("card");
+    const questionElement = document.getElementById("question");
+    const answerElement = document.getElementById("answer");
+    const correctElement = document.getElementById("correct");
+    const incorrectElement = document.getElementById("incorrect");
+    const percentageElement = document.getElementById("percentage");
+
+    // Baraja el array (Fisher-Yates shuffle)
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function loadCard() {
+      if (currentIndex >= flashcards.length) {
+        questionElement.textContent = "¡Has completado todas las tarjetas!";
+        answerElement.textContent = "🎉";
+        card.classList.remove("flipped");
+        flipped = false;
+        return;
+      }
+
+      const cardData = flashcards[currentIndex];
+      questionElement.textContent = cardData.question;
+      answerElement.textContent = cardData.answer;
+      card.classList.remove("flipped");
+      flipped = false;
+    }
+
+    function toggleFlip() {
+      if (currentIndex < flashcards.length) {
+        flipped = !flipped;
+        card.classList.toggle("flipped", flipped);
+      }
+    }
+
+    function handleAnswer(isCorrect) {
+      if (currentIndex >= flashcards.length) return;
+
+      if (isCorrect) correct++;
+      else incorrect++;
+
+      updateStats();
+
+      if (flipped) {
+        card.classList.remove("flipped");
+        flipped = false;
+        setTimeout(() => {
+          currentIndex++;
+          loadCard();
+        }, 800); // espera a que termine el giro
+      } else {
+        currentIndex++;
+        loadCard();
+      }
+    }
+
+    function updateStats() {
+      correctElement.textContent = correct;
+      incorrectElement.textContent = incorrect;
+      const total = correct + incorrect;
+      percentageElement.textContent = total ? ((correct / total) * 100).toFixed(1) : "0";
+    }
+
+    function restart() {
+      flashcards = shuffle(flashcardsOriginal);
+      currentIndex = 0;
+      correct = 0;
+      incorrect = 0;
+      flipped = false;
+      updateStats();
+      loadCard();
+    }
+
+    // Inicializa la partida
+    restart();
+  </script>
+</body>
+</html>
+
+
+    <!-- FOOTER -->
+    <footer>
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+<p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+<h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+<p><strong>_______________________________________________</strong></p>
+<p>&nbsp;</p>
+<p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+<p>_______________________________________________</p>
