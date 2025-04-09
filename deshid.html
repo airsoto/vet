@@ -1,13 +1,28 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Calculadora de Deshidratación</title>
+  <title>Calculadora de Fluidoterapia</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      margin: 0;
       padding: 20px;
+      display: flex;
+      flex-direction: row;
+    }
+    .main, .resultado {
+      padding: 20px;
+    }
+    .main {
+      width: 60%;
+    }
+    .resultado {
+      width: 40%;
+      background-color: #1e1e1e;
+      border-left: 1px solid #333;
     }
     .section {
       margin-bottom: 20px;
@@ -16,10 +31,11 @@
       display: block;
       margin: 8px 0;
       padding: 10px;
-      width: 80%;
-      max-width: 500px;
+      width: 100%;
       border-radius: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
+      background-color: #222;
+      color: #e0e0e0;
       cursor: pointer;
       text-align: left;
     }
@@ -40,69 +56,118 @@
     .boton-calcular:hover {
       background-color: #0056b3;
     }
+    input, select {
+      background-color: #333;
+      border: 1px solid #555;
+      color: #fff;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
+<div class="main">
   <h1>Calculadora de Porcentaje de Deshidratación</h1>
-       <h3 class="centrado">Desarrollado por: Angel Soto</h3>
+  <h3 class="centrado">Desarrollado por: Angel Soto</h3>
+
 
   <div class="section">
     <h3>Selecciona los hallazgos del examen físico:</h3>
-    <button class="boton-opcion" onclick="seleccionar(this, '<5%')">Apariencia normal</button>
-    <button class="boton-opcion" onclick="seleccionar(this, '5–6%')">Mucosas ligeramente secas, pérdida temprana de elasticidad cutánea (pliegue cutáneo)</button>
-    <button class="boton-opcion" onclick="seleccionar(this, '7–8%')">Mucosas secas, pliegue cutáneo aumentado, posible tiempo de llenado capilar prolongado</button>
-    <button class="boton-opcion" onclick="seleccionar(this, '8–10%')">Mucosas secas, pliegue cutáneo disminuido, taquicardia leve con el ejercicio</button>
-    <button class="boton-opcion" onclick="seleccionar(this, '10–12%')">Mucosas secas, pliegue cutáneo disminuido, taquicardia, ojos hundidos</button>
-    <button class="boton-opcion" onclick="seleccionar(this, '>12%')">Shock hipovolémico; otros signos suelen estar presentes pero pueden no ser apreciables debido a su gravedad</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.05)">Apariencia normal (&lt;5%)</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.055)">Mucosas ligeramente secas (5–6%)</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.075)">Mucosas secas, pliegue aumentado (7–8%)</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.09)">Taquicardia leve, mucosas secas (8–10%)</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.11)">Ojos hundidos, taquicardia (10–12%)</button>
+    <button class="boton-opcion" onclick="seleccionar(this, 0.13)">Shock hipovolémico (&gt;12%)</button>
   </div>
 
   <div class="section">
-    <button class="boton-calcular" onclick="mostrarResultado()">Calcular % Deshidratación</button>
+    <label>Peso del paciente (kg):</label>
+    <input type="number" id="peso" step="0.1">
+
+    <label>Pérdidas adicionales (ml/día):</label>
+    <input type="number" id="perdidas" placeholder="Ej. 300">
+
+    <label>Potasemia (mEq/L):</label>
+    <input type="number" id="k" step="0.1" placeholder="Ej. 3.2">
+
+    <label>Horas para corregir el déficit:</label>
+    <input type="number" id="horas" value="6">
+
+    <button class="boton-calcular" onclick="calcularFluidoterapia()">Calcular Fluidoterapia</button>
   </div>
+</div>
+<div class="resultado">
+  <h2>Plan de Fluidoterapia</h2>
+  <div id="resultado"></div>
+</div>
 
-  <h2 id="resultado"></h2>
+<script>
+  let porcentaje = 0;
+  let botonActivo = null;
 
-  <script>
-    let seleccion = "";
-    let botonActivo = null;
+  function seleccionar(boton, valor) {
+    if (botonActivo) botonActivo.classList.remove("seleccionado");
+    boton.classList.add("seleccionado");
+    botonActivo = boton;
+    porcentaje = valor;
+  }
 
-    function seleccionar(boton, valor) {
-      if (botonActivo) {
-        botonActivo.classList.remove("seleccionado");
-      }
-      boton.classList.add("seleccionado");
-      botonActivo = boton;
-      seleccion = valor;
+  function ZeroDP(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  function calcularFluidoterapia() {
+    const peso = parseFloat(document.getElementById("peso").value);
+    const perdidas = parseFloat(document.getElementById("perdidas").value || 0);
+    const k = parseFloat(document.getElementById("k").value);
+    const horas = parseFloat(document.getElementById("horas").value);
+    const resultado = document.getElementById("resultado");
+
+    if (!peso || !porcentaje) {
+      resultado.innerHTML = "Por favor, introduce el peso y selecciona el % de deshidratación.";
+      return;
     }
 
-    function mostrarResultado() {
-      const resultado = document.getElementById("resultado");
-      if (seleccion) {
-        resultado.innerText = "Estimación de deshidratación: " + seleccion;
-      } else {
-        resultado.innerText = "Por favor, selecciona una opción.";
-      }
-    }
-  </script>
+    const deficit = ZeroDP(peso * porcentaje * 1000);
+    const mantenimiento = ZeroDP(Math.pow(peso, 0.75) * 132); // perros
+    const tasaDeficit = ZeroDP(deficit / horas);
+    const tasaMantenimiento = ZeroDP(mantenimiento / 24);
+    const tasaTotal = ZeroDP(tasaMantenimiento + (perdidas / 24));
+
+    let suplementoK = "";
+    if (k < 2.0) suplementoK = "50 mEq/L";
+    else if (k < 2.5) suplementoK = "40 mEq/L";
+    else if (k < 3.0) suplementoK = "30 mEq/L";
+    else if (k < 3.5) suplementoK = "20 mEq/L";
+    else if (k >= 3.5 && k < 6) suplementoK = "5 mEq/L";
+    else suplementoK = "No se recomienda KCl (potasemia normal/alta).";
+
+    resultado.innerHTML = `
+      <p><b>Déficit:</b> ${deficit} mL</p>
+      <p><b>Tasa de corrección:</b> ${tasaDeficit} mL/hora durante ${horas} h</p>
+      <p><b>Mantenimiento:</b> ${tasaMantenimiento} mL/h</p>
+      <p><b>Pérdidas adicionales:</b> ${perdidas} mL/día</p>
+      <p><b>Tasa total posterior:</b> ${tasaTotal} mL/h</p>
+      <p><b>Suplemento de KCl:</b> ${suplementoK}</p>
+    `;
+  }
+</script>
+
 </body>
 </html>
-
-
-
-
- 
- 
- </body>
-</html>
-
-
-<div class="creditos">
-  <h2>Desarrollado por:</h2>
-  <p>Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
-  <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café, puedes hacerlo aquí:</strong></p>
-  <p><a href="https://buymeacoffee.com/airsoto" target="_blank">BUY ME A COFFEE</a></p>
-  <h2>Licencia WTFPL</h2>
-  <p>Este proyecto está bajo la licencia <strong>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE</strong>.</p>
-  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto</p>
-  <p>0. You just DO WHAT THE FUCK YOU WANT TO.</p>
-</div>
+    <!-- FOOTER -->
+    <footer>
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+<p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+<h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+<p><strong>_______________________________________________</strong></p>
+<p>&nbsp;</p>
+<p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+<p>_______________________________________________</p>
