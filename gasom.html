@@ -1,0 +1,543 @@
+    
+    
+    
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+                <title>Art Gas - Cálculo de ABG</title>
+        <style>
+            /* MODO OSCURO */
+            body {
+                background-color: #121212;
+                color: #cccccc;
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+            }
+            h1, h2, h3 {
+                margin: 0.5em 0;
+            }
+            a {
+                color: #ff6f61;
+            }
+            input[type="text"] {
+                background-color: #2a2a2a;
+                color: #cccccc;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 0.2em;
+                width: 4em;
+                text-align: center;
+            }
+            input[type="button"], input[type="submit"] {
+                background-color: #444444;
+                color: #ffffff;
+                border: 1px solid #888;
+                border-radius: 4px;
+                padding: 0.5em 1em;
+                cursor: pointer;
+            }
+            input[type="radio"], input[type="checkbox"] {
+                transform: scale(1.2);
+                margin-right: 0.3em;
+            }
+            table {
+                border-collapse: collapse;
+                margin: 1em auto;
+            }
+            table, th, td {
+                border: 1px solid #444;
+            }
+            th, td {
+                text-align: center;
+                padding: 0.5em;
+            }
+            #container {
+                padding: 1em;
+                max-width: 700px;
+                margin: 0 auto;
+            }
+            #title {
+                text-align: center;
+                margin: 1em 0;
+            }
+    
+            /* Estilos del modal para la ventana de ayuda */
+            .modal {
+                display: none; 
+                position: fixed; 
+                z-index: 999; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                height: 100%; 
+                overflow: auto;
+                background-color: rgba(0, 0, 0, 0.7);
+                padding-top: 40px; 
+            }
+            .modal-content {
+                background-color: #1e1e1e;
+                margin: auto;
+                padding: 1em;
+                border: 1px solid #444;
+                width: 90%;
+                max-width: 800px;
+                color: #cccccc;
+                border-radius: 8px;
+            }
+            .close {
+                color: #cccccc;
+                float: right;
+                font-size: 1.3em;
+                font-weight: bold;
+                cursor: pointer;
+            }
+            .close:hover {
+                color: #ffffff;
+            }
+            .help-button {
+                margin: 1em 0;
+                display: inline-block;
+            }
+        </style>
+    
+        <script>
+        /*=================================================
+           FUNCIONES ORIGINALES DE CÁLCULO ABG
+        =================================================*/
+        function OneDP(n) {
+            var t = "" + Math.round(n * 10) / 10;
+            var i = t.indexOf('.');
+            if (i < 0) return t + ".0";
+            return t;
+        }
+    
+        function Calculate() {
+            var pH   = parseFloat(document.f.pH.value);
+            var PCO2 = parseFloat(document.f.PCO2.value);
+            var Na   = parseFloat(document.f.Na.value);
+            var Cl   = parseFloat(document.f.Cl.value);
+            var HCO3 = parseFloat(document.f.HCO3.value);
+            var Chronic = document.f.Chronic.checked;
+    
+            var analy = "<br>";
+            var modifier = "";
+    
+            if ((pH == "") || (pH <=0) || (isNaN(pH))) {
+                alert("Por favor, introduzca el pH.");
+                f.pH.focus();
+                f.pH.select();
+                return false;
+            }
+    
+            if ((PCO2 == "") || (PCO2 <=0) || (isNaN(PCO2))) {
+                alert("Por favor, introduzca el PCO2.");
+                f.PCO2.focus();
+                f.PCO2.select();
+                return false;
+            }
+    
+            if ((HCO3 == "") || (HCO3 <=0) || (isNaN(HCO3))) {
+                alert("Por favor, introduzca el HCO3.");
+                f.HCO3.focus();
+                f.HCO3.select();
+                return false;
+            }
+    
+            var pHLow, pHHigh, PCO2Low, PCO2High, HCO3Low, HCO3High;
+    
+            // Para "dog" vs "cat"
+            if (document.f.Species[0].checked) {
+                // Dog
+                pHLow = 7.35;
+                pHHigh = 7.46;
+                PCO2Low = 31;
+                PCO2High = 43;
+                HCO3Low = 19;
+                HCO3High = 26;
+            } else {
+                // Cat
+                pHLow = 7.31;
+                pHHigh = 7.46;
+                PCO2Low = 25;
+                PCO2High = 37;
+                HCO3Low = 14;
+                HCO3High = 22;
+            }
+    
+            /* LÓGICA DE ANÁLISIS */
+            if (pH < pHLow) {
+                // Acidemia
+                if (PCO2 > PCO2High) {
+                    var AHCO3 = (PCO2 - PCO2High) / 10;
+                    var CHCO3 = (PCO2 - PCO2High) / 2.86;
+                    if (Chronic) {
+                        if (HCO3 > (HCO3High + CHCO3)) modifier = "apropiada";
+                        else modifier = "inapropiada";
+                    } else {
+                        if (HCO3 > (HCO3High + AHCO3)) modifier = "apropiada";
+                        else modifier = "inapropiada";
+                    }
+                    analy += "Acidosis Respiratoria Primaria ";
+                    if (HCO3 > HCO3High) {
+                        analy += "con " + modifier + " compensación Metabólica<br>";
+                        analy += "HCO3 'apropiado' era > " + (HCO3High + AHCO3) 
+                                 + " (Aguda) o " + OneDP(HCO3High + CHCO3) + " (Crónica)";
+                    }
+                }
+                if (HCO3 < HCO3Low) {
+                    var PCO2tmp = (1.5 * HCO3) + 8;
+                    if (PCO2 < PCO2tmp) modifier = "apropiada";
+                    else modifier = "inapropiada";
+                    analy += "Acidosis Metabólica Primaria ";
+                    if (PCO2 < PCO2Low) {
+                        analy += "con " + modifier + " compensación Respiratoria<br>";
+                        analy += "PCO2 'apropiado' era < " + PCO2tmp;
+                    }
+                    if (pH < 7.2 || HCO3 < 14)
+                        analy += "<br><a href='Bicarb_Dosing.htm'>Considere terapia con Bicarbonato</a>";
+                }
+                if (PCO2 > PCO2High && HCO3 < HCO3Low)
+                    analy = "Acidosis Respiratoria Primaria + Acidosis Metabólica Primaria";
+                
+                if ((PCO2 > PCO2Low && PCO2 < PCO2High) && (HCO3 > HCO3Low && HCO3 < HCO3High))
+                    analy += "Acidemia con contribución desconocida (PCO2 y HCO3 normales)";
+                
+            } else if (pH > pHHigh) {
+                // Alkalosis
+                if (PCO2 < PCO2Low) {
+                    var AHCO3 = (PCO2Low - PCO2) / 5;
+                    var CHCO3 = (PCO2Low - PCO2) / 2;
+                    if (Chronic) {
+                        if (HCO3 < (HCO3Low - CHCO3)) modifier = "apropiada";
+                        else modifier = "inapropiada";
+                    } else {
+                        if (HCO3 < (HCO3Low - AHCO3)) modifier = "apropiada";
+                        else modifier = "inapropiada";
+                    }
+                    analy += "Alcalosis Respiratoria Primaria ";
+                    if (HCO3 < HCO3Low) {
+                        analy += "con " + modifier + " compensación Metabólica<br>";
+                        analy += "HCO3 'apropiado' era < " + (HCO3Low - AHCO3) 
+                                 + " (Aguda) o " + OneDP(HCO3Low - CHCO3) + " (Crónica)<br>";
+                    }
+                }
+                if (HCO3 > HCO3High) {
+                    var PCO2tmp = 40 + (0.7 * (HCO3 - HCO3Low));
+                    if (PCO2 > PCO2tmp) modifier = "apropiada";
+                    else modifier = "inapropiada";
+                    analy += "Alcalosis Metabólica Primaria ";
+                    if (PCO2 > PCO2High) {
+                        analy += "con " + modifier + " compensación Respiratoria<br>";
+                        analy += "PCO2 'apropiado' era > " + PCO2tmp;
+                    }
+                }
+                if (PCO2 < PCO2Low && HCO3 > HCO3High)
+                    analy = "Alcalosis Respiratoria Primaria + Alcalosis Metabólica Primaria";
+    
+                if ((PCO2 > PCO2Low && PCO2 < PCO2High) && (HCO3 > HCO3Low && HCO3 < HCO3High))
+                    analy += "Alcalemia con contribución desconocida (PCO2 y HCO3 normales)";
+            } else {
+                analy += "Gasometría dentro de rangos normales<br>";
+            }
+    
+            var AG = Na - (Cl + HCO3);
+            if (!isNaN(AG))
+                analy += "<br>Brecha Aniónica (AG) = " + AG;
+    
+            if (document.getElementById)
+                document.getElementById("test").innerHTML = "<font size='2'>" + analy + "</font>";
+            else
+                test.innerHTML = "<font size='2'>" + analy + "</font>";
+        }
+    
+        /*=================================================
+           FUNCIONES PARA CAMBIAR ENTRE CAT Y DOG
+        =================================================*/
+        function ToCat() {
+            var CatValue =
+              '<table width="100%" border="0" cellspacing="0" cellpadding="1">' +
+              '<tr><td><b><font size="2">Cat Normal</font></b></td><td><b><font size="2">Low</font></b></td><td><b><font size="2">High</font></b></td></tr>' +
+              '<tr><td><b><font size="2">pH</font></b></td><td><font size="2">7.31</font></td><td><font size="2">7.46</font></td></tr>' +
+              '<tr><td><b><font size="2">pCO2</font></b></td><td><font size="2">25</font></td><td><font size="2">37</font></td></tr>' +
+              '<tr><td><b><font size="2">HCO3</font></b></td><td><font size="2">14</font></td><td><font size="2">22</font></td></tr>' +
+              '</table>';
+            normal.innerHTML = CatValue;
+        }
+    
+        function ToDog() {
+            var DogValue =
+              '<table width="100%" border="0" cellspacing="0" cellpadding="1">' +
+              '<tr><td><b><font size="2">Dog Normal</font></b></td><td><b><font size="2">Low</font></b></td><td><b><font size="2">High</font></b></td></tr>' +
+              '<tr><td><b><font size="2">pH</font></b></td><td><font size="2">7.35</font></td><td><font size="2">7.46</font></td></tr>' +
+              '<tr><td><b><font size="2">pCO2</font></b></td><td><font size="2">31</font></td><td><font size="2">43</font></td></tr>' +
+              '<tr><td><b><font size="2">HCO3</font></b></td><td><font size="2">19</font></td><td><font size="2">26</font></td></tr>' +
+              '</table>';
+            normal.innerHTML = DogValue;
+        }
+    
+        /*=================================================
+           FUNCIONES PARA MOSTRAR/OCULTAR LA VENTANA DE AYUDA
+        =================================================*/
+        function mostrarAyuda() {
+            document.getElementById("helpModal").style.display = "block";
+        }
+    
+        function cerrarAyuda() {
+            document.getElementById("helpModal").style.display = "none";
+        }
+        </script>
+    </head>
+    
+    <body>
+    <div id="container">
+        <div id="title">
+            <h1>Calculadora de Gases Arteriales</h1>
+            <h2 style="text-align: center;">Desarrollado por: Angel Soto</h2>
+
+        </div>
+    
+        <form name="f" method="post" action="">
+            <table border="1" cellspacing="0" cellpadding="0">
+                <tr> 
+                    <td colspan="2">
+                        <div><b>
+                            <input type="radio" name="Species" value="Dog" checked onClick="ToDog()">
+                            Dog
+                            <input type="radio" name="Species" value="Cat" onClick="ToCat()">
+                            Cat
+                        </b></div>
+                    </td>
+                    <td colspan="2">
+                        <div><b>
+                            <input type="checkbox" name="Chronic" value="Chronic">
+                            Crónico
+                        </b></div>
+                    </td>
+                </tr>
+                <tr> 
+                    <td><b>pH</b></td>
+                    <td>
+                        <input type="text" name="pH" size="3">
+                    </td>
+                    <td><b>HCO<sub>3</sub></b></td>
+                    <td>
+                        <input type="text" name="HCO3" size="3">
+                    </td>
+                </tr>
+                <tr> 
+                    <td><b>P<sub>CO2</sub></b></td>
+                    <td>
+                        <input type="text" name="PCO2" size="3">
+                    </td>
+                    <td><b>Cl</b></td>
+                    <td>
+                        <input type="text" name="Cl" size="3">
+                    </td>
+                </tr>
+                <tr>
+                    <td><b>Na</b></td>
+                    <td>
+                        <input type="text" name="Na" size="3">
+                    </td>
+                    <td colspan="2">
+                        <input type="button" name="Analyze" value="Analizar" onClick="Calculate()">
+                    </td>
+                </tr>
+            </table>
+    
+            <div id="normal" style="margin: 1em 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="1">
+                    <tr> 
+                        <td><b><font size="2">Dog Normal</font></b></td>
+                        <td><b><font size="2">Low</font></b></td>
+                        <td><b><font size="2">High</font></b></td>
+                    </tr>
+                    <tr> 
+                        <td><b><font size="2">pH</font></b></td>
+                        <td><font size="2">7.35</font></td>
+                        <td><font size="2">7.46</font></td>
+                    </tr>
+                    <tr> 
+                        <td><b><font size="2">pCO2</font></b></td>
+                        <td><font size="2">31</font></td>
+                        <td><font size="2">43</font></td>
+                    </tr>
+                    <tr> 
+                        <td><b><font size="2">HCO3</font></b></td>
+                        <td><font size="2">19</font></td>
+                        <td><font size="2">26</font></td>
+                    </tr>
+                </table>
+            </div>
+    
+            <table border="0" cellspacing="0" cellpadding="1">
+                <tr>
+                    <td style="background-color:#222222;">
+                        <div id="test" align="left" style="padding:0.5em;"></div>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    
+        <div class="help-button">
+            <input type="button" value="Mostrar Ayuda Teórica" onClick="mostrarAyuda()">
+        </div>
+    </div>
+    
+    <!-- VENTANA MODAL DE AYUDA -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarAyuda()">&times;</span>
+            
+            <!-- CONTENIDO TEÓRICO (TEXTO DE LA SEGUNDA SECCIÓN) -->
+            <h2>Explicación (en español)</h2>
+            <p>
+                Este texto describe un enfoque sistemático para diagnosticar alteraciones ácido-base en tres pasos:
+            </p>
+            <ol>
+                <li>
+                    <strong>Identificar el trastorno más evidente (Step 1).</strong><br>
+                    Se compara el pH con el CO<sub>2</sub> y el HCO<sub>3</sub><sup>-</sup> para decidir si la alteración primaria es metabólica o respiratoria,
+                    así como si se trata de acidosis o alcalosis. Básicamente:
+                    <ul>
+                        <li><strong>Acidosis metabólica:</strong> pH bajo, HCO<sub>3</sub><sup>-</sup> bajo (primario), PCO<sub>2</sub> bajo (compensación secundaria).</li>
+                        <li><strong>Alcalosis metabólica:</strong> pH alto, HCO<sub>3</sub><sup>-</sup> alto (primario), PCO<sub>2</sub> alto (compensación secundaria).</li>
+                        <li><strong>Acidosis respiratoria:</strong> pH bajo, PCO<sub>2</sub> alto (primario), HCO<sub>3</sub><sup>-</sup> alto (compensación secundaria).</li>
+                        <li><strong>Alcalosis respiratoria:</strong> pH alto, PCO<sub>2</sub> bajo (primario), HCO<sub>3</sub><sup>-</sup> bajo (compensación secundaria).</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Aplicar fórmulas para verificar la compensación (Step 2).</strong><br>
+                    Se utilizan fórmulas que estiman los valores de PCO<sub>2</sub> o HCO<sub>3</sub><sup>-</sup> que deberían esperarse ante un trastorno primario.
+                    Si la compensación real difiere de la esperada, puede indicar la presencia de un segundo trastorno ácido-base.
+                </li>
+                <li>
+                    <strong>Calcular la brecha aniónica (Step 3).</strong><br>
+                    Permite identificar acidosis metabólicas de tipo hiperclorémico (brecha aniónica normal) frente a aquellas con brecha aniónica alta
+                    (como en la acidosis láctica o en la cetoacidosis). Se calcula restando la suma de cloruros (Cl<sup>-</sup>) y bicarbonato (HCO<sub>3</sub><sup>-</sup>)
+                    de la concentración de sodio (Na<sup>+</sup>).
+                </li>
+            </ol>
+            <p>
+                En resumen, estos pasos ayudan a diferenciar cuál es el trastorno primario, si existe una compensación apropiada o no,
+                y si se acompaña de una brecha aniónica elevada, lo cual es útil para diagnosticar distintos tipos de acidosis.
+            </p>
+    
+            <hr>
+    
+            <h2>Texto original traducido al español</h2>
+            <h3>Paso 1: Identificar el trastorno más evidente</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Trastorno</th>
+                        <th>pH</th>
+                        <th>PCO<sub>2</sub></th>
+                        <th>HCO<sub>3</sub><sup>-</sup></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Acidosis Metabólica</td>
+                        <td>-</td>
+                        <td>- (2o)</td>
+                        <td>- (1o)</td>
+                    </tr>
+                    <tr>
+                        <td>Alcalosis Metabólica</td>
+                        <td>+</td>
+                        <td>+ (2o)</td>
+                        <td>+ (1o)</td>
+                    </tr>
+                    <tr>
+                        <td>Acidosis Respiratoria</td>
+                        <td>-</td>
+                        <td>+ (1o)</td>
+                        <td>+ (2o)</td>
+                    </tr>
+                    <tr>
+                        <td>Alcalosis Respiratoria</td>
+                        <td>+</td>
+                        <td>- (1o)</td>
+                        <td>- (2o)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="note">
+                El signo "+" indica que el valor está elevado por encima de lo normal.<br>
+                El signo "–" indica que el valor está disminuido por debajo de lo normal.<br>
+                (1o) se refiere a la alteración primaria.<br>
+                (2o) se refiere a la compensación secundaria.
+            </p>
+            <h3>Paso 2: Aplicar las fórmulas para determinar si la compensación es apropiada</h3>
+            <p>Si no lo es, existe un segundo trastorno concomitante.</p>
+            <ul>
+                <li><strong>Acidosis metabólica:</strong><br>
+                    PCO<sub>2</sub> = 1.5 × [HCO<sub>3</sub><sup>-</sup>] + 8
+                </li>
+                <li><strong>Alcalosis metabólica:</strong><br>
+                    PCO<sub>2</sub> = 40 + 0.7 × ([HCO<sub>3</sub><sup>-</sup> (medido)] - [HCO<sub>3</sub><sup>-</sup> (normal)])
+                </li>
+                <li><strong>Acidosis respiratoria:</strong>
+                    <ul>
+                        <li><strong>Aguda:</strong> el [HCO<sub>3</sub><sup>-</sup>] aumenta 1 mEq/L por cada aumento de 10 mm Hg en PCO<sub>2</sub>.</li>
+                        <li><strong>Crónica:</strong> el [HCO<sub>3</sub><sup>-</sup>] aumenta 3.5 mEq/L por cada aumento de 10 mm Hg en PCO<sub>2</sub>.</li>
+                    </ul>
+                </li>
+                <li><strong>Alcalosis respiratoria:</strong>
+                    <ul>
+                        <li><strong>Aguda:</strong> el [HCO<sub>3</sub><sup>-</sup>] disminuye 2 mEq/L por cada disminución de 10 mm Hg en PCO<sub>2</sub>.</li>
+                        <li><strong>Crónica:</strong> el [HCO<sub>3</sub><sup>-</sup>] disminuye 5 mEq/L por cada disminución de 10 mm Hg en PCO<sub>2</sub>.</li>
+                    </ul>
+                </li>
+            </ul>
+            <h3>Paso 3: Calcular la brecha aniónica</h3>
+            <ul>
+                <li>AG = [Na<sup>+</sup>] - ([Cl<sup>-</sup>] + [HCO<sub>3</sub><sup>-</sup>])</li>
+                <li>La brecha aniónica normal es de 9-16 mEq/L</li>
+                <li>Si AG &gt; 20 mEq/L, probablemente exista una acidosis de brecha alta.</li>
+                <li>Si AG &gt; 30 mEq/L, casi con certeza existe una acidosis de brecha alta.</li>
+                <li>Para la acidosis láctica, la relación entre el aumento de la brecha aniónica y la disminución del HCO<sub>3</sub><sup>-</sup> 
+                    promedia aproximadamente 1.5.</li>
+                <li>En la cetoacidosis, la relación entre el aumento de la brecha aniónica y la disminución del HCO<sub>3</sub><sup>-</sup> 
+                    promedia aproximadamente 1.0.</li>
+            </ul>
+            <p><strong>Fuente:</strong> UCD Emergency &amp; Critical Care group.</p>
+    
+        </div>
+    </div>
+    
+    </body>
+    </html>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <!-- FOOTER -->
+    <footer>
+        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
