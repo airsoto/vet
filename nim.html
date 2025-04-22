@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Juego Nim</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #f9f7c4, #fceabb);
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      color: #4d2c91;
+    }
+
+    #turno {
+      font-size: 1.3em;
+      margin-bottom: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .row {
+      margin: 30px 0;
+    }
+
+    .stick {
+      display: inline-block;
+      width: 20px;
+      height: 100px;
+      background-color: #66ccff;
+      margin: 5px;
+      border-radius: 5px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    .stick:hover {
+      transform: scale(1.1);
+    }
+
+    .stick.selected {
+      background-color: gray;
+      transform: translateY(-10px);
+    }
+
+    button {
+      padding: 12px 30px;
+      font-size: 16px;
+      margin: 10px 10px;
+      border: none;
+      background-color: #4d2c91;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #734dc2;
+    }
+
+    #inicioModal, #instruccionesModal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.4);
+      max-width: 400px;
+      text-align: center;
+    }
+
+    #inicioModal h2, #instruccionesModal h2 {
+      margin-bottom: 20px;
+      color: #4d2c91;
+    }
+
+    .close-button {
+      margin-top: 20px;
+      background-color: #f79520;
+    }
+
+    .close-button:hover {
+      background-color: #fbbb4a;
+    }
+
+    #instruccionesModal {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Modal de inicio -->
+  <div id="inicioModal">
+    <div class="modal-content">
+      <h2>¿Quién comienza?</h2>
+      <button onclick="iniciarJuego(true)">Jugador</button>
+      <button onclick="iniciarJuego(false)">Don Rogelio</button>
+    </div>
+  </div>
+
+  <!-- Modal de instrucciones -->
+  <div id="instruccionesModal">
+    <div class="modal-content">
+      <h2>Instrucciones</h2>
+      <p>¡Bienvenido al Juego de Nim!</p>
+      <p>Tú y Don Rogelio se turnan para quitar palitos de una sola fila por turno.</p>
+      <p>Pierde quien quite el último palo. ¡Buena suerte!</p>
+      <button class="close-button" onclick="cerrarInstrucciones()">Cerrar</button>
+    </div>
+  </div>
+
+  <h1>Juego Nim</h1>
+
+<h2>Desarrollado por: Angel Soto</h2>
+  <p id="turno">Esperando selección...</p>
+
+  <button onclick="mostrarInstrucciones()">Instrucciones</button>
+  <div id="filas"></div>
+  <button onclick="confirmarSeleccion()">Confirmar Selección</button>
+
+  <script>
+    let filas = [3, 5, 7];
+    const seleccionadas = [0, 0, 0];
+    let turnoJugador = true;
+    let filaActual = null;
+
+    function iniciarJuego(empiezaJugador) {
+      turnoJugador = empiezaJugador;
+      document.getElementById('inicioModal').style.display = 'none';
+      renderizarFilas();
+      if (!turnoJugador) {
+        setTimeout(turnoComputadora, 1000);
+      }
+    }
+
+    function renderizarFilas() {
+      const contenedor = document.getElementById('filas');
+      contenedor.innerHTML = '';
+      filas.forEach((cantidad, i) => {
+        const filaDiv = document.createElement('div');
+        filaDiv.className = 'row';
+        for (let j = 0; j < cantidad; j++) {
+          const stick = document.createElement('div');
+          stick.className = 'stick';
+          stick.dataset.fila = i;
+          stick.dataset.indice = j;
+          stick.onclick = () => seleccionarPalo(i, j, stick);
+          filaDiv.appendChild(stick);
+        }
+        contenedor.appendChild(filaDiv);
+      });
+      document.getElementById('turno').textContent = turnoJugador ? 'Turno del Jugador' : 'Turno de Don Rogelio';
+    }
+
+    function seleccionarPalo(fila, index, stickDiv) {
+      if (!turnoJugador) return;
+      if (filaActual === null || filaActual === fila) {
+        const filaSticks = document.querySelectorAll(`.stick[data-fila="${fila}"]`);
+        if (!filaSticks[index].classList.contains('selected')) {
+          filaSticks[index].classList.add('selected');
+          seleccionadas[fila]++;
+          filaActual = fila;
+        }
+      } else {
+        alert("Solo puedes seleccionar palos de una fila por turno.");
+      }
+    }
+
+    function confirmarSeleccion() {
+      if (!turnoJugador) return;
+      if (seleccionadas.reduce((a, b) => a + b, 0) === 0) {
+        alert("Debes seleccionar al menos un palo.");
+        return;
+      }
+      seleccionadas.forEach((sel, i) => {
+        filas[i] -= sel;
+        seleccionadas[i] = 0;
+      });
+      filaActual = null;
+      if (filas.reduce((a, b) => a + b, 0) === 0) {
+        renderizarFilas();
+        alert("¡Has perdido! Quitaste el último palo.");
+        return;
+      }
+      turnoJugador = false;
+      renderizarFilas();
+      setTimeout(turnoComputadora, 1000);
+    }
+
+    function nimSum() {
+      return filas.reduce((a, b) => a ^ b, 0);
+    }
+
+    function turnoComputadora() {
+      const suma = nimSum();
+      const filasActivas = filas.map((v, i) => [i, v]).filter(([_, v]) => v > 0);
+
+      if (filasActivas.length === 2) {
+        let [i1, v1] = filasActivas[0];
+        let [i2, v2] = filasActivas[1];
+
+        if (v1 === v2) {
+          filas[i1] -= 1;
+        } else if (v1 === 1 || v2 === 1) {
+          if (v1 > 1) filas[i1] = 0;
+          else filas[i2] = 0;
+        } else {
+          if (v1 > v2) filas[i1] = v2;
+          else filas[i2] = v1;
+        }
+      } else if (suma !== 0) {
+        for (let [i, v] of filasActivas) {
+          let nuevo = v ^ suma;
+          if (nuevo < v) {
+            filas[i] = nuevo;
+            break;
+          }
+        }
+      } else {
+        filas[filasActivas[0][0]] -= 1;
+      }
+
+      if (filas.reduce((a, b) => a + b, 0) === 0) {
+        renderizarFilas();
+        alert("¡Has ganado! Don Rogelio quitó el último palo.");
+        return;
+      }
+
+      turnoJugador = true;
+      renderizarFilas();
+    }
+
+    function mostrarInstrucciones() {
+      document.getElementById('instruccionesModal').style.display = 'flex';
+    }
+
+    function cerrarInstrucciones() {
+      document.getElementById('instruccionesModal').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
+
+
+
+
+</html>
+</body>
+</html>
+
+<a href="palitos.py">
+    <p>Descarga el código en python<p>
+  </div>
+</a>
+</div>
+
+
+<h2>Creado por:</h2>
+<p>Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;, puedes hacerlo aqu&iacute;:</strong></p>
+<p style="text-align: center;"><strong><a href="https://buymeacoffee.com/airsoto">BUY ME A COFFEE</a></strong></p>
+<p style="text-align: center;">&nbsp;</p>
+</html>
+
+<h2>Proyecto con licencia WTFPL</h2>
+<p>Este proyecto est&aacute; bajo la licencia <strong>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE</strong>.</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) [2025] [Angel Soto]</p>
+<p>&nbsp;</p>
+<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document, and changing it is allowed as long as the name is changed.</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION</p>
+<p>&nbsp;</p>
+<p>0. You just DO WHAT THE FUCK YOU WANT TO.</p>
+<p>&nbsp;</p>
+<p>
