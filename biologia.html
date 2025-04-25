@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Flashcards Aleatorias - Optimizado</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #ffffff;
+    }
+
+    .flip-card {
+      background-color: transparent;
+      width: 500px;
+      height: 300px;
+      perspective: 1000px;
+      margin-bottom: 40px;
+    }
+
+    .flip-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.8s;
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .flip-card.flipped .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flip-card-front, .flip-card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+      font-size: 1.8em;
+    }
+
+    .flip-card-front {
+      color: #e0e0e0;
+    }
+
+    .flip-card-back {
+      color: #90caf9;
+      transform: rotateY(180deg);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .buttons button {
+      padding: 12px 24px;
+      font-size: 1.1em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .success {
+      background-color: #2e7d32;
+      color: white;
+    }
+
+    .success:hover {
+      background-color: #388e3c;
+    }
+
+    .fail {
+      background-color: #c62828;
+      color: white;
+    }
+
+    .fail:hover {
+      background-color: #e53935;
+    }
+
+    .stats {
+      margin: 10px 0;
+      font-size: 1.2em;
+    }
+
+    .restart-btn {
+      background-color: #1565c0;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      cursor: pointer;
+    }
+
+    .restart-btn:hover {
+      background-color: #1976d2;
+    }
+
+    footer {
+      margin-top: 50px;
+      text-align: center;
+      font-size: 0.9em;
+    }
+
+    footer a {
+      color: #00ccff;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<h1><span style="color: #00ccff;">Flashcards de BIOLOGÍA</span></h1>
+<h2><span style="color: #339966;">Desarrollado por: Angel Soto</span></h2>
+
+<div class="flip-card" id="card">
+  <div class="flip-card-inner" id="card-inner" onclick="toggleFlip()">
+    <div class="flip-card-front" id="question">Pregunta</div>
+    <div class="flip-card-back" id="answer">Respuesta</div>
+  </div>
+</div>
+
+<div class="buttons">
+  <button class="success" onclick="handleAnswer(true)">He acertado</button>
+  <button class="fail" onclick="handleAnswer(false)">He fallado</button>
+</div>
+
+<div class="stats">
+  <p>Aciertos: <span id="correct">0</span> | Fallos: <span id="incorrect">0</span></p>
+  <p>Porcentaje de acierto: <span id="percentage">0</span>%</p>
+</div>
+
+<button class="restart-btn" onclick="restart()">Reiniciar</button>
+
+<script>
+  const flashcardsOriginal = [
+  {
+    "question": "¿Qué es la biología?",
+    "answer": "La ciencia que estudia la vida y los seres vivos."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida?",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo?",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía?",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué es el ADN?",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética?",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la mitosis?",
+    "answer": "Proceso de división celular que genera células hijas idénticas."
+  },
+  {
+    "question": "¿Qué es la homeostasis?",
+    "answer": "Mantenimiento del equilibrio interno del organismo."
+  },
+  {
+    "question": "¿Qué es un virus?",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética?",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Qué es la teoría celular?",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN?",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas?",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la selección natural?",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula?",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos?",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué son los alelos?",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de mutación cambia una sola base del ADN?",
+    "answer": "Mutación puntual."
+  },
+  {
+    "question": "¿Qué es la meiosis?",
+    "answer": "División celular que genera células sexuales con la mitad del ADN."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea?",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (6)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué son los alelos? (88)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (47)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (6) (100)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué son los alelos? (22)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es el ADN? (97)",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética? (67)",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (38)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué es el ADN? (26)",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué son los alelos? (87)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (10)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (22)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (16)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (68)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (100)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (47) (32)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (44)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87) (54)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (53)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (36)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (34)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (74)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (55)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (4)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (85)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (65)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (11)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (22) (87)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (95)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es un virus? (58)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (76)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (11) (66)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (80)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (54)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (73)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (48)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (22)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (4)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (31)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93) (69)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (95) (41)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la homeostasis? (4)",
+    "answer": "Mantenimiento del equilibrio interno del organismo."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (96)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (69)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (6)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (1)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93) (53)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (2)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (17)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es el ADN? (40)",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (17)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (68) (44)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (50)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (17) (25)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (4)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué son los alelos? (87) (48)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es un virus? (58)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93) (69) (45)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (97)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (49)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87) (54) (86)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (95) (41) (46)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (50)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (73)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es la homeostasis? (4) (54)",
+    "answer": "Mantenimiento del equilibrio interno del organismo."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (4) (16)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (23)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (22)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (75)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (22) (46)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (8)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (22) (87) (20)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (35)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (56)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (50)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (88)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (67)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (12)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (31) (93)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (53) (60)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (17) (50)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (59)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (22) (50)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética? (67) (55)",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (55) (57)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100) (49)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (8) (62)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (34) (85)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13) (17)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87) (73)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (16) (27)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (1)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (97) (72)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (62)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (50) (60)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (95)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (49) (78)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (10)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (22) (50) (31)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (11) (66) (82)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (1) (37)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (97)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (22) (67)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (68) (28)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100) (49) (92)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (85) (22)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (16) (23)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (96)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (20)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (49) (39)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (53) (60) (48)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87) (54) (86) (25)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (62) (81)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (77)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (97) (84)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100) (49) (89)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (85) (31)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (55) (35)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la homeostasis? (67)",
+    "answer": "Mantenimiento del equilibrio interno del organismo."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (45)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (95) (75)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100) (49) (92) (53)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95) (32)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es el ADN? (40) (19)",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (46)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué son los alelos? (17) (83)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (44) (71)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (17) (50) (96)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (100) (9)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es el ADN? (50)",
+    "answer": "El ácido desoxirribonucleico, portador de la información genética."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (49) (39) (15)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (17) (50) (96) (96)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (17) (83) (67)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (45) (90)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (95)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética? (67) (15)",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (84)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (26)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Qué es un virus? (43)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (95) (83)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (20) (30)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (20) (30) (42)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13) (17) (2)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (4) (65)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (70)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (48) (12)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (26) (93)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (84) (55)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la selección natural? (35)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (23) (97)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (67)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (34) (81)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (48) (12) (54)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (70)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (11) (66) (17)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95) (32) (91)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (10) (94)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (54) (84)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (74)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (38) (55)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (44) (27)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (95) (41) (61)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13) (15)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (4) (7)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (12) (82)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (67) (97)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (9)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (65) (86)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (80)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (80) (70)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13) (17) (2) (48)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (85)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (75) (33)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (62) (25)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (90)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (87) (54) (86) (84)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (97) (84) (62)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (35) (41)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (36) (6)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (68)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué son los alelos? (17) (83) (19)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética? (67) (69)",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (22) (13)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (53) (49) (39) (15) (99)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (16) (23) (90)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué es la mitosis? (25)",
+    "answer": "Proceso de división celular que genera células hijas idénticas."
+  },
+  {
+    "question": "¿Qué son los alelos? (87) (9)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (6) (33)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué son los alelos? (88)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (13) (50) (93)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (53) (60) (48)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (35) (41) (29)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué son los alelos? (88) (33)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (51)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (34) (85) (59)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (1) (95) (41) (46) (17)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (97) (84) (7)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué es la meiosis? (76)",
+    "answer": "División celular que genera células sexuales con la mitad del ADN."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (68) (86)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula tiene orgánulos membranosos? (63) (100) (49) (89) (22)",
+    "answer": "La célula eucariota."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (85) (22) (32)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (75) (56)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (46)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué son los alelos? (22) (13) (80)",
+    "answer": "Formas alternativas de un mismo gen."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (9) (22)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (2)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (67) (44)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (11) (66) (17) (8)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93) (57)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (65) (44)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95) (80)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (36) (6) (51)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (93) (79)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95) (80) (37)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué es la homeostasis? (4) (54) (49)",
+    "answer": "Mantenimiento del equilibrio interno del organismo."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (4) (15)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (1)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (46) (28)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (12) (40)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (22) (20)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (67) (97) (32)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (86) (95) (80) (37) (87)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (60) (62) (84) (55) (13)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (75) (81)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (5) (13) (15) (79)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (67) (44) (32)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué orgánulo celular produce energía? (15)",
+    "answer": "La mitocondria."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (50) (45)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Quién propuso las leyes de la herencia genética? (6) (100) (65)",
+    "answer": "Gregor Mendel."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (62) (36) (6) (32)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (49) (77)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (77) (60)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Qué es la selección natural? (87) (30) (55) (68)",
+    "answer": "Proceso por el cual los organismos mejor adaptados sobreviven."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (51)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué tipo de célula no tiene núcleo? (17) (85) (37)",
+    "answer": "La célula procariota."
+  },
+  {
+    "question": "¿Qué caracteriza a los organismos del dominio Archaea? (85) (22) (32) (59)",
+    "answer": "Son procariotas que viven en ambientes extremos."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (55) (49)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué proceso convierte el ADN en ARN? (83) (87) (71) (28) (86) (22) (31)",
+    "answer": "La transcripción."
+  },
+  {
+    "question": "¿Qué es la mitosis? (92)",
+    "answer": "Proceso de división celular que genera células hijas idénticas."
+  },
+  {
+    "question": "¿Qué tipo de reproducción genera variabilidad genética? (67) (32)",
+    "answer": "La reproducción sexual."
+  },
+  {
+    "question": "¿Qué es un virus? (58) (93) (21) (70) (47)",
+    "answer": "Una entidad biológica que necesita infectar células para reproducirse."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (34) (64)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (73) (54)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Qué tipo de ARN lleva la información genética a los ribosomas? (42) (50) (60) (53)",
+    "answer": "El ARN mensajero."
+  },
+  {
+    "question": "¿Qué estructura regula el paso de sustancias en la célula? (26) (39)",
+    "answer": "La membrana plasmática."
+  },
+  {
+    "question": "¿Cuál es la unidad básica de la vida? (4) (97) (84) (30)",
+    "answer": "La célula."
+  },
+  {
+    "question": "¿Qué es la teoría celular? (5) (75) (10) (94) (2)",
+    "answer": "Postula que todos los seres vivos están formados por células."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (371)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es el ARN? (892)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (414)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (664)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (482)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es el ARN? (230)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (390)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué es un tejido? (877)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (512)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (276)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (628)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es una enzima? (631)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es el ARN? (871)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es el genoma? (665)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es el ARN? (801)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es un organismo unicelular? (131)",
+    "answer": "Aquel formado por una sola célula."
+  },
+  {
+    "question": "¿Qué es el genoma? (732)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (590)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (157)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es un tejido? (571)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (770)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (746)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (240)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es un tejido? (948)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (781)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (210)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (898)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (935)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (877)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (127)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es el ARN? (115)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es un tejido? (210)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (466)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (285)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (417)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es un tejido? (239)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (624)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (663)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (827)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (300)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (815)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (475)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (665)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (510)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (240)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (814)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (338)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (911)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (402)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (874)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (741)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (604)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (877)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (985)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es un organismo unicelular? (235)",
+    "answer": "Aquel formado por una sola célula."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (351)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (885)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (875)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué es una enzima? (690)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es el genoma? (545)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (873)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (510)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es el ARN? (655)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (992)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (627)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (907)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (122)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (539)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (441)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es el genoma? (911)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (360)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (444)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es el ARN? (169)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué significa diploide? (944)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es el genoma? (172)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (199)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es un tejido? (811)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (430)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué significa diploide? (542)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es el ARN? (970)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (423)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué significa diploide? (812)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (660)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (462)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (268)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué es el genoma? (225)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué significa diploide? (519)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es un tejido? (195)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (778)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (423)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (847)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué es el genoma? (619)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (281)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (451)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (410)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (687)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (932)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (250)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (202)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es el genoma? (148)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (269)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (869)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué significa diploide? (667)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es el ARN? (365)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (944)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (542)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (494)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es una enzima? (861)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (330)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (336)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (822)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (842)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (702)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (302)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es una enzima? (717)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (423)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (499)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (453)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es el ARN? (723)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es una enzima? (424)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (532)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (731)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (124)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (460)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (966)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué significa diploide? (109)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (353)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (198)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (289)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (751)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué es un tejido? (486)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (499)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (975)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (569)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es una enzima? (764)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (679)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es el genoma? (588)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (765)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (122)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (906)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es un organismo unicelular? (968)",
+    "answer": "Aquel formado por una sola célula."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (826)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (438)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (782)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (834)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (634)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (625)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es una enzima? (188)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (856)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (827)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (339)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (701)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (576)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es un tejido? (183)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (435)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué significa diploide? (858)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (442)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (568)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es un organismo unicelular? (590)",
+    "answer": "Aquel formado por una sola célula."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (684)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (212)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es una enzima? (490)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es el genoma? (570)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué significa diploide? (791)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es un tejido? (832)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es una enzima? (733)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (885)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (106)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (954)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es un tejido? (925)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (994)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (537)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (262)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (413)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (834)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (431)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (888)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (648)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (958)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué es el genoma? (929)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (141)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es una enzima? (855)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (138)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (722)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es el genoma? (573)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (411)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (492)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (215)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (394)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (945)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (375)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (264)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (683)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (158)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (619)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es una enzima? (942)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (487)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (318)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (573)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (627)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (765)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (621)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (960)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué significa diploide? (757)",
+    "answer": "Que tiene dos juegos de cromosomas."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (203)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (360)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (149)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (421)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es el ARN? (756)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué es una enzima? (610)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (235)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (137)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (831)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es el genoma? (265)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (153)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (321)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (555)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (498)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es una enzima? (886)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (815)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es un tejido? (964)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (565)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es un tejido? (939)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es el genoma? (380)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (368)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (588)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (323)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (486)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es una mutación genética? (374)",
+    "answer": "Un cambio en la secuencia del ADN."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (808)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (787)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (726)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (490)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué es un tejido? (199)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (557)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (445)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (323)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (618)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es un tejido? (444)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (987)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (941)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (358)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (430)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (385)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (883)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (440)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (979)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué es una enzima? (685)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es un tejido? (330)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (109)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (918)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (574)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué diferencia hay entre célula vegetal y animal? (762)",
+    "answer": "La vegetal tiene pared celular y cloroplastos."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (294)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (750)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (616)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (993)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es el genoma? (421)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (492)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es la teoría de la evolución? (314)",
+    "answer": "Explica el cambio de las especies a lo largo del tiempo."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (778)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (367)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es un tejido? (322)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (845)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué nombre recibe el conjunto de reacciones químicas en un organismo? (382)",
+    "answer": "Metabolismo."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (307)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (574)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué nombre recibe el proceso por el cual las plantas liberan oxígeno? (665)",
+    "answer": "Fotosíntesis."
+  },
+  {
+    "question": "¿Qué tipo de reproducción no implica la fusión de gametos? (776)",
+    "answer": "La reproducción asexual."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (244)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (565)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué es un organismo unicelular? (521)",
+    "answer": "Aquel formado por una sola célula."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (409)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es un tejido? (743)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (836)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (467)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es el genoma? (828)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (644)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué función tiene el ribosoma? (266)",
+    "answer": "Sintetizar proteínas."
+  },
+  {
+    "question": "¿Qué es una enzima? (478)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué es un tejido? (757)",
+    "answer": "Conjunto de células similares que realizan una función común."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (660)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué es el genoma? (178)",
+    "answer": "El conjunto completo de genes de un organismo."
+  },
+  {
+    "question": "¿Qué es un ecosistema? (598)",
+    "answer": "Conjunto de seres vivos y su entorno físico."
+  },
+  {
+    "question": "¿Qué es una enzima? (116)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (666)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es una enzima? (503)",
+    "answer": "Proteína que acelera reacciones químicas."
+  },
+  {
+    "question": "¿Qué molécula transporta los aminoácidos durante la síntesis de proteínas? (462)",
+    "answer": "El ARN de transferencia."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (239)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué función cumple el aparato de Golgi? (710)",
+    "answer": "Modifica y empaqueta proteínas."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (538)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (740)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (205)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué tipo de célula contiene clorofila? (936)",
+    "answer": "La célula vegetal."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (797)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué es la ósmosis? (418)",
+    "answer": "Movimiento de agua a través de una membrana semipermeable."
+  },
+  {
+    "question": "¿Qué orgánulo se encarga de la fotosíntesis? (249)",
+    "answer": "El cloroplasto."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (123)",
+    "answer": "Estructuras que contienen el ADN."
+  },
+  {
+    "question": "¿Qué es el ARN? (655)",
+    "answer": "Ácido ribonucleico, implicado en la síntesis de proteínas."
+  },
+  {
+    "question": "¿Qué son los cromosomas? (632)",
+    "answer": "Estructuras que contienen el ADN."
+  }
+];
+
+  let flashcards = [];
+  let seenIndices = new Set();
+  let correct = 0;
+  let incorrect = 0;
+  let flipped = false;
+  let currentCardIndex = null;
+
+  const card = document.getElementById("card");
+  const questionElement = document.getElementById("question");
+  const answerElement = document.getElementById("answer");
+  const correctElement = document.getElementById("correct");
+  const incorrectElement = document.getElementById("incorrect");
+  const percentageElement = document.getElementById("percentage");
+
+  function getRandomCardIndex() {
+    if (seenIndices.size >= flashcards.length) return null;
+
+    let index;
+    do {
+      index = Math.floor(Math.random() * flashcards.length);
+    } while (seenIndices.has(index));
+
+    seenIndices.add(index);
+    return index;
+  }
+
+  function loadCard() {
+    const index = getRandomCardIndex();
+    currentCardIndex = index;
+
+    if (index === null) {
+      questionElement.textContent = "¡Has completado todas las tarjetas!";
+      answerElement.textContent = "🎉";
+      card.classList.remove("flipped");
+      flipped = false;
+      return;
+    }
+
+    const cardData = flashcards[index];
+    questionElement.textContent = cardData.question;
+    answerElement.textContent = cardData.answer;
+    card.classList.remove("flipped");
+    flipped = false;
+  }
+
+  function toggleFlip() {
+    if (currentCardIndex !== null) {
+      flipped = !flipped;
+      card.classList.toggle("flipped", flipped);
+    }
+  }
+
+  function handleAnswer(isCorrect) {
+    if (currentCardIndex === null) return;
+
+    if (isCorrect) correct++;
+    else incorrect++;
+
+    updateStats();
+
+    if (flipped) {
+      card.classList.remove("flipped");
+      flipped = false;
+      setTimeout(loadCard, 800);
+    } else {
+      loadCard();
+    }
+  }
+
+  function updateStats() {
+    correctElement.textContent = correct;
+    incorrectElement.textContent = incorrect;
+    const total = correct + incorrect;
+    percentageElement.textContent = total ? ((correct / total) * 100).toFixed(1) : "0";
+  }
+
+  function restart() {
+    flashcards = [...flashcardsOriginal];
+    seenIndices.clear();
+    correct = 0;
+    incorrect = 0;
+    flipped = false;
+    currentCardIndex = null;
+    updateStats();
+    loadCard();
+  }
+
+  restart();
+</script>
+
+<footer>
+  <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+  <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café,</strong></p>
+  <p><strong>puedes hacerlo aquí:</strong></p>
+  <h4><a href="https://buymeacoffee.com/airsoto" target="_blank">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las apps móviles MnemoVetDDX ni su versión en inglés)</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+</footer>
+
+</body>
+</html>
