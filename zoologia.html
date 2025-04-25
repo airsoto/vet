@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Flashcards Aleatorias - Optimizado</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #ffffff;
+    }
+
+    .flip-card {
+      background-color: transparent;
+      width: 500px;
+      height: 300px;
+      perspective: 1000px;
+      margin-bottom: 40px;
+    }
+
+    .flip-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.8s;
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .flip-card.flipped .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flip-card-front, .flip-card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+      font-size: 1.8em;
+    }
+
+    .flip-card-front {
+      color: #e0e0e0;
+    }
+
+    .flip-card-back {
+      color: #90caf9;
+      transform: rotateY(180deg);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .buttons button {
+      padding: 12px 24px;
+      font-size: 1.1em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .success {
+      background-color: #2e7d32;
+      color: white;
+    }
+
+    .success:hover {
+      background-color: #388e3c;
+    }
+
+    .fail {
+      background-color: #c62828;
+      color: white;
+    }
+
+    .fail:hover {
+      background-color: #e53935;
+    }
+
+    .stats {
+      margin: 10px 0;
+      font-size: 1.2em;
+    }
+
+    .restart-btn {
+      background-color: #1565c0;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      cursor: pointer;
+    }
+
+    .restart-btn:hover {
+      background-color: #1976d2;
+    }
+
+    footer {
+      margin-top: 50px;
+      text-align: center;
+      font-size: 0.9em;
+    }
+
+    footer a {
+      color: #00ccff;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<h1><span style="color: #00ccff;">Flashcards de ZOOLOGÍA</span></h1>
+<h2><span style="color: #339966;">Desarrollado por: Angel Soto</span></h2>
+
+<div class="flip-card" id="card">
+  <div class="flip-card-inner" id="card-inner" onclick="toggleFlip()">
+    <div class="flip-card-front" id="question">Pregunta</div>
+    <div class="flip-card-back" id="answer">Respuesta</div>
+  </div>
+</div>
+
+<div class="buttons">
+  <button class="success" onclick="handleAnswer(true)">He acertado</button>
+  <button class="fail" onclick="handleAnswer(false)">He fallado</button>
+</div>
+
+<div class="stats">
+  <p>Aciertos: <span id="correct">0</span> | Fallos: <span id="incorrect">0</span></p>
+  <p>Porcentaje de acierto: <span id="percentage">0</span>%</p>
+</div>
+
+<button class="restart-btn" onclick="restart()">Reiniciar</button>
+
+<script>
+  const flashcardsOriginal = [
+  {
+    "question": "¿Qué tipo de simetría tienen los Cnidarios?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "¿Qué tipo de animales son los triblásticos?",
+    "answer": "Animales con tres capas germinales: ectodermo, mesodermo y endodermo"
+  },
+  {
+    "question": "¿Qué tipo de cavidad corporal tienen los platelmintos?",
+    "answer": "No tienen cavidad corporal, son acelomados"
+  },
+  {
+    "question": "¿Cuál es la función de los genes HOX?",
+    "answer": "Dirigen el desarrollo de las estructuras corporales en posiciones correctas"
+  },
+  {
+    "question": "¿Qué animales poseen celoma completamente rodeado por mesodermo?",
+    "answer": "Moluscos, anélidos, artrópodos y vertebrados"
+  },
+  {
+    "question": "¿Qué es la gastrulación?",
+    "answer": "Proceso en el que se forman las capas germinales del embrión"
+  },
+  {
+    "question": "¿Qué animales tienen un desarrollo protóstomo?",
+    "answer": "Moluscos, anélidos y artrópodos"
+  },
+  {
+    "question": "¿Qué animales tienen un desarrollo deuteróstomo?",
+    "answer": "Equinodermos y cordados"
+  },
+  {
+    "question": "¿Qué tipo de simetría tienen los animales triblásticos?",
+    "answer": "Simetría bilateral"
+  },
+  {
+    "question": "¿Cuál es la función del celoma?",
+    "answer": "Permitir la organización y protección de órganos internos"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los Cnidarios?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué tipo de animales son los triblásticos?",
+    "answer": "Animales con tres capas germinales: ectodermo, mesodermo y endodermo"
+  },
+  {
+    "question": "Cuál es la función de los genes HOX?",
+    "answer": "Dirigen el desarrollo de las estructuras corporales en posiciones correctas"
+  },
+  {
+    "question": "Qué animales tienen un desarrollo protóstomo?",
+    "answer": "Moluscos, anélidos y artrópodos"
+  },
+  {
+    "question": "Cuál es la función del celoma?",
+    "answer": "Permitir la organización y protección de órganos internos"
+  },
+  {
+    "question": "Qué animales tienen un desarrollo deuteróstomo?",
+    "answer": "Equinodermos y cordados"
+  },
+  {
+    "question": "Qué tipo de cavidad corporal tienen los platelmintos?",
+    "answer": "No tienen cavidad corporal, son acelomados"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los animales triblásticos?",
+    "answer": "Simetría bilateral"
+  },
+  {
+    "question": "Qué animales poseen celoma completamente rodeado por mesodermo?",
+    "answer": "Moluscos, anélidos, artrópodos y vertebrados"
+  },
+  {
+    "question": "Qué es la gastrulación?",
+    "answer": "Proceso en el que se forman las capas germinales del embrión"
+  },
+  {
+    "question": "¿Qué animales son considerados parazoos?",
+    "answer": "Las esponjas"
+  },
+  {
+    "question": "¿Cuál es el principal avance evolutivo de los Poríferos?",
+    "answer": "La pluricelularidad"
+  },
+  {
+    "question": "¿Qué tipo de simetría tienen los Equinodermos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "¿Qué tipo de esqueleto tienen los artrópodos?",
+    "answer": "Exoesqueleto de quitina"
+  },
+  {
+    "question": "¿Qué animales presentan metamería?",
+    "answer": "Los anélidos"
+  },
+  {
+    "question": "¿Qué animales tienen pseudoceloma?",
+    "answer": "Los nematodos"
+  },
+  {
+    "question": "¿Qué caracteriza a los animales diblásticos?",
+    "answer": "Tienen dos capas germinales: ectodermo y endodermo"
+  },
+  {
+    "question": "¿Qué estructura embrionaria da origen al tubo digestivo?",
+    "answer": "La gástrula"
+  },
+  {
+    "question": "¿Qué animales fueron los primeros en colonizar el medio terrestre?",
+    "answer": "Los artrópodos"
+  },
+  {
+    "question": "¿Qué órgano utilizan las esponjas para filtrar agua?",
+    "answer": "Coanocitos"
+  },
+  {
+    "question": "Qué animales son considerados parazoos?",
+    "answer": "Las esponjas"
+  },
+  {
+    "question": "Qué animales presentan metamería?",
+    "answer": "Los anélidos"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los Equinodermos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Los nematodos"
+  },
+  {
+    "question": "Cuál es el principal avance evolutivo de los Poríferos?",
+    "answer": "La pluricelularidad"
+  },
+  {
+    "question": "Qué tipo de esqueleto tienen los artrópodos?",
+    "answer": "Exoesqueleto de quitina"
+  },
+  {
+    "question": "Qué órgano utilizan las esponjas para filtrar agua?",
+    "answer": "Coanocitos"
+  },
+  {
+    "question": "Qué caracteriza a los animales diblásticos?",
+    "answer": "Tienen dos capas germinales: ectodermo y endodermo"
+  },
+  {
+    "question": "Qué estructura embrionaria da origen al tubo digestivo?",
+    "answer": "La gástrula"
+  },
+  {
+    "question": "Qué animales fueron los primeros en colonizar el medio terrestre?",
+    "answer": "Los artrópodos"
+  },
+  {
+    "question": "¿Qué almacenan las células animales como reserva de energía?",
+    "answer": "Glucógeno"
+  },
+  {
+    "question": "¿Qué tipo de reproducción es común en los animales?",
+    "answer": "Reproducción sexual"
+  },
+  {
+    "question": "¿Qué capa germinal forma el sistema nervioso?",
+    "answer": "Ectodermo"
+  },
+  {
+    "question": "¿Qué capa germinal forma el sistema digestivo?",
+    "answer": "Endodermo"
+  },
+  {
+    "question": "¿Qué capa germinal forma los músculos y el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "¿Qué tipo de segmentación embrionaria tienen los deuteróstomos?",
+    "answer": "Segmentación radial e indeterminada"
+  },
+  {
+    "question": "¿Qué tipo de segmentación embrionaria tienen los protóstomos?",
+    "answer": "Segmentación espiral y determinada"
+  },
+  {
+    "question": "¿Qué característica permite a los animales moverse activamente?",
+    "answer": "Presencia de sistema nervioso y musculatura"
+  },
+  {
+    "question": "¿Qué reino incluye a los animales?",
+    "answer": "Reino Animalia"
+  },
+  {
+    "question": "¿Qué animales poseen simetría bilateral?",
+    "answer": "Los triblásticos como moluscos, artrópodos y vertebrados"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema digestivo?",
+    "answer": "Endodermo"
+  },
+  {
+    "question": "Qué tipo de segmentación embrionaria tienen los deuteróstomos?",
+    "answer": "Segmentación radial e indeterminada"
+  },
+  {
+    "question": "Qué capa germinal forma los músculos y el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué animales poseen simetría bilateral?",
+    "answer": "Los triblásticos como moluscos, artrópodos y vertebrados"
+  },
+  {
+    "question": "Qué almacenan las células animales como reserva de energía?",
+    "answer": "Glucógeno"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema nervioso?",
+    "answer": "Ectodermo"
+  },
+  {
+    "question": "Qué tipo de segmentación embrionaria tienen los protóstomos?",
+    "answer": "Segmentación espiral y determinada"
+  },
+  {
+    "question": "Qué reino incluye a los animales?",
+    "answer": "Reino Animalia"
+  },
+  {
+    "question": "Qué característica permite a los animales moverse activamente?",
+    "answer": "Presencia de sistema nervioso y musculatura"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  },
+  {
+    "question": "Qué animales poseen simetría radial y son diblásticos?",
+    "answer": "Cnidarios"
+  },
+  {
+    "question": "Qué capa germinal forma el sistema circulatorio?",
+    "answer": "Mesodermo"
+  },
+  {
+    "question": "Qué tipo de simetría tienen los equinodermos adultos?",
+    "answer": "Simetría radial"
+  },
+  {
+    "question": "Qué estructura embrionaria se forma por invaginación?",
+    "answer": "Gástrula"
+  },
+  {
+    "question": "Qué animales son acelomados?",
+    "answer": "Platelmintos"
+  },
+  {
+    "question": "Qué animales tienen pseudoceloma?",
+    "answer": "Nematodos"
+  },
+  {
+    "question": "Qué animales poseen una cavidad corporal completamente rodeada por mesodermo?",
+    "answer": "Celomados"
+  },
+  {
+    "question": "Qué tipo de animales incluyen a los vertebrados y equinodermos?",
+    "answer": "Deuteróstomos"
+  },
+  {
+    "question": "Qué función tienen los coanocitos en las esponjas?",
+    "answer": "Generar flujo de agua y capturar alimento"
+  },
+  {
+    "question": "Qué célula embrionaria se forma tras la fecundación?",
+    "answer": "Cigoto"
+  }
+];
+
+  let flashcards = [];
+  let seenIndices = new Set();
+  let correct = 0;
+  let incorrect = 0;
+  let flipped = false;
+  let currentCardIndex = null;
+
+  const card = document.getElementById("card");
+  const questionElement = document.getElementById("question");
+  const answerElement = document.getElementById("answer");
+  const correctElement = document.getElementById("correct");
+  const incorrectElement = document.getElementById("incorrect");
+  const percentageElement = document.getElementById("percentage");
+
+  function getRandomCardIndex() {
+    if (seenIndices.size >= flashcards.length) return null;
+
+    let index;
+    do {
+      index = Math.floor(Math.random() * flashcards.length);
+    } while (seenIndices.has(index));
+
+    seenIndices.add(index);
+    return index;
+  }
+
+  function loadCard() {
+    const index = getRandomCardIndex();
+    currentCardIndex = index;
+
+    if (index === null) {
+      questionElement.textContent = "¡Has completado todas las tarjetas!";
+      answerElement.textContent = "🎉";
+      card.classList.remove("flipped");
+      flipped = false;
+      return;
+    }
+
+    const cardData = flashcards[index];
+    questionElement.textContent = cardData.question;
+    answerElement.textContent = cardData.answer;
+    card.classList.remove("flipped");
+    flipped = false;
+  }
+
+  function toggleFlip() {
+    if (currentCardIndex !== null) {
+      flipped = !flipped;
+      card.classList.toggle("flipped", flipped);
+    }
+  }
+
+  function handleAnswer(isCorrect) {
+    if (currentCardIndex === null) return;
+
+    if (isCorrect) correct++;
+    else incorrect++;
+
+    updateStats();
+
+    if (flipped) {
+      card.classList.remove("flipped");
+      flipped = false;
+      setTimeout(loadCard, 800);
+    } else {
+      loadCard();
+    }
+  }
+
+  function updateStats() {
+    correctElement.textContent = correct;
+    incorrectElement.textContent = incorrect;
+    const total = correct + incorrect;
+    percentageElement.textContent = total ? ((correct / total) * 100).toFixed(1) : "0";
+  }
+
+  function restart() {
+    flashcards = [...flashcardsOriginal];
+    seenIndices.clear();
+    correct = 0;
+    incorrect = 0;
+    flipped = false;
+    currentCardIndex = null;
+    updateStats();
+    loadCard();
+  }
+
+  restart();
+</script>
+
+<footer>
+  <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+  <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café,</strong></p>
+  <p><strong>puedes hacerlo aquí:</strong></p>
+  <h4><a href="https://buymeacoffee.com/airsoto" target="_blank">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las apps móviles MnemoVetDDX ni su versión en inglés)</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+</footer>
+
+</body>
+</html>
