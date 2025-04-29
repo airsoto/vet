@@ -32,12 +32,16 @@
 </head>
 <body>
 
-<h2>Reference points Scorpion varileg, opus 379</h2>
-<h2>&nbsp;</h2>
-<h3>Desarrollado por: Angel Soto <span style="color: #339966;"><em>(with the permission of Robert J. Lang)</em></span></h3>
-<h3>You can move the square to position it on the DIN A4-sized page.</h3>
-<h4 style="text-align: right; max-width: 800px; margin: 0 auto;"><a style="color: #0077cc; text-decoration: none;" href="https://langorigami.com/artwork/scorpion-varileg-opus-379/" target="_blank"> (Based on the diagrams of Scorpion Varileg, Opus 379) </a></h4>
-
+  <h1>Reference Points for Scorpion Varileg, Opus 379</h1>
+  <h2>&nbsp;</h2>
+  <h3>Developed by Angel Soto (with permission from Robert J. Lang)</h3>
+  <h3>You can move the square to position it on the DIN A4-sized page.</h3>
+  <h4 style="text-align: right; max-width: 800px; margin: 0 auto;">
+    <a style="color: #0077cc; text-decoration: none;" href="https://langorigami.com/artwork/scorpion-varileg-opus-379/" target="_blank">
+      (Based on the diagrams of Scorpion Varileg, Opus 379)
+    </a>
+  </h4>
+  
 
 <div id="controls">
   <label for="squareSize">Side length (cm):</label>
@@ -160,40 +164,28 @@ function draw() {
   }
 
   ctx.strokeStyle = "black";
-  ctx.lineWidth = 2;
-  allPoints.forEach(p => {
-    const px = squareX + p.x * sidePx;
-    const py = squareY + sidePx - p.y * sidePx;
-    const size = 8;
-    ctx.beginPath();
-    ctx.moveTo(px - size, py - size);
-    ctx.lineTo(px + size, py + size);
-    ctx.moveTo(px - size, py + size);
-    ctx.lineTo(px + size, py - size);
-    ctx.stroke();
-  });
-}
+ctx.fillStyle = "black";
+allPoints.forEach(p => {
+  const px = squareX + p.x * sidePx;
+  const py = squareY + sidePx - p.y * sidePx;
+  const radius = 3; // tamaño del punto
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, 2 * Math.PI);
+  ctx.fill();
+});
 
+
+}
 function downloadPDF() {
   const { jsPDF } = window.jspdf;
+
   const ladoCm = parseFloat(document.getElementById("squareSize").value);
-  const sidePx = ladoCm * pixelsPerCm; // El tamaño real en píxeles
-  const { width: canvasWidth, height: canvasHeight } = canvas;
 
-  // Crear un canvas temporal del tamaño del cuadrado
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = sidePx;
-  tempCanvas.height = sidePx;
-  const tempCtx = tempCanvas.getContext("2d");
+  const a4WidthCm = 21.0;
+  const a4HeightCm = 29.7;
 
-  // Copiar solo el área del cuadrado
-  tempCtx.drawImage(
-    canvas,
-    squareX, squareY, sidePx, sidePx,  // área origen (en el canvas original)
-    0, 0, sidePx, sidePx               // área destino (en el canvas temporal)
-  );
-
-  const imgData = tempCanvas.toDataURL("image/png");
+  // Exportamos todo el canvas completo
+  const imgData = canvas.toDataURL("image/png");
 
   const pdf = new jsPDF({
     orientation: "portrait",
@@ -201,29 +193,24 @@ function downloadPDF() {
     format: "a4"
   });
 
-  // Tamaño del cuadrado en el PDF (exactamente como el lado deseado)
-  const imgWidthCm = ladoCm;
-  const imgHeightCm = ladoCm;
-
-  // Centro de la página
-  const posX = (21 - imgWidthCm) / 2;
-  const posY = (29.7 - imgHeightCm) / 2;
-
   // Fondo blanco
   pdf.setFillColor(255, 255, 255);
-  pdf.rect(0, 0, 21, 29.7, "F");
+  pdf.rect(0, 0, a4WidthCm, a4HeightCm, "F");
 
-  // Insertar imagen recortada
-  pdf.addImage(imgData, "PNG", posX, posY, imgWidthCm, imgHeightCm);
+  // Insertar todo el canvas, ajustándolo a A4
+  pdf.addImage(imgData, "PNG", 0, 0, a4WidthCm, a4HeightCm);
 
-  // Escribir el tamaño del lado en el centro del cuadrado
+  // Opcionalmente: escribir el tamaño del lado, centrado en el cuadrado
+  // Puedes calcular la posición del texto según squareX y squareY si quieres
+  // Pero aquí de momento lo dejaremos en el centro de la página:
   pdf.setFontSize(14);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`${ladoCm.toFixed(2)} cm`, 10.5, posY + imgHeightCm / 2, { align: "center" });
+  pdf.text(`${ladoCm.toFixed(2)} cm`, a4WidthCm / 2, a4HeightCm - 1, { align: "center" });
 
   const filename = `scorpion_varileg_reference_points_${ladoCm.toFixed(2)}cm.pdf`;
   pdf.save(filename);
 }
+
 
 
 canvas.addEventListener('mousedown', function(e) {
