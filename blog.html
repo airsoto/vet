@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blog de Proyectos</title>
-  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -19,7 +18,6 @@
 
     #main-container {
       padding: 2rem;
-      max-width: 100%;
       width: 100%;
       margin: auto;
       flex: 1;
@@ -94,17 +92,51 @@
       color: #90caf9;
       text-decoration: none;
     }
+
+    #content-markdown {
+      padding: 2rem;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    #content-markdown h1, h2, h3 {
+      color: #90caf9;
+    }
+
+    #content-markdown pre {
+      background: #1e1e1e;
+      padding: 1rem;
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+
+    #content-markdown code {
+      color: #e1e1e1;
+    }
+
+    #back-link {
+      display: inline-block;
+      margin: 2rem;
+      color: #90caf9;
+      text-decoration: none;
+    }
+
+    #back-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+  <a id="home-icon" href="https://airsoto.github.io/vet/" title="Inicio">🏠</a>
+
   <div id="main-container">
     <div id="header">
       <h1>Blog de Angel Soto</h1>
     </div>
     <div id="entries"></div>
+    <div id="content-markdown" style="display:none;"></div>
+    <a id="back-link" href="." style="display:none;">← Volver al blog</a>
   </div>
-
-  <a id="home-icon" href="https://airsoto.github.io/vet/" title="Inicio">🏠</a>
 
   <footer>
     Creado por Angel Soto · <a href="https://airsoto.github.io/vet/">Mi página personal</a>
@@ -118,47 +150,65 @@
       }
     ];
 
-    async function loadPreview(filename) {
-      try {
-        const res = await fetch(filename);
-        const text = await res.text();
-        const lines = text.split("\n").filter(line => line.trim() !== '');
-        const title = lines[0] || "Sin título";
-        const preview = lines.slice(1, 4).join(" ");
-        return { title, preview };
-      } catch (e) {
-        return { title: "Error", preview: "No se pudo cargar el archivo." };
+    const params = new URLSearchParams(window.location.search);
+    const file = params.get("file");
+
+    if (file) {
+      document.getElementById("entries").style.display = "none";
+      document.getElementById("header").style.display = "none";
+      document.getElementById("content-markdown").style.display = "block";
+      document.getElementById("back-link").style.display = "inline-block";
+      fetch(file)
+        .then(res => res.text())
+        .then(md => {
+          document.getElementById("content-markdown").innerHTML = marked.parse(md);
+        })
+        .catch(() => {
+          document.getElementById("content-markdown").innerHTML = "⚠️ Error al cargar el archivo.";
+        });
+    } else {
+      async function loadPreview(filename) {
+        try {
+          const res = await fetch(filename);
+          const text = await res.text();
+          const lines = text.split("\\n").filter(line => line.trim() !== '');
+          const title = lines[0] || "Sin título";
+          const preview = lines.slice(1, 4).join(" ");
+          return { title, preview };
+        } catch (e) {
+          return { title: "Error", preview: "No se pudo cargar el archivo." };
+        }
       }
-    }
 
-    async function displayEntries() {
-      const container = document.getElementById("entries");
-      for (const entry of entries) {
-        const { title, preview } = await loadPreview(entry.filename);
+      async function displayEntries() {
+        const container = document.getElementById("entries");
+        for (const entry of entries) {
+          const { title, preview } = await loadPreview(entry.filename);
 
-        const card = document.createElement("div");
-        card.className = "entry-card";
-        card.onclick = () => window.location.href = entry.filename;
+          const card = document.createElement("div");
+          card.className = "entry-card";
+          card.onclick = () => window.location.href = `?file=${entry.filename}`;
 
-        const date = document.createElement("div");
-        date.className = "entry-date";
-        date.textContent = entry.date;
+          const date = document.createElement("div");
+          date.className = "entry-date";
+          date.textContent = entry.date;
 
-        const titleEl = document.createElement("h2");
-        titleEl.textContent = title;
+          const titleEl = document.createElement("h2");
+          titleEl.textContent = title;
 
-        const previewEl = document.createElement("p");
-        previewEl.textContent = preview;
+          const previewEl = document.createElement("p");
+          previewEl.textContent = preview;
 
-        card.appendChild(date);
-        card.appendChild(titleEl);
-        card.appendChild(previewEl);
+          card.appendChild(date);
+          card.appendChild(titleEl);
+          card.appendChild(previewEl);
 
-        container.appendChild(card);
+          container.appendChild(card);
+        }
       }
-    }
 
-    displayEntries();
+      displayEntries();
+    }
   </script>
 </body>
 </html>
