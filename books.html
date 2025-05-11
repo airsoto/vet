@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscador de Libros</title>
+<style>
+:root{
+ --bg:#fdfdfd;
+ --accent:#222;
+ --accent-light:#555;
+ --border:#e4e4e4;
+ --radius:12px;
+ --star:#fbc02d;
+ --star-empty:#ddd;
+}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto;}
+body{margin:0;padding:2rem;background:var(--bg);color:var(--accent);}
+h1{font-size:1.5rem;margin-bottom:1rem;}
+input,select,button{
+ padding:.6rem 1rem;
+ border:1px solid var(--border);
+ border-radius:var(--radius);
+ font-size:1rem;
+ background:white;
+ transition:border-color .15s ease;
+}
+input:focus,select:focus{outline:none;border-color:var(--accent);}
+button:hover{border-color:var(--accent);cursor:pointer;}
+#results{
+ display:grid;
+ grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+ gap:1rem;
+ margin-top:1.5rem;
+}
+.card{
+ background:white;
+ border:1px solid var(--border);
+ border-radius:var(--radius);
+ padding:1rem;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ transition:box-shadow .2s;
+ cursor:pointer;
+}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.card img{max-width:120px;height:auto;border-radius:var(--radius);} 
+.card .title{font-weight:600;text-align:center;margin-top:.5rem;font-size:0.9rem;}
+.card .stars{margin-top:.25rem;font-size:1rem;}
+.card .stars span{color:var(--star-empty);}
+.card .stars .filled{color:var(--star);}
+#detail{
+ margin-top:2rem;
+ display:none;
+ border:1px solid var(--border);
+ border-radius:var(--radius);
+ padding:1.5rem;
+ background:white;
+}
+#detail h2{margin-top:0;font-size:1.25rem;}
+#detail .meta{display:flex;flex-wrap:wrap;gap:1rem;margin:.5rem 0 1rem;font-size:0.9rem;color:var(--accent-light);} 
+footer{margin-top:3rem;font-size:.875rem;color:var(--accent-light);} 
+footer a{color:var(--accent-light);} 
+</style>
+</head>
+<body>
+<h1>📚 Buscador de libros</h1>
+<h2>Desarrollado por: Ángel Soto</h2>
+<label>
+ <span class="sr-only">Buscar</span>
+ <input id="searchBox" type="search" placeholder="Buscar por título, autor o género…" autocomplete="off">
+</label>
+<select id="speedSelect" title="Velocidad de lectura">
+ <option>250</option>
+ <option>270</option>
+ <option selected>300</option>
+ <option>325</option>
+</select>
+<div id="results"></div>
+<section id="detail">
+ <h2 id="detailTitle"></h2>
+ <div class="meta">
+  <span id="detailPages"></span>
+  <span id="detailTime"></span>
+ </div>
+ <p id="detailText"></p>
+ <button id="translateBtn">Traducir a español</button>
+</section>
+<footer>
+ Basado en el <a href="https://www.kaggle.com/datasets/dk123891/books-dataset-goodreadsmay-2024" target="_blank" rel="noopener">software libre</a> y en los datos de <a href="https://www.goodreads.com/" target="_blank" rel="noopener">Goodreads</a>.
+</footer>
+
+<script>
+const WORDS_PER_PAGE = 250;
+let books = [];
+
+const resultsEl = document.getElementById("results");
+const searchBox = document.getElementById("searchBox");
+const speedSelect = document.getElementById("speedSelect");
+const detailSection = document.getElementById("detail");
+const detailTitle = document.getElementById("detailTitle");
+const detailPages = document.getElementById("detailPages");
+const detailTime = document.getElementById("detailTime");
+const detailText = document.getElementById("detailText");
+const translateBtn = document.getElementById("translateBtn");
+let currentBook = null;
+
+function renderStars(rating) {
+  const stars = Array.from({length: 5}, (_, i) => {
+    const full = i + 1 <= Math.floor(rating);
+    const half = i + 1 > Math.floor(rating) && rating % 1 >= 0.5 && i === Math.floor(rating);
+    return `<span class="${full || half ? 'filled' : ''}">${half ? '⯨' : '★'}</span>`;
+  });
+  return `<div class="stars">${stars.join('')}</div>`;
+}
+
+function renderResults(list){
+  resultsEl.innerHTML = "";
+  list.forEach(b => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <img src="${b.cover_image_uri}" alt="Portada ${b.book_title}">
+      <div class="title">${b.book_title}</div>
+      <div>${b.author}</div>
+      ${renderStars(b.average_rating)}
+    `;
+    card.addEventListener("click", () => showDetail(b));
+    resultsEl.appendChild(card);
+  });
+}
+
+function filterResults(){
+  const q = searchBox.value.trim().toLowerCase();
+  if (q.length < 2) {
+    renderResults(books.slice(0, 50));
+    return;
+  }
+
+  const filtered = books.filter(b => {
+    const title = b.book_title?.toLowerCase() || "";
+    const author = b.author?.toLowerCase() || "";
+    const genres = (b.genres || []).join(" ").toLowerCase();
+    return title.includes(q) || author.includes(q) || genres.includes(q);
+  });
+
+  renderResults(filtered.slice(0, 50));
+}
+
+function calcHours(pages){
+  const wpm = parseInt(speedSelect.value, 10);
+  const minutes = (pages * WORDS_PER_PAGE) / wpm;
+  return (minutes / 60).toFixed(1);
+}
+
+function updateDetailMeta(){
+  if(!currentBook) return;
+  detailPages.textContent = `${currentBook.num_pages} páginas`;
+  detailTime.textContent = `≈ ${calcHours(currentBook.num_pages)} h de lectura (@${speedSelect.value} ppm)`;
+}
+
+function showDetail(book){
+  currentBook = book;
+  detailSection.style.display = "block";
+  detailTitle.textContent = book.book_title;
+  detailText.textContent = book.book_details;
+  detailText.dataset.original = book.book_details;
+  translateBtn.disabled = false;
+  translateBtn.textContent = "Traducir a español";
+  updateDetailMeta();
+}
+
+translateBtn.addEventListener("click", () => {
+  if(!currentBook) return;
+  if(translateBtn.textContent.startsWith("Traducir")){
+    translateText(detailText.dataset.original, "es").then(tr => {
+      detailText.textContent = tr;
+      detailTitle.textContent = `${currentBook.book_title} (ES)`;
+      translateBtn.textContent = "Ver original";
+    });
+  }else{
+    detailText.textContent = detailText.dataset.original;
+    detailTitle.textContent = currentBook.book_title;
+    translateBtn.textContent = "Traducir a español";
+  }
+});
+
+async function translateText(text, targetLang){
+  try{
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return (data.responseData && data.responseData.translatedText) ? data.responseData.translatedText : text;
+  }catch(err){
+    console.error("Translation error", err);
+    return text;
+  }
+}
+
+searchBox.addEventListener("input", filterResults);
+speedSelect.addEventListener("change", updateDetailMeta);
+
+// Cargar libros desde JSON externo
+fetch('books.json')
+  .then(res => res.json())
+  .then(data => {
+    books = data;
+    renderResults(books.slice(0, 50));
+  })
+  .catch(err => {
+    console.error("Error cargando books.json", err);
+    resultsEl.innerHTML = '<p style="color:red">No se pudo cargar el archivo de libros.</p>';
+  });
+</script>
+</body>
+</html>
