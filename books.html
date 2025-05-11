@@ -41,7 +41,8 @@
 
   <h1>📚 Buscador de Libros</h1>
 
-    <h1>📚 33333</h1>
+    <h1>📚 44</h1>
+  
   <input type="text" id="search" placeholder="Buscar por título, autor o género...">
   <label for="speed">Velocidad de lectura (palabras/min):</label>
   <select id="speed">
@@ -56,21 +57,51 @@
   <script>
     let books = [];
 
-    // Utilidad para convertir strings como "['Fantasy', 'Magic']" a array real
-    function cleanArrayString(str) {
+    function parseList(str) {
       try {
         return JSON.parse(str.replace(/'/g, '"'));
-      } catch (e) {
+      } catch {
         return [];
       }
     }
 
     function normalize(str) {
-      return str.toLowerCase().trim();
+      return (str || '').toLowerCase().trim();
     }
 
-    // Función principal de búsqueda
-    function searchBooks() {
+    function renderBook(book, speed) {
+      const pagesArray = parseList(book.num_pages);
+      const pages = parseInt(pagesArray[0]) || 0;
+      const wordsPerPage = 300;
+      const totalWords = pages * wordsPerPage;
+      const totalMinutes = Math.ceil(totalWords / speed);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      const genresStr = parseList(book.genres).join(', ');
+
+      return `
+        <div class="book">
+          <img src="${book.cover_image_uri}" alt="Portada de ${book.book_title}">
+          <div class="rating">⭐ ${book.average_rating}</div>
+          <h2>${book.book_title}</h2>
+          <p><strong>Autor:</strong> ${book.author}</p>
+          <p><strong>Géneros:</strong> ${genresStr}</p>
+          <p><strong>Detalles:</strong> ${book.book_details}</p>
+          <p><strong>Páginas:</strong> ${pages}</p>
+          <p><strong>Tiempo estimado de lectura:</strong> ${hours}h ${minutes}min</p>
+        </div>
+      `;
+    }
+
+    function debounce(fn, delay = 300) {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    const searchBooks = debounce(() => {
       const query = normalize(document.getElementById('search').value);
       const speed = parseInt(document.getElementById('speed').value);
       const results = document.getElementById('results');
@@ -78,53 +109,30 @@
 
       if (!query) return;
 
-      const matches = books.filter(book => {
+      const filtered = books.filter(book => {
         const title = normalize(book.book_title);
         const author = normalize(book.author);
-        const genresArr = cleanArrayString(book.genres).map(g => normalize(g));
+        const genres = parseList(book.genres).map(normalize);
         return (
           title.includes(query) ||
           author.includes(query) ||
-          genresArr.some(g => g.includes(query))
+          genres.some(g => g.includes(query))
         );
       });
 
-      matches.forEach(book => {
-        const pagesArray = cleanArrayString(book.num_pages);
-        const pages = parseInt(pagesArray[0]) || 0;
-        const wordsPerPage = 300;
-        const totalWords = pages * wordsPerPage;
-        const totalMinutes = Math.ceil(totalWords / speed);
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        const genresStr = cleanArrayString(book.genres).join(', ');
+      results.innerHTML = filtered.map(book => renderBook(book, speed)).join('');
+    });
 
-        results.innerHTML += `
-          <div class="book">
-            <img src="${book.cover_image_uri}" alt="Portada de ${book.book_title}">
-            <div class="rating">⭐ ${book.average_rating}</div>
-            <h2>${book.book_title}</h2>
-            <p><strong>Autor:</strong> ${book.author}</p>
-            <p><strong>Géneros:</strong> ${genresStr}</p>
-            <p><strong>Detalles:</strong> ${book.book_details}</p>
-            <p><strong>Páginas:</strong> ${pages}</p>
-            <p><strong>Tiempo estimado de lectura:</strong> ${hours}h ${minutes}min</p>
-          </div>
-        `;
-      });
-    }
-
-    // Cargar JSON externo desde tu GitHub Pages
     fetch('https://airsoto.github.io/vet/books.json')
-      .then(response => response.json())
-      .then(data => {
-        books = data;
+      .then(res => res.json())
+      .then(json => {
+        books = json;
         document.getElementById('search').addEventListener('input', searchBooks);
         document.getElementById('speed').addEventListener('change', searchBooks);
       })
       .catch(err => {
-        document.getElementById('results').innerHTML = '<p>Error cargando libros.</p>';
-        console.error(err);
+        console.error("Error cargando JSON:", err);
+        document.getElementById('results').innerHTML = "❌ Error al cargar los libros.";
       });
   </script>
 
