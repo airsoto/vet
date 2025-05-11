@@ -208,18 +208,29 @@
       });
     }
 
+    function normalize(text) {
+      return text
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // elimina tildes
+        .replace(/[^\w\s]/g, ""); // elimina puntuación
+    }
+
     function filterResults() {
-      const q = searchBox.value.trim().toLowerCase();
+      const q = normalize(searchBox.value.trim());
       if (q.length < 2) {
         renderResults(books.slice(0, 50));
         return;
       }
 
+      const terms = q.split(/\s+/);
+
       const filtered = books.filter(b => {
-        const title = b.book_title?.toLowerCase() || "";
-        const author = b.author?.toLowerCase() || "";
-        const genres = (b.genres || []).join(" ").toLowerCase();
-        return title.includes(q) || author.includes(q) || genres.includes(q);
+        const title = normalize(b.book_title || "");
+        const author = normalize(b.author || "");
+        const genres = normalize((b.genres || []).join(" "));
+        const content = `${title} ${author} ${genres}`;
+        return terms.every(term => content.includes(term));
       });
 
       renderResults(filtered.slice(0, 50));
