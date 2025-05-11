@@ -33,13 +33,15 @@
     .rating {
       font-size: 2rem;
       color: #fbc02d;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
   <h1>📚 Buscador de Libros</h1>
-    <h1>📚 Buscador de Libros</h1>
+
+    <h1>📚 33333</h1>
   <input type="text" id="search" placeholder="Buscar por título, autor o género...">
   <label for="speed">Velocidad de lectura (palabras/min):</label>
   <select id="speed">
@@ -54,33 +56,32 @@
   <script>
     let books = [];
 
-    // Cargar JSON externo
-    fetch('https://airsoto.github.io/vet/books.json')
-      .then(response => response.json())
-      .then(data => {
-        books = data;
-        document.getElementById('search').addEventListener('input', searchBooks);
-        document.getElementById('speed').addEventListener('change', searchBooks);
-      });
-
+    // Utilidad para convertir strings como "['Fantasy', 'Magic']" a array real
     function cleanArrayString(str) {
       try {
         return JSON.parse(str.replace(/'/g, '"'));
-      } catch {
+      } catch (e) {
         return [];
       }
     }
 
+    function normalize(str) {
+      return str.toLowerCase().trim();
+    }
+
+    // Función principal de búsqueda
     function searchBooks() {
-      const query = document.getElementById('search').value.toLowerCase();
+      const query = normalize(document.getElementById('search').value);
       const speed = parseInt(document.getElementById('speed').value);
       const results = document.getElementById('results');
       results.innerHTML = '';
 
+      if (!query) return;
+
       const matches = books.filter(book => {
-        const title = book.book_title.toLowerCase();
-        const author = book.author.toLowerCase();
-        const genresArr = cleanArrayString(book.genres).map(g => g.toLowerCase());
+        const title = normalize(book.book_title);
+        const author = normalize(book.author);
+        const genresArr = cleanArrayString(book.genres).map(g => normalize(g));
         return (
           title.includes(query) ||
           author.includes(query) ||
@@ -89,8 +90,8 @@
       });
 
       matches.forEach(book => {
-        const pagesArr = cleanArrayString(book.num_pages);
-        const pages = parseInt(pagesArr[0]) || 0;
+        const pagesArray = cleanArrayString(book.num_pages);
+        const pages = parseInt(pagesArray[0]) || 0;
         const wordsPerPage = 300;
         const totalWords = pages * wordsPerPage;
         const totalMinutes = Math.ceil(totalWords / speed);
@@ -112,6 +113,19 @@
         `;
       });
     }
+
+    // Cargar JSON externo desde tu GitHub Pages
+    fetch('https://airsoto.github.io/vet/books.json')
+      .then(response => response.json())
+      .then(data => {
+        books = data;
+        document.getElementById('search').addEventListener('input', searchBooks);
+        document.getElementById('speed').addEventListener('change', searchBooks);
+      })
+      .catch(err => {
+        document.getElementById('results').innerHTML = '<p>Error cargando libros.</p>';
+        console.error(err);
+      });
   </script>
 
 </body>
