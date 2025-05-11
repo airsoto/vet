@@ -14,27 +14,10 @@
       --star: #fbc02d;
       --star-empty: #ddd;
     }
-
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto;
-    }
-
-    body {
-      margin: 0;
-      padding: 2rem;
-      background: var(--bg);
-      color: var(--accent);
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-    }
-
-    input,
-    select,
-    button {
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto; }
+    body { margin: 0; padding: 2rem; background: var(--bg); color: var(--accent); }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    input, select, button {
       padding: 0.6rem 1rem;
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -42,25 +25,14 @@
       background: white;
       transition: border-color 0.15s ease;
     }
-
-    input:focus,
-    select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    button:hover {
-      border-color: var(--accent);
-      cursor: pointer;
-    }
-
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    button:hover { border-color: var(--accent); cursor: pointer; }
     #results {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1rem;
       margin-top: 1.5rem;
     }
-
     .card {
       background: white;
       border: 1px solid var(--border);
@@ -72,37 +44,12 @@
       transition: box-shadow 0.2s;
       cursor: pointer;
     }
-
-    .card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-
-    .card img {
-      max-width: 120px;
-      height: auto;
-      border-radius: var(--radius);
-    }
-
-    .card .title {
-      font-weight: 600;
-      text-align: center;
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-    }
-
-    .card .stars {
-      margin-top: 0.25rem;
-      font-size: 1rem;
-    }
-
-    .card .stars span {
-      color: var(--star-empty);
-    }
-
-    .card .stars .filled {
-      color: var(--star);
-    }
-
+    .card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+    .card img { max-width: 120px; height: auto; border-radius: var(--radius); }
+    .card .title { font-weight: 600; text-align: center; margin-top: 0.5rem; font-size: 0.9rem; }
+    .card .stars { margin-top: 0.25rem; font-size: 1rem; }
+    .card .stars span { color: var(--star-empty); }
+    .card .stars .filled { color: var(--star); }
     #detail {
       margin-top: 2rem;
       display: none;
@@ -111,12 +58,7 @@
       padding: 1.5rem;
       background: white;
     }
-
-    #detail h2 {
-      margin-top: 0;
-      font-size: 1.25rem;
-    }
-
+    #detail h2 { margin-top: 0; font-size: 1.25rem; }
     #detail .meta {
       display: flex;
       flex-wrap: wrap;
@@ -125,21 +67,18 @@
       font-size: 0.9rem;
       color: var(--accent-light);
     }
-
     footer {
       margin-top: 3rem;
       font-size: 0.875rem;
       color: var(--accent-light);
     }
-
-    footer a {
-      color: var(--accent-light);
-    }
+    footer a { color: var(--accent-light); }
   </style>
 </head>
 <body>
   <h1>📚 Buscador de libros</h1>
   <h2>Desarrollado por: Ángel Soto</h2>
+
   <label>
     <input id="searchBox" type="search" placeholder="Buscar por título, autor o género…" autocomplete="off" />
   </label>
@@ -149,6 +88,7 @@
     <option selected>300</option>
     <option>325</option>
   </select>
+
   <div id="results"></div>
 
   <section id="detail">
@@ -163,142 +103,137 @@
 
   <footer>
     Basado en el
-    <a href="https://www.kaggle.com/datasets/dk123891/books-dataset-goodreadsmay-2024" target="_blank" rel="noopener">software libre</a>
-    y en los datos de
-    <a href="https://www.goodreads.com/" target="_blank" rel="noopener">Goodreads</a>.
+    <a href="https://www.kaggle.com/datasets/dk123891/books-dataset-goodreadsmay-2024" target="_blank">dataset de Goodreads</a>.
   </footer>
 
-  <script>
-    const WORDS_PER_PAGE = 250;
-    let books = [];
+<script>
+let books = [];
 
-    const resultsEl = document.getElementById("results");
-    const searchBox = document.getElementById("searchBox");
-    const speedSelect = document.getElementById("speedSelect");
-    const detailSection = document.getElementById("detail");
-    const detailTitle = document.getElementById("detailTitle");
-    const detailPages = document.getElementById("detailPages");
-    const detailTime = document.getElementById("detailTime");
-    const detailText = document.getElementById("detailText");
-    const translateBtn = document.getElementById("translateBtn");
-    let currentBook = null;
+const resultsEl = document.getElementById("results");
+const searchBox = document.getElementById("searchBox");
+const speedSelect = document.getElementById("speedSelect");
+const detailSection = document.getElementById("detail");
+const detailTitle = document.getElementById("detailTitle");
+const detailPages = document.getElementById("detailPages");
+const detailTime = document.getElementById("detailTime");
+const detailText = document.getElementById("detailText");
+const translateBtn = document.getElementById("translateBtn");
+let currentBook = null;
 
-    function renderStars(rating) {
-      const stars = Array.from({ length: 5 }, (_, i) => {
-        const full = i + 1 <= Math.floor(rating);
-        const half = i + 1 > Math.floor(rating) && rating % 1 >= 0.5 && i === Math.floor(rating);
-        return `<span class="${full || half ? 'filled' : ''}">${half ? '⯨' : '★'}</span>`;
-      });
-      return `<div class="stars">${stars.join("")}</div>`;
-    }
+function renderStars(rating) {
+  const stars = Array.from({ length: 5 }, (_, i) => {
+    const full = i + 1 <= Math.floor(rating);
+    const half = i + 1 > Math.floor(rating) && rating % 1 >= 0.5 && i === Math.floor(rating);
+    return `<span class="${full || half ? 'filled' : ''}">${half ? '⯨' : '★'}</span>`;
+  });
+  return `<div class="stars">${stars.join("")}</div>`;
+}
 
-    function renderResults(list) {
-      resultsEl.innerHTML = "";
-      list.forEach(b => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <img src="${b.cover_image_uri}" alt="Portada ${b.book_title}">
-          <div class="title">${b.book_title}</div>
-          <div>${b.author}</div>
-          ${renderStars(b.average_rating)}
-        `;
-        card.addEventListener("click", () => showDetail(b));
-        resultsEl.appendChild(card);
-      });
-    }
+function renderResults(list) {
+  resultsEl.innerHTML = "";
+  list.forEach(b => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <img src="${b.cover_image_uri}" alt="Portada ${b.book_title}">
+      <div class="title">${b.book_title}</div>
+      <div>${b.author}</div>
+      ${renderStars(b.average_rating)}
+    `;
+    card.addEventListener("click", () => showDetail(b));
+    resultsEl.appendChild(card);
+  });
+}
 
-    function normalize(text) {
-      return text
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // elimina tildes
-        .replace(/[^\w\s]/g, ""); // elimina puntuación
-    }
+function normalize(text) {
+  return text?.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, "") || "";
+}
 
-    function filterResults() {
-      const q = normalize(searchBox.value.trim());
-      if (q.length < 2) {
-        renderResults(books.slice(0, 50));
-        return;
-      }
+function filterResults() {
+  const query = normalize(searchBox.value.trim());
+  if (query.length < 1) {
+    renderResults(books.slice(0, 50));
+    return;
+  }
 
-      const terms = q.split(/\s+/);
+  const filtered = books.filter(b => {
+    const title = normalize(b.book_title);
+    const author = normalize(b.author);
+    const genres = normalize((b.genres || []).join(" "));
+    return title.includes(query) || author.includes(query) || genres.includes(query);
+  });
 
-      const filtered = books.filter(b => {
-        const title = normalize(b.book_title || "");
-        const author = normalize(b.author || "");
-        const genres = normalize((b.genres || []).join(" "));
-        const content = `${title} ${author} ${genres}`;
-        return terms.every(term => content.includes(term));
-      });
+  renderResults(filtered.slice(0, 50));
+}
 
-      renderResults(filtered.slice(0, 50));
-    }
+function calcHours(pages) {
+  const ppm = parseInt(speedSelect.value);
+  const minutos = (pages * 250) / ppm;
+  const horas = Math.floor(minutos / 60);
+  const mins = Math.round(minutos % 60);
+  return `${horas} h ${mins} min`;
+}
 
-    function calcHours(pages) {
-      const wpm = parseInt(speedSelect.value, 10);
-      const minutes = (pages * WORDS_PER_PAGE) / wpm;
-      return (minutes / 60).toFixed(1);
-    }
+function updateDetailMeta() {
+  if (!currentBook) return;
+  detailPages.textContent = `${currentBook.num_pages} páginas`;
+  detailTime.textContent = `≈ ${calcHours(currentBook.num_pages)} de lectura`;
+}
 
-    function updateDetailMeta() {
-      if (!currentBook) return;
-      detailPages.textContent = `${currentBook.num_pages} páginas`;
-      detailTime.textContent = `≈ ${calcHours(currentBook.num_pages)} h de lectura (@${speedSelect.value} ppm)`;
-    }
+function showDetail(book) {
+  currentBook = book;
+  detailSection.style.display = "block";
+  detailTitle.textContent = book.book_title;
+  detailText.textContent = book.book_details || "Sin sinopsis disponible.";
+  detailText.dataset.original = book.book_details || "";
+  translateBtn.disabled = false;
+  translateBtn.textContent = "Traducir a español";
+  updateDetailMeta();
+}
 
-    function showDetail(book) {
-      currentBook = book;
-      detailSection.style.display = "block";
-      detailTitle.textContent = book.book_title;
-      detailText.textContent = book.book_details;
-      detailText.dataset.original = book.book_details;
-      translateBtn.disabled = false;
-      translateBtn.textContent = "Traducir a español";
-      updateDetailMeta();
-    }
-
-    translateBtn.addEventListener("click", () => {
-      if (!currentBook) return;
-      if (translateBtn.textContent.startsWith("Traducir")) {
-        translateText(detailText.dataset.original, "es").then(tr => {
-          detailText.textContent = tr;
-          detailTitle.textContent = `${currentBook.book_title} (ES)`;
-          translateBtn.textContent = "Ver original";
-        });
-      } else {
-        detailText.textContent = detailText.dataset.original;
-        detailTitle.textContent = currentBook.book_title;
-        translateBtn.textContent = "Traducir a español";
-      }
+translateBtn.addEventListener("click", () => {
+  if (!currentBook) return;
+  if (translateBtn.textContent.startsWith("Traducir")) {
+    translateText(detailText.dataset.original, "es").then(tr => {
+      detailText.textContent = tr;
+      detailTitle.textContent = `${currentBook.book_title} (ES)`;
+      translateBtn.textContent = "Ver original";
     });
+  } else {
+    detailText.textContent = detailText.dataset.original;
+    detailTitle.textContent = currentBook.book_title;
+    translateBtn.textContent = "Traducir a español";
+  }
+});
 
-    async function translateText(text, targetLang) {
-      try {
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        return (data.responseData && data.responseData.translatedText) ? data.responseData.translatedText : text;
-      } catch (err) {
-        console.error("Translation error", err);
-        return text;
-      }
-    }
+async function translateText(text, targetLang) {
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.responseData.translatedText || text;
+  } catch (err) {
+    console.error("Error traduciendo:", err);
+    return text;
+  }
+}
 
-    searchBox.addEventListener("input", filterResults);
-    speedSelect.addEventListener("change", updateDetailMeta);
+searchBox.addEventListener("input", filterResults);
+speedSelect.addEventListener("change", updateDetailMeta);
 
-    fetch("books.json")
-      .then(res => res.json())
-      .then(data => {
-        books = data;
-        renderResults(books.slice(0, 50));
-      })
-      .catch(err => {
-        console.error("Error cargando books.json", err);
-        resultsEl.innerHTML = '<p style="color:red">No se pudo cargar el archivo de libros.</p>';
-      });
-  </script>
+fetch("books.json")
+  .then(res => res.json())
+  .then(data => {
+    books = data;
+    renderResults(books.slice(0, 50));
+  })
+  .catch(err => {
+    console.error("Error cargando books.json", err);
+    resultsEl.innerHTML = '<p style="color:red">No se pudo cargar el archivo de libros.</p>';
+  });
+</script>
 </body>
 </html>
