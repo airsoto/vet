@@ -18,13 +18,32 @@
       margin: auto;
     }
 
-    input, select {
-      width: 100%;
-      padding: 0.6em;
-      margin-top: 1em;
+    .search-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      align-items: center;
+    }
+
+    .search-fields input {
+      flex: 1;
+      min-width: 200px;
+      padding: 1em;
+      font-size: 1.2em;
       border-radius: 5px;
       border: none;
-      font-size: 1em;
+    }
+
+    .search-fields label {
+      margin-top: 1em;
+      font-size: 1.1em;
+    }
+
+    .search-fields select {
+      padding: 1em;
+      font-size: 1.1em;
+      border-radius: 5px;
+      border: none;
     }
 
     .results, .details {
@@ -46,17 +65,22 @@
 
     .details img {
       float: right;
-      max-width: 120px;
+      max-width: 240px;
       margin-left: 20px;
       border-radius: 8px;
     }
 
     h2 {
       margin-top: 0;
+      font-size: 2em;
+    }
+
+    .details p {
+      font-size: 1.2em;
     }
 
     .rating {
-      font-size: 1.2em;
+      font-size: 1.4em;
       color: gold;
       display: flex;
       align-items: center;
@@ -67,73 +91,97 @@
 <body>
   <div class="container">
     <h1>Book Search</h1>
-    <input type="text" id="searchInput" placeholder="Search by title, author or genre...">
-    <select id="wpmSelect">
-      <option value="300">300 wpm (default)</option>
-      <option value="250">250 wpm</option>
-      <option value="275">275 wpm</option>
-      <option value="325">325 wpm</option>
-    </select>
+    <h3><span style="color: #339966;">Developed by Angel Soto</span></h3>
+    <div class="search-fields">
+      <input type="text" id="titleInput" placeholder="Search by title...">
+      <input type="text" id="authorInput" placeholder="Search by author...">
+      <input type="text" id="genreInput" placeholder="Search by genre...">
+      <label for="wpmSelect">WPM:
+        <select id="wpmSelect">
+          <option value="300">300 (default)</option>
+          <option value="250">250</option>
+          <option value="275">275</option>
+          <option value="325">325</option>
+        </select>
+      </label>
+    </div>
 
     <div class="results" id="results"></div>
     <div class="details" id="bookDetails"></div>
   </div>
 
   <script>
-    let books = [];
-
-    // Carga el JSON desde el mismo directorio
     fetch('books.json')
       .then(response => response.json())
-      .then(data => {
-        books = data;
+      .then(books => {
+        const titleInput = document.getElementById('titleInput');
+        const authorInput = document.getElementById('authorInput');
+        const genreInput = document.getElementById('genreInput');
+        const resultsContainer = document.getElementById('results');
+        const bookDetails = document.getElementById('bookDetails');
+        const wpmSelect = document.getElementById('wpmSelect');
+
+        [titleInput, authorInput, genreInput].forEach(input => {
+          input.addEventListener('input', () => {
+            const titleQuery = titleInput.value.toLowerCase();
+            const authorQuery = authorInput.value.toLowerCase();
+            const genreQuery = genreInput.value.toLowerCase();
+
+            resultsContainer.innerHTML = '';
+            bookDetails.innerHTML = '';
+
+            if (!titleQuery && !authorQuery && !genreQuery) return;
+
+            const matches = books.filter(book => {
+              const title = book.book_title?.toLowerCase() || '';
+              const author = book.author?.toLowerCase() || '';
+              const genres = String(book.genres || '').toLowerCase();
+
+              return (
+                (!titleQuery || title.includes(titleQuery)) &&
+                (!authorQuery || author.includes(authorQuery)) &&
+                (!genreQuery || genres.includes(genreQuery))
+              );
+            }).slice(0, 50);
+
+            matches.forEach(book => {
+              const item = document.createElement('div');
+              item.className = 'result-item';
+              item.textContent = `${book.book_title} by ${book.author}`;
+              item.addEventListener('click', () => displayBook(book));
+              resultsContainer.appendChild(item);
+            });
+          });
+        });
+
+        function displayBook(book) {
+          const wpm = parseInt(wpmSelect.value);
+          const pages = parseInt(book.num_pages) || 0;
+          const avgWordsPerPage = 250;
+          const totalWords = pages * avgWordsPerPage;
+          const totalMinutes = Math.ceil(totalWords / wpm);
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} minutes`;
+
+          const cleanGenres = String(book.genres).trim();
+
+          bookDetails.innerHTML = `
+            <h2>${book.book_title}</h2>
+            <img src="${book.cover_image_uri}" alt="Cover">
+            <p><strong>Author:</strong> ${book.author}</p>
+            <p><strong>Pages:</strong> ${pages}</p>
+            <p><strong>Genres:</strong> ${cleanGenres}</p>
+            <p><strong>Details:</strong> ${book.book_details}</p>
+            <p><strong>Estimated reading time:</strong> ${timeString} at ${wpm} wpm</p>
+            <div class="rating"><span>⭐</span>${book.average_rating}</div>
+          `;
+        }
+      })
+      .catch(error => {
+        document.getElementById('results').innerHTML = '<p style="color: red;">Error loading book data.</p>';
+        console.error('Error loading books.json:', error);
       });
-
-    const searchInput = document.getElementById('searchInput');
-    const resultsContainer = document.getElementById('results');
-    const bookDetails = document.getElementById('bookDetails');
-    const wpmSelect = document.getElementById('wpmSelect');
-
-    searchInput.addEventListener('input', () => {
-      const query = searchInput.value.toLowerCase();
-      resultsContainer.innerHTML = '';
-      bookDetails.innerHTML = '';
-
-      if (query.length < 2) return;
-
-      const matches = books.filter(book =>
-        book.book_title.toLowerCase().includes(query) ||
-        book.author.toLowerCase().includes(query) ||
-        book.genres.toLowerCase().includes(query)
-      ).slice(0, 50); // Limita a los primeros 50 resultados
-
-      matches.forEach(book => {
-        const item = document.createElement('div');
-        item.className = 'result-item';
-        item.textContent = `${book.book_title} by ${book.author}`;
-        item.addEventListener('click', () => displayBook(book));
-        resultsContainer.appendChild(item);
-      });
-    });
-
-    function displayBook(book) {
-      const wpm = parseInt(wpmSelect.value);
-      const pages = parseInt(book.num_pages) || 0;
-      const avgWordsPerPage = 250;
-      const totalWords = pages * avgWordsPerPage;
-      const readingTime = Math.ceil(totalWords / wpm);
-
-      bookDetails.innerHTML = `
-        <h2>${book.book_title}</h2>
-        <img src="${book.cover_image_uri}" alt="Cover">
-        <p><strong>Author:</strong> ${book.author}</p>
-        <p><strong>Pages:</strong> ${pages}</p>
-        <p><strong>Genres:</strong> ${book.genres}</p>
-        <p><strong>Details:</strong> ${book.book_details}</p>
-        <p><strong>Estimated reading time:</strong> ${readingTime} minutes at ${wpm} wpm</p>
-        <div class="rating"><span>⭐</span>${book.average_rating}</div>
-      `;
-    }
   </script>
 </body>
 </html>
