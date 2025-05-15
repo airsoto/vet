@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,8 +15,30 @@
     }
 
     .container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+    }
+
+    .top-panel {
+      display: flex;
+      gap: 1em;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .search-section {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .details {
+      flex: 1;
+      background-color: #2a2a2a;
+      padding: 1em;
+      border-radius: 10px;
     }
 
     .search-fields {
@@ -35,7 +58,6 @@
     }
 
     .search-fields label {
-      margin-top: 1em;
       font-size: 1.1em;
     }
 
@@ -46,8 +68,22 @@
       border: none;
     }
 
-    .results, .details {
-      margin-top: 2em;
+    button {
+      padding: 0.7em 1.2em;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      background-color: #444;
+      color: #eee;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #666;
+    }
+
+    .results {
+      margin-top: 1em;
       background-color: #2a2a2a;
       padding: 1em;
       border-radius: 10px;
@@ -90,24 +126,32 @@
 </head>
 <body>
   <div class="container">
-    <h1>Book Search</h1>
-    <h3><span style="color: #339966;">Developed by Angel Soto</span></h3>
-    <div class="search-fields">
-      <input type="text" id="titleInput" placeholder="Search by title...">
-      <input type="text" id="authorInput" placeholder="Search by author...">
-      <input type="text" id="genreInput" placeholder="Search by genre...">
-      <label for="wpmSelect">WPM:
-        <select id="wpmSelect">
-          <option value="300">300 (default)</option>
-          <option value="250">250</option>
-          <option value="275">275</option>
-          <option value="325">325</option>
-        </select>
-      </label>
-    </div>
+<h1>Book Search Page</h1>
+<h3><span style="color: #0000ff;">Developed by Angel Soto</span></h3>
 
-    <div class="results" id="results"></div>
-    <div class="details" id="bookDetails"></div>
+    <div class="top-panel">
+      <div class="search-section">
+        <div class="search-fields">
+          <input type="text" id="titleInput" placeholder="Search by title...">
+          <input type="text" id="authorInput" placeholder="Search by author...">
+          <input type="text" id="genreInput" placeholder="Search by genre...">
+          <label for="wpmSelect">WPM:
+            <select id="wpmSelect">
+              <option value="300">300 (default)</option>
+              <option value="250">250</option>
+              <option value="275">275</option>
+              <option value="325">325</option>
+            </select>
+          </label>
+          <button id="resetBtn">Reset</button>
+        </div>
+        <div class="results" id="results"></div>
+      </div>
+
+      <div class="details" id="bookDetails">
+        <p>Seleccione un libro para ver los detalles.</p>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -123,40 +167,51 @@
         const resultsContainer = document.getElementById('results');
         const bookDetails = document.getElementById('bookDetails');
         const wpmSelect = document.getElementById('wpmSelect');
+        const resetBtn = document.getElementById('resetBtn');
+
+        function searchBooks() {
+          const titleQuery = titleInput.value.toLowerCase();
+          const authorQuery = authorInput.value.toLowerCase();
+          const genreQuery = genreInput.value.toLowerCase();
+
+          resultsContainer.innerHTML = '';
+          bookDetails.innerHTML = '<p>Seleccione un libro para ver los detalles.</p>';
+
+          if (!titleQuery && !authorQuery && !genreQuery) return;
+
+          const matches = books.filter(book => {
+            const title = typeof book.book_title === 'string' ? book.book_title.toLowerCase() : '';
+            const author = typeof book.author === 'string' ? book.author.toLowerCase() : '';
+            const genres = Array.isArray(book.genres)
+              ? book.genres.join(',').toLowerCase()
+              : typeof book.genres === 'string' ? book.genres.toLowerCase() : '';
+
+            return (
+              (!titleQuery || title.includes(titleQuery)) &&
+              (!authorQuery || author.includes(authorQuery)) &&
+              (!genreQuery || genres.includes(genreQuery))
+            );
+          }).slice(0, 50);
+
+          matches.forEach(book => {
+            const item = document.createElement('div');
+            item.className = 'result-item';
+            item.textContent = `${book.book_title} by ${book.author}`;
+            item.addEventListener('click', () => displayBook(book));
+            resultsContainer.appendChild(item);
+          });
+        }
 
         [titleInput, authorInput, genreInput].forEach(input => {
-          input.addEventListener('input', () => {
-            const titleQuery = titleInput.value.toLowerCase();
-            const authorQuery = authorInput.value.toLowerCase();
-            const genreQuery = genreInput.value.toLowerCase();
+          input.addEventListener('input', searchBooks);
+        });
 
-            resultsContainer.innerHTML = '';
-            bookDetails.innerHTML = '';
-
-            if (!titleQuery && !authorQuery && !genreQuery) return;
-
-            const matches = books.filter(book => {
-              const title = typeof book.book_title === 'string' ? book.book_title.toLowerCase() : '';
-              const author = typeof book.author === 'string' ? book.author.toLowerCase() : '';
-              const genres = Array.isArray(book.genres)
-                ? book.genres.join(',').toLowerCase()
-                : typeof book.genres === 'string' ? book.genres.toLowerCase() : '';
-
-              return (
-                (!titleQuery || title.includes(titleQuery)) &&
-                (!authorQuery || author.includes(authorQuery)) &&
-                (!genreQuery || genres.includes(genreQuery))
-              );
-            }).slice(0, 50);
-
-            matches.forEach(book => {
-              const item = document.createElement('div');
-              item.className = 'result-item';
-              item.textContent = `${book.book_title} by ${book.author}`;
-              item.addEventListener('click', () => displayBook(book));
-              resultsContainer.appendChild(item);
-            });
-          });
+        resetBtn.addEventListener('click', () => {
+          titleInput.value = '';
+          authorInput.value = '';
+          genreInput.value = '';
+          resultsContainer.innerHTML = '';
+          bookDetails.innerHTML = '<p>Seleccione un libro para ver los detalles.</p>';
         });
 
         function displayBook(book) {
@@ -192,3 +247,28 @@
   </script>
 </body>
 </html>
+
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+
+<h2>Creado por:</h2>
+<p>Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;, puedes hacerlo aqu&iacute;:</strong></p>
+<p style="text-align: center;"><strong><a href="https://buymeacoffee.com/airsoto">BUY ME A COFFEE</a></strong></p>
+<p style="text-align: center;">&nbsp;</p>
+</html>
+
+<h2>Proyecto con licencia WTFPL</h2>
+<p>Este proyecto est&aacute; bajo la licencia <strong>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE</strong>.</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) [2025] [Angel Soto]</p>
+<p>&nbsp;</p>
+<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document, and changing it is allowed as long as the name is changed.</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION</p>
+<p>&nbsp;</p>
+<p>0. You just DO WHAT THE FUCK YOU WANT TO.</p>
+<p>&nbsp;</p>
+<p>
