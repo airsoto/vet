@@ -26,39 +26,41 @@
     .board {
       display: grid;
       grid-template-columns: repeat(9, 60px);
-      gap: 4px;
+      grid-template-rows: repeat(9, 60px);
+      gap: 0;
       justify-content: center;
-      margin: 1em auto;
+      margin: 2em auto;
+      animation: fadeIn 0.5s ease-in-out;
     }
 
     .cell {
-      width: 60px;
-      height: 60px;
-      text-align: center;
-      font-size: 1em;
+      border: 1px solid #444;
       background-color: #333;
       color: white;
-      border: 1px solid #555;
-      resize: none;
-      padding: 0.3em;
+      font-size: 1.2em;
+      text-align: center;
       font-family: monospace;
+      line-height: 60px;
+      outline: none;
+      cursor: pointer;
     }
 
-    .cell[readonly] {
-      background-color: #555;
-      resize: none;
+    .cell[contenteditable=\"true\"]:focus {
+      background-color: #444;
     }
 
-    .cell.solution {
-      color: red;
-    }
+    .bold-top { border-top: 3px solid #00187e; }
+    .bold-left { border-left: 3px solid #00187e; }
+    .bold-right { border-right: 3px solid #00187e; }
+    .bold-bottom { border-bottom: 3px solid #00187e; }
 
-    .cell.correct {
-      background-color: green;
-    }
+    .cell.solution { color: red; }
+    .cell.correct { background-color: green; }
+    .cell.wrong { background-color: darkred; }
 
-    .cell.wrong {
-      background-color: darkred;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
@@ -92,57 +94,63 @@
     let currentSolution = null;
 
     async function loadSudoku() {
-      const level = document.getElementById("difficulty").value;
-      const url = githubBaseUrl + `sudoku_dataset_difficulty_0.${level}.json`;
+      const level = parseInt(document.getElementById("difficulty").value);
+      const difficultyStr = (level / 10).toFixed(1);
+      const url = `${githubBaseUrl}sudoku_dataset_difficulty_${difficultyStr}.json`;
 
       try {
         const res = await fetch(url);
         const data = await res.json();
         const randomIndex = Math.floor(Math.random() * data.length);
-        console.log(\"Sudoku aleatorio:\", randomIndex); // Para verificar
         const { puzzle, solution } = data[randomIndex];
-        currentPuzzle = puzzle.split(\" \");
-        currentSolution = solution.split(\" \");
+        currentPuzzle = puzzle.split(" ");
+        currentSolution = solution.split(" ");
         createBoard();
       } catch (err) {
-        alert(\"Error cargando el archivo: \" + url + \"\\n¿Está el JSON en la carpeta correcta?\");
+        alert("Error cargando el archivo: " + url + "\n¿Está el JSON en la carpeta correcta?");
         console.error(err);
       }
     }
 
     function createBoard() {
-      const board = document.getElementById(\"board\");
-      board.innerHTML = \"\";
+      const board = document.getElementById("board");
+      board.innerHTML = "";
       currentPuzzle.forEach((val, i) => {
-        const textarea = document.createElement(\"textarea\");
-        textarea.maxLength = 9;
-        textarea.rows = 2;
-        textarea.cols = 2;
-        textarea.className = \"cell\";
-        textarea.dataset.index = i;
-        if (val !== \"0\") {
-          textarea.value = val;
-          textarea.readOnly = true;
+        const div = document.createElement("div");
+        div.className = "cell";
+        div.dataset.index = i;
+
+        // BORDES GRUESOS 3x3
+        const row = Math.floor(i / 9);
+        const col = i % 9;
+        if (row % 3 === 0) div.classList.add("bold-top");
+        if (col % 3 === 0) div.classList.add("bold-left");
+        if (col === 8) div.classList.add("bold-right");
+        if (row === 8) div.classList.add("bold-bottom");
+
+        if (val !== "0") {
+          div.textContent = val;
         } else {
-          textarea.placeholder = \"\"; // Puedes poner \"123\" para sugerencia de candidatos
+          div.contentEditable = true;
+          div.textContent = "";
         }
-        board.appendChild(textarea);
+        board.appendChild(div);
       });
     }
 
     function checkSolution() {
-      document.querySelectorAll(\".cell\").forEach(cell => {
-        if (!cell.readOnly) {
+      document.querySelectorAll(".cell").forEach(cell => {
+        if (cell.contentEditable === "true") {
           const index = cell.dataset.index;
-          const val = cell.value.trim();
+          const val = cell.textContent.trim();
           if (val === currentSolution[index]) {
-            cell.classList.add(\"correct\");
-            cell.classList.remove(\"wrong\");
+            cell.classList.add("correct");
+            cell.classList.remove("wrong");
           } else {
-            cell.classList.add(\"wrong\");
-            cell.classList.remove(\"correct\");
-            cell.value = currentSolution[index];
-            cell.classList.add(\"solution\");
+            cell.classList.add("wrong");
+            cell.classList.remove("correct");
+            cell.textContent = currentSolution[index];
+            cell.classList.add("solution");
           }
         }
       });
@@ -154,7 +162,6 @@
   </script>
 </body>
 </html>
-
 
 
 <p>&nbsp;</p>
