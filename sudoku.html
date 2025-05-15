@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudoku Resolver</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+
+    .controls {
+      margin-bottom: 1em;
+    }
+
+    select, button {
+      font-size: 1em;
+      padding: 0.5em;
+      margin: 0.2em;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, 40px);
+      gap: 2px;
+      justify-content: center;
+      margin: 1em auto;
+    }
+
+    .cell {
+      width: 40px;
+      height: 40px;
+      text-align: center;
+      font-size: 1.2em;
+      background-color: #333;
+      color: white;
+      border: 1px solid #555;
+    }
+
+    .cell[readonly] {
+      background-color: #555;
+    }
+
+    .cell.solution {
+      color: red;
+    }
+
+    .cell.correct {
+      background-color: green;
+    }
+
+    .cell.wrong {
+      background-color: darkred;
+    }
+  </style>
+</head>
+<body>
+  <h1>Resolver Sudoku</h1>
+
+  <div class="controls">
+    <label for="difficulty">Dificultad:</label>
+    <select id="difficulty">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+    </select>
+    <button onclick="loadSudoku()">Cargar Sudoku</button>
+    <button onclick="checkSolution()">Resolver</button>
+    <button onclick="resetBoard()">Resetear</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <script>
+    const githubBaseUrl = "https://airsoto.github.io/vet/";
+
+    let currentPuzzle = null;
+    let currentSolution = null;
+
+    async function loadSudoku() {
+      const level = document.getElementById("difficulty").value;
+      const url = githubBaseUrl + `sudoku_dataset_difficulty_0.${level}.json`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const randomIndex = Math.floor(Math.random() * data.length);
+        const { puzzle, solution } = data[randomIndex];
+        currentPuzzle = puzzle.split(" ");
+        currentSolution = solution.split(" ");
+        createBoard();
+      } catch (err) {
+        alert("Error cargando el archivo: " + url + "\\n¿Estás seguro de que el JSON está en la carpeta?");
+        console.error(err);
+      }
+    }
+
+    function createBoard() {
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+      currentPuzzle.forEach((val, i) => {
+        const input = document.createElement("input");
+        input.maxLength = 1;
+        input.className = "cell";
+        input.dataset.index = i;
+        if (val !== "0") {
+          input.value = val;
+          input.readOnly = true;
+        } else {
+          input.placeholder = "";
+        }
+        board.appendChild(input);
+      });
+    }
+
+    function checkSolution() {
+      document.querySelectorAll(".cell").forEach(cell => {
+        if (!cell.readOnly) {
+          const index = cell.dataset.index;
+          const val = cell.value;
+          if (val === currentSolution[index]) {
+            cell.classList.add("correct");
+            cell.classList.remove("wrong");
+          } else {
+            cell.classList.add("wrong");
+            cell.classList.remove("correct");
+            cell.value = currentSolution[index];
+            cell.classList.add("solution");
+          }
+        }
+      });
+    }
+
+    function resetBoard() {
+      createBoard();
+    }
+  </script>
+</body>
+</html>
