@@ -111,8 +111,11 @@
   </div>
 
   <script>
-    fetch('https://airsoto.github.io/vet/books.json')
-      .then(response => response.json())
+    fetch('books.json')
+      .then(response => {
+        if (!response.ok) throw new Error('HTTP status ' + response.status);
+        return response.json();
+      })
       .then(books => {
         const titleInput = document.getElementById('titleInput');
         const authorInput = document.getElementById('authorInput');
@@ -133,9 +136,11 @@
             if (!titleQuery && !authorQuery && !genreQuery) return;
 
             const matches = books.filter(book => {
-              const title = book.book_title?.toLowerCase() || '';
-              const author = book.author?.toLowerCase() || '';
-              const genres = String(book.genres || '').toLowerCase();
+              const title = typeof book.book_title === 'string' ? book.book_title.toLowerCase() : '';
+              const author = typeof book.author === 'string' ? book.author.toLowerCase() : '';
+              const genres = Array.isArray(book.genres)
+                ? book.genres.join(',').toLowerCase()
+                : typeof book.genres === 'string' ? book.genres.toLowerCase() : '';
 
               return (
                 (!titleQuery || title.includes(titleQuery)) &&
@@ -164,7 +169,9 @@
           const minutes = totalMinutes % 60;
           const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} minutes`;
 
-          const cleanGenres = String(book.genres).trim();
+          const cleanGenres = Array.isArray(book.genres)
+            ? book.genres.join(', ')
+            : book.genres || '';
 
           bookDetails.innerHTML = `
             <h2>${book.book_title}</h2>
@@ -179,7 +186,7 @@
         }
       })
       .catch(error => {
-        document.getElementById('results').innerHTML = '<p style="color: red;">Error loading book data.</p>';
+        document.getElementById('results').innerHTML = '<p style="color: red;">Error loading books.json</p>';
         console.error('Error loading books.json:', error);
       });
   </script>
