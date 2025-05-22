@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -126,8 +125,8 @@
 </head>
 <body>
   <div class="container">
-<h1>Interactive Book Search Page</h1>
-<h3><span style="color: #0000ff;">Developed by Angel Soto</span></h3>
+    <h1>Interactive Book Search Page</h1>
+    <h3><span style="color: #0000ff;">Developed by Angel Soto</span></h3>
 
     <div class="top-panel">
       <div class="search-section">
@@ -169,13 +168,15 @@
         const wpmSelect = document.getElementById('wpmSelect');
         const resetBtn = document.getElementById('resetBtn');
 
+        let currentLanguage = 'english'; // default
+
         function searchBooks() {
           const titleQuery = titleInput.value.toLowerCase();
           const authorQuery = authorInput.value.toLowerCase();
           const genreQuery = genreInput.value.toLowerCase();
 
           resultsContainer.innerHTML = '';
-          bookDetails.innerHTML = '<p>Seleccione un libro para ver los detalles.</p>';
+          bookDetails.innerHTML = '<p>Select a BOOK to view the details...</p>';
 
           if (!titleQuery && !authorQuery && !genreQuery) return;
 
@@ -211,14 +212,18 @@
           authorInput.value = '';
           genreInput.value = '';
           resultsContainer.innerHTML = '';
-          bookDetails.innerHTML = '<p>Seleccione un libro para ver los detalles.</p>';
+          bookDetails.innerHTML = '<p>Select a BOOK to view the details...</p>';
         });
 
         function displayBook(book) {
           const wpm = parseInt(wpmSelect.value);
-          const pages = parseInt(book.num_pages) || 0;
+          const pagesEnglish = parseInt(book.num_pages) || 0;
+          const pagesSpanish = Math.round(pagesEnglish * 1.2);
           const avgWordsPerPage = 250;
-          const totalWords = pages * avgWordsPerPage;
+
+          const usedPages = currentLanguage === 'english' ? pagesEnglish : pagesSpanish;
+          const langLabel = currentLanguage === 'english' ? 'English' : 'Spanish (estimated)';
+          const totalWords = usedPages * avgWordsPerPage;
           const totalMinutes = Math.ceil(totalWords / wpm);
           const hours = Math.floor(totalMinutes / 60);
           const minutes = totalMinutes % 60;
@@ -232,11 +237,56 @@
             <h2>${book.book_title}</h2>
             <img src="${book.cover_image_uri}" alt="Cover">
             <p><strong>Author:</strong> ${book.author}</p>
-            <p><strong>Pages:</strong> ${pages}</p>
+            <p><strong>Pages (${langLabel}):</strong> ${usedPages}</p>
             <p><strong>Genres:</strong> ${cleanGenres}</p>
             <p><strong>Details:</strong> ${book.book_details}</p>
             <p><strong>Estimated reading time:</strong> ${timeString} at ${wpm} wpm</p>
             <div class="rating"><span>⭐</span>${book.average_rating}</div>
+            <button onclick="toggleLanguage()">Switch to ${currentLanguage === 'english' ? 'Spanish' : 'English'}</button>
+          `;
+        }
+
+        window.toggleLanguage = function () {
+          currentLanguage = currentLanguage === 'english' ? 'spanish' : 'english';
+          const selected = document.querySelector('.result-item.selected');
+          if (selected && selected.dataset.bookIndex !== undefined) {
+            displayBook(books[selected.dataset.bookIndex]);
+          } else if (lastSelectedBook) {
+            displayBook(lastSelectedBook);
+          }
+        };
+
+        let lastSelectedBook = null;
+
+        function displayBook(book) {
+          lastSelectedBook = book;
+          const wpm = parseInt(wpmSelect.value);
+          const pagesEnglish = parseInt(book.num_pages) || 0;
+          const pagesSpanish = Math.round(pagesEnglish * 1.2);
+          const avgWordsPerPage = 250;
+
+          const usedPages = currentLanguage === 'english' ? pagesEnglish : pagesSpanish;
+          const langLabel = currentLanguage === 'english' ? 'English' : 'Spanish (estimated)';
+          const totalWords = usedPages * avgWordsPerPage;
+          const totalMinutes = Math.ceil(totalWords / wpm);
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} minutes`;
+
+          const cleanGenres = Array.isArray(book.genres)
+            ? book.genres.join(', ')
+            : book.genres || '';
+
+          bookDetails.innerHTML = `
+            <h2>${book.book_title}</h2>
+            <img src="${book.cover_image_uri}" alt="Cover">
+            <p><strong>Author:</strong> ${book.author}</p>
+            <p><strong>Pages (${langLabel}):</strong> ${usedPages}</p>
+            <p><strong>Genres:</strong> ${cleanGenres}</p>
+            <p><strong>Details:</strong> ${book.book_details}</p>
+            <p><strong>Estimated reading time:</strong> ${timeString} at ${wpm} wpm</p>
+            <div class="rating"><span>⭐</span>${book.average_rating}</div>
+            <button onclick="toggleLanguage()">Switch to ${currentLanguage === 'english' ? 'Spanish' : 'English'}</button>
           `;
         }
       })
@@ -247,6 +297,7 @@
   </script>
 </body>
 </html>
+
 
 <p>&nbsp;</p>
 
