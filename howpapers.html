@@ -51,40 +51,231 @@
   <p>El siguiente código HTML es el motor del buscador, que permite filtrar artículos por título, autor o revista, y visualizar los resultados junto con los resúmenes:</p>
 
   <div class="code-box">
-<span class="tag">&lt;!DOCTYPE html&gt;</span>
-<span class="tag">&lt;html</span> <span class="attr">lang=</span><span class="string">"es"</span><span class="tag">&gt;</span>
-<span class="tag">&lt;head&gt;</span>
-  <span class="tag">&lt;meta</span> <span class="attr">charset=</span><span class="string">"UTF-8"</span><span class="tag">&gt;</span>
-  <span class="tag">&lt;title&gt;</span>Buscador de Artículos Veterinarios<span class="tag">&lt;/title&gt;</span>
-  <span class="comment">&lt;!-- Aquí empieza el CSS omitido para brevedad --&gt;</span>
-<span class="tag">&lt;/head&gt;</span>
-<span class="tag">&lt;body&gt;</span>
-  <span class="tag">&lt;h1</span> <span class="attr">onclick=</span><span class="string">"toggleModal()"</span><span class="tag">&gt;</span>Buscador de Artículos...<span class="tag">&lt;/h1&gt;</span>
-  <span class="tag">&lt;h2&gt;</span>Desarrollado por: Angel Soto<span class="tag">&lt;/h2&gt;</span>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscador de Artículos Veterinarios</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 2em;
+    }
+    h1 {
+      text-align: center;
+      color: #90caf9;
+      cursor: pointer;
+    }
+    .search-section {
+      display: flex;
+      gap: 1em;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2em;
+    }
+    input, select, button {
+      padding: 0.5em;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+    }
+    input, select {
+      width: 200px;
+    }
+    button {
+      background-color: #1e88e5;
+      color: white;
+      cursor: pointer;
+    }
+    .results {
+      margin-top: 2em;
+    }
+    .article {
+      background-color: #1e1e1e;
+      padding: 1.5em;
+      border-left: 4px solid #90caf9;
+      margin-bottom: 2em;
+      border-radius: 8px;
+    }
+    .latex-style {
+      font-family: 'Times New Roman', serif;
+      background-color: #222;
+      padding: 1em;
+      border: 1px solid #555;
+      border-radius: 6px;
+      margin-top: 1em;
+    }
+    .abstract-text {
+      font-style: italic;
+      text-align: justify;
+      line-height: 1.6;
+      margin-top: 1em;
+      font-size: 1.05em;
+    }
+    .email-section {
+      margin-top: 1em;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #1e1e1e;
+      padding: 2em;
+      border-radius: 8px;
+      max-width: 600px;
+      text-align: center;
+      color: #fff;
+    }
+    .close-btn {
+      background: #e53935;
+      border: none;
+      padding: 0.5em 1em;
+      color: white;
+      margin-top: 1em;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+<h1 onclick="toggleModal()">Buscador de Artículos de principales revistas de Medicina Interna Veterinaria (pulsa aquí para ver las revistas indexadas)</h1>
+<h2 style="text-align:center;">Desarrollado por: Angel Soto</h2>
+<p style="text-align:center;">
+  <a href="https://airsoto.github.io/vet/howpapers.html" target="_blank" style="color:#90caf9; text-decoration:underline;">
+    (cómo se ha hecho esta página)
+  </a>
+</p>
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>Revistas indexadas</h2>
+      <p>
+        Journal of Veterinary Internal Medicine<br>
+        Veterinary Record<br>
+        Journal of the American Veterinary Medical Association<br>
+        Veterinary Pathology<br>
+        Veterinary Journal<br>
+        Journal of Veterinary Cardiology<br>
+        Veterinary Dermatology<br>
+        Veterinary Anaesthesia and Analgesia<br>
+        Journal of Small Animal Practice
+      </p>
+      <button class="close-btn" onclick="toggleModal()">Cerrar</button>
+    </div>
+  </div>
 
-  <span class="comment">&lt;!-- Sección del modal con las revistas indexadas --&gt;</span>
+  <div class="search-section">
+    <select id="search-type">
+      <option value="title">Título</option>
+      <option value="authors">Autor</option>
+      <option value="journal">Revista</option>
+    </select>
+    <input type="text" id="search-input" placeholder="Buscar...">
+    <input type="text" id="keyword-input" placeholder="Palabra clave...">
+    <button onclick="search()">Buscar</button>
+  </div>
 
-  <span class="comment">&lt;!-- Sección de búsqueda con selectores e inputs --&gt;</span>
+  <div id="result-count" style="text-align:center; font-size:1.2em; margin-top:1em; color:#90caf9;"></div>
+  <div id="results" class="results"></div>
 
-  <span class="comment">&lt;!-- Contenedor de resultados --&gt;</span>
+  <script>
+    let articles = [];
 
-  <span class="tag">&lt;script&gt;</span>
-    <span class="keyword">let</span> articles = [];
-    <span class="keyword">async function</span> cargarArticulos() {
-      <span class="keyword">try</span> {
-        <span class="keyword">const</span> response = <span class="keyword">await</span> fetch(<span class="string">'papers.json'</span>);
-        articles = <span class="keyword">await</span> response.json();
-      } <span class="keyword">catch</span> (error) {
+    async function cargarArticulos() {
+      try {
+        const response = await fetch('papers.json');
+        if (!response.ok) throw new Error('No se pudo cargar el archivo JSON');
+        articles = await response.json();
+      } catch (error) {
+        document.getElementById('results').innerHTML = '<p>Error al cargar los artículos.</p>';
         console.error(error);
       }
     }
-    <span class="comment">// Función de búsqueda...</span>
-    <span class="comment">// Función de envío por correo...</span>
-    <span class="comment">// Función para mostrar y ocultar el modal...</span>
+
+    function search() {
+      const type = document.getElementById('search-type').value;
+      const query = document.getElementById('search-input').value.toLowerCase();
+      const keywordQuery = document.getElementById('keyword-input').value.toLowerCase();
+      const resultsContainer = document.getElementById('results');
+      const countContainer = document.getElementById('result-count');
+      resultsContainer.innerHTML = '';
+      countContainer.innerHTML = '';
+
+      const filtered = articles.filter(article => {
+        const matchType = (type === 'authors')
+          ? article.authors.some(a => a.toLowerCase().includes(query))
+          : article[type].toLowerCase().includes(query);
+
+        const matchKeyword = keywordQuery === "" || (
+          article.keywords &&
+          article.keywords.some(k => k.toLowerCase().includes(keywordQuery))
+        );
+
+        return matchType && matchKeyword;
+      });
+
+      countContainer.innerHTML = `Se encontraron <strong>${filtered.length}</strong> artículo(s).`;
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = "<p>No se encontraron resultados.</p>";
+        return;
+      }
+
+      filtered.forEach(article => {
+        const div = document.createElement('div');
+        div.className = 'article';
+        div.innerHTML = `
+          <div class="latex-style">
+            <h2 style="text-align: center;">${article.title}</h2>
+            <p style="text-align: center; font-style: italic;">${article.authors.join(', ')}</p>
+            <p style="text-align: center; font-size: 0.95em;">${article.journal}, Vol. ${article.volume}(${article.issue}), ${article.year}</p>
+            <h3 style="margin-top: 1.5em;">Resumen</h3>
+            <p class="abstract-text">${article.abstract}</p>
+            ${article.keywords ? `<p style="font-size: 0.9em; margin-top: 1em;"><strong>Palabras clave:</strong> ${article.keywords.join(', ')}</p>` : ''}
+          </div>
+          <div class="email-section">
+            <input type="email" placeholder="Tu email..." id="email-${article.title}" style="margin-top: 1em;"/>
+            <button onclick="sendEmail('${article.title.replace(/'/g, "\\'")}')">Enviar por correo</button>
+          </div>
+        `;
+        resultsContainer.appendChild(div);
+      });
+    }
+
+    function sendEmail(title) {
+      const article = articles.find(a => a.title === title);
+      const email = document.getElementById(`email-${title}`).value;
+
+      if (!email || !email.includes('@')) {
+        alert("Introduce un email válido.");
+        return;
+      }
+
+      const subject = encodeURIComponent("Artículo Veterinario: " + article.title);
+      const body = encodeURIComponent(`Título: ${article.title}\nAutores: ${article.authors.join(', ')}\nRevista: ${article.journal}, Vol. ${article.volume}(${article.issue}), ${article.year}\n\nResumen:\n${article.abstract}`);
+      const mailto = `mailto:${email}?subject=${subject}&body=${body}`;
+      window.location.href = mailto;
+    }
+
+    function toggleModal() {
+      const modal = document.getElementById('modal');
+      modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
     cargarArticulos();
-  <span class="tag">&lt;/script&gt;</span>
-<span class="tag">&lt;/body&gt;</span>
-<span class="tag">&lt;/html&gt;</span>
+  </script>
+</body>
+</html>
   </div>
 
   <p><em>Nota:</em> El código completo con estilos y scripts detallados puede visualizarse directamente en tu editor favorito o implementarse como base de un visor web en tu servidor.</p>
