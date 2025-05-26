@@ -6,18 +6,20 @@ import time
 # Lista de revistas veterinarias
 journals = [
     "Journal of Veterinary Internal Medicine",
-    "Veterinary Record",
     "Journal of the American Veterinary Medical Association",
-    "Veterinary Pathology",
-    "Veterinary Journal",
     "Journal of Veterinary Cardiology",
-    "Veterinary Dermatology",
-    "Veterinary Anaesthesia and Analgesia",
+   # "Journal of Small Animal Practice"
+    #"Veterinary Record",
+    "Journal of the American Veterinary Medical Association",
+    #"Veterinary Pathology",
+    #"Veterinary Journal",
+    #"Veterinary Dermatology",
+    #"Veterinary Anaesthesia and Analgesia",
     "Journal of Small Animal Practice",
-    "Journal of Feline Medicine and Surgery",
-    "Journal of Veterinary Emergency and Critical Care",
-    "Veterinary Medicine and Science",
-    "The Journal of Veterinary Medical Science"
+    #"Journal of Feline Medicine and Surgery",
+    #"Journal of Veterinary Emergency and Critical Care",
+    #"Veterinary Medicine and Science",
+    #"The Journal of Veterinary Medical Science"
 ]
 
 def fetch_all_articles(journal):
@@ -26,7 +28,7 @@ def fetch_all_articles(journal):
     retstart = 0
     batch_size = 100
     while True:
-        query = f'{journal}[Journal] AND 1975:2025[DP]'
+        query = f'{journal}[Journal] AND 1995:2025[DP]'
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         params = {
             "db": "pubmed",
@@ -121,7 +123,9 @@ for journal in journals:
         print(f"❌ Error con {journal}: {e}")
 
 # Guardar en archivo JSON
-with open("articulos_veterinarios.json", "w", encoding="utf-8") as f:
+with open("papers4.json", "w", encoding="utf-8") as f:
     json.dump(resultados, f, ensure_ascii=False, indent=2)
 
 print("\n🎉 Exportación completada: articulos_veterinarios.json")
+
+
