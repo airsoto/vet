@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¿Cómo se ha creado el buscador de Investigación y Ciencia?</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      line-height: 1.6;
+      margin: 2em;
+    }
+    h1, h2 {
+      color: #90caf9;
+    }
+    pre {
+      background-color: #1e1e1e;
+      padding: 1em;
+      border-radius: 10px;
+      overflow-x: auto;
+    }
+    code {
+      color: #c3e88d;
+    }
+    a {
+      color: #82aaff;
+    }
+  </style>
+</head>
+<body>
+  <h1>¿Cómo he creado el buscador de la revista <i>Investigación y Ciencia</i>?</h1>
+
+  <h2>1. Descarga de datos desde Dialnet</h2>
+  <p>Se utiliza Selenium y BeautifulSoup para automatizar la extracción de ejemplares desde la web de Dialnet. El script recorre IDs de ejemplares, accede a su página y extrae:</p>
+  <ul>
+    <li>Año</li>
+    <li>Volumen</li>
+    <li>Título del artículo</li>
+    <li>Autores</li>
+    <li>Páginas</li>
+  </ul>
+  <p>Este es el código:</p>
+  <pre><code>from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+import json, time, random
+
+START_ID = 27210
+END_ID = 614230  # rango de ejemplares
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")
+...
+driver.quit()
+
+with open("dialnet_INV_y_ciencia_1990-2022.json", "w", encoding="utf-8") as f:
+    json.dump(results, f, ensure_ascii=False, indent=2)</code></pre>
+
+  <h2>2. Generación de enlaces a los PDF en Archive.org</h2>
+  <p>Una vez obtenido el JSON, se usa un script en Python para crear los enlaces de visualización directa del artículo desde Archive.org:</p>
+  <pre><code>import json
+meses = ["01-ene", "02-feb", ..., "12-dic"]
+volumen_base = 160
+
+with open("1.json", "r", encoding="utf-8") as f:
+    articulos = json.load(f)
+
+for articulo in articulos:
+    volumen = int(articulo["volumen"])
+    pagina_inicio = articulo["páginas"].split("-")[0].strip()
+    mes = meses[(volumen - volumen_base) % 12]
+    articulo["url"] = f"https://archive.org/details/iyc{año}/IYC{volumen}-{año}-{mes}/page/{pagina_inicio}/mode/2up"
+
+with open("1_actualizado.json", "w", encoding="utf-8") as f:
+    json.dump(articulos, f, indent=2, ensure_ascii=False)</code></pre>
+
+  <h2>Resultado final</h2>
+  <p>Se obtiene un archivo JSON enriquecido con enlaces directos a los PDF de cada artículo, lo que permite alimentar el buscador web de forma automática.</p>
+</body>
+</html>
