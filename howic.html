@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>¿Cómo se ha creado el buscador de Investigación y Ciencia?</title>
-  <style>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¿Cómo se ha creado el buscador de Investigación y Ciencia?</title>
+    <style>
     body {
       background-color: #121212;
       color: #f0f0f0;
@@ -28,55 +28,182 @@
       color: #82aaff;
     }
   </style>
-</head>
-<body>
-  <h1>¿Cómo he creado el buscador de la revista <i>Investigación y Ciencia</i>?</h1>
-
-  <h2>1. Descarga de datos desde Dialnet</h2>
-  <p>Se utiliza Selenium y BeautifulSoup para automatizar la extracción de ejemplares desde la web de Dialnet. El script recorre IDs de ejemplares, accede a su página y extrae:</p>
-  <ul>
-    <li>Año</li>
-    <li>Volumen</li>
-    <li>Título del artículo</li>
-    <li>Autores</li>
-    <li>Páginas</li>
-  </ul>
-  <p>Este es el código:</p>
-  <pre><code>from selenium import webdriver
+  </head>
+  <body>
+    <h1>¿Cómo he creado el buscador de la revista <i>Investigación y Ciencia</i>?</h1>
+    <h2>1. Descarga de datos desde Dialnet</h2>
+    <p>Se utiliza Selenium y BeautifulSoup para automatizar la extracción de
+      ejemplares desde la web de Dialnet. El script recorre IDs de ejemplares,
+      accede a su página y extrae:</p>
+    <ul>
+      <li>Año</li>
+      <li>Volumen</li>
+      <li>Título del artículo</li>
+      <li>Autores</li>
+      <li>Páginas</li>
+    </ul>
+    <p>Este es el código:</p>
+    <pre><code>from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
-import json, time, random
+import json
+import time
+import random
 
-START_ID = 27210
-END_ID = 614230  # rango de ejemplares
+START_ID = # PONER AQUÍ LA PAGINA FINAL A ESCANEAR DE DIALNET
+END_ID =   # PONER AQUÍ LA PAGINA FINAL A ESCANEAR DE DIALNET
+
 options = webdriver.ChromeOptions()
 options.add_argument("--headless")
-...
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+results = []
+
+print("⏳ Esperando antes de iniciar para evitar detección...")
+time.sleep(random.uniform(10, 20))  # espera inicial larga
+
+for ejemplar_id in range(START_ID, END_ID + 1):
+    url = f"https://dialnet.unirioja.es/ejemplar/{ejemplar_id}"
+    print(f"Accediendo a: {url}")
+
+    try:
+        driver.get(url)
+        time.sleep(random.uniform(8, 14))  # espera a que cargue bien
+
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+
+        # NUEVA FORMA DE EXTRAER AÑO Y VOLUMEN
+        year = volume = None
+        h3 = soup.select_one("div.tituloDeBloque h3")
+        if h3:
+            h3_text = h3.get_text(strip=True)
+            # Por ejemplo: "Año 1990, Número 160"
+            if "Año" in h3_text and "Número" in h3_text:
+                try:
+                    year = h3_text.split("Año")[1].split(",")[0].strip()
+                    volume = h3_text.split("Número")[1].strip()
+                except Exception as e:
+                    print(f"⚠️ Error extrayendo año/volumen en {url}: {e}")
+        else:
+            print(f"⚠️ No se encontró el título del bloque en {url}")
+
+        # EXTRAER ARTÍCULOS
+        articulos = soup.find_all("li", class_="articulo")
+        for art in articulos:
+            titulo_tag = art.find("p", class_="titulo")
+            autores_tag = art.find("p", class_="autores")
+            paginas_tag = art.find("p", class_="localizacion")
+
+            titulo = titulo_tag.get_text(strip=True) if titulo_tag else None
+            autores = autores_tag.get_text(" ", strip=True) if autores_tag else None
+            paginas = paginas_tag.get_text(strip=True).replace("págs.", "").strip() if paginas_tag else None
+
+            results.append({
+                "año": year,
+                "volumen": volume,
+                "título": titulo,
+                "autores": autores,
+                "páginas": paginas,
+                "ejemplar_url": url
+            })
+
+            time.sleep(random.uniform(1, 3))  # espera entre artículos
+
+    except Exception as e:
+        print(f"⚠️ Error procesando {url}: {e}")
+        time.sleep(random.uniform(20, 30))  # espera larga tras error
+
+    time.sleep(random.uniform(20, 40))  # espera entre páginas
+
 driver.quit()
 
-with open("dialnet_INV_y_ciencia_1990-2022.json", "w", encoding="utf-8") as f:
-    json.dump(results, f, ensure_ascii=False, indent=2)</code></pre>
+# GUARDAR EN JSON
+with open("dialnet_INV_y_ciencia_.json", "w", encoding="utf-8") as f:
+    json.dump(results, f, ensure_ascii=False, indent=2)
 
-  <h2>2. Generación de enlaces a los PDF en Archive.org</h2>
-  <p>Una vez obtenido el JSON, se usa un script en Python para crear los enlaces de visualización directa del artículo desde Archive.org:</p>
-  <pre><code>import json
-meses = ["01-ene", "02-feb", ..., "12-dic"]
+print(f"✅ Finalizado. Se han extraído {len(results)} artículos.")
+<br></code></pre>
+    <h2>2. Generación de enlaces a los PDF en Archive.org</h2>
+    <p>Una vez obtenido el JSON que tiene esta estructura: </p>
+    <p><br>
+    </p>
+    <pre>[...      &nbsp; {<br><code><p>
+      &nbsp;&nbsp;&nbsp; "año": "1991",<br>
+      &nbsp;&nbsp;&nbsp; "volumen": "183",<br>
+      &nbsp;&nbsp;&nbsp; "título": "Origen de los asteroides",<br>
+      &nbsp;&nbsp;&nbsp; "autores": "Richard P. Binzel , M. Antonietta Barucci ,
+      Marcello Fulchignoni",<br>
+      &nbsp;&nbsp;&nbsp; "páginas": "66-73",<br>
+      &nbsp;&nbsp;&nbsp; "ejemplar_url":
+      "https://dialnet.unirioja.es/ejemplar/27233"<br>
+      &nbsp; },...]</p></code></pre>
+    <p>se usa un script en Python para crear los enlaces de visualización
+      directa del artículo en Archive.org.El formato de dichos enlaces es: <br>
+      <br>
+      <b>https://archive.org/details/iyc-1991/IYC183-1991-12-dic/page/14/mode/1up?view=theater<br>
+        <br>
+      </b><b><br>
+      </b></p>
+    <br>
+    <p>Es ncesario dar a cada elemento del json una URL al enlace de
+      archive.org. se automatiza la creacion del enlace con este script. Para
+      construir la URL, asocia cada número de volumen a un mes del año de forma
+      cíclica (dadoque cada volumen va de enero a diciembre), comenzando en
+      enero para el volumen 160 y siguiendo la cadencia de volúmenes de esta
+      tabla: </p>
+    <div style="text-align: center;"> <img src="https://airsoto.github.io/vet/IC_vol.png"
+        alt="centrada" width="300">
+    </div>
+    <p><b><br>
+      </b></p>
+    <p><b></b>Extrae el año, el volumen y la página de inicio del artículo para
+      completar la estructura del enlace. Una vez generadas las URLs, guarda
+      todos los artículos modificados en un nuevo archivo JSON. </p>
+    <p><b><br>
+      </b></p>
+    <pre><code>import json
+
+# Lista cíclica de meses con su número
+meses = [
+    "01-ene", "02-feb", "03-mar", "04-abr", "05-may", "06-jun",
+    "07-jul", "08-ago", "09-set", "10-oct", "11-nov", "12-dic"
+]
+
+# Volumen base para enero
 volumen_base = 160
 
+# Cargar el JSON original
 with open("1.json", "r", encoding="utf-8") as f:
     articulos = json.load(f)
 
+# Añadir campo URL a cada artículo
 for articulo in articulos:
+    año = articulo["año"]
     volumen = int(articulo["volumen"])
     pagina_inicio = articulo["páginas"].split("-")[0].strip()
-    mes = meses[(volumen - volumen_base) % 12]
-    articulo["url"] = f"https://archive.org/details/iyc{año}/IYC{volumen}-{año}-{mes}/page/{pagina_inicio}/mode/2up"
 
-with open("1_actualizado.json", "w", encoding="utf-8") as f:
-    json.dump(articulos, f, indent=2, ensure_ascii=False)</code></pre>
+    # Calcular mes correspondiente al volumen
+    mes_index = (volumen - volumen_base) % 12
+    mes = meses[mes_index]
 
-  <h2>Resultado final</h2>
-  <p>Se obtiene un archivo JSON enriquecido con enlaces directos a los PDF de cada artículo, lo que permite alimentar el buscador web de forma automática.</p>
-</body>
+    # Construir URL 
+    url = f"https://archive.org/details/iyc{año}/IYC{volumen}-{año}-{mes}/page/{pagina_inicio}/mode/1up?view=theater"
+    articulo["url"] = url
+
+# Guardar resultado en nuevo archivo
+with open("con_url.json", "w", encoding="utf-8") as f:
+    json.dump(articulos, f, indent=2, ensure_ascii=False)
+
+print("✅ URLs añadidas correctamente según volumen → mes.")
+<br></code></pre>
+    <h2>Resultado final</h2>
+    <p>Se obtiene un archivo JSON enriquecido con enlaces directos a los PDF de
+      cada artículo, lo que permite alimentar el buscador web de
+      forma automática.</p>
+  </body>
 </html>
+<!-- FOOTER -->
