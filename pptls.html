@@ -1,0 +1,303 @@
+  <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Piedra, Papel, Tijera, Lagarto, Spock</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    button {
+      min-width: 120px;
+      padding: 15px;
+      font-size: 18px;
+      border: none;
+      border-radius: 12px;
+      background-color: #2d2d2d;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #444;
+    }
+
+    #choices {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      font-size: 20px;
+      margin: 20px 0;
+    }
+
+    .choice-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .emoji {
+      font-size: 50px;
+    }
+
+    .highlight {
+      background-color: #0066cc;
+      padding: 10px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    #result {
+      font-size: 24px;
+      margin-top: 10px;
+    }
+
+    #score, #overall {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+
+    #restart {
+      margin-top: 20px;
+      background-color: #b00020;
+    }
+
+    #restart:hover {
+      background-color: #d32f2f;
+    }
+
+    #instrucciones {
+      margin-top: 20px;
+      cursor: pointer;
+      color: #90caf9;
+      text-decoration: underline;
+      font-size: 18px;
+    }
+
+    #modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      justify-content: center;
+      align-items: center;
+    }
+
+    #modal-content {
+      background: #1e1e1e;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 600px;
+      text-align: left;
+    }
+
+    #modal-content h2 {
+      margin-top: 0;
+    }
+
+    .close {
+      float: right;
+      font-size: 24px;
+      cursor: pointer;
+      color: #ccc;
+    }
+
+    .diagram {
+      margin-top: 30px;
+      font-size: 16px;
+      line-height: 1.6;
+      text-align: left;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .diagram ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .diagram li::before {
+      content: "➡️ ";
+    }
+  </style>
+</head>
+<body>
+  <h1>Piedra, Papel, Tijera, Lagarto, Spock</h1>
+    <h2>Desarrollado por: Angel Soto</h2>
+
+  <div class="buttons">
+    <button onclick="play('Piedra')">🪨 Piedra</button>
+    <button onclick="play('Papel')">📄 Papel</button>
+    <button onclick="play('Tijera')">✂️ Tijera</button>
+    <button onclick="play('Lagarto')">🦎 Lagarto</button>
+    <button onclick="play('Spock')">🖖 Spock</button>
+  </div>
+
+  <div id="choices">
+    <div class="choice-box">
+      <strong>Jugador</strong>
+      <div id="playerEmoji" class="emoji">-</div>
+      <div id="playerChoice">-</div>
+    </div>
+    <div class="choice-box">
+      <strong>Máquina</strong>
+      <div id="machineEmoji" class="emoji">-</div>
+      <div id="machineChoice">-</div>
+    </div>
+  </div>
+
+  <div id="result"></div>
+  <div id="score">Jugador: 0 | Máquina: 0</div>
+  <div id="overall">Líder actual: Nadie</div>
+  <button id="restart" onclick="resetGame()">🔁 Reiniciar juego</button>
+
+  <div id="instrucciones" onclick="mostrarModal()">📘 Instrucciones</div>
+
+  <!-- Modal -->
+  <div id="modal">
+    <div id="modal-content">
+      <span class="close" onclick="cerrarModal()">&times;</span>
+      <h2>Reglas del juego</h2>
+      <p>Cada elemento gana contra dos y pierde contra otros dos. Aquí está el diagrama:</p>
+      <div class="diagram">
+        <ul>
+          <li>✂️ Tijera corta 📄 Papel</li>
+          <li>📄 Papel cubre 🪨 Piedra</li>
+          <li>🪨 Piedra aplasta 🦎 Lagarto</li>
+          <li>🦎 Lagarto envenena 🖖 Spock</li>
+          <li>🖖 Spock rompe ✂️ Tijera</li>
+          <li>✂️ Tijera decapita 🦎 Lagarto</li>
+          <li>🦎 Lagarto se come 📄 Papel</li>
+          <li>📄 Papel refuta 🖖 Spock</li>
+          <li>🖖 Spock vaporiza 🪨 Piedra</li>
+          <li>🪨 Piedra aplasta ✂️ Tijera</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const emojis = {
+      Piedra: "🪨",
+      Papel: "📄",
+      Tijera: "✂️",
+      Lagarto: "🦎",
+      Spock: "🖖"
+    };
+
+    const rules = {
+      Piedra: ["Tijera", "Lagarto"],
+      Papel: ["Piedra", "Spock"],
+      Tijera: ["Papel", "Lagarto"],
+      Lagarto: ["Spock", "Papel"],
+      Spock: ["Tijera", "Piedra"]
+    };
+
+    let playerScore = 0;
+    let machineScore = 0;
+
+    function play(playerChoice) {
+      const options = Object.keys(rules);
+      const machineChoice = options[Math.floor(Math.random() * options.length)];
+
+      document.getElementById("playerChoice").textContent = playerChoice;
+      document.getElementById("playerEmoji").textContent = emojis[playerChoice];
+
+      document.getElementById("machineChoice").textContent = machineChoice;
+      document.getElementById("machineEmoji").textContent = emojis[machineChoice];
+
+      highlightMachineChoice();
+
+      let result = "";
+      if (playerChoice === machineChoice) {
+        result = "¡Empate!";
+      } else if (rules[playerChoice].includes(machineChoice)) {
+        result = "¡Ganaste esta ronda!";
+        playerScore++;
+      } else {
+        result = "¡Perdiste esta ronda!";
+        machineScore++;
+      }
+
+      document.getElementById("result").textContent = result;
+      updateScore();
+    }
+
+    function highlightMachineChoice() {
+      const machineSpan = document.getElementById("machineEmoji");
+      machineSpan.classList.add("highlight");
+      setTimeout(() => {
+        machineSpan.classList.remove("highlight");
+      }, 700);
+    }
+
+    function updateScore() {
+      document.getElementById("score").textContent = `Jugador: ${playerScore} | Máquina: ${machineScore}`;
+      const leader = playerScore > machineScore ? "Jugador" :
+                     machineScore > playerScore ? "Máquina" : "Empate";
+      document.getElementById("overall").textContent = `Líder actual: ${leader}`;
+    }
+
+    function resetGame() {
+      playerScore = 0;
+      machineScore = 0;
+      document.getElementById("playerChoice").textContent = "-";
+      document.getElementById("machineChoice").textContent = "-";
+      document.getElementById("playerEmoji").textContent = "-";
+      document.getElementById("machineEmoji").textContent = "-";
+      document.getElementById("result").textContent = "";
+      updateScore();
+    }
+
+    function mostrarModal() {
+      document.getElementById("modal").style.display = "flex";
+    }
+
+    function cerrarModal() {
+      document.getElementById("modal").style.display = "none";
+    }
+
+    window.onclick = function(event) {
+      const modal = document.getElementById("modal");
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+  </script>
+</body>
+</html>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
