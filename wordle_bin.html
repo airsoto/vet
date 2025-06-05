@@ -1,1 +1,304 @@
-["00000", "00001", "00010", "00011", "00100", "00101", "00110", "00111", "01000", "01001", "01010", "01011", "01100", "01101", "01110", "01111", "10000", "10001", "10010", "10011", "10100", "10101", "10110", "10111", "11000", "11001", "11010", "11011", "11100", "11101", "11110", "11111"]
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Vet-Wordle</title>
+  <style>
+    body {
+      background-color: #000;
+      color: white;
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: 40px;
+    }
+
+    h1, h2 {
+      color: #0f0;
+      text-align: center;
+      margin: 5px;
+    }
+
+    #left-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #used-letters {
+      margin-top: 20px;
+      border: 1px solid #555;
+      padding: 10px;
+      min-height: 100px;
+      width: 120px;
+      background-color: #111;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .used-letter {
+      width: 30px;
+      height: 30px;
+      background-color: #444;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      border-radius: 4px;
+    }
+
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #game {
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+
+    .cell {
+      width: 50px;
+      height: 50px;
+      border: 2px solid #555;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      text-transform: uppercase;
+      background-color: #222;
+    }
+
+    .correct {
+      background-color: green;
+    }
+
+    .present {
+      background-color: orange;
+    }
+
+    .absent {
+      background-color: #444;
+    }
+
+    #input-area {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      width: 260px;
+      height: 50px;
+      font-size: 28px;
+      text-align: center;
+      text-transform: uppercase;
+      background-color: #222;
+      color: white;
+      border: 2px solid #555;
+      letter-spacing: 10px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #0f0;
+      color: black;
+      border: none;
+      cursor: pointer;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="left-panel">
+    <h2>Letras no válidas</h2>
+    <div id="used-letters"></div>
+  </div>
+
+  <div id="main">
+    <h1>Wordle BINARIO</h1>
+    <h2>Desarrollado por: Angel Soto</h2>
+
+    <div id="game"></div>
+
+    <div id="input-area">
+      <input type="text" id="guessInput" maxlength="5" />
+      <div class="buttons">
+        <button onclick="submitGuess()">Adivinar</button>
+        <button onclick="resetGame()">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="message"></div>
+  </div>
+
+  <script>
+    const words = [["00000", "00001", "00010", "00011", "00100", "00101", "00110", "00111", "01000", "01001", "01010", "01011", "01100", "01101", "01110", "01111", "10000", "10001", "10010", "10011", "10100", "10101", "10110", "10111", "11000", "11001", "11010", "11011", "11100", "11101", "11110", "11111"];
+    let secretWord = "";
+    let currentRow = 0;
+    let usedAbsentLetters = new Set();
+
+    const game = document.getElementById("game");
+    const input = document.getElementById("guessInput");
+    const message = document.getElementById("message");
+    const usedLettersDiv = document.getElementById("used-letters");
+
+    function pickSecretWord() {
+      return words[Math.floor(Math.random() * words.length)].toLowerCase();
+    }
+
+    function createBoard() {
+      game.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        for (let j = 0; j < 5; j++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          row.appendChild(cell);
+        }
+        game.appendChild(row);
+      }
+    }
+
+    function updateUsedLettersDisplay() {
+      usedLettersDiv.innerHTML = "";
+      [...usedAbsentLetters].sort().forEach(letter => {
+        const span = document.createElement("div");
+        span.className = "used-letter";
+        span.textContent = letter.toUpperCase();
+        usedLettersDiv.appendChild(span);
+      });
+    }
+
+    function submitGuess() {
+      const guess = input.value.toLowerCase();
+      if (guess.length !== 5) {
+        alert("Debe ser una palabra de 5 letras");
+        return;
+      }
+
+      if (currentRow >= 5) return;
+
+      const row = game.children[currentRow];
+      const usedLetters = secretWord.split("");
+
+      for (let i = 0; i < 5; i++) {
+        const cell = row.children[i];
+        const letter = guess[i];
+        cell.textContent = letter;
+
+        if (letter === secretWord[i]) {
+          cell.classList.add("correct");
+          usedLetters[i] = null;
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
+        const cell = row.children[i];
+        const letter = guess[i];
+        if (!cell.classList.contains("correct")) {
+          if (usedLetters.includes(letter)) {
+            cell.classList.add("present");
+            usedLetters[usedLetters.indexOf(letter)] = null;
+          } else {
+            cell.classList.add("absent");
+            usedAbsentLetters.add(letter);
+          }
+        }
+      }
+
+      updateUsedLettersDisplay();
+
+      if (guess === secretWord) {
+        message.textContent = "¡Felicidades! Has adivinado la palabra.";
+        input.disabled = true;
+        return;
+      }
+
+      currentRow++;
+      input.value = "";
+
+      if (currentRow >= 5) {
+        message.textContent = `Fin del juego. La palabra era: ${secretWord.toUpperCase()}`;
+        input.disabled = true;
+      }
+    }
+
+    function resetGame() {
+      secretWord = pickSecretWord();
+      currentRow = 0;
+      usedAbsentLetters.clear();
+      createBoard();
+      updateUsedLettersDisplay();
+      message.textContent = "";
+      input.value = "";
+      input.disabled = false;
+      input.focus();
+    }
+
+    // Inicializar juego
+    resetGame();
+  </script>
+</body>
+</html>
+
+
+
+<section style="max-width: 600px; margin: auto; padding: 20px; color: white; font-family: Arial, sans-serif;">
+    <h2>¿Qué es VetWordle?</h2>
+    <p>
+      <strong>VetWordle</strong> es un juego de lógica y vocabulario diseñado especialmente para amantes de la veterinaria. El reto consiste en 
+      <strong>adivinar una palabra secreta de 5 letras</strong> relacionada con el mundo veterinario —puede ser un término clínico, una parte del cuerpo, 
+      un nombre de especie, una herramienta diagnóstica o cualquier concepto veterinario básico.
+    </p>
+    <p>
+      Tienes <strong>5 intentos</strong> para descubrir la palabra. Después de cada intento, las letras se iluminan para darte pistas:
+    </p>
+    <ul style="list-style: none; padding-left: 0;">
+      <li>🟩 <strong>Verde</strong>: la letra está en la palabra y en la posición correcta.</li>
+      <li>🟧 <strong>Naranja</strong>: la letra está en la palabra, pero en otra posición.</li>
+      <li>⬛ <strong>Gris</strong>: la letra no aparece en la palabra.</li>
+    </ul>
+  </section>
+  
+
+    <!-- FOOTER -->
+    <footer>
+        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
