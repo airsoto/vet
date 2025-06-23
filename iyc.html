@@ -615,28 +615,33 @@
     <!-- ELIMINAR abajo si no funciona -->
 
 <script>
+  // Esperamos a que se carguen los datos primero
+  let buscarAlCargar = null;
+
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
     if (query) {
-      const input = document.getElementById('searchInput');
-      if (input) {
-        input.value = query;
-
-        // Simula escritura para activar el input
-        const event = new Event('input', {
-          bubbles: true,
-          cancelable: true
-        });
-        input.dispatchEvent(event);
-
-        // Llama directamente a la función de búsqueda por si no se activa
-        if (typeof search === "function") {
-          search();
-        }
-      }
+      buscarAlCargar = query; // Guardamos la búsqueda para después
     }
   });
+
+  // Sobrescribimos fetch para añadir la búsqueda tras cargar datos
+  const originalFetch = fetch;
+  fetch = function(...args) {
+    return originalFetch(...args).then(response => {
+      return response.clone().json().then(json => {
+        data = json;
+        renderResults(data);
+        if (buscarAlCargar) {
+          const input = document.getElementById('searchInput');
+          input.value = buscarAlCargar;
+          search(); // Ejecuta la búsqueda con los datos ya cargados
+        }
+        return response;
+      });
+    });
+  };
 </script>
 
     <!-- ELIMINAR arriba si no funciona -->
