@@ -615,34 +615,86 @@
     <!-- ELIMINAR abajo si no funciona -->
 
 <script>
-  // Esperamos a que se carguen los datos primero
-  let buscarAlCargar = null;
+  let data = [];
+  let busquedaInicial = null;
 
+  // Captura el parámetro 'query' de la URL
   window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
     if (query) {
-      buscarAlCargar = query; // Guardamos la búsqueda para después
+      busquedaInicial = query.toLowerCase();
     }
   });
 
-  // Sobrescribimos fetch para añadir la búsqueda tras cargar datos
-  const originalFetch = fetch;
-  fetch = function(...args) {
-    return originalFetch(...args).then(response => {
-      return response.clone().json().then(json => {
-        data = json;
-        renderResults(data);
-        if (buscarAlCargar) {
-          const input = document.getElementById('searchInput');
-          input.value = buscarAlCargar;
-          search(); // Ejecuta la búsqueda con los datos ya cargados
+  // Carga los datos JSON
+  fetch("IYC_vol_final.json")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar el archivo JSON.");
+      return response.json();
+    })
+    .then(jsonData => {
+      data = jsonData;
+      renderResults(data);
+
+      // Si había búsqueda desde la URL, la aplicamos ahora
+      if (busquedaInicial) {
+        const input = document.getElementById("searchInput");
+        if (input) {
+          input.value = busquedaInicial;
+          search();
         }
-        return response;
-      });
+      }
+    })
+    .catch(error => {
+      console.error("Error al cargar JSON:", error);
+      document.getElementById("results").innerHTML = "<p>Error al cargar los artículos.</p>";
     });
-  };
+
+  function renderResults(entries) {
+    const resultsContainer = document.getElementById("results");
+    resultsContainer.innerHTML = "";
+    if (entries.length === 0) {
+      resultsContainer.innerHTML = "<p>No se encontraron resultados.</p>";
+      return;
+    }
+    entries.forEach(entry => {
+      const item = document.createElement("div");
+      item.className = "result-item";
+      item.innerHTML = `
+        <div class="title">${entry.título}</div>
+        <div class="meta">Autor(es): ${entry.autores}</div>
+        <div class="meta">Año: ${entry.año} | Volumen: ${entry.volumen} | Páginas: ${entry.páginas}</div>
+      `;
+      item.onclick = () => window.open(entry.url, "_blank");
+      resultsContainer.appendChild(item);
+    });
+  }
+
+  function search() {
+    const query = document.getElementById("searchInput").value.toLowerCase();
+    const filtered = data.filter(entry =>
+      entry.título.toLowerCase().includes(query) ||
+      entry.año.includes(query)
+    );
+    renderResults(filtered);
+  }
+
+  function filterByTema() {
+    const tema = document.getElementById("temaSelect").value;
+    const filtered = tema === "" ? data : data.filter(entry => entry.tema === tema);
+    renderResults(filtered);
+  }
+
+  function filtrarPorAñoVolumen() {
+    const valor = document.getElementById("añoVolumenSelect").value;
+    if (!valor) return renderResults(data);
+    const [año, volumen] = valor.split("_");
+    const filtered = data.filter(entry => entry.año === año && entry.volumen === volumen);
+    renderResults(filtered);
+  }
 </script>
+
 
     <!-- ELIMINAR arriba si no funciona -->
 </body>
