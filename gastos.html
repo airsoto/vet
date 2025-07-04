@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>División Equitativa de Gastos</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1, h2 {
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    input[type="number"], input[type="text"] {
+      background: #1e1e1e;
+      border: none;
+      padding: 0.5rem;
+      color: #fff;
+      border-radius: 5px;
+      width: 120px;
+      text-align: center;
+    }
+
+    button {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 1rem 0;
+    }
+
+    button:hover {
+      background: #444;
+    }
+
+    .person-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-bottom: 1rem;
+      width: 100%;
+    }
+
+    .person-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-left: 5px solid;
+      border-radius: 5px;
+    }
+
+    .results {
+      margin-top: 2rem;
+      max-width: 600px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .result-item {
+      padding: 0.5rem;
+      border-bottom: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dividir Gastos Equitativamente</h1>
+    <h2>Desarrollado por: Angel Soto</h2>
+
+
+  <div class="input-group">
+    <label for="numPeople">Número de personas:</label>
+    <input type="number" id="numPeople" min="2" value="3">
+    <button onclick="generarInputs()">Generar campos</button>
+  </div>
+
+  <form id="gastoForm" onsubmit="event.preventDefault(); calcular();">
+    <div class="person-inputs" id="personInputs"></div>
+    <button type="submit">Calcular</button>
+  </form>
+
+  <div class="results" id="resultados"></div>
+
+  <script>
+    const colores = ['#e67e22', '#3498db', '#e74c3c', '#1abc9c', '#9b59b6', '#f1c40f', '#2ecc71', '#e84393'];
+
+    function generarInputs() {
+      const num = parseInt(document.getElementById('numPeople').value);
+      const container = document.getElementById('personInputs');
+      container.innerHTML = '';
+
+      for (let i = 0; i < num; i++) {
+        const div = document.createElement('div');
+        div.className = 'person-line';
+        div.style.borderColor = colores[i % colores.length];
+
+        const inputName = document.createElement('input');
+        inputName.type = 'text';
+        inputName.placeholder = `Nombre ${i + 1}`;
+        inputName.id = `nombre-${i}`;
+
+        div.appendChild(inputName);
+
+        for (let j = 0; j < 3; j++) {
+          const pago = document.createElement('input');
+          pago.type = 'number';
+          pago.min = '0';
+          pago.placeholder = `Pago ${j + 1}`;
+          pago.id = `pago-${i}-${j}`;
+          div.appendChild(pago);
+        }
+
+        container.appendChild(div);
+      }
+    }
+
+    function calcular() {
+      const num = parseInt(document.getElementById('numPeople').value);
+      const personas = [];
+
+      for (let i = 0; i < num; i++) {
+        const nombre = document.getElementById(`nombre-${i}`).value.trim() || `Persona ${i + 1}`;
+        const pagos = [];
+        for (let j = 0; j < 3; j++) {
+          const val = parseFloat(document.getElementById(`pago-${i}-${j}`).value) || 0;
+          pagos.push(val);
+        }
+        const total = pagos.reduce((acc, val) => acc + val, 0);
+        personas.push({ nombre, pagos, total });
+      }
+
+      const totalGlobal = personas.reduce((acc, p) => acc + p.total, 0);
+      const promedio = totalGlobal / num;
+
+      const resultadosDiv = document.getElementById('resultados');
+      resultadosDiv.innerHTML = `<h2>Resultados</h2>
+        <p>Total: ${totalGlobal.toFixed(2)} € | Promedio: ${promedio.toFixed(2)} €</p>`;
+
+      personas.forEach((p, index) => {
+        const diff = p.total - promedio;
+        const mensaje = diff > 0
+          ? `${p.nombre} debe recibir ${diff.toFixed(2)} €`
+          : diff < 0
+          ? `${p.nombre} debe aportar ${Math.abs(diff).toFixed(2)} €`
+          : `${p.nombre} está equilibrado.`;
+
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.textContent = `${p.nombre} → Aportó: ${p.total.toFixed(2)} € → ${mensaje}`;
+        resultadosDiv.appendChild(div);
+      });
+
+      // Transferencias necesarias
+      const deudores = personas
+        .map(p => ({ ...p, balance: promedio - p.total }))
+        .filter(p => p.balance > 0)
+        .sort((a, b) => b.balance - a.balance);
+
+      const acreedores = personas
+        .map(p => ({ ...p, balance: p.total - promedio }))
+        .filter(p => p.balance > 0)
+        .sort((a, b) => b.balance - a.balance);
+
+      resultadosDiv.innerHTML += `<h2>Transferencias necesarias:</h2>`;
+
+      const transferencias = [];
+
+      for (let d of deudores) {
+        for (let a of acreedores) {
+          if (d.balance <= 0) break;
+          if (a.balance <= 0) continue;
+
+          const cantidad = Math.min(d.balance, a.balance);
+          transferencias.push(`${d.nombre} debe dar ${cantidad.toFixed(2)} € a ${a.nombre}`);
+          d.balance -= cantidad;
+          a.balance -= cantidad;
+        }
+      }
+
+      if (transferencias.length === 0) {
+        resultadosDiv.innerHTML += `<p>Todos los gastos están equilibrados.</p>`;
+      } else {
+        transferencias.forEach(t => {
+          const p = document.createElement('div');
+          p.className = 'result-item';
+          p.textContent = t;
+          resultadosDiv.appendChild(p);
+        });
+      }
+    }
+
+    window.onload = generarInputs;
+  </script>
+</body>
+</html>
+
+
+
+
+
+    <!-- FOOTER -->
+    <footer>
+        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
