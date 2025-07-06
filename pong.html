@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Pong iPhone</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      height: 100%;
+      font-family: sans-serif;
+      touch-action: none;
+      color: white;
+    }
+    canvas {
+      display: block;
+      background: black;
+    }
+    #startMenu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .btn {
+      background: #222;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px;
+      border: 2px solid white;
+      border-radius: 10px;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: white;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+<div id="startMenu">
+  <h1>Selecciona velocidad</h1>
+  <button class="btn" onclick="startGame(3)">Baja</button>
+  <button class="btn" onclick="startGame(5)">Media</button>
+  <button class="btn" onclick="startGame(7)">Alta</button>
+</div>
+<canvas id="pong"></canvas>
+
+<script>
+const canvas = document.getElementById("pong");
+const context = canvas.getContext("2d");
+
+let W = window.innerWidth;
+let H = window.innerHeight;
+canvas.width = W;
+canvas.height = H;
+
+const paddleWidth = 10;
+const paddleHeight = 80;
+
+let player = {
+  x: 10,
+  y: H / 2 - paddleHeight / 2,
+  width: paddleWidth,
+  height: paddleHeight,
+  color: "white",
+  dy: 0,
+  score: 0
+};
+
+let ai = {
+  x: W - paddleWidth - 10,
+  y: H / 2 - paddleHeight / 2,
+  width: paddleWidth,
+  height: paddleHeight,
+  color: "white",
+  score: 0
+};
+
+let ball = {
+  x: W / 2,
+  y: H / 2,
+  radius: 8,
+  speed: 5,
+  dx: 5,
+  dy: 5,
+  color: "white"
+};
+
+function drawRect(x, y, w, h, color) {
+  context.fillStyle = color;
+  context.fillRect(x, y, w, h);
+}
+
+function drawCircle(x, y, r, color) {
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(x, y, r, 0, Math.PI * 2, false);
+  context.closePath();
+  context.fill();
+}
+
+function drawNet() {
+  for (let i = 0; i <= H; i += 20) {
+    drawRect(W / 2 - 1, i, 2, 10, "white");
+  }
+}
+
+function drawScore() {
+  context.font = "30px Arial";
+  context.fillText(player.score, W / 4, 40);
+  context.fillText(ai.score, 3 * W / 4, 40);
+}
+
+function resetBall() {
+  ball.x = W / 2;
+  ball.y = H / 2;
+  ball.dx = -ball.dx;
+  ball.dy = (Math.random() * 4 - 2);
+}
+
+function update() {
+  ball.x += ball.dx;
+  ball.y += ball.dy;
+
+// IA mejorada: solo se mueve si la pelota viene hacia ella
+let aiCenter = ai.y + ai.height / 2;
+if (ball.dx > 0) { // la pelota va hacia la CPU
+  let errorMargin = 10 + Math.random() * 30; // hace que no sea perfecta
+  if (aiCenter < ball.y - errorMargin) {
+    ai.y += 4;
+  } else if (aiCenter > ball.y + errorMargin) {
+    ai.y -= 4;
+  }
+} else {
+  // reposiciona hacia el centro cuando no viene la pelota
+  if (aiCenter < H / 2 - 10) {
+    ai.y += 2;
+  } else if (aiCenter > H / 2 + 10) {
+    ai.y -= 2;
+  }
+}
+
+  // Player movement
+  player.y += player.dy;
+
+  // Limit movement
+  player.y = Math.max(Math.min(player.y, H - player.height), 0);
+  ai.y = Math.max(Math.min(ai.y, H - ai.height), 0);
+
+  // Bounce top/bottom
+  if (ball.y - ball.radius < 0 || ball.y + ball.radius > H) {
+    ball.dy *= -1;
+  }
+
+  // Collision
+  let paddle = ball.x < W / 2 ? player : ai;
+
+  if (
+    ball.x - ball.radius < paddle.x + paddle.width &&
+    ball.x + ball.radius > paddle.x &&
+    ball.y < paddle.y + paddle.height &&
+    ball.y > paddle.y
+  ) {
+    let collidePoint = ball.y - (paddle.y + paddle.height / 2);
+    collidePoint = collidePoint / (paddle.height / 2);
+    let angleRad = (Math.PI / 4) * collidePoint;
+    let direction = ball.x < W / 2 ? 1 : -1;
+
+    ball.dx = direction * ball.speed * Math.cos(angleRad);
+    ball.dy = ball.speed * Math.sin(angleRad);
+  }
+
+  // Score
+  if (ball.x < 0) {
+    ai.score++;
+    resetBall();
+  }
+  if (ball.x > W) {
+    player.score++;
+    resetBall();
+  }
+}
+
+function render() {
+  drawRect(0, 0, W, H, "black");
+  drawNet();
+  drawScore();
+  drawRect(player.x, player.y, player.width, player.height, player.color);
+  drawRect(ai.x, ai.y, ai.width, ai.height, ai.color);
+  drawCircle(ball.x, ball.y, ball.radius, ball.color);
+}
+
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener("touchstart", (e) => {
+  const touchY = e.touches[0].clientY;
+  if (touchY < player.y + player.height / 2) {
+    player.dy = -6;
+  } else {
+    player.dy = 6;
+  }
+});
+
+canvas.addEventListener("touchend", () => {
+  player.dy = 0;
+});
+
+function startGame(velocity) {
+  ball.speed = velocity;
+  ball.dx = velocity;
+  ball.dy = velocity;
+  document.getElementById("startMenu").style.display = "none";
+  gameLoop();
+}
+</script>
+</body>
+</html>
