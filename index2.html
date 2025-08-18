@@ -100,46 +100,35 @@
     <button type="submit">Enviar</button>
   </form>
 </div>
-
 <script type="module">
+  // ====== referencias UI ======
   const consola = document.getElementById('consola');
-  const estado = document.getElementById('estado-modelo');
-  const form = document.getElementById('form-chat');
-  const input = document.getElementById('prompt');
+  const estado  = document.getElementById('estado-modelo');
+  const form    = document.getElementById('form-chat');
+  const input   = document.getElementById('prompt');
 
   function log(tipo, msg) {
     const d = document.createElement('div');
-    const color = tipo === 'user' ? '#93c5fd' : (tipo === 'assistant' ? '#a7f3d0' : '#fca5a5');
+    const color = tipo === 'user' ? '#93c5fd'
+                : tipo === 'assistant' ? '#a7f3d0'
+                : tipo === 'info' ? '#fde68a'
+                : '#fca5a5';
     d.innerHTML = `<strong style="color:${color}">${tipo}:</strong> ${msg}`;
     consola.appendChild(d);
     consola.scrollTop = consola.scrollHeight;
   }
 
-  // 1) Comprobar WebGPU
-  if (!('gpu' in navigator)) {
-    log('error', 'Este navegador no tiene WebGPU. Abre la página en Chrome/Edge reciente en escritorio (o activa WebGPU en flags).');
-  }
-
-  // 2) Cargar WebLLM
-  let webllm;
-  try {
-    webllm = await import("https://esm.run/@mlc-ai/web-llm");
-  } catch (e) {
-    log('error', 'No se pudo cargar WebLLM desde CDN.');
-    console.error(e);
-  }
-
-  // 3) Cargar tu JSON (ajusta la ruta si lo pusiste en otro sitio)
+  // ====== carga del JSON local ======
   let about = "";
   try {
-    const res = await fetch("json/about-me.json");
+    const res = await fetch("json/about-me.json"); // <- tu ruta
     if (res.ok) {
       about = await res.text();
     } else {
-      log('error', `No se encontró datos/about-me.json (HTTP ${res.status}).`);
+      log('error', `No se pudo leer json/about-me.json (HTTP ${res.status}).`);
     }
   } catch (e) {
-    log('error', 'Error cargando about-me.json.');
+    log('error', 'Error cargando json/about-me.json.');
     console.error(e);
   }
 
@@ -151,30 +140,63 @@ ${about}
 Responde con precisión y, si no sabes, dilo. Cuando te pregunten por proyectos,
 experiencia y contacto, usa los datos del JSON si están.`;
 
-  // 4) Crear motor con fallback de modelo
-const PRIMARY_MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
-const FALLBACK_MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
-
-
+  // ====== intento A: WebLLM (WebGPU) ======
   let engine = null;
-  async function ensureEngine() {
-    if (engine) return engine;
-    if (!webllm) throw new Error("WebLLM no cargó.");
-    const onProgress = (p) => { estado.textContent = p?.text || "Preparando modelo…"; };
+  let useTransformers = false;
+
+  async function tryWebLLM() {
+    if (!('gpu' in navigator)) {
+      log('info', 'WebGPU no disponible; usaré modo compatible (CPU/WASM).');
+      useTransformers = true;
+      return;
+    }
+    let webllm;
+    try {
+      webllm = await import("https://esm.run/@mlc-ai/web-llm");
+    } catch (e) {
+      console.warn("No se pudo importar WebLLM:", e);
+      log('info', 'No pude cargar WebLLM; usaré modo compatible.');
+      useTransformers = true;
+      return;
+    }
+
+    const PRIMARY_MODEL  = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
+    const FALLBACK_MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
+    const onProgress = (p)=>{ estado.textContent = p?.text || "Preparando modelo…"; };
+
     try {
       engine = await webllm.CreateMLCEngine(PRIMARY_MODEL, { initProgressCallback: onProgress });
+      estado.textContent = "Modelo listo (WebGPU).";
     } catch (e1) {
-      console.warn("Fallo con modelo primario, probando fallback:", e1);
-      log('error', 'Fallo con el modelo principal, probando uno alternativo más ligero…');
-      engine = await webllm.CreateMLCEngine(FALLBACK_MODEL, { initProgressCallback: onProgress });
+      console.warn("Fallo modelo primario (WebLLM):", e1);
+      log('error', 'Fallo con el modelo principal, probando alternativo…');
+      try {
+        engine = await webllm.CreateMLCEngine(FALLBACK_MODEL, { initProgressCallback: onProgress });
+        estado.textContent = "Modelo listo (WebGPU alternativo).";
+      } catch (e2) {
+        console.error("Fallo fallback WebLLM:", e2);
+        log('info', 'Cambio a modo compatible (CPU/WASM).');
+        useTransformers = true;
+      }
     }
-    estado.textContent = "Modelo listo.";
-    return engine;
   }
 
-  const mensajes = [{ role: "system", content: systemPrompt }];
+  await tryWebLLM();
 
-  form.addEventListener('submit', async (e) => {
+  // ====== intento B: Transformers.js (CPU/WASM) ======
+  let pipe = null;
+  async function ensureTransformers() {
+    if (!useTransformers) return;
+    estado.textContent = "Cargando modo compatible (puede tardar la 1ª vez)…";
+    const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@latest");
+    // Modelo pequeño y rápido (cuantizado)
+    pipe = await pipeline("text-generation", "Xenova/Qwen2.5-0.5B-Instruct", { quantized: true });
+    estado.textContent = "Modelo listo (modo compatible).";
+  }
+
+  const mensajes = [{ role:"system", content: systemPrompt }];
+
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const pregunta = input.value.trim();
     if (!pregunta) return;
@@ -182,40 +204,57 @@ const FALLBACK_MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
     log('user', pregunta);
     mensajes.push({ role:'user', content: pregunta });
 
-    let eng;
-    try {
-      eng = await ensureEngine();
-    } catch (e) {
-      log('error', 'No se pudo inicializar el modelo.');
-      console.error(e);
-      return;
+    // A) WebLLM con streaming
+    if (engine && !useTransformers) {
+      try {
+        let respuesta = "";
+        const nodo = document.createElement('div');
+        nodo.innerHTML = `<strong style="color:#a7f3d0">assistant:</strong> <span></span>`;
+        const span = nodo.querySelector('span');
+        consola.appendChild(nodo);
+        consola.scrollTop = consola.scrollHeight;
+
+        const stream = await engine.chat.completions.create({
+          messages: mensajes,
+          temperature: 0.5,
+          stream: true
+        });
+
+        for await (const ch of stream) {
+          const delta = ch?.choices?.[0]?.delta?.content || "";
+          respuesta += delta;
+          span.textContent = respuesta;
+          consola.scrollTop = consola.scrollHeight;
+        }
+        mensajes.push({ role:'assistant', content: respuesta });
+        return;
+      } catch (e) {
+        console.error("Error en WebLLM durante generación:", e);
+        log('error', 'Fallo en WebGPU durante la respuesta. Cambio a modo compatible…');
+        useTransformers = true;
+      }
     }
 
-    // 5) Solicitud con streaming + manejo de errores
-    let respuesta = "";
-    const nodo = document.createElement('div');
-    nodo.innerHTML = `<strong style="color:#a7f3d0">assistant:</strong> <span></span>`;
-    const span = nodo.querySelector('span');
-    consola.appendChild(nodo);
-    consola.scrollTop = consola.scrollHeight;
-
+    // B) Transformers.js (sin streaming)
     try {
-      const stream = await eng.chat.completions.create({
-        messages: mensajes,
-        temperature: 0.5,
-        stream: true
-      });
+      await ensureTransformers();
+      const prompt = [
+        { role: "system", content: systemPrompt },
+        ...mensajes.filter(m=>m.role!=='system')
+      ].map(m=>`${m.role.toUpperCase()}: ${m.content}`).join("\n\n") + "\n\nASSISTANT:";
 
-      for await (const ch of stream) {
-        const delta = ch?.choices?.[0]?.delta?.content || "";
-        respuesta += delta;
-        span.textContent = respuesta;
-        consola.scrollTop = consola.scrollHeight;
-      }
-      mensajes.push({ role:'assistant', content: respuesta });
+      const out = await (await pipe)(prompt, {
+        max_new_tokens: 220,
+        temperature: 0.6,
+        top_p: 0.9,
+        repetition_penalty: 1.05
+      });
+      const texto = out?.[0]?.generated_text?.split("ASSISTANT:").pop()?.trim() || "(sin texto)";
+      log('assistant', texto);
+      mensajes.push({ role:'assistant', content: texto });
     } catch (e) {
-      log('error', 'Error generando la respuesta.');
-      console.error(e);
+      console.error("Error Transformers.js:", e);
+      log('error', 'No se pudo generar la respuesta en el modo compatible.');
     }
   });
 </script>
