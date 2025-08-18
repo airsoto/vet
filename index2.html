@@ -100,8 +100,9 @@
     <button type="submit">Enviar</button>
   </form>
 </div>
+
+
 <script type="module">
-  // ====== UI refs ======
   const consola = document.getElementById('consola');
   const estado  = document.getElementById('estado-modelo');
   const form    = document.getElementById('form-chat');
@@ -121,98 +122,35 @@
   // ====== Carga del JSON local ======
   let about = "";
   try {
-    const res = await fetch("json/about-me.json"); // tu ruta
+    const res = await fetch("json/about-me.json");
     if (res.ok) about = await res.text();
-    else log('error', `No se pudo leer json/about-me.json (HTTP ${res.status}).`);
-  } catch (e) {
-    log('error', 'Error cargando json/about-me.json.');
-    console.error(e);
-  }
+  } catch (e) { console.error(e); }
 
   const systemPrompt =
-`Eres un asistente de la web de Ángel Soto. Contesta en el idioma del usuario.
-Información base (JSON):
-${about}
+`Eres un asistente de la web de Ángel Soto. Usa estos datos:
+${about}`;
 
-Responde con precisión y, si no sabes, dilo. Cuando te pregunten por proyectos,
-experiencia y contacto, usa los datos del JSON si están.`;
-
-  // ====== Intento A: WebLLM (WebGPU). Si no, pasamos a modo compatible ======
-  let engine = null;
-  let useTransformers = false;
-
-  async function tryWebLLM() {
-    if (!('gpu' in navigator)) { useTransformers = true; return; }
-    let webllm;
-    try {
-      webllm = await import("https://esm.run/@mlc-ai/web-llm");
-    } catch (e) { useTransformers = true; return; }
-
-    const MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
-    const onProgress = (p)=>{ estado.textContent = p?.text || "Preparando modelo…"; };
-    try {
-      engine = await webllm.CreateMLCEngine(MODEL, { initProgressCallback: onProgress });
-      estado.textContent = "Modelo listo (WebGPU).";
-    } catch (e) {
-      console.warn("WebLLM no disponible:", e);
-      useTransformers = true;
-    }
-  }
-  await tryWebLLM();
-
-  // ====== Intento B: Transformers.js (CPU/WASM) forzado a remoto/CDN ======
+  // ====== Transformers.js con modelo público ======
   let pipe = null;
+  async function ensurePipe() {
+    if (pipe) return pipe;
 
-  async function ensureTransformers() {
-    if (!useTransformers) return;
+    const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@latest");
 
-    estado.textContent = "Cargando modo compatible (puede tardar la 1ª vez)…";
-
-    let pipeline, env;
-    try {
-      ({ pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@latest"));
-    } catch (e) {
-      log('error', 'No se pudo cargar la librería Transformers.js');
-      console.error(e);
-      throw e;
-    }
-
-    // *** Fuerza a NO buscar en /models y a usar el CDN/Hub ***
+    // Fuerza a usar solo remoto (CDN)
     env.allowLocalModels = false;
     env.remoteModels = true;
     env.useBrowserCache = true;
-    // Rutas WASM explícitas por CDN (evita bloqueos):
-    env.backends.onnx.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/wasm";
+    env.backends.onnx.wasm.wasmPaths =
+      "https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/wasm";
 
-    // Cadena de modelos en cascada
-    const CANDIDATOS = [
-      { id: "Xenova/Qwen2.5-0.5B-Instruct", opts: { quantized: true } },
-      { id: "Xenova/tinyllama-1.1b-chat",    opts: { quantized: true } },
-      { id: "Xenova/distilgpt2",             opts: {} } // último recurso
-    ];
-
-    let ultimoError = null;
-    for (const { id, opts } of CANDIDATOS) {
-      try {
-        log('info', `Cargando modelo: ${id} …`);
-        pipe = await pipeline("text-generation", id, opts);
-        estado.textContent = `Modelo listo (modo compatible: ${id}).`;
-        log('info', `Modelo cargado: ${id}`);
-        ultimoError = null;
-        break;
-      } catch (e) {
-        console.warn(`Fallo cargando ${id}:`, e);
-        ultimoError = e;
-      }
-    }
-    if (!pipe) {
-      log('error', 'No se pudo inicializar el modo compatible. Revisa bloqueos de red o inicia sesión en Hugging Face.');
-      console.error(ultimoError);
-      throw ultimoError;
-    }
+    log('info', 'Cargando modelo distilgpt2 (sin token)…');
+    pipe = await pipeline("text-generation", "Xenova/distilgpt2");
+    estado.textContent = "Modelo listo (distilgpt2).";
+    return pipe;
   }
 
-  const mensajes = [{ role:"system", content: systemPrompt }];
+  const mensajes = [{ role: "system", content: systemPrompt }];
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -222,61 +160,30 @@ experiencia y contacto, usa los datos del JSON si están.`;
     log('user', pregunta);
     mensajes.push({ role:'user', content: pregunta });
 
-    // A) WebLLM con streaming (si estaba disponible)
-    if (engine && !useTransformers) {
-      try {
-        let respuesta = "";
-        const nodo = document.createElement('div');
-        nodo.innerHTML = `<strong style="color:#a7f3d0">assistant:</strong> <span></span>`;
-        const span = nodo.querySelector('span');
-        consola.appendChild(nodo);
-        consola.scrollTop = consola.scrollHeight;
-
-        const stream = await engine.chat.completions.create({
-          messages: mensajes,
-          temperature: 0.5,
-          stream: true
-        });
-        for await (const ch of stream) {
-          const delta = ch?.choices?.[0]?.delta?.content || "";
-          respuesta += delta;
-          span.textContent = respuesta;
-          consola.scrollTop = consola.scrollHeight;
-        }
-        mensajes.push({ role:'assistant', content: respuesta });
-        return;
-      } catch (e) {
-        console.error("Error WebLLM:", e);
-        log('info', 'Fallo en WebGPU. Cambio a modo compatible…');
-        useTransformers = true;
-      }
-    }
-
-    // B) Transformers.js (CPU/WASM)
     try {
-      await ensureTransformers();
+      const pipe = await ensurePipe();
 
       const prompt = [
-        { role: "system", content: systemPrompt },
+        { role:"system", content: systemPrompt },
         ...mensajes.filter(m=>m.role!=='system')
       ].map(m=>`${m.role.toUpperCase()}: ${m.content}`).join("\n\n") + "\n\nASSISTANT:";
 
       const out = await pipe(prompt, {
-        max_new_tokens: 200,
-        temperature: 0.6,
-        top_p: 0.9,
-        repetition_penalty: 1.05
+        max_new_tokens: 100,
+        temperature: 0.7,
+        top_p: 0.9
       });
 
-      const texto = out?.[0]?.generated_text?.split("ASSISTANT:").pop()?.trim() || "(sin texto)";
+      const texto = out?.[0]?.generated_text?.split("ASSISTANT:").pop()?.trim() || "(sin respuesta)";
       log('assistant', texto);
       mensajes.push({ role:'assistant', content: texto });
     } catch (e) {
-      console.error("Error Transformers.js:", e);
-      log('error', 'No se pudo generar la respuesta en el modo compatible.');
+      console.error(e);
+      log('error', 'No se pudo generar respuesta.');
     }
   });
 </script>
+
 
 
 <!-- &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&SECCIÓN ASISTENTE &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&6
