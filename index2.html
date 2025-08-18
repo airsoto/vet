@@ -87,70 +87,93 @@
 <!-- &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&SECCIÓN ASISTENTE &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&6
     &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&-->
 <!-- RECUADRO DEL ASISTENTE -->
-<div id="asistente-Angel Soto" style="max-width:780px;margin:1rem auto;padding:1rem;border:1px solid #ddd;border-radius:12px">
+<div id="asistente-angel" style="max-width:780px;margin:1rem auto;padding:1rem;border:1px solid #ddd;border-radius:12px">
   <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
-    <strong>Asistente de Ángel (funciona en tu navegador)</strong>
-    <small id="estado-modelo" style="opacity:.7">Cargando cuando hagas la primera pregunta…</small>
+    <strong>Asistente Virtual de Ángel Soto (LLM)</strong>
+    <small id="estado-modelo" style="opacity:.7">Listo para tu primera pregunta…</small>
   </div>
   <div id="consola" style="height:260px;overflow:auto;background:#0f172a; color:#e2e8f0; padding:.75rem; border-radius:8px; font:14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;">
-    <div><em>Consejo:</em> la primera vez tardará un poco en descargar el modelo (se guarda en caché).</div>
+    <div><em>Consejo:</em> la primera vez descargará el modelo y puede tardar un poco. Se cachea para las siguientes.</div>
   </div>
   <form id="form-chat" style="display:flex; gap:.5rem; margin-top:.5rem">
-    <input id="prompt" type="text" placeholder="Pregunta algo sobre Angel o sus proyectos…" style="flex:1; padding:.6rem;border:1px solid #ccc;border-radius:8px">
-    <button>Enviar</button>
+    <input id="prompt" type="text" placeholder="Pregunta algo sobre Ángel o sus proyectos…" style="flex:1; padding:.6rem;border:1px solid #ccc;border-radius:8px">
+    <button type="submit">Enviar</button>
   </form>
 </div>
 
-<!-- Librería WebLLM desde CDN -->
 <script type="module">
-  // Importa WebLLM (todo corre en el navegador)
-  const webllm = await import("https://esm.run/@mlc-ai/web-llm");
-
-  // Modelo pequeño recomendado para que cargue más rápido en la mayoría de equipos
-  // (si tu PC es potente, podrás cambiar a uno mayor desde aquí)
-  const MODELO = "Qwen2-1.5B-Instruct-q4f16_1-MLC"; // alternativo: "Llama-3.2-1B-Instruct-q4f16_1-MLC"
-
   const consola = document.getElementById('consola');
   const estado = document.getElementById('estado-modelo');
   const form = document.getElementById('form-chat');
   const input = document.getElementById('prompt');
 
-  // Carga opcional de tu “conocimiento” inicial
+  function log(tipo, msg) {
+    const d = document.createElement('div');
+    const color = tipo === 'user' ? '#93c5fd' : (tipo === 'assistant' ? '#a7f3d0' : '#fca5a5');
+    d.innerHTML = `<strong style="color:${color}">${tipo}:</strong> ${msg}`;
+    consola.appendChild(d);
+    consola.scrollTop = consola.scrollHeight;
+  }
+
+  // 1) Comprobar WebGPU
+  if (!('gpu' in navigator)) {
+    log('error', 'Este navegador no tiene WebGPU. Abre la página en Chrome/Edge reciente en escritorio (o activa WebGPU en flags).');
+  }
+
+  // 2) Cargar WebLLM
+  let webllm;
+  try {
+    webllm = await import("https://esm.run/@mlc-ai/web-llm");
+  } catch (e) {
+    log('error', 'No se pudo cargar WebLLM desde CDN.');
+    console.error(e);
+  }
+
+  // 3) Cargar tu JSON (ajusta la ruta si lo pusiste en otro sitio)
   let about = "";
   try {
-    const res = await fetch("json/about-me.json"); // ajusta la ruta si lo pones en otra carpeta
-    if (res.ok) about = await res.text();
-  } catch {}
+    const res = await fetch("json/about-me.json");
+    if (res.ok) {
+      about = await res.text();
+    } else {
+      log('error', `No se encontró datos/about-me.json (HTTP ${res.status}).`);
+    }
+  } catch (e) {
+    log('error', 'Error cargando about-me.json.');
+    console.error(e);
+  }
 
   const systemPrompt =
 `Eres un asistente de la web de Ángel Soto. Contesta en el idioma del usuario.
-Información base (JSON): 
+Información base (JSON):
 ${about}
 
 Responde con precisión y, si no sabes, dilo. Cuando te pregunten por proyectos,
 experiencia y contacto, usa los datos del JSON si están.`;
 
-  // Creamos el motor (se carga el modelo la primera vez que haga falta)
-  let engine;
+  // 4) Crear motor con fallback de modelo
+  const PRIMARY_MODEL = "Qwen2-1.5B-Instruct-q4f16_1-MLC";
+  const FALLBACK_MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+
+  let engine = null;
   async function ensureEngine() {
     if (engine) return engine;
-    const onProgress = (p)=>{ estado.textContent = p.text || "Preparando modelo…"; };
-    engine = await webllm.CreateMLCEngine(MODELO, { initProgressCallback: onProgress });
+    if (!webllm) throw new Error("WebLLM no cargó.");
+    const onProgress = (p) => { estado.textContent = p?.text || "Preparando modelo…"; };
+    try {
+      engine = await webllm.CreateMLCEngine(PRIMARY_MODEL, { initProgressCallback: onProgress });
+    } catch (e1) {
+      console.warn("Fallo con modelo primario, probando fallback:", e1);
+      log('error', 'Fallo con el modelo principal, probando uno alternativo más ligero…');
+      engine = await webllm.CreateMLCEngine(FALLBACK_MODEL, { initProgressCallback: onProgress });
+    }
     estado.textContent = "Modelo listo.";
     return engine;
   }
 
-  // Historial de mensajes
-  const mensajes = [{ role:"system", content: systemPrompt }];
+  const mensajes = [{ role: "system", content: systemPrompt }];
 
-  function log(rol, texto) {
-    const nodo = document.createElement('div');
-    nodo.innerHTML = `<strong style="color:${rol==='user'?'#93c5fd':'#a7f3d0'}">${rol}:</strong> ${texto}`;
-    consola.appendChild(nodo);
-    consola.scrollTop = consola.scrollHeight;
-  }
-
-  form.addEventListener('submit', async (e)=>{
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pregunta = input.value.trim();
     if (!pregunta) return;
@@ -158,32 +181,43 @@ experiencia y contacto, usa los datos del JSON si están.`;
     log('user', pregunta);
     mensajes.push({ role:'user', content: pregunta });
 
-    const eng = await ensureEngine();
-
-    // Respuesta en streaming
-    let respuesta = "";
-    const chunks = await eng.chat.completions.create({
-      messages: mensajes,
-      temperature: 0.5,
-      stream: true
-    });
-
-    const nodo = document.createElement('div');
-    nodo.innerHTML = `<strong style="color:#a7f3d0">assistant:</strong> `;
-    const span = document.createElement('span');
-    nodo.appendChild(span);
-    consola.appendChild(nodo);
-
-    for await (const ch of chunks) {
-      const delta = ch.choices?.[0]?.delta?.content || "";
-      respuesta += delta;
-      span.textContent = respuesta;
-      consola.scrollTop = consola.scrollHeight;
+    let eng;
+    try {
+      eng = await ensureEngine();
+    } catch (e) {
+      log('error', 'No se pudo inicializar el modelo.');
+      console.error(e);
+      return;
     }
-    mensajes.push({ role:'assistant', content: respuesta });
+
+    // 5) Solicitud con streaming + manejo de errores
+    let respuesta = "";
+    const nodo = document.createElement('div');
+    nodo.innerHTML = `<strong style="color:#a7f3d0">assistant:</strong> <span></span>`;
+    const span = nodo.querySelector('span');
+    consola.appendChild(nodo);
+    consola.scrollTop = consola.scrollHeight;
+
+    try {
+      const stream = await eng.chat.completions.create({
+        messages: mensajes,
+        temperature: 0.5,
+        stream: true
+      });
+
+      for await (const ch of stream) {
+        const delta = ch?.choices?.[0]?.delta?.content || "";
+        respuesta += delta;
+        span.textContent = respuesta;
+        consola.scrollTop = consola.scrollHeight;
+      }
+      mensajes.push({ role:'assistant', content: respuesta });
+    } catch (e) {
+      log('error', 'Error generando la respuesta.');
+      console.error(e);
+    }
   });
 </script>
-
 
 <!-- &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&SECCIÓN ASISTENTE &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&6
     &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&-->    
