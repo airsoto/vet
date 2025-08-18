@@ -100,9 +100,8 @@
     <button type="submit">Enviar</button>
   </form>
 </div>
-
-    <script type="module">
-  // ====== referencias UI ======
+<script type="module">
+  // ====== UI refs ======
   const consola = document.getElementById('consola');
   const estado  = document.getElementById('estado-modelo');
   const form    = document.getElementById('form-chat');
@@ -119,10 +118,10 @@
     consola.scrollTop = consola.scrollHeight;
   }
 
-  // ====== carga del JSON local ======
+  // ====== Carga del JSON local ======
   let about = "";
   try {
-    const res = await fetch("json/about-me.json"); // ajusta si tu ruta cambia
+    const res = await fetch("json/about-me.json"); // tu ruta
     if (res.ok) about = await res.text();
     else log('error', `No se pudo leer json/about-me.json (HTTP ${res.status}).`);
   } catch (e) {
@@ -138,82 +137,78 @@ ${about}
 Responde con precisión y, si no sabes, dilo. Cuando te pregunten por proyectos,
 experiencia y contacto, usa los datos del JSON si están.`;
 
-  // ====== intento A: WebLLM (WebGPU) ======
+  // ====== Intento A: WebLLM (WebGPU). Si no, pasamos a modo compatible ======
   let engine = null;
   let useTransformers = false;
 
   async function tryWebLLM() {
-    if (!('gpu' in navigator)) {
-      log('info', 'WebGPU no disponible; usaré modo compatible (CPU/WASM).');
-      useTransformers = true;
-      return;
-    }
+    if (!('gpu' in navigator)) { useTransformers = true; return; }
     let webllm;
     try {
       webllm = await import("https://esm.run/@mlc-ai/web-llm");
-    } catch (e) {
-      console.warn("No se pudo importar WebLLM:", e);
-      log('info', 'No pude cargar WebLLM; usaré modo compatible.');
-      useTransformers = true;
-      return;
-    }
+    } catch (e) { useTransformers = true; return; }
 
-    const PRIMARY_MODEL  = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
-    const FALLBACK_MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
+    const MODEL = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
     const onProgress = (p)=>{ estado.textContent = p?.text || "Preparando modelo…"; };
-
     try {
-      engine = await webllm.CreateMLCEngine(PRIMARY_MODEL, { initProgressCallback: onProgress });
+      engine = await webllm.CreateMLCEngine(MODEL, { initProgressCallback: onProgress });
       estado.textContent = "Modelo listo (WebGPU).";
-    } catch (e1) {
-      console.warn("Fallo modelo primario (WebLLM):", e1);
-      log('error', 'Fallo con el modelo principal, probando alternativo…');
-      try {
-        engine = await webllm.CreateMLCEngine(FALLBACK_MODEL, { initProgressCallback: onProgress });
-        estado.textContent = "Modelo listo (WebGPU alternativo).";
-      } catch (e2) {
-        console.error("Fallo fallback WebLLM:", e2);
-        log('info', 'Cambio a modo compatible (CPU/WASM).');
-        useTransformers = true;
-      }
+    } catch (e) {
+      console.warn("WebLLM no disponible:", e);
+      useTransformers = true;
     }
   }
-
   await tryWebLLM();
 
-  // ====== intento B: Transformers.js (CPU/WASM) ======
+  // ====== Intento B: Transformers.js (CPU/WASM) forzado a remoto/CDN ======
   let pipe = null;
+
   async function ensureTransformers() {
     if (!useTransformers) return;
+
     estado.textContent = "Cargando modo compatible (puede tardar la 1ª vez)…";
-    let pipeline;
+
+    let pipeline, env;
     try {
-      ({ pipeline } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@latest"));
+      ({ pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@latest"));
     } catch (e) {
-      console.error("Error importando Transformers.js:", e);
-      log('error', 'No se pudo cargar la librería de Transformers.js');
+      log('error', 'No se pudo cargar la librería Transformers.js');
+      console.error(e);
       throw e;
     }
 
-    // Modelo 1 (recomendado, pequeño y cuantizado)
-    const MODEL_PRIMARY = "Xenova/Qwen2.5-0.5B-Instruct";
-    // Fallback muy ligero y ampliamente compatible
-    const MODEL_FALLBACK = "Xenova/tinyllama-1.1b-chat";
+    // *** Fuerza a NO buscar en /models y a usar el CDN/Hub ***
+    env.allowLocalModels = false;
+    env.remoteModels = true;
+    env.useBrowserCache = true;
+    // Rutas WASM explícitas por CDN (evita bloqueos):
+    env.backends.onnx.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/wasm";
 
-    try {
-      pipe = await pipeline("text-generation", MODEL_PRIMARY, { quantized: true });
-      estado.textContent = "Modelo listo (modo compatible).";
-    } catch (e1) {
-      console.warn("Fallo cargando modelo primario (Transformers.js):", e1);
-      log('error', 'No pude cargar el modelo principal. Probando uno alternativo…');
+    // Cadena de modelos en cascada
+    const CANDIDATOS = [
+      { id: "Xenova/Qwen2.5-0.5B-Instruct", opts: { quantized: true } },
+      { id: "Xenova/tinyllama-1.1b-chat",    opts: { quantized: true } },
+      { id: "Xenova/distilgpt2",             opts: {} } // último recurso
+    ];
+
+    let ultimoError = null;
+    for (const { id, opts } of CANDIDATOS) {
       try {
-        pipe = await pipeline("text-generation", MODEL_FALLBACK, { quantized: true });
-        estado.textContent = "Modelo listo (modo compatible - alternativo).";
-      } catch (e2) {
-        console.error("Fallo cargando modelo alternativo:", e2);
-        log('error', 'No se pudo inicializar el modo compatible.');
-        throw e2;
+        log('info', `Cargando modelo: ${id} …`);
+        pipe = await pipeline("text-generation", id, opts);
+        estado.textContent = `Modelo listo (modo compatible: ${id}).`;
+        log('info', `Modelo cargado: ${id}`);
+        ultimoError = null;
+        break;
+      } catch (e) {
+        console.warn(`Fallo cargando ${id}:`, e);
+        ultimoError = e;
       }
+    }
+    if (!pipe) {
+      log('error', 'No se pudo inicializar el modo compatible. Revisa bloqueos de red o inicia sesión en Hugging Face.');
+      console.error(ultimoError);
+      throw ultimoError;
     }
   }
 
@@ -227,7 +222,7 @@ experiencia y contacto, usa los datos del JSON si están.`;
     log('user', pregunta);
     mensajes.push({ role:'user', content: pregunta });
 
-    // A) WebLLM con streaming
+    // A) WebLLM con streaming (si estaba disponible)
     if (engine && !useTransformers) {
       try {
         let respuesta = "";
@@ -242,7 +237,6 @@ experiencia y contacto, usa los datos del JSON si están.`;
           temperature: 0.5,
           stream: true
         });
-
         for await (const ch of stream) {
           const delta = ch?.choices?.[0]?.delta?.content || "";
           respuesta += delta;
@@ -252,25 +246,23 @@ experiencia y contacto, usa los datos del JSON si están.`;
         mensajes.push({ role:'assistant', content: respuesta });
         return;
       } catch (e) {
-        console.error("Error en WebLLM durante generación:", e);
-        log('error', 'Fallo en WebGPU durante la respuesta. Cambio a modo compatible…');
+        console.error("Error WebLLM:", e);
+        log('info', 'Fallo en WebGPU. Cambio a modo compatible…');
         useTransformers = true;
       }
     }
 
-    // B) Transformers.js (sin streaming)
+    // B) Transformers.js (CPU/WASM)
     try {
       await ensureTransformers();
 
-      // Construimos prompt estilo chat
       const prompt = [
         { role: "system", content: systemPrompt },
         ...mensajes.filter(m=>m.role!=='system')
       ].map(m=>`${m.role.toUpperCase()}: ${m.content}`).join("\n\n") + "\n\nASSISTANT:";
 
-      // ¡OJO!: aquí llamamos a pipe directamente (sin await delante de pipe)
       const out = await pipe(prompt, {
-        max_new_tokens: 220,
+        max_new_tokens: 200,
         temperature: 0.6,
         top_p: 0.9,
         repetition_penalty: 1.05
@@ -280,7 +272,7 @@ experiencia y contacto, usa los datos del JSON si están.`;
       log('assistant', texto);
       mensajes.push({ role:'assistant', content: texto });
     } catch (e) {
-      console.error("Error Transformers.js durante generación:", e);
+      console.error("Error Transformers.js:", e);
       log('error', 'No se pudo generar la respuesta en el modo compatible.');
     }
   });
