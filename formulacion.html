@@ -1,823 +1,572 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Juego de Nomenclatura Química</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>– Buscador de Fármacos (Perros y Gatos)</title>
+  <meta name="description" content="Buscador y gestor ligero para consultar un JSON de fármacos veterinarios (perros y gatos) – tema oscuro" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-    body {
-      background: #121212;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
+    :root{
+      --bg:#0b0f14;
+      --panel:#10161f;
+      --muted:#93a4b7;
+      --text:#e6edf3;
+      --accent:#7cc7ff;
+      --accent-2:#a78bfa;
+      --card:#0f1722cc; /* glass */
+      --chip:#1b2432;
+      --danger:#ff6b6b;
+      --ok:#22c55e;
+      --warning:#f59e0b;
+      --ring: rgba(124,199,255,.4);
     }
-
-    h1 {
-      color: #ffcc00;
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 700px at 10% -10%, #102132, transparent),
+      radial-gradient(1000px 800px at 110% -20%, #1a1630, transparent), var(--bg);
+      color:var(--text); font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      line-height:1.5;
     }
-
-    .question {
-      font-size: 2.2em;
-      margin: 20px 0;
+    header{
+      position:sticky; top:0; z-index:10; backdrop-filter:saturate(1.1) blur(10px);
+      background: linear-gradient(180deg, rgba(10,14,20,.9), rgba(10,14,20,.6));
+      border-bottom:1px solid #1e293b;
     }
+    .container{max-width:1200px; margin:0 auto; padding:16px 20px;}
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{width:36px; height:36px; display:grid; place-items:center; border-radius:10px; background:linear-gradient(135deg, #2563eb55, #22d3ee55); border:1px solid #1e40af88}
+    .brand h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.2px}
 
-    .options {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
+    /* Controls */
+    .controls{display:grid; grid-template-columns: 1fr auto auto auto auto; gap:10px; margin-top:10px}
+    .input, select, button{height:42px; border-radius:12px; border:1px solid #223046; background:var(--panel); color:var(--text); padding:0 14px; font-size:14px}
+    .input:focus, select:focus, button:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
+    .input{display:flex; align-items:center; gap:8px}
+    .input input{flex:1; border:0; outline:0; background:transparent; color:inherit; font-size:14px}
+    .seg{display:flex; background:var(--panel); border:1px solid #223046; border-radius:12px; overflow:hidden}
+    .seg button{background:transparent; border:0; padding:0 12px; height:40px}
+    .seg button.active{background:linear-gradient(180deg,#1b2230,#131b27); color:var(--accent); box-shadow:inset 0 0 0 1px #2a3b57}
+    .chip{display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; background:var(--chip); color:#c7d2fe; font-size:12px}
+    .chip small{color:var(--muted)}
+
+    main{max-width:1200px; margin:18px auto; padding:0 20px;}
+    #stats{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 12px}
+    #stats .left{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+
+    /* Cards */
+    .grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px}
+    .card{background:var(--card); border:1px solid #1f2a3ccc; border-radius:18px; padding:14px; position:relative; overflow:hidden}
+    .card header{position:static; backdrop-filter:none; background:transparent; border:0}
+    .drug-title{font-size:16px; font-weight:600; margin:0 0 8px}
+    .tags{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px}
+    .tag{font-size:11px; background:#0b1220; border:1px solid #1f2a3c; padding:4px 8px; border-radius:999px; color:#9fb4cf}
+    .actions{display:flex; gap:8px; flex-wrap:wrap}
+    .btn{border:1px solid #223046; background:linear-gradient(180deg,#0f1722,#0c121b); color:#dbeafe; padding:8px 10px; border-radius:10px; font-size:13px; cursor:pointer}
+    .btn:hover{filter:brightness(1.1)}
+    .btn.ghost{background:transparent}
+    .btn.accent{border-color:#274f7a; color:#a5e1ff}
+    .btn.warn{border-color:#6b2b2b; color:#fecaca}
+    details{margin-top:8px}
+    summary{cursor:pointer; list-style:none; color:#cbd5e1; font-weight:600; padding:8px 0}
+    summary::-webkit-details-marker{display:none}
+    .section{border-top:1px dashed #243247; padding-top:8px; margin-top:8px}
+    .section h4{margin:0 0 6px; font-size:13px; color:#9fb4cf; letter-spacing:.2px}
+    .section .content{font-size:13px; color:#d2d9e3}
+    .section .content p{margin:0 0 8px}
+    mark{background: #3b82f6; color:black; padding:0 2px; border-radius:3px}
+
+    /* Modal */
+    dialog{border:1px solid #233047; background:#0b1220; color:var(--text); border-radius:16px; width:min(860px, 92vw);}
+    dialog::backdrop{background:rgba(0,0,0,.6)}
+    .modal-header{display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1f2a3c; padding:10px 14px}
+    .modal-body{padding:10px 14px; max-height:70vh; overflow:auto}
+
+    .note{width:100%; min-height:80px; border:1px solid #334155; background:#0a1422; color:var(--text); border-radius:12px; padding:10px}
+    .note:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
+
+    /* Empty / error */
+    .empty{border:1px dashed #243247; border-radius:16px; padding:24px; text-align:center; color:#9fb4cf}
+
+    /* Print: solo el contenido de la tarjeta abierta */
+    @media print{
+      header, .controls, #stats, .actions, .tags{display:none !important}
+      .card{break-inside:avoid}
+      body{background:white; color:black}
     }
-
-    .options button {
-      padding: 10px 20px;
-      background-color: #1e88e5;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1.5em;
-      min-width: 150px;
-      transition: background-color 0.3s;
-    }
-
-    .correct {
-      background-color: green !important;
-    }
-
-    .incorrect {
-      background-color: red !important;
-    }
-
-    .score {
-      margin: 20px;
-      font-size: 1.2em;
-    }
-
-    .buttons {
-      margin-top: 20px;
-    }
-
-    .buttons button {
-      background-color: #ffa000;
-      padding: 10px 20px;
-      margin: 5px;
-      border: none;
-      border-radius: 5px;
-      color: black;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-#home-link {
-  font-size: 28px;
-  text-decoration: none;
-  color: white;
-  padding-right: 10px;
-  padding-top: 5px;
-}
-
-#home-link:hover {
-  color: #0ff;
-}
-
   </style>
 </head>
 <body>
-<div class="header">
-  <div class="title-block">
-    <h1>Formulación inorgánica - Juego</h1>
-    <h2 class="autor">Desarrollado por: Ángel Soto</h2>
-  </div>
-  <a href="https://airsoto.github.io/vet/" id="home-link" title="Ir al inicio">🏠</a>
-</div>
-  <div class="question" id="question">Cargando pregunta...</div>
-  <div class="options" id="options"></div>
-  <div class="score" id="score">Aciertos: 0 | Errores: 0</div>
+  <header>
+    <div class="container">
+      <div class="row">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">
+            <!-- minimalist capsule icon -->
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="10" rx="5" stroke="#7cc7ff"/>
+              <path d="M12 7v10" stroke="#a78bfa"/>
+            </svg>
+          </div>
+          <h1>– Buscador de Fármacos</h1>
+          <span class="chip" title="Ruta del JSON">json/bsava_extracted.json <small>solo lectura</small></span>
+        </div>
+      </div>
 
-  <div class="buttons">
-    <button onclick="resetGame()">🔄 Reiniciar</button>
-    <button onclick="finishGame()">✅ Terminar examen</button>
-  </div>
+      <div class="controls" role="search">
+        <label class="input" style="grid-column:1/2" aria-label="Buscar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" stroke="#94a3b8"/><path d="M20 20l-3.5-3.5" stroke="#94a3b8"/></svg>
+          <input id="q" type="search" placeholder="Buscar por fármaco, acción, uso, contraindicaciones, dosis… (⌅ Enter)" autocomplete="off" />
+        </label>
+
+        <div class="seg" id="speciesSeg" role="tablist" aria-label="Especie">
+          <button class="active" data-value="all" role="tab" aria-selected="true">Ambos</button>
+          <button data-value="dogs" role="tab">Perros</button>
+          <button data-value="cats" role="tab">Gatos</button>
+        </div>
+
+        <select id="fieldSelect" title="Campos a buscar">
+          <option value="all" selected>Buscar en todos los campos</option>
+          <option value="main">Solo nombre (Fármaco)</option>
+          <option value="doses">Solo dosis</option>
+          <option value="texts">Texto (acción, uso, contraindic.)</option>
+        </select>
+
+        <select id="sortSelect" title="Ordenar">
+          <option value="name-asc" selected>Nombre (A→Z)</option>
+          <option value="name-desc">Nombre (Z→A)</option>
+          <option value="dose-cats">Con dosis gatos primero</option>
+          <option value="dose-dogs">Con dosis perros primero</option>
+        </select>
+
+        <select id="pageSize" title="Resultados por página">
+          <option>10</option>
+          <option selected>20</option>
+          <option>40</option>
+          <option>80</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="stats" class="container">
+      <div class="left">
+        <span id="count" class="chip">0 resultados</span>
+        <span id="filtersInfo" class="chip" hidden></span>
+      </div>
+      <div class="right" style="display:flex; gap:8px">
+        <button class="btn accent" id="exportJSON">Exportar JSON filtrado</button>
+        <button class="btn" id="exportCSV">Exportar CSV</button>
+        <button class="btn ghost" id="resetBtn">Limpiar filtros</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div id="results" class="grid" aria-live="polite"></div>
+      <div id="pager" style="display:flex; gap:8px; justify-content:center; margin:16px 0"></div>
+      <div id="placeholder" class="empty" hidden>
+        <p><strong>No hay resultados</strong></p>
+        <p>Prueba con otras palabras clave o cambia los filtros.</p>
+      </div>
+      <div id="error" class="empty" hidden>
+        <p><strong>Error al cargar el JSON</strong></p>
+        <p>Asegúrate de colocar el archivo en <code>json/bsava_extracted.json</code> con formato <em>Array</em> de objetos.</p>
+      </div>
+      <div id="loading" class="empty">
+        Cargando datos…
+      </div>
+    </div>
+  </main>
+
+  <dialog id="modal">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="logo" style="width:28px;height:28px"></div>
+        <div>
+          <div id="modalTitle" style="font-weight:700"></div>
+          <div id="modalTags" class="tags" style="margin-top:4px"></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button class="btn" id="printBtn">Imprimir</button>
+        <button class="btn warn" id="closeModal">Cerrar</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </dialog>
 
   <script>
-    const data = [
-  {
-    "compuesto": "BaO",
-    "nomenclatura SISTEMÁTICA": "Óxido de bario",
-    "nomenclatura STOCK": "Óxido de bario"
-  },
-  {
-    "compuesto": "Na2O",
-    "nomenclatura SISTEMÁTICA": "Óxido de disodio",
-    "nomenclatura STOCK": "Óxido de sodio"
-  },
-  {
-    "compuesto": "SnO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de estaño",
-    "nomenclatura STOCK": "Óxido de estaño(II)"
-  },
-  {
-    "compuesto": "SnO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de estaño",
-    "nomenclatura STOCK": "Óxido de estaño(IV)"
-  },
-  {
-    "compuesto": "CoO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de cobalto",
-    "nomenclatura STOCK": "Óxido de cobalto(II)"
-  },
-  {
-    "compuesto": "CuO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de cobre",
-    "nomenclatura STOCK": "Óxido de cobre(II)"
-  },
-  {
-    "compuesto": "Cu2O",
-    "nomenclatura SISTEMÁTICA": "Monóxido de dicobre",
-    "nomenclatura STOCK": "Óxido de cobre(I)"
-  },
-  {
-    "compuesto": "Rb2O",
-    "nomenclatura SISTEMÁTICA": "Óxido de dirrubidio",
-    "nomenclatura STOCK": "Óxido de rubidio"
-  },
-  {
-    "compuesto": "MgO",
-    "nomenclatura SISTEMÁTICA": "Óxido de magnesio",
-    "nomenclatura STOCK": "Óxido de magnesio"
-  },
-  {
-    "compuesto": "PbO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de plomo",
-    "nomenclatura STOCK": "Óxido de plomo(II)"
-  },
-  {
-    "compuesto": "K2O",
-    "nomenclatura SISTEMÁTICA": "Óxido de dipotasio",
-    "nomenclatura STOCK": "Óxido de potasio"
-  },
-  {
-    "compuesto": "Au2O3",
-    "nomenclatura SISTEMÁTICA": "Trióxido de dioro",
-    "nomenclatura STOCK": "Óxido de oro(III)"
-  },
-  {
-    "compuesto": "Ni2O3",
-    "nomenclatura SISTEMÁTICA": "Trióxido de diníquel",
-    "nomenclatura STOCK": "Óxido de níquel(III)"
-  },
-  {
-    "compuesto": "NiO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de níquel",
-    "nomenclatura STOCK": "Óxido de níquel(II)"
-  },
-  {
-    "compuesto": "Li2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de dilitio",
-    "nomenclatura STOCK": "Peróxido de litio"
-  },
-  {
-    "compuesto": "Ag2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de diplata",
-    "nomenclatura STOCK": "Peróxido de plata"
-  },
-  {
-    "compuesto": "H2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de dihidrógeno",
-    "nomenclatura STOCK": "Peróxido de hidrógeno"
-  },
-  {
-    "compuesto": "Cs2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de dicesio",
-    "nomenclatura STOCK": "Peróxido de cesio"
-  },
-  {
-    "compuesto": "MgO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de magnesio",
-    "nomenclatura STOCK": "Peróxido de magnesio"
-  },
-  {
-    "compuesto": "NiO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de níquel",
-    "nomenclatura STOCK": "Peróxido de níquel(II)"
-  },
-  {
-    "compuesto": "Cu2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de dicobre",
-    "nomenclatura STOCK": "Peróxido de cobre(I)"
-  },
-  {
-    "compuesto": "CuO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de cobre",
-    "nomenclatura STOCK": "Peróxido de cobre(II)"
-  },
-  {
-    "compuesto": "ZnO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de cinc",
-    "nomenclatura STOCK": "Peróxido de cinc"
-  },
-  {
-    "compuesto": "CdO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de cadmio",
-    "nomenclatura STOCK": "Peróxido de cadmio"
-  },
-  {
-    "compuesto": "Na2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de disodio",
-    "nomenclatura STOCK": "Peróxido de sodio"
-  },
-  {
-    "compuesto": "BaO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de bario",
-    "nomenclatura STOCK": "Peróxido de bario"
-  },
-  {
-    "compuesto": "Hg2O2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de dimercurio",
-    "nomenclatura STOCK": "Peróxido de mercurio(I)"
-  },
-  {
-    "compuesto": "HgO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de mercurio",
-    "nomenclatura STOCK": "Peróxido de mercurio(II)"
-  },
-  {
-    "compuesto": "SO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de azufre",
-    "nomenclatura STOCK": "Óxido de azufre(II)"
-  },
-  {
-    "compuesto": "SO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de azufre",
-    "nomenclatura STOCK": "Óxido de azufre(IV)"
-  },
-  {
-    "compuesto": "SO3",
-    "nomenclatura SISTEMÁTICA": "Trióxido de azufre",
-    "nomenclatura STOCK": "Óxido de azufre(VI)"
-  },
-  {
-    "compuesto": "SeO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de selenio",
-    "nomenclatura STOCK": "Óxido de selenio(II)"
-  },
-  {
-    "compuesto": "CO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de carbono",
-    "nomenclatura STOCK": "Óxido de carbono(IV)"
-  },
-  {
-    "compuesto": "CO",
-    "nomenclatura SISTEMÁTICA": "Monóxido de carbono",
-    "nomenclatura STOCK": "Óxido de carbono(II)"
-  },
-  {
-    "compuesto": "SiO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de silicio",
-    "nomenclatura STOCK": "Óxido de silicio"
-  },
-  {
-    "compuesto": "TeO2",
-    "nomenclatura SISTEMÁTICA": "Dióxido de teluro",
-    "nomenclatura STOCK": "Óxido de teluro(IV)"
-  },
-  {
-    "compuesto": "N2O3",
-    "nomenclatura SISTEMÁTICA": "Trióxido de dinitrógeno",
-    "nomenclatura STOCK": "Óxido de nitrógeno(III)"
-  },
-  {
-    "compuesto": "P2O5",
-    "nomenclatura SISTEMÁTICA": "Pentaóxido de difósforo",
-    "nomenclatura STOCK": "Óxido de fósforo(V)"
-  },
-  {
-    "compuesto": "KH",
-    "nomenclatura SISTEMÁTICA": "Hidruro de potasio",
-    "nomenclatura STOCK": "Hidruro de potasio"
-  },
-  {
-    "compuesto": "AlH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de aluminio",
-    "nomenclatura STOCK": "Hidruro de aluminio"
-  },
-  {
-    "compuesto": "BeH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de berilio",
-    "nomenclatura STOCK": "Hidruro de berilio"
-  },
-  {
-    "compuesto": "BaH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de bario",
-    "nomenclatura STOCK": "Hidruro de bario"
-  },
-  {
-    "compuesto": "AuH",
-    "nomenclatura SISTEMÁTICA": "Monohidruro de oro",
-    "nomenclatura STOCK": "Hidruro de oro(I)"
-  },
-  {
-    "compuesto": "LiH",
-    "nomenclatura SISTEMÁTICA": "Hidruro de litio",
-    "nomenclatura STOCK": "Hidruro de litio"
-  },
-  {
-    "compuesto": "CuH",
-    "nomenclatura SISTEMÁTICA": "Monohidruro de cobre",
-    "nomenclatura STOCK": "Hidruro de cobre(I)"
-  },
-  {
-    "compuesto": "CuH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de cobre",
-    "nomenclatura STOCK": "Hidruro de cobre(II)"
-  },
-  {
-    "compuesto": "AuH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de oro",
-    "nomenclatura STOCK": "Hidruro de oro(III)"
-  },
-  {
-    "compuesto": "ZnH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de cinc",
-    "nomenclatura STOCK": "Hidruro de cinc"
-  },
-  {
-    "compuesto": "MgH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de magnesio",
-    "nomenclatura STOCK": "Hidruro de magnesio"
-  },
-  {
-    "compuesto": "CoH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de cobalto",
-    "nomenclatura STOCK": "Hidruro de cobalto(III)"
-  },
-  {
-    "compuesto": "CoH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de cobalto",
-    "nomenclatura STOCK": "Hidruro de cobalto(II)"
-  },
-  {
-    "compuesto": "CdH2",
-    "nomenclatura SISTEMÁTICA": "Dihidruro de cadmio",
-    "nomenclatura STOCK": "Hidruro de cadmio"
-  },
-  {
-    "compuesto": "HF",
-    "nomenclatura SISTEMÁTICA": "Fluoruro de hidrógeno",
-    "nomenclatura STOCK": "Fluoruro de hidrógeno"
-  },
-  {
-    "compuesto": "HCl",
-    "nomenclatura SISTEMÁTICA": "Cloruro de hidrógeno",
-    "nomenclatura STOCK": "Cloruro de hidrógeno"
-  },
-  {
-    "compuesto": "HBr",
-    "nomenclatura SISTEMÁTICA": "Bromuro de hidrógeno",
-    "nomenclatura STOCK": "Bromuro de hidrógeno"
-  },
-  {
-    "compuesto": "HI",
-    "nomenclatura SISTEMÁTICA": "Yoduro de hidrógeno",
-    "nomenclatura STOCK": "Yoduro de hidrógeno"
-  },
-  {
-    "compuesto": "H2S",
-    "nomenclatura SISTEMÁTICA": "Sulfuro de dihidrógeno",
-    "nomenclatura STOCK": "Sulfuro de hidrógeno"
-  },
-  {
-    "compuesto": "H2Se",
-    "nomenclatura SISTEMÁTICA": "Selenuro de dihidrógeno",
-    "nomenclatura STOCK": "Selenuro de hidrógeno"
-  },
-  {
-    "compuesto": "H2Te",
-    "nomenclatura SISTEMÁTICA": "Telururo de dihidrógeno",
-    "nomenclatura STOCK": "Telururo de hidrógeno"
-  },
-  {
-    "compuesto": "NH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de nitrógeno",
-    "nomenclatura STOCK": "Hidruro de nitrógeno(III)"
-  },
-  {
-    "compuesto": "PH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de fósforo",
-    "nomenclatura STOCK": "Hidruro de fósforo(III)"
-  },
-  {
-    "compuesto": "AsH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de arsénico",
-    "nomenclatura STOCK": "Hidruro de arsénico(III)"
-  },
-  {
-    "compuesto": "SbH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de antimonio",
-    "nomenclatura STOCK": "Hidruro de antimonio(III)"
-  },
-  {
-    "compuesto": "CH4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidruro de carbono",
-    "nomenclatura STOCK": "Hidruro de carbono(IV)"
-  },
-  {
-    "compuesto": "SiH4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidruro de silicio",
-    "nomenclatura STOCK": "Hidruro de silicio"
-  },
-  {
-    "compuesto": "BH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de boro",
-    "nomenclatura STOCK": "Hidruro de boro"
-  },
-  {
-    "compuesto": "Hg(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de mercurio",
-    "nomenclatura STOCK": "Hidróxido de mercurio(II)"
-  },
-  {
-    "compuesto": "KOH",
-    "nomenclatura SISTEMÁTICA": "Hidróxido de potasio",
-    "nomenclatura STOCK": "Hidróxido de potasio"
-  },
-  {
-    "compuesto": "Ca(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de calcio",
-    "nomenclatura STOCK": "Hidróxido de calcio"
-  },
-  {
-    "compuesto": "Mg(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de magnesio",
-    "nomenclatura STOCK": "Hidróxido de magnesio"
-  },
-  {
-    "compuesto": "Pb(OH)4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidróxido de plomo",
-    "nomenclatura STOCK": "Hidróxido de plomo(IV)"
-  },
-  {
-    "compuesto": "Sn(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de estaño",
-    "nomenclatura STOCK": "Hidróxido de estaño(II)"
-  },
-  {
-    "compuesto": "Sn(OH)4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidróxido de estaño",
-    "nomenclatura STOCK": "Hidróxido de estaño(IV)"
-  },
-  {
-    "compuesto": "AgOH",
-    "nomenclatura SISTEMÁTICA": "Hidróxido de plata",
-    "nomenclatura STOCK": "Hidróxido de plata"
-  },
-  {
-    "compuesto": "Be(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de berilio",
-    "nomenclatura STOCK": "Hidróxido de berilio"
-  },
-  {
-    "compuesto": "CuOH",
-    "nomenclatura SISTEMÁTICA": "Monohidróxido de cobre",
-    "nomenclatura STOCK": "Hidróxido de cobre(I)"
-  },
-  {
-    "compuesto": "Zn(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de cinc",
-    "nomenclatura STOCK": "Hidróxido de cinc"
-  },
-  {
-    "compuesto": "Co(OH)3",
-    "nomenclatura SISTEMÁTICA": "Trihidróxido de cobalto",
-    "nomenclatura STOCK": "Hidróxido de cobalto(III)"
-  },
-  {
-    "compuesto": "AuOH",
-    "nomenclatura SISTEMÁTICA": "Monohidróxido de oro",
-    "nomenclatura STOCK": "Hidróxido de oro(I)"
-  },
-  {
-    "compuesto": "Ni(OH)2",
-    "nomenclatura SISTEMÁTICA": "Dihidróxido de níquel",
-    "nomenclatura STOCK": "Hidróxido de níquel(II)"
-  },
-  {
-    "compuesto": "LiF",
-    "nomenclatura SISTEMÁTICA": "Fluoruro de litio",
-    "nomenclatura STOCK": "Fluoruro de litio"
-  },
-  {
-    "compuesto": "CaF2",
-    "nomenclatura SISTEMÁTICA": "Difluoruro de calcio",
-    "nomenclatura STOCK": "Fluoruro de calcio"
-  },
-  {
-    "compuesto": "AlCl3",
-    "nomenclatura SISTEMÁTICA": "Tricloruro de aluminio",
-    "nomenclatura STOCK": "Cloruro de aluminio"
-  },
-  {
-    "compuesto": "Fe2S3",
-    "nomenclatura SISTEMÁTICA": "Trisulfuro de dihierro",
-    "nomenclatura STOCK": "Sulfuro de hierro(III)"
-  },
-  {
-    "compuesto": "NiS",
-    "nomenclatura SISTEMÁTICA": "Monosulfuro de níquel",
-    "nomenclatura STOCK": "Sulfuro de níquel(II)"
-  },
-  {
-    "compuesto": "CaTe",
-    "nomenclatura SISTEMÁTICA": "Telururo de calcio",
-    "nomenclatura STOCK": "Telururo de calcio"
-  },
-  {
-    "compuesto": "KI",
-    "nomenclatura SISTEMÁTICA": "Yoduro de potasio",
-    "nomenclatura STOCK": "Yoduro de potasio"
-  },
-  {
-    "compuesto": "PbBr4",
-    "nomenclatura SISTEMÁTICA": "Tetrabromuro de plomo",
-    "nomenclatura STOCK": "Bromuro de plomo(IV)"
-  },
-  {
-    "compuesto": "SnSe",
-    "nomenclatura SISTEMÁTICA": "Monoselenuro de estaño",
-    "nomenclatura STOCK": "Selenuro de estaño(II)"
-  },
-  {
-    "compuesto": "CuBr2",
-    "nomenclatura SISTEMÁTICA": "Dibromuro de cobre",
-    "nomenclatura STOCK": "Bromuro de cobre(II)"
-  },
-  {
-    "compuesto": "CuBr",
-    "nomenclatura SISTEMÁTICA": "Monobromuro de cobre",
-    "nomenclatura STOCK": "Bromuro de cobre(I)"
-  },
-  {
-    "compuesto": "Hg3As",
-    "nomenclatura SISTEMÁTICA": "Monoarsenuro de trimercurio",
-    "nomenclatura STOCK": "Arsenuro de mercurio(I)"
-  },
-  {
-    "compuesto": "AuP",
-    "nomenclatura SISTEMÁTICA": "Monofosfuro de oro",
-    "nomenclatura STOCK": "Fosfuro de oro(III)"
-  },
-  {
-    "compuesto": "Co2S3",
-    "nomenclatura SISTEMÁTICA": "Trisulfuro de dicobalto",
-    "nomenclatura STOCK": "Sulfuro de cobalto(III)"
-  },
-  {
-    "compuesto": "BrF3",
-    "nomenclatura SISTEMÁTICA": "Trifluoruro de bromo",
-    "nomenclatura STOCK": "Fluoruro de bromo(III)"
-  },
-  {
-    "compuesto": "BrCl",
-    "nomenclatura SISTEMÁTICA": "Monocloruro de bromo",
-    "nomenclatura STOCK": "Cloruro de bromo(I)"
-  },
-  {
-    "compuesto": "SeI2",
-    "nomenclatura SISTEMÁTICA": "Diyoduro de selenio",
-    "nomenclatura STOCK": "Yoduro de selenio(II)"
-  },
-  {
-    "compuesto": "CCl4",
-    "nomenclatura SISTEMÁTICA": "Tetracloruro de carbono",
-    "nomenclatura STOCK": "Cloruro de carbono(IV)"
-  },
-  {
-    "compuesto": "CS2",
-    "nomenclatura SISTEMÁTICA": "Disulfuro de carbono",
-    "nomenclatura STOCK": "Sulfuro de carbono(IV)"
-  },
-  {
-    "compuesto": "BrF5",
-    "nomenclatura SISTEMÁTICA": "Pentafluoruro de bromo",
-    "nomenclatura STOCK": "Fluoruro de bromo(V)"
-  },
-  {
-    "compuesto": "IF7",
-    "nomenclatura SISTEMÁTICA": "Heptafluoruro de yodo",
-    "nomenclatura STOCK": "Fluoruro de yodo(VII)"
-  },
-  {
-    "compuesto": "B2S3",
-    "nomenclatura SISTEMÁTICA": "Trisulfuro de diboro",
-    "nomenclatura STOCK": "Sulfuro de boro"
-  },
-  {
-    "compuesto": "As2Se3",
-    "nomenclatura SISTEMÁTICA": "Triselenuro de diarsénico",
-    "nomenclatura STOCK": "Selenuro de arsénico(III)"
-  },
-  {
-    "compuesto": "BP",
-    "nomenclatura SISTEMÁTICA": "Fosfuro de boro",
-    "nomenclatura STOCK": "Fosfuro de boro"
-  },
-  {
-    "compuesto": "N2S3",
-    "nomenclatura SISTEMÁTICA": "Trisulfuro de dinitrógeno",
-    "nomenclatura STOCK": "Sulfuro de nitrógeno(III)"
-  },
-  {
-    "compuesto": "CS",
-    "nomenclatura SISTEMÁTICA": "Monosulfuro de carbono",
-    "nomenclatura STOCK": "Sulfuro de carbono(II)"
-  },
-  {
-    "compuesto": "SF6",
-    "nomenclatura SISTEMÁTICA": "Hexafluoruro de azufre",
-    "nomenclatura STOCK": "Fluoruro de azufre(VI)"
-  },
-  {
-    "compuesto": "IBr3",
-    "nomenclatura SISTEMÁTICA": "Tribromuro de yodo",
-    "nomenclatura STOCK": "Bromuro de yodo(III)"
-  },
-      {
-    "compuesto": "H2S",
-    "nomenclatura SISTEMÁTICA": "Sulfano",
-    "nomenclatura STOCK": "Ácido sulfhídrico"
-  },
-  {
-    "compuesto": "HCl",
-    "nomenclatura SISTEMÁTICA": "Cloruro de hidrógeno",
-    "nomenclatura STOCK": "Ácido clorhídrico"
-  },
-  {
-    "compuesto": "HBr",
-    "nomenclatura SISTEMÁTICA": "Bromuro de hidrógeno",
-    "nomenclatura STOCK": "Ácido bromhídrico"
-  },
-  {
-    "compuesto": "HI",
-    "nomenclatura SISTEMÁTICA": "Yoduro de hidrógeno",
-    "nomenclatura STOCK": "Ácido yodhídrico"
-  },
-  {
-    "compuesto": "HF",
-    "nomenclatura SISTEMÁTICA": "Fluoruro de hidrógeno",
-    "nomenclatura STOCK": "Ácido fluorhídrico"
-  },
-  {
-    "compuesto": "HCN",
-    "nomenclatura SISTEMÁTICA": "Cianuro de hidrógeno",
-    "nomenclatura STOCK": "Ácido cianhídrico"
-  },
-  {
-    "compuesto": "H2Se",
-    "nomenclatura SISTEMÁTICA": "Selano",
-    "nomenclatura STOCK": "Ácido selenhídrico"
-  },
-  {
-    "compuesto": "NH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de nitrógeno",
-    "nomenclatura STOCK": "Amoníaco"
-  },
-  {
-    "compuesto": "CH4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidruro de carbono",
-    "nomenclatura STOCK": "Metano"
-  },
-  {
-    "compuesto": "PH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de fósforo",
-    "nomenclatura STOCK": "Fosfano"
-  },
-  {
-    "compuesto": "AsH3",
-    "nomenclatura SISTEMÁTICA": "Trihidruro de arsénico",
-    "nomenclatura STOCK": "Arsano"
-  },
-  {
-    "compuesto": "SiH4",
-    "nomenclatura SISTEMÁTICA": "Tetrahidruro de silicio",
-    "nomenclatura STOCK": "Silano"
-  },
-  {
-    "compuesto": "BH3",
-    "nomenclatura SISTEMÁTICA": "Hexahidruro de diboro",
-    "nomenclatura STOCK": "Boorano"
-  },
-  {
-    "compuesto": "H2Te",
-    "nomenclatura SISTEMÁTICA": "Telurano",
-    "nomenclatura STOCK": "Ácido telurhídrico"
-  }
-]
-;
-
-    let score = { correct: 0, incorrect: 0 };
-    let currentAnswer = "";
-    let questionType = "";
-
-    function getRandomElement(array) {
-      return array[Math.floor(Math.random() * array.length)];
+  ;(() => {
+    const state = {
+      data: [],
+      filtered: [],
+      q: '',
+      species: 'all', // all|dogs|cats
+      field: 'all',   // all|main|doses|texts
+      sort: 'name-asc',
+      page: 1,
+      pageSize: 20,
+      favorites: new Set(JSON.parse(localStorage.getItem('bsava:favs')||'[]'))
     }
 
-    function generateQuestion() {
-      document.getElementById("options").innerHTML = "";
-      const types = ["SISTEMÁTICA→compuesto", "STOCK→compuesto", "compuesto→SISTEMÁTICA", "compuesto→STOCK"];
-      questionType = getRandomElement(types);
-      const correct = getRandomElement(data);
+    const els = {
+      q: document.getElementById('q'),
+      speciesSeg: document.getElementById('speciesSeg'),
+      fieldSelect: document.getElementById('fieldSelect'),
+      sortSelect: document.getElementById('sortSelect'),
+      pageSize: document.getElementById('pageSize'),
+      results: document.getElementById('results'),
+      pager: document.getElementById('pager'),
+      count: document.getElementById('count'),
+      filtersInfo: document.getElementById('filtersInfo'),
+      placeholder: document.getElementById('placeholder'),
+      error: document.getElementById('error'),
+      loading: document.getElementById('loading'),
+      exportJSON: document.getElementById('exportJSON'),
+      exportCSV: document.getElementById('exportCSV'),
+      resetBtn: document.getElementById('resetBtn'),
+      modal: document.getElementById('modal'),
+      modalTitle: document.getElementById('modalTitle'),
+      modalTags: document.getElementById('modalTags'),
+      modalBody: document.getElementById('modalBody'),
+      closeModal: document.getElementById('closeModal'),
+      printBtn: document.getElementById('printBtn')
+    }
 
-      let questionText = "";
-      let answerField = "";
-      let fieldToShow = "";
+    // Utils
+    const slug = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
+    const safe = str => (str==null? '' : String(str)).replace(/[&<>"]{/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","{" : "&#123;"}[m]))
+    const nl2br = str => safe(str).replace(/\n/g,'<br>')
+    const hasText = v => v!=null && String(v).trim().length>0
 
-      switch (questionType) {
-        case "SISTEMÁTICA→compuesto":
-          questionText = `¿Qué compuesto corresponde a la nomenclatura SISTEMÁTICA "<b>${correct["nomenclatura SISTEMÁTICA"]}</b>"?`;
-          currentAnswer = correct.compuesto;
-          answerField = "compuesto";
-          break;
-        case "STOCK→compuesto":
-          questionText = `¿Qué compuesto corresponde a la nomenclatura STOCK "<b>${correct["nomenclatura STOCK"]}</b>"?`;
-          currentAnswer = correct.compuesto;
-          answerField = "compuesto";
-          break;
-        case "compuesto→SISTEMÁTICA":
-          questionText = `¿Cuál es la nomenclatura SISTEMÁTICA del compuesto "<b>${correct.compuesto}</b>"?`;
-          currentAnswer = correct["nomenclatura SISTEMÁTICA"];
-          answerField = "nomenclatura SISTEMÁTICA";
-          break;
-        case "compuesto→STOCK":
-          questionText = `¿Cuál es la nomenclatura STOCK del compuesto "<b>${correct.compuesto}</b>"?`;
-          currentAnswer = correct["nomenclatura STOCK"];
-          answerField = "nomenclatura STOCK";
-          break;
+    function highlight(text, tokens){
+      if(!text || !tokens.length) return nl2br(text||'')
+      let html = safe(text)
+      for(const t of tokens){
+        const re = new RegExp(`(${escapeRegExp(t)})`,'ig')
+        html = html.replace(re, '<mark>$1</mark>')
       }
+      return html.replace(/\n/g,'<br>')
+    }
+    function escapeRegExp(string){
+      return string.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+    }
 
-      document.getElementById("question").innerHTML = questionText;
-
-      let options = new Set();
-      options.add(currentAnswer);
-      while (options.size < 6) {
-        let candidate = getRandomElement(data)[answerField];
-        options.add(candidate);
+    function derive(entry){
+      const id = slug(entry.Farmaco || 'sin-nombre')
+      const Dogs = entry.DOSES && entry.DOSES.Dogs
+      const Cats = entry.DOSES && entry.DOSES.Cats
+      return {
+        ...entry,
+        __id: id,
+        __hasDogs: hasText(Dogs),
+        __hasCats: hasText(Cats),
+        __blob: [entry.Farmaco, entry.Formulations, entry.Action, entry.Use, entry['Safety and handling'], entry.Contraindications, entry['Adverse reactions'], entry['Drug interactions'], Dogs, Cats].filter(Boolean).join('\n').toLowerCase()
       }
-
-      Array.from(options).sort(() => Math.random() - 0.5).forEach(opt => {
-        const button = document.createElement("button");
-        button.textContent = opt;
-        button.onclick = () => checkAnswer(button, opt);
-        document.getElementById("options").appendChild(button);
-      });
     }
 
-    function checkAnswer(button, selected) {
-      const buttons = document.querySelectorAll("#options button");
-      buttons.forEach(btn => btn.disabled = true);
+    function loadFromURL(){
+      const p = new URLSearchParams(location.search)
+      state.q = p.get('q')||''
+      state.species = p.get('sp')||'all'
+      state.field = p.get('f')||'all'
+      state.sort = p.get('s')||'name-asc'
+      state.page = parseInt(p.get('p')||'1',10)
+      state.pageSize = parseInt(p.get('ps')||'20',10)
+      // hydrate controls
+      els.q.value = state.q
+      els.fieldSelect.value = state.field
+      els.sortSelect.value = state.sort
+      els.pageSize.value = String(state.pageSize)
+      ;[...els.speciesSeg.querySelectorAll('button')].forEach(b=>{
+        b.classList.toggle('active', b.dataset.value===state.species)
+        b.setAttribute('aria-selected', b.dataset.value===state.species ? 'true':'false')
+      })
+    }
 
-      if (selected === currentAnswer) {
-        button.classList.add("correct");
-        score.correct++;
-      } else {
-        button.classList.add("incorrect");
-        buttons.forEach(btn => {
-          if (btn.textContent === currentAnswer) {
-            btn.classList.add("correct");
-          }
-        });
-        score.incorrect++;
+    function saveToURL(){
+      const p = new URLSearchParams()
+      if(state.q) p.set('q', state.q)
+      if(state.species!=='all') p.set('sp', state.species)
+      if(state.field!=='all') p.set('f', state.field)
+      if(state.sort!=='name-asc') p.set('s', state.sort)
+      if(state.page>1) p.set('p', String(state.page))
+      if(state.pageSize!==20) p.set('ps', String(state.pageSize))
+      const qs = p.toString(); const url = qs ? ('?'+qs) : location.pathname
+      history.replaceState(null, '', url)
+    }
+
+    function applyFilters(){
+      const tokens = state.q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+      const byField = (e)=>{
+        switch(state.field){
+          case 'main': return (e.Farmaco||'').toLowerCase()
+          case 'doses': return [e.DOSES?.Dogs, e.DOSES?.Cats].filter(Boolean).join(' ').toLowerCase()
+          case 'texts': return [e.Action, e.Use, e.Contraindications, e['Adverse reactions']].filter(Boolean).join(' ').toLowerCase()
+          default: return e.__blob
+        }
       }
+      let list = state.data.filter(e=>{
+        // species filter
+        if(state.species==='dogs' && !e.__hasDogs) return false
+        if(state.species==='cats' && !e.__hasCats) return false
+        // text filter
+        if(tokens.length===0) return true
+        const haystack = byField(e)
+        return tokens.every(t=> haystack.includes(t))
+      })
 
-      updateScore();
-      setTimeout(generateQuestion, 1500);
+      // sort
+      list.sort((a,b)=>{
+        if(state.sort==='name-desc') return (b.Farmaco||'').localeCompare(a.Farmaco||'')
+        if(state.sort==='dose-cats') return (b.__hasCats - a.__hasCats) || (a.Farmaco||'').localeCompare(b.Farmaco||'')
+        if(state.sort==='dose-dogs') return (b.__hasDogs - a.__hasDogs) || (a.Farmaco||'').localeCompare(b.Farmaco||'')
+        return (a.Farmaco||'').localeCompare(b.Farmaco||'')
+      })
+
+      state.filtered = list
+      state.page = Math.min(state.page, Math.max(1, Math.ceil(list.length / state.pageSize)))
+      render()
     }
 
-    function updateScore() {
-      document.getElementById("score").textContent = `Aciertos: ${score.correct} | Errores: ${score.incorrect}`;
+    function render(){
+      saveToURL()
+      const {filtered, pageSize} = state
+      const total = filtered.length
+      els.count.textContent = `${total} ${total===1? 'resultado':'resultados'}`
+      els.filtersInfo.hidden = !(state.species!=='all' || state.field!=='all')
+      els.filtersInfo.textContent = `${state.species!=='all' ? 'Filtro especie: '+(state.species==='dogs'?'Perros':'Gatos'):''} ${state.field!=='all' ? ' | Campo: '+state.field:''}`.trim()
+
+      els.placeholder.hidden = total>0
+      els.loading.hidden = true
+
+      const start = (state.page-1)*pageSize
+      const end = start + pageSize
+      const pageItems = filtered.slice(start, end)
+
+      els.results.innerHTML = pageItems.map(renderCard).join('')
+      wireCardButtons()
+      renderPager(total)
     }
 
-    function resetGame() {
-      score = { correct: 0, incorrect: 0 };
-      updateScore();
-      generateQuestion();
+    function renderCard(e){
+      const tokens = state.q.trim().split(/\s+/).filter(Boolean)
+      const fav = state.favorites.has(e.__id)
+      const dogsTag = e.__hasDogs? '<span class="tag" title="Tiene dosis para perros">🐶 Dosis</span>' : ''
+      const catsTag = e.__hasCats? '<span class="tag" title="Tiene dosis para gatos">🐱 Dosis</span>' : ''
+      const diTag = hasText(e['Drug interactions'])? '<span class="tag">↔️ Interacciones</span>' : ''
+      return `
+        <article class="card" data-id="${e.__id}">
+          <h2 class="drug-title">${highlight(e.Farmaco, tokens)}</h2>
+          <div class="tags">${dogsTag}${catsTag}${diTag}</div>
+          <div class="actions">
+            <button class="btn accent" data-open>Ver ficha</button>
+            <button class="btn" data-copy="all">Copiar todo</button>
+            <button class="btn" data-copy="cats" ${e.__hasCats?'':'disabled'}>Copiar dosis gatos</button>
+            <button class="btn" data-copy="dogs" ${e.__hasDogs?'':'disabled'}>Copiar dosis perros</button>
+            <button class="btn ghost" data-fav title="${fav?'Quitar de favoritos':'Añadir a favoritos'}">${fav?'★ Favorito':'☆ Favorito'}</button>
+          </div>
+          ${section('Formulaciones', e.Formulations, tokens)}
+          ${section('Contraindicaciones', e.Contraindications, tokens)}
+          ${section('Reacciones adversas', e['Adverse reactions'], tokens)}
+        </article>`
     }
 
-    function finishGame() {
-      const total = score.correct + score.incorrect;
-      const nota = total === 0 ? 0 : Math.round((score.correct / total) * 10 * 100) / 100;
-      alert(`Has terminado el examen.\nNota final: ${nota}/10`);
+    function section(title, text, tokens){
+      if(!hasText(text)) return ''
+      return `<div class="section"><h4>${title}</h4><div class="content">${highlight(text, tokens)}</div></div>`
     }
 
-    // Inicializar
-    generateQuestion();
+    function renderPager(total){
+      const pages = Math.max(1, Math.ceil(total/state.pageSize))
+      const p = state.page
+      let html = ''
+      const btn = (lab, to, dis=false)=>`<button class="btn" ${dis?'disabled':''} data-page="${to}">${lab}</button>`
+      html += btn('⟨⟨',1,p===1)
+      html += btn('⟨',Math.max(1,p-1),p===1)
+      for(let i=Math.max(1,p-2); i<=Math.min(pages,p+2); i++){
+        html += `<button class="btn ${i===p?'accent':''}" data-page="${i}">${i}</button>`
+      }
+      html += btn('⟩',Math.min(pages,p+1),p===pages)
+      html += btn('⟩⟩',pages,p===pages)
+      els.pager.innerHTML = html
+      els.pager.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ state.page = parseInt(b.dataset.page,10); render() }))
+    }
+
+    function wireCardButtons(){
+      els.results.querySelectorAll('[data-open]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          const e = state.filtered.find(x=> x.__id===id) || state.data.find(x=> x.__id===id)
+          openModal(e)
+        })
+      })
+      els.results.querySelectorAll('[data-copy]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          const e = state.filtered.find(x=> x.__id===id) || state.data.find(x=> x.__id===id)
+          const scope = btn.dataset.copy
+          let text = ''
+          if(scope==='cats') text = e.DOSES?.Cats || ''
+          else if(scope==='dogs') text = e.DOSES?.Dogs || ''
+          else text = serializeEntry(e)
+          copy(text)
+          btn.textContent = 'Copiado ✓'
+          setTimeout(()=> btn.textContent = (scope==='all'?'Copiar todo': scope==='cats'?'Copiar dosis gatos':'Copiar dosis perros'), 1000)
+        })
+      })
+      els.results.querySelectorAll('[data-fav]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          if(state.favorites.has(id)) state.favorites.delete(id)
+          else state.favorites.add(id)
+          localStorage.setItem('bsava:favs', JSON.stringify([...state.favorites]))
+          applyFilters()
+        })
+      })
+    }
+
+    function serializeEntry(e){
+      const lines = []
+      const push = (k,v)=>{ if(hasText(v)) lines.push(`${k}:\n${v}\n`) }
+      push('Fármaco', e.Farmaco)
+      push('Formulaciones', e.Formulations)
+      push('Acción', e.Action)
+      push('Uso', e.Use)
+      push('Seguridad y manejo', e['Safety and handling'])
+      push('Contraindicaciones', e.Contraindications)
+      push('Reacciones adversas', e['Adverse reactions'])
+      push('Interacciones', e['Drug interactions'])
+      if(hasText(e.DOSES?.Dogs)) push('Dosis (Perros)', e.DOSES.Dogs)
+      if(hasText(e.DOSES?.Cats)) push('Dosis (Gatos)', e.DOSES.Cats)
+      return lines.join('\n')
+    }
+
+    function copy(text){
+      navigator.clipboard?.writeText(text).catch(()=>{
+        const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
+      })
+    }
+
+    function openModal(e){
+      els.modalTitle.textContent = e.Farmaco || '(sin nombre)'
+      els.modalTags.innerHTML = `${e.__hasDogs?'<span class="tag">🐶 Dosis</span>':''}${e.__hasCats?'<span class="tag">🐱 Dosis</span>':''}`
+      const mk = (t,x)=> hasText(x) ? `<div class="section"><h4>${t}</h4><div class="content">${nl2br(x)}</div></div>`:''
+      const notesKey = 'bsava:note:'+e.__id
+      const note = localStorage.getItem(notesKey)||''
+      els.modalBody.innerHTML = `
+        ${mk('Formulaciones', e.Formulations)}
+        ${mk('Acción', e.Action)}
+        ${mk('Uso', e.Use)}
+        ${mk('Seguridad y manejo', e['Safety and handling'])}
+        ${mk('Contraindicaciones', e.Contraindications)}
+        ${mk('Reacciones adversas', e['Adverse reactions'])}
+        ${mk('Interacciones', e['Drug interactions'])}
+        <div class="section"><h4>Dosis</h4>
+          <div class="content">
+            ${hasText(e.DOSES?.Dogs)? `<p><strong>Perros:</strong><br>${nl2br(e.DOSES.Dogs)}</p>`:''}
+            ${hasText(e.DOSES?.Cats)? `<p><strong>Gatos:</strong><br>${nl2br(e.DOSES.Cats)}</p>`:''}
+            ${!hasText(e.DOSES?.Dogs) && !hasText(e.DOSES?.Cats) ? '<p>—</p>':''}
+            <div style="display:flex; gap:8px; margin-top:8px">
+              <button class="btn" id="copyCats" ${e.__hasCats?'':'disabled'}>Copiar dosis gatos</button>
+              <button class="btn" id="copyDogs" ${e.__hasDogs?'':'disabled'}>Copiar dosis perros</button>
+              <button class="btn" id="copyAll">Copiar todo</button>
+            </div>
+          </div>
+        </div>
+        <div class="section"><h4>Notas (local)</h4>
+          <textarea class="note" id="noteArea" placeholder="Escribe notas privadas… (se guardan en este navegador)">${safe(note)}</textarea>
+          <div style="display:flex; gap:8px; margin-top:8px">
+            <button class="btn" id="saveNote">Guardar nota</button>
+            <button class="btn ghost" id="clearNote">Borrar nota</button>
+          </div>
+        </div>
+      `
+      els.modal.showModal()
+      document.getElementById('copyCats')?.addEventListener('click',()=> copy(e.DOSES?.Cats||''))
+      document.getElementById('copyDogs')?.addEventListener('click',()=> copy(e.DOSES?.Dogs||''))
+      document.getElementById('copyAll')?.addEventListener('click',()=> copy(serializeEntry(e)))
+      document.getElementById('saveNote').addEventListener('click',()=>{
+        const v = document.getElementById('noteArea').value
+        localStorage.setItem(notesKey, v)
+      })
+      document.getElementById('clearNote').addEventListener('click',()=>{
+        localStorage.removeItem(notesKey); document.getElementById('noteArea').value=''
+      })
+    }
+
+    // Events
+    els.q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ state.q = els.q.value; state.page = 1; applyFilters() } })
+    els.q.addEventListener('input', ()=>{ if(!els.q.value) { state.q=''; state.page=1; applyFilters() } })
+
+    els.speciesSeg.addEventListener('click', (ev)=>{
+      const b = ev.target.closest('button'); if(!b) return
+      state.species = b.dataset.value; state.page=1
+      els.speciesSeg.querySelectorAll('button').forEach(x=> x.classList.toggle('active', x===b))
+      applyFilters()
+    })
+
+    els.fieldSelect.addEventListener('change', ()=>{ state.field = els.fieldSelect.value; state.page=1; applyFilters() })
+    els.sortSelect.addEventListener('change', ()=>{ state.sort = els.sortSelect.value; applyFilters() })
+    els.pageSize.addEventListener('change', ()=>{ state.pageSize = parseInt(els.pageSize.value,10); state.page=1; applyFilters() })
+
+    els.exportJSON.addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state.filtered, null, 2)], {type:'application/json'})
+      const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download: 'bsava_filtrado.json'})
+      a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1500)
+    })
+    els.exportCSV.addEventListener('click', ()=>{
+      const csv = toCSV(state.filtered)
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8'})
+      const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download: 'bsava_filtrado.csv'})
+      a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1500)
+    })
+
+    els.resetBtn.addEventListener('click', ()=>{
+      state.q=''; els.q.value=''; state.species='all'; state.field='all'; state.sort='name-asc'; state.page=1; state.pageSize=20
+      ;[...els.speciesSeg.querySelectorAll('button')].forEach(b=> b.classList.toggle('active', b.dataset.value==='all'))
+      els.fieldSelect.value='all'; els.sortSelect.value='name-asc'; els.pageSize.value='20'
+      applyFilters()
+    })
+
+    els.closeModal.addEventListener('click', ()=> els.modal.close())
+    els.printBtn.addEventListener('click', ()=> window.print())
+
+    function toCSV(rows){
+      const cols = ['Farmaco','Formulations','Action','Use','Safety and handling','Contraindications','Adverse reactions','Drug interactions','Dogs','Cats']
+      const lines = [cols.join(',')]
+      for(const r of rows){
+        const rec = [
+          r.Farmaco, r.Formulations, r.Action, r.Use, r['Safety and handling'], r.Contraindications, r['Adverse reactions'], r['Drug interactions'], r.DOSES?.Dogs, r.DOSES?.Cats
+        ].map(v=> '"'+String(v??'').replace(/"/g,'""').replace(/\n/g,' ')+'"')
+        lines.push(rec.join(','))
+      }
+      return lines.join('\n')
+    }
+
+    async function boot(){
+      try{
+        loadFromURL()
+        const res = await fetch('json/bsava_extracted.json')
+        if(!res.ok) throw new Error('HTTP '+res.status)
+        const raw = await res.json()
+        if(!Array.isArray(raw)) throw new Error('JSON debe ser un Array de objetos')
+        state.data = raw.map(derive)
+        applyFilters()
+      }catch(err){
+        console.error(err)
+        els.loading.hidden = true
+        els.error.hidden = false
+      }
+    }
+
+    // start
+    boot()
+  })()
   </script>
 </body>
 </html>
