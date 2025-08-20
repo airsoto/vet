@@ -375,33 +375,48 @@
       renderPager(total)
     }
 
-    function renderCard(e){
-      const tokens = state.q.trim().split(/\s+/).filter(Boolean)
-      const fav = state.favorites.has(e.__id)
-      const dogsTag = e.__hasDogs? '<span class="tag" title="Tiene dosis para perros">🐶 Dosis</span>' : ''
-      const catsTag = e.__hasCats? '<span class="tag" title="Tiene dosis para gatos">🐱 Dosis</span>' : ''
-      const diTag = hasText(e['Drug interactions'])? '<span class="tag">↔️ Interacciones</span>' : ''
-      return `
-        <article class="card" data-id="${e.__id}">
-          <h2 class="drug-title">${highlight(e.Farmaco, tokens)}</h2>
-          <div class="tags">${dogsTag}${catsTag}${diTag}</div>
-          <div class="actions">
-            <button class="btn accent" data-open>Ver ficha</button>
-            <button class="btn" data-copy="all">Copiar todo</button>
-            <button class="btn" data-copy="cats" ${e.__hasCats?'':'disabled'}>Copiar dosis gatos</button>
-            <button class="btn" data-copy="dogs" ${e.__hasDogs?'':'disabled'}>Copiar dosis perros</button>
-            <button class="btn ghost" data-fav title="${fav?'Quitar de favoritos':'Añadir a favoritos'}">${fav?'★ Favorito':'☆ Favorito'}</button>
-          </div>
-          ${section('Formulaciones', e.Formulations, tokens)}
-          ${section('Contraindicaciones', e.Contraindications, tokens)}
-          ${section('Reacciones adversas', e['Adverse reactions'], tokens)}
-        </article>`
-    }
+function renderCard(e){
+  const tokens = state.q.trim().split(/\s+/).filter(Boolean)
+  const fav = state.favorites.has(e.__id)
+  const dogsTag = e.__hasDogs? '<span class="tag" title="Tiene dosis para perros">🐶 Dosis</span>' : ''
+  const catsTag = e.__hasCats? '<span class="tag" title="Tiene dosis para gatos">🐱 Dosis</span>' : ''
+  const diTag = hasText(e['Drug interactions'])? '<span class="tag">↔️ Interacciones</span>' : ''
+  return `
+    <article class="card" data-id="${e.__id}">
+      <h2 class="drug-title">${highlight(e.Farmaco, tokens)}</h2>
+      <div class="tags">${dogsTag}${catsTag}${diTag}</div>
+      <div class="actions">
+        <button class="btn accent" data-open>Ver ficha</button>
+        <button class="btn" data-copy="all">Copiar todo</button>
+        <button class="btn" data-copy="cats" ${e.__hasCats?'':'disabled'}>Copiar dosis gatos</button>
+        <button class="btn" data-copy="dogs" ${e.__hasDogs?'':'disabled'}>Copiar dosis perros</button>
+        <button class="btn ghost" data-fav title="${fav?'Quitar de favoritos':'Añadir a favoritos'}">${fav?'★ Favorito':'☆ Favorito'}</button>
+      </div>
+      ${section('Formulaciones', e.Formulations, tokens)}
+      ${doseSection(e, tokens)}
+      ${section('Contraindicaciones', e.Contraindications, tokens)}
+    </article>`
+}
+
 
     function section(title, text, tokens){
       if(!hasText(text)) return ''
       return `<div class="section"><h4>${title}</h4><div class="content">${highlight(text, tokens)}</div></div>`
     }
+
+    function doseSection(e, tokens){
+  const dogs = e.DOSES?.Dogs
+  const cats = e.DOSES?.Cats
+  const others = e.DOSES?.Others
+  if(!hasText(dogs) && !hasText(cats) && !hasText(others)) return ''
+  let html = '<div class="section"><h4>Dosis</h4><div class="content">'
+  if(hasText(dogs))  html += `<p><strong>Perros:</strong><br>${highlight(dogs, tokens)}</p>`
+  if(hasText(cats))  html += `<p><strong>Gatos:</strong><br>${highlight(cats, tokens)}</p>`
+  if(hasText(others)) html += `<p><strong>Otros:</strong><br>${highlight(others, tokens)}</p>`
+  html += '</div></div>'
+  return html
+}
+
 
     function renderPager(total){
       const pages = Math.max(1, Math.ceil(total/state.pageSize))
