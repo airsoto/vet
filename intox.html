@@ -1,0 +1,522 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buscador de Intoxicaciones en Gatos/Perros – Modo Oscuro</title>
+<meta name="description" content="Buscador interactivo en modo oscuro para consultar un JSON de intoxicaciones veterinarias (gatos, perros y entorno doméstico)." />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0f1520; --muted:#9ab1c7; --text:#e6edf3; --accent:#7cc7ff; --accent2:#a78bfa; --card:#0f1722cc; --chip:#1b2432; --ring: rgba(124,199,255,.4);
+  --border:#1e293b; --border2:#213147; --danger:#ff6b6b; --ok:#22c55e; --warn:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; color:var(--text); background: radial-gradient(1200px 700px at 10% -10%, #102132, transparent), radial-gradient(1000px 800px at 110% -20%, #1a1630, transparent), var(--bg);
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; line-height:1.55;
+}
+header{position:sticky; top:0; z-index:10; backdrop-filter:saturate(1.05) blur(10px); background:linear-gradient(180deg, rgba(10,14,20,.92), rgba(10,14,20,.66)); border-bottom:1px solid var(--border)}
+.container{max-width:1200px; margin:0 auto; padding:16px 20px}
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start}
+.brand{display:flex; align-items:center; gap:12px; flex:1 1 420px; min-width:280px}
+.logo{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#2563eb55,#22d3ee55); border:1px solid #1e40af88}
+.brand h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+.brand .meta{margin:0; font-size:13px; color:#9fb4cf}
+.controls{display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; width:100%}
+.input, select, button{height:42px;border-radius:12px;border:1px solid var(--border2);background:var(--panel);color:var(--text);padding:0 14px;font-size:14px}
+.input:focus-within, select:focus, button:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
+.input{display:flex;align-items:center;gap:8px}
+.input input{flex:1;border:0;outline:0;background:transparent;color:inherit;font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--chip);color:#c7d2fe;font-size:12px}
+main{max-width:1200px;margin:18px auto;padding:0 20px}
+#stats{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 12px;flex-wrap:wrap}
+#stats .left{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid #1f2a3ccc;border-radius:18px;padding:14px;position:relative;overflow:hidden}
+.title{font-size:16px;font-weight:600;margin:0 0 8px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:11px;background:#0b1220;border:1px solid #1f2a3c;padding:4px 8px;border-radius:999px;color:#9fb4cf}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--border2);background:linear-gradient(180deg,#0f1722,#0c121b);color:#dbeafe;padding:8px 10px;border-radius:10px;font-size:13px;cursor:pointer}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent}
+.btn.accent{border-color:#274f7a;color:#a5e1ff}
+.btn.warn{border-color:#6b2b2b;color:#fecaca}
+.section{border-top:1px dashed #243247;padding-top:8px;margin-top:8px}
+.section h4{margin:0 0 6px;font-size:13px;color:#9fb4cf;letter-spacing:.2px}
+.section .content{font-size:13px;color:#d2d9e3}
+.section .content p{margin:0 0 8px}
+mark{background:#3b82f6;color:black;padding:0 2px;border-radius:3px}
+.empty{border:1px dashed #243247;border-radius:16px;padding:24px;text-align:center;color:#9fb4cf}
+/* Modal */
+dialog{border:1px solid #233047;background:#0b1220;color:var(--text);border-radius:16px;width:min(900px, 92vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2a3c;padding:10px 14px}
+.modal-body{padding:10px 14px;max-height:70vh;overflow:auto}
+.note{width:100%;min-height:80px;border:1px solid #334155;background:#0a1422;color:var(--text);border-radius:12px;padding:10px}
+.note:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
+
+@media (max-width: 900px){ .controls{grid-template-columns: 1fr 1fr} }
+@media (max-width: 600px){ .controls{grid-template-columns: 1fr} .brand h1{font-size:18px} .brand .meta{font-size:12px} }
+
+@media print{
+  header, .controls, #stats, .actions, .tags{display:none!important}
+  .card{break-inside:avoid}
+  body{background:white;color:black}
+}
+</style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="row">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="10" rx="5" stroke="#7cc7ff"/>
+              <path d="M12 7v10" stroke="#a78bfa"/>
+            </svg>
+          </div>
+          <div>
+            <h1>Buscador de Intoxicaciones</h1>
+            <p class="meta">Fuente de datos local: <span class="chip" title="Archivo JSON de la misma ruta">intox_ES.json</span></p>
+          </div>
+        </div>
+        <div class="controls" role="search">
+          <label class="input" aria-label="Buscar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" stroke="#94a3b8"/><path d="M20 20l-3.5-3.5" stroke="#94a3b8"/></svg>
+            <input id="q" type="search" placeholder="Buscar por intoxicación, signos, tratamiento… (⏎)" autocomplete="off" />
+          </label>
+          <select id="fieldSelect" title="Campos a buscar">
+            <option value="all" selected>Todos los campos</option>
+            <option value="name">Solo nombre (Intoxicación)</option>
+            <option value="signs">Solo signos</option>
+            <option value="tto">Solo tratamiento</option>
+            <option value="texts">Texto (descripción, toxicología, riesgos…)</option>
+          </select>
+          <select id="sortSelect" title="Ordenar">
+            <option value="name-asc" selected>Nombre (A→Z)</option>
+            <option value="name-desc">Nombre (Z→A)</option>
+            <option value="prog-bad">Pronóstico (peor→mejor)</option>
+            <option value="prog-good">Pronóstico (mejor→peor)</option>
+          </select>
+          <select id="pageSize" title="Resultados por página">
+            <option>10</option><option selected>20</option><option>40</option><option>80</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="stats" class="container">
+      <div class="left">
+        <span id="count" class="chip">0 resultados</span>
+        <span id="filtersInfo" class="chip" hidden></span>
+      </div>
+      <div class="right" style="display:flex; gap:8px">
+        <button class="btn accent" id="exportJSON">Exportar JSON</button>
+        <button class="btn" id="exportCSV">Exportar CSV</button>
+        <button class="btn ghost" id="resetBtn">Limpiar</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div id="results" class="grid" aria-live="polite"></div>
+      <div id="pager" style="display:flex; gap:8px; justify-content:center; margin:16px 0"></div>
+      <div id="placeholder" class="empty" hidden>
+        <p><strong>No hay resultados</strong></p>
+        <p>Prueba otras palabras clave o cambia los filtros.</p>
+      </div>
+      <div id="error" class="empty" hidden>
+        <p><strong>Error al cargar el JSON</strong></p>
+        <p>Coloca <code>intox_ES.json</code> como un <em>Array</em> de objetos al lado de este HTML.</p>
+      </div>
+      <div id="loading" class="empty">Cargando datos…</div>
+    </div>
+  </main>
+
+  <dialog id="modal">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="logo" style="width:28px;height:28px"></div>
+        <div>
+          <div id="modalTitle" style="font-weight:700"></div>
+          <div id="modalTags" class="tags" style="margin-top:4px"></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button class="btn" id="printBtn">Imprimir</button>
+        <button class="btn warn" id="closeModal">Cerrar</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </dialog>
+
+  <script>
+  ;(() => {
+    // ====== State & Elements ======
+    const state = {
+      data: [], filtered: [], q: '', field: 'all', sort: 'name-asc', page: 1, pageSize: 20,
+      favorites: new Set(JSON.parse(localStorage.getItem('intox:favs')||'[]'))
+    }
+    const els = {
+      q: document.getElementById('q'), fieldSelect: document.getElementById('fieldSelect'), sortSelect: document.getElementById('sortSelect'),
+      pageSize: document.getElementById('pageSize'), results: document.getElementById('results'), pager: document.getElementById('pager'),
+      count: document.getElementById('count'), filtersInfo: document.getElementById('filtersInfo'),
+      placeholder: document.getElementById('placeholder'), error: document.getElementById('error'), loading: document.getElementById('loading'),
+      exportJSON: document.getElementById('exportJSON'), exportCSV: document.getElementById('exportCSV'), resetBtn: document.getElementById('resetBtn'),
+      modal: document.getElementById('modal'), modalTitle: document.getElementById('modalTitle'), modalTags: document.getElementById('modalTags'),
+      modalBody: document.getElementById('modalBody'), closeModal: document.getElementById('closeModal'), printBtn: document.getElementById('printBtn')
+    }
+
+    // ====== Utils ======
+    function escapeRegExp(string){ return string.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') }
+    const safe = str => (str==null? '' : String(str)).replace(/[&<>\"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))
+    const nl2br = str => safe(str).replace(/\n/g,'<br>')
+    const hasText = v => v!=null && String(v).trim().length>0
+    const slug = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
+    function highlight(text, tokens){
+      if(!text || !tokens.length) return nl2br(text||'')
+      let html = safe(text)
+      for(const t of tokens){ const re = new RegExp('('+escapeRegExp(t)+')','ig'); html = html.replace(re,'<mark>$1</mark>') }
+      return html.replace(/\n/g,'<br>')
+    }
+
+    // Map pronóstico textual a severidad (número bajo = peor)
+    function progScore(p){
+      if(!p) return 5
+      const s = p.toLowerCase()
+      if(s.includes('deficiente') || s.includes('pobre') || s.includes('malo')) return 1
+      if(s.includes('cautel')) return 2
+      if(s.includes('favorable')) return 3
+      if(s.includes('excelente')) return 4
+      return 5
+    }
+
+    // Normaliza entrada del JSON a un formato interno
+    function normalize(raw){
+      const e = {
+        INTOXICACION: raw['INTOXICACION'] || raw['Intoxicación'] || raw['intoxicacion'] || '',
+        AKA: raw['Nombres alternativos'] || '',
+        FUENTE: raw['Descripción/Fuente'] || raw['Descripcion/Fuente'] || '',
+        TOX: raw['Toxicología'] || raw['Toxicologia'] || '',
+        RIESGOS: raw['Factores de riesgo'] || '',
+        EFECTOS: raw['Efectos clínicos'] || raw['Efectos clinicos'] || '',
+        SIGNOS: raw['Signos comunes'] || '',
+        TTO: raw['Tratamiento'] || '',
+        PROG: raw['Pronóstico'] || raw['Pronostico'] || ''
+      }
+      const id = slug(e.INTOXICACION || 'sin-nombre')
+      const blob = [e.INTOXICACION,e.AKA,e.FUENTE,e.TOX,e.RIESGOS,e.EFECTOS,e.SIGNOS,e.TTO,e.PROG].filter(Boolean).join('\n').toLowerCase()
+      return { ...e, __id:id, __blob:blob, __progScore: progScore(e.PROG) }
+    }
+
+    // ====== URL state ======
+    function loadFromURL(){
+      const p = new URLSearchParams(location.search)
+      state.q = p.get('q')||''
+      state.field = p.get('f')||'all'
+      state.sort = p.get('s')||'name-asc'
+      state.page = parseInt(p.get('p')||'1',10)
+      state.pageSize = parseInt(p.get('ps')||'20',10)
+      els.q.value = state.q; els.fieldSelect.value = state.field; els.sortSelect.value = state.sort; els.pageSize.value = String(state.pageSize)
+    }
+    function saveToURL(){
+      const p = new URLSearchParams()
+      if(state.q) p.set('q', state.q)
+      if(state.field!=='all') p.set('f', state.field)
+      if(state.sort!=='name-asc') p.set('s', state.sort)
+      if(state.page>1) p.set('p', String(state.page))
+      if(state.pageSize!==20) p.set('ps', String(state.pageSize))
+      const qs = p.toString(); const url = qs ? ('?'+qs) : location.pathname
+      history.replaceState(null,'',url)
+    }
+
+    // ====== Filtering & Rendering ======
+    function applyFilters(){
+      const tokens = state.q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+      const fieldText = e => {
+        switch(state.field){
+          case 'name': return (e.INTOXICACION||'').toLowerCase()
+          case 'signs': return (e.SIGNOS||'').toLowerCase()
+          case 'tto': return (e.TTO||'').toLowerCase()
+          case 'texts': return [e.FUENTE,e.TOX,e.RIESGOS,e.EFECTOS].filter(Boolean).join(' ').toLowerCase()
+          default: return e.__blob
+        }
+      }
+      let list = state.data.filter(e=>{
+        if(tokens.length===0) return true
+        const hay = fieldText(e)
+        return tokens.every(t=> hay.includes(t))
+      })
+      // sort
+      list.sort((a,b)=>{
+        if(state.sort==='name-desc') return (b.INTOXICACION||'').localeCompare(a.INTOXICACION||'')
+        if(state.sort==='prog-bad') return (a.__progScore - b.__progScore) || (a.INTOXICACION||'').localeCompare(b.INTOXICACION||'')
+        if(state.sort==='prog-good') return (b.__progScore - a.__progScore) || (a.INTOXICACION||'').localeCompare(b.INTOXICACION||'')
+        return (a.INTOXICACION||'').localeCompare(b.INTOXICACION||'')
+      })
+
+      state.filtered = list
+      state.page = Math.min(state.page, Math.max(1, Math.ceil(list.length / state.pageSize)))
+      render()
+    }
+
+    function render(){
+      saveToURL()
+      const {filtered,pageSize} = state
+      const total = filtered.length
+      els.count.textContent = total + ' ' + (total===1? 'resultado':'resultados')
+      els.filtersInfo.hidden = (state.field==='all')
+      els.filtersInfo.textContent = (state.field!=='all' ? ('Campo: '+state.field) : '').trim()
+      els.placeholder.hidden = total>0
+      els.loading.hidden = true
+
+      const start = (state.page-1)*pageSize
+      const end = start + pageSize
+      const pageItems = filtered.slice(start, end)
+      els.results.innerHTML = pageItems.map(renderCard).join('')
+      wireCardButtons()
+      renderPager(total)
+    }
+
+    function renderCard(e){
+      const tokens = state.q.trim().split(/\s+/).filter(Boolean)
+      const fav = state.favorites.has(e.__id)
+      const prog = e.PROG ? `<span class="tag" title="Pronóstico">🩺 ${safe(e.PROG)}</span>` : ''
+      const aka = e.AKA ? `<span class="tag" title="Nombres alternativos">🔁 Alias</span>` : ''
+      return `
+      <article class="card" data-id="${e.__id}">
+        <h2 class="title">${highlight(e.INTOXICACION, tokens)}</h2>
+        <div class="tags">${prog}${aka}</div>
+        <div class="actions">
+          <button class="btn accent" data-open>Ver ficha</button>
+          <button class="btn" data-copy="signs" ${hasText(e.SIGNOS)?'':'disabled'}>Copiar signos</button>
+          <button class="btn" data-copy="tto" ${hasText(e.TTO)?'':'disabled'}>Copiar tratamiento</button>
+          <button class="btn" data-copy="all">Copiar todo</button>
+          <button class="btn ghost" data-fav title="${fav?'Quitar de favoritos':'Añadir a favoritos'}">${fav?'★ Favorito':'☆ Favorito'}</button>
+        </div>
+        ${section('Descripción / Fuente', e.FUENTE, tokens)}
+        ${section('Toxicología', e.TOX, tokens)}
+        ${section('Factores de riesgo', e.RIESGOS, tokens)}
+      </article>`
+    }
+
+    function section(title, text, tokens){
+      if(!hasText(text)) return ''
+      return `<div class="section"><h4>${title}</h4><div class="content">${highlight(text, tokens)}</div></div>`
+    }
+
+    function renderPager(total){
+      const pages = Math.max(1, Math.ceil(total/state.pageSize))
+      const p = state.page
+      let html = ''
+      const btn = (lab, to, dis=false)=>`<button class="btn" ${dis?'disabled':''} data-page="${to}">${lab}</button>`
+      html += btn('⟨⟨',1,p===1)
+      html += btn('⟨',Math.max(1,p-1),p===1)
+      for(let i=Math.max(1,p-2); i<=Math.min(pages,p+2); i++){
+        html += `<button class="btn ${i===p?'accent':''}" data-page="${i}">${i}</button>`
+      }
+      html += btn('⟩',Math.min(pages,p+1),p===pages)
+      html += btn('⟩⟩',pages,p===pages)
+      els.pager.innerHTML = html
+      els.pager.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ state.page = parseInt(b.dataset.page,10); render() }))
+    }
+
+    function wireCardButtons(){
+      els.results.querySelectorAll('[data-open]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          const e = state.filtered.find(x=> x.__id===id) || state.data.find(x=> x.__id===id)
+          openModal(e)
+        })
+      })
+      els.results.querySelectorAll('[data-copy]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          const e = state.filtered.find(x=> x.__id===id) || state.data.find(x=> x.__id===id)
+          const scope = btn.dataset.copy
+          let text = ''
+          if(scope==='signs') text = e.SIGNOS || ''
+          else if(scope==='tto') text = e.TTO || ''
+          else text = serializeEntry(e)
+          copy(text)
+          const original = btn.textContent
+          btn.textContent = 'Copiado ✓'
+          setTimeout(()=> btn.textContent = original, 1000)
+        })
+      })
+      els.results.querySelectorAll('[data-fav]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.closest('.card').dataset.id
+          if(state.favorites.has(id)) state.favorites.delete(id)
+          else state.favorites.add(id)
+          localStorage.setItem('intox:favs', JSON.stringify([...state.favorites]))
+          applyFilters()
+        })
+      })
+    }
+
+    function serializeEntry(e){
+      const lines = []
+      const push = (k,v)=>{ if(hasText(v)) lines.push(`${k}:\n${v}\n`) }
+      push('Intoxicación', e.INTOXICACION)
+      push('Nombres alternativos', e.AKA)
+      push('Descripción/Fuente', e.FUENTE)
+      push('Toxicología', e.TOX)
+      push('Factores de riesgo', e.RIESGOS)
+      push('Efectos clínicos', e.EFECTOS)
+      push('Signos comunes', e.SIGNOS)
+      push('Tratamiento', e.TTO)
+      push('Pronóstico', e.PROG)
+      return lines.join('\n')
+    }
+
+    function copy(text){
+      if(navigator.clipboard){ navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text)); }
+      else fallbackCopy(text)
+    }
+    function fallbackCopy(text){
+      const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
+    }
+
+    function openModal(e){
+      els.modalTitle.textContent = e.INTOXICACION || '(sin nombre)'
+      els.modalTags.innerHTML = `${e.PROG?`<span class="tag">🩺 ${safe(e.PROG)}</span>`:''}${e.AKA?'<span class="tag">🔁 Alias</span>':''}`
+      const mk = (t,x)=> hasText(x) ? `<div class="section"><h4>${t}</h4><div class="content">${nl2br(x)}</div></div>`:''
+      const notesKey = 'intox:note:'+e.__id
+      const note = localStorage.getItem(notesKey)||''
+      els.modalBody.innerHTML = `
+        ${mk('Nombres alternativos', e.AKA)}
+        ${mk('Descripción / Fuente', e.FUENTE)}
+        ${mk('Toxicología', e.TOX)}
+        ${mk('Factores de riesgo', e.RIESGOS)}
+        ${mk('Efectos clínicos', e.EFECTOS)}
+        ${mk('Signos comunes', e.SIGNOS)}
+        ${mk('Tratamiento', e.TTO)}
+        ${mk('Pronóstico', e.PROG)}
+        <div class="section"><h4>Acciones rápidas</h4>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn" id="copySigns" ${hasText(e.SIGNOS)?'':'disabled'}>Copiar signos</button>
+            <button class="btn" id="copyTto" ${hasText(e.TTO)?'':'disabled'}>Copiar tratamiento</button>
+            <button class="btn" id="copyAll">Copiar todo</button>
+          </div>
+        </div>
+        <div class="section"><h4>Notas (local)</h4>
+          <textarea class="note" id="noteArea" placeholder="Notas privadas… (se guardan en este navegador)">${safe(note)}</textarea>
+          <div style="display:flex; gap:8px; margin-top:8px">
+            <button class="btn" id="saveNote">Guardar nota</button>
+            <button class="btn ghost" id="clearNote">Borrar nota</button>
+          </div>
+        </div>`
+      els.modal.showModal()
+      document.getElementById('copySigns')?.addEventListener('click',()=> copy(e.SIGNOS||''))
+      document.getElementById('copyTto')?.addEventListener('click',()=> copy(e.TTO||''))
+      document.getElementById('copyAll').addEventListener('click',()=> copy(serializeEntry(e)))
+      document.getElementById('saveNote').addEventListener('click',()=>{ const v = document.getElementById('noteArea').value; localStorage.setItem(notesKey, v) })
+      document.getElementById('clearNote').addEventListener('click',()=>{ localStorage.removeItem(notesKey); document.getElementById('noteArea').value='' })
+    }
+
+    // ====== Events ======
+    els.q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ state.q = els.q.value; state.page=1; applyFilters() } })
+    els.q.addEventListener('input', ()=>{ if(!els.q.value){ state.q=''; state.page=1; applyFilters() } })
+    els.fieldSelect.addEventListener('change', ()=>{ state.field = els.fieldSelect.value; state.page=1; applyFilters() })
+    els.sortSelect.addEventListener('change', ()=>{ state.sort = els.sortSelect.value; applyFilters() })
+    els.pageSize.addEventListener('change', ()=>{ state.pageSize = parseInt(els.pageSize.value,10); state.page=1; applyFilters() })
+    els.resetBtn.addEventListener('click', ()=>{
+      state.q=''; els.q.value=''; state.field='all'; state.sort='name-asc'; state.page=1; state.pageSize=20
+      els.fieldSelect.value='all'; els.sortSelect.value='name-asc'; els.pageSize.value='20'; applyFilters()
+    })
+    els.closeModal.addEventListener('click', ()=> els.modal.close())
+    els.printBtn.addEventListener('click', ()=> window.print())
+
+    els.exportJSON.addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state.filtered, null, 2)], {type:'application/json'})
+      const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download: 'intox_filtrado.json'})
+      a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1500)
+    })
+    els.exportCSV.addEventListener('click', ()=>{
+      const csv = toCSV(state.filtered)
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8'})
+      const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download: 'intox_filtrado.csv'})
+      a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1500)
+    })
+
+    function toCSV(rows){
+      const cols = ['INTOXICACION','Nombres alternativos','Descripción/Fuente','Toxicología','Factores de riesgo','Efectos clínicos','Signos comunes','Tratamiento','Pronóstico']
+      const lines = [cols.join(',')]
+      for(const r of rows){
+        const rec = [ r.INTOXICACION, r.AKA, r.FUENTE, r.TOX, r.RIESGOS, r.EFECTOS, r.SIGNOS, r.TTO, r.PROG ]
+          .map(v=> '"'+String(v??'').replace(/"/g,'""').replace(/\n/g,' ')+'"')
+        lines.push(rec.join(','))
+      }
+      return lines.join('\n')
+    }
+
+    // ====== Boot ======
+    async function boot(){
+      try{
+        loadFromURL()
+        const res = await fetch('intox_ES.json')
+        if(!res.ok) throw new Error('HTTP '+res.status)
+        let raw
+        try{ raw = await res.json() }catch(_){
+          // Fallback: intentar NDJSON (una entrada por línea)
+          const text = await res.text()
+          raw = text.trim().split(/\n+/).map(line=>{ try{return JSON.parse(line)}catch{return null} }).filter(Boolean)
+        }
+        if(!Array.isArray(raw)) throw new Error('El JSON debe ser un Array de objetos')
+        state.data = raw.map(normalize)
+        applyFilters()
+      }catch(err){ console.error(err); els.loading.hidden = true; els.error.hidden = false }
+    }
+
+    boot()
+  })()
+  </script>
+</body>
+</html>
+
+
+
+<section class="card" style="margin-top:24px">
+  <h2>Referencias bibliográficas</h2>
+  <div class="content" style="font-size:14px; line-height:1.6">
+    <ol>
+      <li>
+        Ramsey, I., & Boston, R. (Eds.). (2020). 
+        <i>BSAVA Small Animal Formulary Part A: Canine and Feline</i> (10th ed.). 
+        British Small Animal Veterinary Association. 
+        ISBN: 978-1-91044-398-7
+      </li>
+      <li>
+        Tilley, L. P., Smith, F. W. K., Sleeper, M. M., & Brainard, B. M. (Eds.). (2017). 
+        <i>Blackwell's Five-Minute Veterinary Consult: Canine and Feline</i> (7th ed.). 
+        Wiley-Blackwell. 
+        ISBN: 978-1-118-88212-8
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
