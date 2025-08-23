@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adivina Quién — Humano vs. Computadora</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111927; --soft:#0e1622; --text:#e6e9ef; --muted:#9aa4b2;
+    --brand:#7cc7ff; --brand2:#a78bfa; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;background:linear-gradient(180deg,#0a0f17,#0c1320 55%,#0b1220);color:var(--text)}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{position:sticky;top:0;z-index:10;backdrop-filter:saturate(140%) blur(8px);
+    background:linear-gradient(180deg,rgba(17,25,39,.9),rgba(17,25,39,.55));border-bottom:1px solid rgba(148,163,184,.15)}
+  .bar{max-width:1200px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:14px}
+  .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(135deg,rgba(124,199,255,.25),rgba(167,139,250,.25));
+    border:1px solid rgba(148,163,184,.3);font-size:22px}
+  h1{font-size:clamp(18px,3.6vw,28px);margin:0}
+  .lead{color:#cbd5e1}
+  main{max-width:1200px;margin:0 auto;padding:20px 16px 40px;display:grid;gap:18px}
+  .row{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  @media (max-width:1000px){.row{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid rgba(148,163,184,.15);border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card>.hd{padding:14px 16px;border-bottom:1px solid rgba(148,163,184,.12);display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .card>.bd{padding:14px 16px}
+  .muted{color:var(--muted)}
+  .controls{display:flex;flex-wrap:wrap;gap:8px}
+  button{cursor:pointer;border:1px solid rgba(148,163,184,.25);background:#0e141d;color:var(--text);padding:.55rem .85rem;border-radius:10px;font-weight:600}
+  button:hover{border-color:rgba(124,199,255,.6)}
+  .accent{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#071019;border:none}
+  .warn{border-color:rgba(245,158,11,.5)}
+  .ok{border-color:rgba(34,197,94,.5)}
+  .danger{border-color:rgba(239,68,68,.5)}
+  .grid{display:grid;grid-template-columns:repeat(6, minmax(120px,1fr));gap:10px}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(4, minmax(110px,1fr))}}
+  @media (max-width:700px){.grid{grid-template-columns:repeat(2, minmax(130px,1fr))}}
+  .tile{background:#0b0f15;border:1px solid rgba(148,163,184,.15);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .tile.discard{opacity:.35;filter:grayscale(1)}
+  .pic{width:100%;aspect-ratio:1/1.05;display:grid;place-items:center}
+  .pic img{max-width:100%;max-height:100%;object-fit:contain}
+  .name{padding:8px 10px;border-top:1px solid rgba(148,163,184,.15);font-weight:700;text-align:center}
+  .pill{font-size:.78rem;padding:.18rem .5rem;border-radius:999px;border:1px solid rgba(148,163,184,.25);color:#cbd5e1;background:#0b111a}
+  select,input[type=text]{width:100%;padding:.55rem .7rem;border-radius:10px;border:1px solid rgba(148,163,184,.2);background:#0b0f15;color:var(--text);outline:none}
+  select:focus,input[type=text]:focus{box-shadow:0 0 0 2px rgba(124,199,255,.25)}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:700px){.split{grid-template-columns:1fr}}
+  .log{font-size:.95rem;max-height:220px;overflow:auto;border:1px solid rgba(148,163,184,.15);border-radius:12px;background:#0c1422;padding:8px 10px}
+  .log p{margin:.35rem 0}
+  .status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .status .turn{font-weight:800}
+  .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">🧩</div>
+    <div>
+      <h1>Adivina Quién — Humano vs. Computadora</h1>
+      <div class="lead">Turnos alternos, preguntas óptimas de la CPU, y tablero con descarte visual.</div>
+    </div>
+    <div class="controls" style="margin-left:auto">
+      <button id="infoBtn" class="accent">INFORMACIÓN del juego y estrategias ganadoras</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="hd">
+      <div class="status">
+        <span class="pill">Estado</span>
+        <span id="statusText" class="turn">Elige tu personaje secreto para empezar.</span>
+      </div>
+      <div class="controls">
+        <button id="resetBtn" class="warn">Reiniciar</button>
+      </div>
+    </div>
+    <div class="bd row">
+      <!-- Tablero / Humanos -->
+      <div>
+        <h3>Tablero de personajes</h3>
+        <p class="muted">Haz clic en tu carta para fijar tu <strong>personaje secreto</strong>. La imagen es grande para verlo bien.</p>
+        <div id="board" class="grid" aria-live="polite"></div>
+      </div>
+
+      <!-- Panel de juego -->
+      <div>
+        <h3>Panel de juego</h3>
+        <div class="split">
+          <div>
+            <h4>Turno de la <strong>Computadora</strong></h4>
+            <p class="muted">La CPU pregunta intentando partir el conjunto en mitades. Responde tú:</p>
+            <div class="controls">
+              <button id="btnYes" class="ok">Sí</button>
+              <button id="btnNo"  class="danger">No</button>
+            </div>
+            <div class="log" id="cpuLog" style="margin-top:8px"></div>
+          </div>
+          <div>
+            <h4>Tu turno</h4>
+            <p class="muted">Elige un <em>atributo</em> y un <em>valor</em> para preguntar. La CPU responde automáticamente.</p>
+            <div class="controls">
+              <select id="attrSel"></select>
+              <select id="valSel"></select>
+              <button id="askBtn">Preguntar</button>
+            </div>
+            <div class="controls" style="margin-top:8px">
+              <input id="guessName" type="text" placeholder="Adivinar nombre exacto (opcional)">
+              <button id="guessBtn" class="accent">Adivinar</button>
+            </div>
+            <div class="log" id="humanLog" style="margin-top:8px"></div>
+          </div>
+        </div>
+        <div class="footer">
+          <span class="muted">Restantes CPU: <strong id="remainCpu">—</strong> · Restantes Humano: <strong id="remainHuman">—</strong></span>
+          <span class="pill" id="turnTag">Turno: —</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* -------------------- Config -------------------- */
+const JSON_URL = 'json/guess_who.json'; // Ruta externa al JSON
+const ATTR_EXCLUDE = new Set(['Nombre','URL']); // atributos que no se preguntan como sí/no directos
+
+/* -------------------- Estado -------------------- */
+let allChars = [];     // todos
+let humanSecret = null;
+let cpuSecret = null;
+
+let candHuman = [];    // candidatos coherentes con RESPUESTAS que CPU nos hizo (humanos eliminados por la CPU)
+let candCpu   = [];    // candidatos coherentes con nuestras preguntas a la CPU
+
+let turn = 'setup';    // 'setup' | 'cpu' | 'human' | 'end'
+
+/* -------------------- Elementos -------------------- */
+const board     = document.getElementById('board');
+const statusEl  = document.getElementById('statusText');
+const turnTag   = document.getElementById('turnTag');
+const remainCpu = document.getElementById('remainCpu');
+const remainHum = document.getElementById('remainHuman');
+
+const btnYes = document.getElementById('btnYes');
+const btnNo  = document.getElementById('btnNo');
+const cpuLog = document.getElementById('cpuLog');
+
+const attrSel = document.getElementById('attrSel');
+const valSel  = document.getElementById('valSel');
+const askBtn  = document.getElementById('askBtn');
+const humanLog= document.getElementById('humanLog');
+
+const guessName = document.getElementById('guessName');
+const guessBtn  = document.getElementById('guessBtn');
+
+const resetBtn  = document.getElementById('resetBtn');
+const infoBtn   = document.getElementById('infoBtn');
+
+/* -------------------- Utilidades -------------------- */
+const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
+
+function uniq(arr){ return [...new Set(arr)]; }
+function attrsFromData(data){
+  // recoge todos los atributos (claves) posibles
+  const keys = new Set();
+  data.forEach(o => Object.keys(o).forEach(k => keys.add(k)));
+  return [...keys].filter(k => !ATTR_EXCLUDE.has(k));
+}
+function valuesForAttr(data, attr){
+  return uniq(data.map(o => o[attr]).filter(v => typeof v !== 'undefined' && v !== null));
+}
+function renderBoard(){
+  board.innerHTML = '';
+  allChars.forEach((p, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    if(turn!=='setup' && !candCpu.some(c=>c.Nombre===p.Nombre)) {
+      // Para el humano, mostramos descarte en su tablero basado en sus candidatos (candCpu)
+      tile.classList.add('discard');
+    }
+    tile.innerHTML = `
+      <div class="pic"><img src="${p.URL}" alt="${p.Nombre}"></div>
+      <div class="name">${p.Nombre}</div>
+    `;
+    if(turn==='setup'){
+      tile.title = 'Haz clic para seleccionar tu personaje secreto';
+      tile.style.cursor = 'pointer';
+      tile.addEventListener('click', () => {
+        humanSecret = p;
+        startMatch();
+      });
+    }
+    board.appendChild(tile);
+  });
+}
+function updateCounters(){
+  remainCpu.textContent = candCpu.length;
+  remainHum.textContent = candHuman.length;
+}
+function setTurn(t){
+  turn = t;
+  turnTag.textContent = 'Turno: ' + (t==='cpu' ? 'Computadora' : t==='human' ? 'Humano' : t==='setup' ? 'Preparación' : 'Fin');
+}
+
+/* -------------------- Motor de preguntas de la CPU -------------------- */
+// Selecciona (atributo, valor) que mejor aproxima dividir candHuman por la mitad
+function cpuChooseQuestion(){
+  const attrs = attrsFromData(allChars);
+  let best = null;
+  const N = candHuman.length;
+  attrs.forEach(attr => {
+    const vals = valuesForAttr(allChars, attr);
+    vals.forEach(v => {
+      const yesCount = candHuman.filter(c => String(c[attr]) === String(v)).length;
+      const diff = Math.abs((N/2) - yesCount);
+      // buscamos el mínimo diff (más cerca de mitad)
+      if(best===null || diff < best.diff){
+        best = {attr, value:v, yesCount, diff};
+      }
+    });
+  });
+  return best; // {attr, value, yesCount}
+}
+function applyCpuAnswer(attr, value, answerYes){
+  // Si CPU pregunta "¿tu persona tiene attr=value?"
+  // Human responde Sí/No y filtramos candHuman en consecuencia:
+  candHuman = candHuman.filter(c => {
+    const isYes = String(c[attr]) === String(value);
+    return answerYes ? isYes : !isYes;
+  });
+}
+
+/* -------------------- Motor de preguntas del Humano -------------------- */
+function applyHumanQuestion(attr, value){
+  // Humano pregunta a la CPU "¿Tu personaje tiene attr=value?"
+  const cpuHas = String(cpuSecret[attr]) === String(value);
+  // Filtramos candidatos del humano (candCpu) en función de la respuesta de la CPU
+  candCpu = candCpu.filter(c => {
+    const isYes = String(c[attr]) === String(value);
+    return cpuHas ? isYes : !isYes;
+  });
+  return cpuHas;
+}
+
+/* -------------------- Flujo de partida -------------------- */
+async function startMatch(){
+  // CPU elige secreto aleatorio distinto del humano (por si acaso)
+  const pool = allChars.filter(p => p.Nombre !== humanSecret.Nombre);
+  cpuSecret = pool[Math.floor(Math.random()*pool.length)];
+  candHuman = [...allChars]; // lo que la CPU cree posible sobre el humano
+  candCpu   = [...allChars]; // lo que el humano cree posible sobre la CPU
+
+  renderBoard();
+  fillAttrSelects();
+  cpuLog.innerHTML = '';
+  humanLog.innerHTML = '';
+  updateCounters();
+
+  statusEl.textContent = `¡Listo! Tu secreto es "${humanSecret.Nombre}". La CPU ya ha elegido el suyo. Empieza la CPU.`;
+  setTurn('cpu');
+  await cpuTurn();
+}
+
+async function cpuTurn(){
+  if(turn!=='cpu' || turn==='end') return;
+  // Si la CPU tiene un único candidato sobre ti, puede adivinar
+  if(candHuman.length===1){
+    const guess = candHuman[0].Nombre;
+    cpuLog.innerHTML += `<p>CPU: Creo que eres <strong>${guess}</strong>.</p>`;
+    if(guess === humanSecret.Nombre){
+      endGame('cpu');
+      return;
+    }else{
+      cpuLog.innerHTML += `<p><em>CPU falló.</em></p>`;
+      // si falla, por reglas caseras, podemos retirarlo de candidatos
+      candHuman = [];
+      updateCounters();
+      endGame('human'); // humano gana si CPU falla su adivinanza
+      return;
+    }
+  }
+  // Si no, formula la mejor pregunta
+  const q = cpuChooseQuestion();
+  if(!q){ // por seguridad
+    cpuLog.innerHTML += `<p>CPU: No tengo una buena pregunta. Paso.</p>`;
+    setTurn('human');
+    return;
+  }
+  cpuLog.innerHTML += `<p>CPU pregunta: ¿Tu personaje tiene <strong>${q.attr} = ${q.value}</strong>?</p>`;
+  statusEl.textContent = `Responde a la CPU: ¿tu personaje tiene ${q.attr} = ${q.value}? Pulsa Sí o No.`;
+  // Guardamos la pregunta pendiente en dataset de botones
+  btnYes.dataset.attr = q.attr; btnYes.dataset.val = q.value;
+  btnNo.dataset.attr  = q.attr; btnNo.dataset.val  = q.value;
+}
+
+function humanTurn(){
+  if(turn!=='human' || turn==='end') return;
+  statusEl.textContent = 'Tu turno: elige atributo y valor y pulsa "Preguntar", o intenta "Adivinar".';
+}
+
+/* -------------------- UI de selects para humano -------------------- */
+function fillAttrSelects(){
+  const attrs = attrsFromData(allChars);
+  attrSel.innerHTML = '';
+  attrs.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    attrSel.appendChild(opt);
+  });
+  fillValSelect();
+}
+function fillValSelect(){
+  const a = attrSel.value;
+  const vals = valuesForAttr(allChars, a);
+  valSel.innerHTML = '';
+  vals.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    valSel.appendChild(opt);
+  });
+}
+attrSel.addEventListener('change', fillValSelect);
+
+/* -------------------- Handlers -------------------- */
+btnYes.addEventListener('click', ()=>{
+  if(turn!=='cpu') return;
+  const attr = btnYes.dataset.attr, val = btnYes.dataset.val;
+  applyCpuAnswer(attr, val, true);
+  cpuLog.innerHTML += `<p>Humano responde: <strong>Sí</strong>. (${candHuman.length} posibles)</p>`;
+  updateCounters();
+  setTurn('human');
+  humanTurn();
+  renderBoard(); // actualizar descarte visual del humano (se muestra el tablero del humano)
+});
+btnNo.addEventListener('click', ()=>{
+  if(turn!=='cpu') return;
+  const attr = btnNo.dataset.attr, val = btnNo.dataset.val;
+  applyCpuAnswer(attr, val, false);
+  cpuLog.innerHTML += `<p>Humano responde: <strong>No</strong>. (${candHuman.length} posibles)</p>`;
+  updateCounters();
+  setTurn('human');
+  humanTurn();
+  renderBoard();
+});
+
+askBtn.addEventListener('click', ()=>{
+  if(turn!=='human') return;
+  const a = attrSel.value;
+  const v = valSel.value;
+  const cpuHas = applyHumanQuestion(a, v);
+  humanLog.innerHTML += `<p>Tú preguntas: ¿Tiene <strong>${a} = ${v}</strong>? — Respuesta CPU: <strong>${cpuHas?'Sí':'No'}</strong>. (${candCpu.length} posibles)</p>`;
+  updateCounters();
+  renderBoard();
+
+  // ¿CPU quedó con 1? El humano podría adivinar libremente, pero alternamos turno
+  setTurn('cpu');
+  cpuTurn();
+});
+
+guessBtn.addEventListener('click', ()=>{
+  if(turn==='end') return;
+  const name = (guessName.value||'').trim();
+  if(!name) return;
+  humanLog.innerHTML += `<p>Intentas adivinar: <strong>${name}</strong>.</p>`;
+  if(name.toLowerCase() === cpuSecret.Nombre.toLowerCase()){
+    endGame('human');
+  } else {
+    humanLog.innerHTML += `<p><em>Fallaste.</em></p>`;
+    // Reglas caseras: si el humano falla, pierde la partida (como en la versión clásica)
+    endGame('cpu');
+  }
+});
+
+resetBtn.addEventListener('click', ()=>{
+  // reinicia todo
+  humanSecret = null; cpuSecret = null;
+  candHuman = []; candCpu = [];
+  cpuLog.innerHTML = ''; humanLog.innerHTML = '';
+  statusEl.textContent = 'Elige tu personaje secreto para empezar.';
+  setTurn('setup');
+  renderBoard();
+  updateCounters();
+  guessName.value = '';
+});
+
+infoBtn.addEventListener('click', ()=>{
+  // Abre en la misma pestaña el HTML de estrategias
+  location.href = 'estrategia_guess_who.html';
+});
+
+/* -------------------- Fin de juego -------------------- */
+function endGame(winner){
+  setTurn('end');
+  if(winner==='human'){
+    statusEl.textContent = `¡Ganas! El personaje de la CPU era "${cpuSecret.Nombre}".`;
+    humanLog.innerHTML += `<p><strong>¡Has ganado!</strong> El secreto de CPU era <strong>${cpuSecret.Nombre}</strong>.</p>`;
+  } else {
+    statusEl.textContent = `Gana la CPU. Tu personaje era "${humanSecret?.Nombre||'—'}".`;
+    cpuLog.innerHTML += `<p><strong>La CPU gana.</strong> Tu secreto era <strong>${humanSecret?.Nombre||'—'}</strong>.</p>`;
+  }
+  turnTag.textContent = 'Turno: — (fin)';
+}
+
+/* -------------------- Carga de datos -------------------- */
+async function loadData(){
+  const res = await fetch(JSON_URL);
+  if(!res.ok) throw new Error('No se pudo cargar el JSON externo: '+JSON_URL);
+  const data = await res.json();
+  return data;
+}
+
+(async function init(){
+  try{
+    allChars = await loadData();
+    // Render inicial
+    setTurn('setup');
+    statusEl.textContent = 'Elige tu personaje secreto (haz clic en una carta).';
+    candCpu = [...allChars]; // candidatos que el humano considera posibles al inicio
+    candHuman = [...allChars]; // candidatos que la CPU considera posibles sobre el humano
+    renderBoard();
+    updateCounters();
+  }catch(err){
+    console.error(err);
+    alert('Error cargando json/guess_who.json. Revisa la ruta y el formato.');
+  }
+})();
+</script>
+</body>
+</html>
