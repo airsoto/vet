@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guess Who – Humano vs Computadora</title>
+<style>
+  :root{
+    --bg:#0b1220; /* fondo principal */
+    --panel:#101a2e; /* paneles */
+    --panel-2:#0e1628;
+    --card:#12213b; /* cartas */
+    --card-hi:#1a2f57; /* hover */
+    --text:#e8eefc; /* texto principal*/
+    --muted:#a9b6d4; /* texto secundario*/
+    --brand:#7cc7ff; /* acento azul */
+    --brand-2:#a78bfa; /* acento violeta */
+    --ok:#20c997; --bad:#ff6b6b; --warn:#ffc107;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #1a2550 0%, transparent 60%),
+      radial-gradient(1000px 500px at 110% 10%, #13385a 0%, transparent 55%),
+      linear-gradient(180deg, #0a1020, var(--bg));
+    overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 22px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .brand{display:flex; align-items:center; gap:14px}
+  .logo{
+    width:42px;height:42px; display:grid; place-items:center; border-radius:12px; border:1px solid #1e40af88;
+    background:linear-gradient(135deg,#2563eb33,#22d3ee33);
+    box-shadow: inset 0 0 40px #1e40af22, 0 8px 30px #0ea5e922;
+    font-weight:800; letter-spacing:.6px; color:#dbeafe
+  }
+  .title{margin:0; line-height:1; font-weight:800; font-size:clamp(20px,3.2vw,30px);
+    background:linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 70%, var(--brand) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  select, button, .btn{
+    background:var(--panel); color:var(--text); border:1px solid rgba(255,255,255,.08);
+    border-radius:10px; padding:10px 12px; font:inherit; cursor:pointer;
+    transition:all .18s ease; outline:none;
+  }
+  button:hover, .btn:hover{transform:translateY(-1px); background:var(--panel-2)}
+  .score{
+    display:flex; align-items:center; gap:14px; padding:8px 12px; border-radius:12px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+  }
+  .score b{font-size:18px}
+
+  main{height:calc(100% - 78px); display:grid; grid-template-columns: 360px 1fr; gap:14px; padding:14px; overflow:hidden}
+  /* Columna izquierda: zona computadora */
+  .left{
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px;
+    padding:14px; display:grid; grid-template-rows:auto auto 1fr; gap:12px; min-width:300px; overflow:hidden;
+  }
+  .secret{
+    display:flex; align-items:center; gap:12px;
+    padding:10px; border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.08);
+  }
+  .card--secret{
+    width:84px; height:110px; border-radius:12px; background:var(--card); border:1px solid rgba(255,255,255,.1);
+    display:grid; place-items:center; font-weight:800; font-size:40px; color:#94a3b8;
+    box-shadow: 0 6px 22px rgba(0,0,0,.35), inset 0 0 60px rgba(255,255,255,.04);
+    position:relative; overflow:hidden;
+  }
+  .card--secret.revealed{background-size:cover; background-position:center; color:transparent}
+  .secret .meta{display:flex; flex-direction:column}
+  .secret .meta small{color:var(--muted)}
+
+  .ask-box{
+    padding:12px; border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.08);
+  }
+  .ask-box h3{margin:0 0 8px; font-size:16px}
+  .question{min-height:48px; background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.12);
+    border-radius:10px; padding:10px; display:flex; align-items:center}
+  .yn{display:flex; gap:10px; margin-top:10px}
+  .yn button{flex:1}
+
+  .candidates{
+    overflow:auto; border-radius:14px; background:var(--panel); border:1px solid rgba(255,255,255,.08);
+    padding:10px; display:grid; grid-template-columns: repeat(auto-fill, minmax(72px,1fr)); gap:10px; align-content:start;
+  }
+  .cand{position:relative;}
+  .cand img{width:100%;height:86px;object-fit:cover; border-radius:10px; display:block; border:1px solid rgba(255,255,255,.1)}
+  .cand span{position:absolute; left:6px; bottom:6px; font-size:11px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .cand.drop{animation:drop .55s ease forwards}
+  @keyframes drop{0%{transform:translateY(0) rotate(0); opacity:1; filter:blur(0)} 100%{transform:translateY(80px) rotate(12deg); opacity:0; filter:blur(2px)}}
+
+  /* Columna derecha: tablero humano y preguntas del humano */
+  .right{display:grid; grid-template-rows: auto auto 1fr; gap:12px; overflow:hidden}
+  .you{
+    display:flex; gap:14px; align-items:center; padding:12px;
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px;
+  }
+  .your-card{
+    width:120px; height:150px; border-radius:14px; overflow:hidden; position:relative; border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 0 60px rgba(255,255,255,.06);
+  }
+  .your-card img{width:100%;height:100%;object-fit:cover}
+  .you .info b{font-size:18px}
+  .you .info small{color:var(--muted)}
+
+  .human-ask{display:grid; grid-template-columns: 1.5fr 1fr auto; gap:10px; align-items:end}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px}
+  .answer-chip{padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); display:inline-flex; gap:8px; align-items:center}
+  .answer-chip.ok{background:rgba(32,201,151,.12); border-color:rgba(32,201,151,.3)}
+  .answer-chip.bad{background:rgba(255,107,107,.12); border-color:rgba(255,107,107,.3)}
+
+  .board{
+    overflow:auto; border-radius:14px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    padding:12px; display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap:12px; align-content:start;
+  }
+  .card{
+    position:relative; border-radius:14px; overflow:hidden; background:var(--card); border:1px solid rgba(255,255,255,.1);
+    transition:transform .18s ease, box-shadow .18s ease, opacity .2s ease, filter .2s ease;
+  }
+  .card:hover{transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.35)}
+  .card img{width:100%; height:140px; object-fit:cover; display:block}
+  .card .name{padding:8px 10px; font-weight:700; font-size:14px}
+  .card .actions{position:absolute; inset:auto 8px 8px 8px; display:flex; gap:8px; justify-content:space-between}
+  .small{font-size:11px; color:var(--muted)}
+  .tag{font-size:10px; border:1px solid rgba(255,255,255,.12); padding:2px 6px; border-radius:999px; background:rgba(255,255,255,.04)}
+  .eliminada{opacity:.2; filter:grayscale(1) blur(1px); transform:rotate(-2deg) scale(.98)}
+  .suggest{outline:2px dashed var(--warn); outline-offset:-6px}
+
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+
+  /* Modales */
+  dialog{border:none; border-radius:16px; padding:0; overflow:hidden; background:var(--panel); color:var(--text); width:min(980px, 92vw)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  .modal-header{padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; align-items:center}
+  .modal-body{padding:14px}
+  .picker{display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap:12px; max-height:60vh; overflow:auto}
+  .pick{cursor:pointer}
+  .pick:hover{outline:2px solid var(--brand)}
+
+  .pill{padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1)}
+  .muted{color:var(--muted)}
+
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">GW</div>
+      <h1 class="title">Guess Who – Humano vs Computadora</h1>
+    </div>
+    <div class="controls">
+      <label class="pill">Modo
+        <select id="mode">
+          <option value="single">Partida única</option>
+          <option value="bo5">Primero a 5</option>
+        </select>
+      </label>
+      <button id="newRound">Nueva ronda</button>
+      <div class="score"><span>👤 Tú: <b id="hs">0</b></span> <span>🤖 CPU: <b id="cs">0</b></span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Columna izquierda: CPU -->
+    <section class="left">
+      <div class="secret">
+        <div class="card--secret" id="secretCard">?</div>
+        <div class="meta">
+          <b>Personaje oculto de la CPU</b>
+          <small id="secretName" class="muted">Se revela al final de la ronda</small>
+        </div>
+      </div>
+
+      <div class="ask-box">
+        <h3>Pregunta de la CPU</h3>
+        <div id="question" class="question muted">Esperando…</div>
+        <div class="yn">
+          <button id="btnYes">Sí</button>
+          <button id="btnNo">No</button>
+        </div>
+      </div>
+
+      <div class="ask-box">
+        <h3>Posibles del humano (CPU los descarta automáticamente)</h3>
+        <div id="candGrid" class="candidates"></div>
+        <div class="muted small" id="candCount"></div>
+      </div>
+    </section>
+
+    <!-- Columna derecha: Humano -->
+    <section class="right">
+      <div class="you">
+        <div class="your-card"><img id="yourImg" alt="Tu personaje"/></div>
+        <div class="info">
+          <div><small>Tu personaje</small><br><b id="yourName">(elige al empezar)</b></div>
+          <div class="toolbar" style="margin-top:8px">
+            <button id="accuseBtn" class="btn">¡Acusar!</button>
+            <span id="lastAnswer" class="answer-chip hidden"><span>Respuesta CPU:</span> <b>—</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ask-box">
+        <h3>Tu pregunta a la CPU</h3>
+        <div class="human-ask">
+          <div>
+            <label>Característica</label>
+            <select id="featSel"></select>
+          </div>
+          <div>
+            <label>Valor</label>
+            <select id="valSel"></select>
+          </div>
+          <div>
+            <button id="askBtn">Preguntar</button>
+            <div style="margin-top:8px"><button id="toggleSuggest" class="btn">Resaltar sugerencias</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="board" id="board"></div>
+    </section>
+  </main>
+
+  <!-- Modal de selección de personaje humano -->
+  <dialog id="pickModal">
+    <div class="modal-header">
+      <b>Elige tu personaje</b>
+      <button onclick="document.getElementById('pickModal').close()">Cerrar</button>
+    </div>
+    <div class="modal-body">
+      <div class="picker" id="picker"></div>
+    </div>
+  </dialog>
+
+  <!-- Modal de fin de ronda -->
+  <dialog id="endModal">
+    <div class="modal-header">
+      <b id="endTitle">Fin de ronda</b>
+      <button onclick="document.getElementById('endModal').close()">Cerrar</button>
+    </div>
+    <div class="modal-body" id="endBody"></div>
+  </dialog>
+
+<script>
+// ======= Datos (pegados del JSON) =======
+const DATA = [
+  {"Nombre":"Paul","Género":"Hombre","Peinado":"Corto","Color de cabello":"Blanco","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"Sí","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Paul.webp"},
+  {"Nombre":"Alex","Género":"Hombre","Peinado":"Corto","Color de cabello":"Negro","Color de los ojos":"Marrón","Cejas":"Normal","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"Sí","Barba":"No","Nariz":"Normal","Labios":"Grueso","Sonrisa":"Sí","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Alex.webp"},
+  {"Nombre":"Herman","Género":"Hombre","Peinado":"Calvo","Color de cabello":"Naranja","Color de los ojos":"Marrón","Cejas":"Normal","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Grande","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Herman.webp"},
+  {"Nombre":"Richard","Género":"Hombre","Peinado":"Calvo","Color de cabello":"Marrón","Color de los ojos":"Marrón","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"Sí","Barba":"Sí","Nariz":"Normal","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Richard.webp"},
+  {"Nombre":"Eric","Género":"Hombre","Peinado":"Corto","Color de cabello":"Rubio","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"Sí","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Eric.webp"},
+  {"Nombre":"Claire","Género":"Mujer","Peinado":"Largo","Color de cabello":"Naranja","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"Sí","Sombrero":"Sí","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Claire.webp"},
+  {"Nombre":"David","Género":"Hombre","Peinado":"Corto","Color de cabello":"Rubio","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosrosadas":"No","bigote":"No","Barba":"Sí","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/David.webp"},
+  {"Nombre":"Robert","Género":"Hombre","Peinado":"Corto","Color de cabello":"Marrón","Color de los ojos":"Azul","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"Sí","bigote":"No","Barba":"No","Nariz":"Grande","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Robert.webp"},
+  {"Nombre":"Frans","Género":"Hombre","Peinado":"Corto","Color de cabello":"Naranja","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Frans.webp"},
+  {"Nombre":"Tom","Género":"Hombre","Peinado":"Calvo","Color de cabello":"Negro","Color de los ojos":"Azul","Posición de los ojos":"Lejos","Párpados":"Ancho","Cejas":"Delgados","Gafas":"Sí","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Tom.webp"},
+  {"Nombre":"Joe","Género":"Hombre","Peinado":"Corto","Color de cabello":"Rubio","Color de los ojos":"Marrón","Cejas":"Grueso","Gafas":"Sí","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Joe.webp"},
+  {"Nombre":"Alfred","Género":"Hombre","Peinado":"Corto","Color de cabello":"Naranja","Color de los ojos":"Azul","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"Sí","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Alfred.webp"},
+  {"Nombre":"Max","Género":"Hombre","Peinado":"Corto","Color de cabello":"Negro","Color de los ojos":"Marrón","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"Sí","Barba":"No","Nariz":"Grande","Labios":"Grueso","Sonrisa":"Sí","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Max.webp"},
+  {"Nombre":"Susan","Género":"Mujer","Peinado":"Largo","Color de cabello":"Rubio","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"Sí","Mejillas sonrosadas":"Sí","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Grueso","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Susan.webp"},
+  {"Nombre":"George","Género":"Hombre","Peinado":"Corto","Color de cabello":"Blanco","Color de los ojos":"Marrón","Cejas":"Normal","Gafas":"No","Sombrero":"Sí","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/George.webp"},
+  {"Nombre":"Philip","Género":"Hombre","Peinado":"Corto","Color de cabello":"Negro","Color de los ojos":"Marrón","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"Sí","bigote":"No","Barba":"Sí","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Philip.webp"},
+  {"Nombre":"Peter","Género":"Hombre","Peinado":"Corto","Color de cabello":"Blanco","Color de los ojos":"Azul","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Grande","Labios":"Grueso","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Peter.webp"},
+  {"Nombre":"Maria","Género":"Mujer","Peinado":"Largo","Color de cabello":"Marrón","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"Sí","Pendientes":"Sí","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Maria.webp"},
+  {"Nombre":"Anita","Género":"Mujer","Peinado":"Corto","Color de cabello":"Blanco","Color de los ojos":"Azul","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"Sí","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Anita.webp"},
+  {"Nombre":"Anne","Género":"Mujer","Peinado":"Corto","Color de cabello":"Negro","Color de los ojos":"Marrón","Cejas":"Delgados","Gafas":"No","Sombrero":"No","Pendientes":"Sí","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Grande","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Anne.webp"},
+  {"Nombre":"Bill","Género":"Hombre","Peinado":"Calvo","Color de cabello":"Naranja","Color de los ojos":"Marrón","Párpados":"Ancho","Cejas":"Normal","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"Sí","bigote":"No","Barba":"Sí","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Bill.webp"},
+  {"Nombre":"Bernard","Género":"Hombre","Peinado":"Largo","Color de cabello":"Marrón","Color de los ojos":"Marrón","Párpados":"Ancho","Cejas":"Grueso","Gafas":"No","Sombrero":"Sí","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"Sí","Mentón con hoyuelo":"Sí","URL":"https://airsoto.github.io/vet/imagenes/gh/Bernard.webp"},
+  {"Nombre":"Charles","Género":"Hombre","Peinado":"Corto","Color de cabello":"Rubio","Color de los ojos":"Marrón","Párpados":"Ancho","Cejas":"Grueso","Gafas":"No","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"Sí","Barba":"No","Nariz":"Normal","Labios":"Grueso","Sonrisa":"Sí","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Charles.webp"},
+  {"Nombre":"Sam","Género":"Hombre","Peinado":"Calvo","Color de cabello":"Blanco","Color de los ojos":"Marrón","Párpados":"Ancho","Cejas":"Grueso","Gafas":"Sí","Sombrero":"No","Pendientes":"No","Mejillas sonrosadas":"No","bigote":"No","Barba":"No","Nariz":"Normal","Labios":"Delgados","Sonrisa":"No","Mentón con hoyuelo":"No","URL":"https://airsoto.github.io/vet/imagenes/gh/Sam.webp"}
+];
+
+// ======= Utiles =======
+const byName = Object.fromEntries(DATA.map(d=>[d.Nombre, d]));
+const FEATURES = (()=>{
+  const exclude = new Set(["Nombre","URL"]);
+  const keys = Array.from(new Set(DATA.flatMap(o=>Object.keys(o))))
+    .filter(k=>!exclude.has(k));
+  return keys;
+})();
+const VALUES = Object.fromEntries(FEATURES.map(f=>[f, Array.from(new Set(DATA.map(d=>d[f]).filter(v=>v!==undefined))).sort()]))
+
+function el(q, parent=document){return parent.querySelector(q)}
+function els(q, parent=document){return Array.from(parent.querySelectorAll(q))}
+function h(html){const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild}
+
+function predicateSet(candidates, pred){ // pred: {f,v}
+  return new Set(candidates.filter(n=>byName[n][pred.f]===pred.v));
+}
+function union(sets){const u=new Set(); sets.forEach(s=>s.forEach(x=>u.add(x))); return u}
+function diff(a,b){const d=new Set(); a.forEach(x=>{if(!b.has(x)) d.add(x)}); return d}
+
+function describePredicate({f,v}){
+  const m={
+    "Gafas":(v)=> v==="Sí"?"lleva gafas":"no lleva gafas",
+    "Sombrero":(v)=> v==="Sí"?"lleva sombrero":"no lleva sombrero",
+    "Pendientes":(v)=> v==="Sí"?"lleva pendientes":"no lleva pendientes",
+    "bigote":(v)=> v==="Sí"?"tiene bigote":"no tiene bigote",
+    "Barba":(v)=> v==="Sí"?"tiene barba":"no tiene barba",
+    "Sonrisa":(v)=> v==="Sí"?"sonríe":"no sonríe",
+    "Mentón con hoyuelo":(v)=> v==="Sí"?"tiene hoyuelo":"no tiene hoyuelo",
+    "Peinado":(v)=> v==="Calvo"?"es calvo":`lleva el pelo ${v.toLowerCase()}`,
+    "Color de cabello":(v)=> `tiene el pelo ${v.toLowerCase()}`,
+    "Color de los ojos":(v)=> `tiene los ojos ${v.toLowerCase()}`,
+    "Cejas":(v)=> `tiene cejas ${v.toLowerCase()}`,
+    "Nariz":(v)=> `tiene la nariz ${v.toLowerCase()}`,
+    "Labios":(v)=> `tiene labios ${v.toLowerCase()}`,
+    "Párpados":(v)=> `tiene párpados ${v.toLowerCase()}`,
+    "Posición de los ojos":(v)=> `tiene los ojos ${v.toLowerCase()}`,
+    "Género":(v)=> v==="Hombre"?"es hombre":"es mujer",
+    "Mejillas sonrosadas":(v)=> v==="Sí"?"tiene mejillas sonrosadas":"no tiene mejillas sonrosadas"
+  }
+  return (m[f]?m[f](v):`${f} = ${v}`).replaceAll('  ',' ')
+}
+
+// Greedy para elegir 2-3 predicados cuya unión se acerque a la mitad de los candidatos
+function bestORQuestion(candidates){
+  const names = Array.from(candidates);
+  const n = names.length;
+  const feats = FEATURES.filter(f=>{
+    const vals = new Set(names.map(nm=>byName[nm][f]).filter(v=>v!==undefined));
+    return vals.size>=2 && (vals.size<=6); // útiles, no inmenso
+  });
+  // Generar predicados posibles
+  const preds=[];
+  feats.forEach(f=>{
+    const vals = Array.from(new Set(names.map(nm=>byName[nm][f]).filter(v=>v!==undefined)));
+    vals.forEach(v=> preds.push({f,v, set: predicateSet(names, {f,v})}));
+  });
+  if(preds.length===0){
+    return {preds:[], set:new Set()};
+  }
+  const target = n/2;
+  // mejor uno
+  preds.sort((a,b)=> Math.abs(a.set.size-target) - Math.abs(b.set.size-target));
+  let choice = [preds[0]];
+  let unionSet = new Set(preds[0].set);
+  // intentar agregar segundo
+  let improved=true;
+  for(let k=2;k<=3;k++){
+    improved=false;
+    let best=null, bestScore=Infinity, bestSet=null;
+    for(const p of preds){
+      if(choice.some(c=>c.f===p.f && c.v===p.v)) continue;
+      const u = union([unionSet, p.set]);
+      const sc = Math.abs(u.size - target);
+      if(sc < bestScore){best=p; bestScore=sc; bestSet=u}
+    }
+    if(best && Math.abs(bestSet.size-target) <= Math.abs(unionSet.size-target)){
+      choice.push(best); unionSet=bestSet; improved=true;
+    }
+    if(!improved) break;
+  }
+  return {preds:choice.map(({f,v})=>({f,v})), set:unionSet};
+}
+
+// ======= Estado de juego =======
+let mode = 'single';
+let score = {human:0, cpu:0};
+let round = 0;
+let cpuSecret = null; // personaje elegido por CPU
+let humanSecret = null; // elegido por humano
+let cpuCandidates = new Set(DATA.map(d=>d.Nombre));
+let suggestSet = new Set();
+
+// ======= Render =======
+function renderScores(){ el('#hs').textContent=score.human; el('#cs').textContent=score.cpu }
+
+function renderComputerSecret(reveal=false){
+  const card = el('#secretCard');
+  const nameEl = el('#secretName');
+  if(reveal){
+    card.classList.add('revealed');
+    card.style.backgroundImage = `url(${cpuSecret.URL})`;
+    nameEl.textContent = cpuSecret.Nombre;
+  }else{
+    card.classList.remove('revealed');
+    card.style.backgroundImage='none';
+    nameEl.textContent = 'Se revela al final de la ronda';
+  }
+}
+
+function renderCandidatesGrid(){
+  const grid = el('#candGrid');
+  grid.innerHTML='';
+  const names = Array.from(cpuCandidates).sort();
+  names.forEach(nm=>{
+    const c = byName[nm];
+    const div = h(`<div class="cand" data-name="${nm}">
+      <img src="${c.URL}" alt="${nm}" loading="lazy"/>
+      <span>${nm}</span>
+    </div>`);
+    grid.appendChild(div);
+  });
+  el('#candCount').textContent = `${names.length} posibles`;
+}
+
+function renderBoard(){
+  const board = el('#board');
+  board.innerHTML='';
+  DATA.forEach(p=>{
+    const card = h(`<div class="card" data-name="${p.Nombre}">
+      <img src="${p.URL}" alt="${p.Nombre}" loading="lazy"/>
+      <div class="name">${p.Nombre}</div>
+      <div class="actions">
+        <span class="tag small">clic para bajar</span>
+      </div>
+    </div>`);
+    card.addEventListener('click', ()=>{
+      card.classList.toggle('eliminada');
+    });
+    board.appendChild(card);
+  });
+}
+
+function renderPicker(){
+  const pk = el('#picker');
+  pk.innerHTML='';
+  DATA.forEach(p=>{
+    const item = h(`<div class="card pick" data-name="${p.Nombre}">
+      <img src="${p.URL}" alt="${p.Nombre}"/>
+      <div class="name">${p.Nombre}</div>
+    </div>`);
+    item.addEventListener('click', ()=>{
+      humanSecret = p;
+      el('#yourImg').src = p.URL; el('#yourName').textContent=p.Nombre;
+      el('#pickModal').close();
+    });
+    pk.appendChild(item);
+  });
+}
+
+function populateFeatureSelectors(){
+  const featSel = el('#featSel');
+  featSel.innerHTML = FEATURES.map(f=>`<option value="${f}">${f}</option>`).join('');
+  updateValueSelector();
+}
+function updateValueSelector(){
+  const feat = el('#featSel').value;
+  const valSel = el('#valSel');
+  const vals = VALUES[feat]||[];
+  valSel.innerHTML = vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+
+// ======= Flujo de preguntas =======
+function cpuAsk(){
+  const names = Array.from(cpuCandidates);
+  const {preds, set} = bestORQuestion(names);
+  if(preds.length===0){
+    el('#question').textContent = 'No tengo más preguntas útiles. Voy a adivinar…';
+    cpuTryGuess();
+    return;
+  }
+  const text = '¿Tu personaje ' + preds.map(describePredicate).join(' o ') + '?';
+  el('#question').textContent = text;
+  // Guardar la unión para aplicar según SI/NO
+  el('#btnYes').onclick = ()=>applyCpuAnswer(true, set, preds);
+  el('#btnNo').onclick  = ()=>applyCpuAnswer(false, set, preds);
+}
+
+function applyCpuAnswer(isYes, unionSet, preds){
+  const before = new Set(cpuCandidates);
+  const u = new Set(unionSet);
+  if(isYes){
+    cpuCandidates = new Set([...cpuCandidates].filter(n=>u.has(n)));
+  }else{
+    cpuCandidates = new Set([...cpuCandidates].filter(n=>!u.has(n)));
+  }
+  // animaciones de caída en los descartados
+  const removed = isYes ? diff(before, u) : diff(before, diff(before, u));
+  removed.forEach(nm=>{
+    const elDiv = el(`.cand[data-name="${nm}"]`);
+    if(elDiv){ elDiv.classList.add('drop'); setTimeout(()=>{ elDiv.remove(); }, 520); }
+  });
+  el('#candCount').textContent = `${cpuCandidates.size} posibles`;
+
+  if(cpuCandidates.size<=1){ cpuTryGuess(); }
+  else{ // turno del humano
+    setTimeout(()=>{ el('#question').textContent = 'Tu turno. Formula una pregunta.'; }, 350);
+  }
+}
+
+function cpuTryGuess(){
+  let guessName = Array.from(cpuCandidates)[0];
+  if(!guessName){ // si nos hemos quedado sin candidatos, haz una suposición aleatoria
+    guessName = DATA[Math.floor(Math.random()*DATA.length)].Nombre;
+  }
+  const correct = (guessName === humanSecret?.Nombre);
+  endRound(correct? 'cpu' : 'human', `La CPU acusa: <b>${guessName}</b>. ${correct? '¡Acertó!':'Falló.'}`);
+}
+
+function humanAsk(){
+  if(!humanSecret){
+    showToast('Primero elige tu personaje');
+    el('#pickModal').showModal();
+    return;
+  }
+  const f = el('#featSel').value;
+  const v = el('#valSel').value;
+  const ans = (cpuSecret[f] === v);
+  const chip = el('#lastAnswer');
+  chip.classList.remove('hidden','ok','bad');
+  chip.classList.add(ans? 'ok':'bad');
+  chip.querySelector('b').textContent = ans? 'Sí' : 'No';
+  // sugerir eliminación en el tablero humano
+  suggestSet = new Set(DATA.filter(p=> ans ? (p[f]!==v) : (p[f]===v)).map(p=>p.Nombre));
+  // La CPU también elimina de su propio tablero según esta pregunta del humano
+  // (el tablero CPU representa los posibles del humano; esto no afecta a la adivinanza del humano)
+}
+
+function toggleSuggestions(){
+  const cards = els('#board .card');
+  const anyOn = cards.some(c=>c.classList.contains('suggest'));
+  cards.forEach(c=>{
+    const nm = c.getAttribute('data-name');
+    c.classList[anyOn? 'remove':'add']('suggest');
+    if(!anyOn && !suggestSet.has(nm)) c.classList.remove('suggest'); // solo marcar sugeridos
+  });
+}
+
+// ======= Rondas y partida =======
+function newRound(){
+  round++;
+  cpuSecret = DATA[Math.floor(Math.random()*DATA.length)];
+  cpuCandidates = new Set(DATA.map(d=>d.Nombre));
+  humanSecret = null;
+
+  renderComputerSecret(false);
+  renderCandidatesGrid();
+  renderBoard();
+  renderPicker();
+  el('#yourImg').src=''; el('#yourName').textContent='(elige al empezar)';
+  el('#question').textContent='La CPU está pensando…';
+  el('#lastAnswer').classList.add('hidden');
+  setTimeout(cpuAsk, 600);
+  el('#pickModal').showModal();
+}
+
+function endRound(winner, extraHtml=''){
+  // revelar secreto CPU
+  renderComputerSecret(true);
+  const em = el('#endModal');
+  const title = winner==='human'? '¡Ganas la ronda!' : 'La CPU gana la ronda';
+  el('#endTitle').innerHTML = title;
+  el('#endBody').innerHTML = `
+    <p>${extraHtml}</p>
+    <p>El personaje oculto de la CPU era: <b>${cpuSecret.Nombre}</b>.</p>
+    <div style="display:flex; gap:10px; align-items:center">
+      <img src="${cpuSecret.URL}" alt="${cpuSecret.Nombre}" style="width:120px; height:150px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12)"/>
+      <div class="muted">Puedes iniciar una nueva ronda cuando quieras.</div>
+    </div>`;
+  em.showModal();
+  if(winner==='human') score.human++; else score.cpu++;
+  renderScores();
+  if(mode==='bo5' && (score.human>=5 || score.cpu>=5)){
+    const champ = score.human>=5? 'humano' : 'CPU';
+    el('#endBody').innerHTML += `<p><b>Fin de la partida (a 5).</b> Ganador: ${champ.toUpperCase()} 🎉</p>`
+  }
+}
+
+function accuse(){
+  if(!humanSecret){ showToast('Elige tu personaje primero'); return; }
+  // Accusar: el humano acusa sobre la carta seleccionada en el tablero con foco
+  // Para simplicidad, abrimos un pequeño selector por nombre
+  const nm = prompt('Escribe el nombre del personaje que acusas (tal como aparece en la carta):');
+  if(!nm) return;
+  const correct = (nm.trim().toLowerCase() === cpuSecret.Nombre.toLowerCase());
+  endRound(correct? 'human':'cpu', `Tú acusas: <b>${nm}</b>. ${correct? '¡Acertaste!':'No era.'}`);
+}
+
+// ======= UI menores =======
+function showToast(msg){
+  // mini-toast sencillo
+  const t = h(`<div style="position:fixed; left:50%; top:14px; transform:translateX(-50%); background:rgba(0,0,0,.7); color:#fff; padding:10px 16px; border-radius:999px; z-index:9999; border:1px solid rgba(255,255,255,.2); box-shadow:0 6px 24px rgba(0,0,0,.35)">${msg}</div>`);
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 1800);
+}
+
+// ======= Eventos =======
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderScores();
+  populateFeatureSelectors();
+  renderBoard();
+  renderCandidatesGrid();
+  newRound();
+
+  el('#featSel').addEventListener('change', updateValueSelector);
+  el('#askBtn').addEventListener('click', humanAsk);
+  el('#toggleSuggest').addEventListener('click', toggleSuggestions);
+  el('#newRound').addEventListener('click', newRound);
+  el('#accuseBtn').addEventListener('click', accuse);
+  el('#mode').addEventListener('change', (e)=>{ mode = e.target.value; score={human:0,cpu:0}; renderScores(); showToast(mode==='bo5'? 'Modo a 5 habilitado':'Partida única'); });
+});
+</script>
+</body>
+</html>
