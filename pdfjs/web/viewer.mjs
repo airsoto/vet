@@ -19,6 +19,10 @@
  * @licend The above is the entire license notice for the
  * JavaScript code in this page
  */
+import * as pdfjsLib from "../build/pdf.mjs";
+
+// ⚠️ Necesario para que PDF.js sepa dónde está el worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = "../build/pdf.worker.mjs";
 
 /**
  * pdfjsVersion = 5.4.54
