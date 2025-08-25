@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscador de Tesis Doctorales UCM</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 2em;
+    }
+
+    h1 {
+      text-align: center;
+      color: #90caf9;
+      margin-bottom: 0.5em;
+    }
+
+    .search-section {
+      display: flex;
+      gap: 1em;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2em;
+    }
+
+    input, select, button {
+      padding: 0.5em;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+    }
+
+    input, select {
+      width: 220px;
+    }
+
+    button {
+      background-color: #1e88e5;
+      color: white;
+      cursor: pointer;
+    }
+
+    .results {
+      margin-top: 2em;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5em;
+    }
+
+    .article {
+      background-color: #1e1e1e;
+      padding: 1.5em;
+      border-left: 4px solid #90caf9;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      max-height: none;
+      overflow: hidden;
+    }
+
+    .article:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 10px #90caf9;
+    }
+
+    .abstract-text {
+      font-style: italic;
+      text-align: justify;
+      line-height: 1.6;
+      margin-top: 1em;
+      font-size: 1.05em;
+    }
+
+    .pdf-viewer {
+      margin-top: 1em;
+      border: 2px solid #90caf9;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 400px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .meta {
+      font-size: 0.9em;
+      margin-top: 0.5em;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+<h1>Buscador de Tesis Doctorales de la UCM</h1>
+
+<h2 style="text-align: center;">
+  <span style="color: #ff9900;">Desarrollado por: Angel Soto</span>
+</h2>
+
+<p style="text-align: center; margin-top: -1em;">
+  <a href="https://airsoto.github.io/vet/howtesis_ucm.html" target="_blank" style="color: #90caf9; text-decoration: underline;">
+    (cómo está creada esta página)
+  </a>
+</p>
+
+<div class="search-section">
+  <select id="search-type">
+    <option value="title">Título</option>
+    <option value="authors">Autor</option>
+    <option value="subjects_ucm">Materia UCM</option>
+    <option value="subjects_unesco">Materia UNESCO</option>
+  </select>
+  <input type="text" id="search-input" placeholder="Buscar...">
+  <button onclick="search()">Buscar</button>
+</div>
+
+<div id="result-count" style="text-align:center; font-size:1.2em; margin-top:1em; color:#90caf9;"></div>
+<div id="results" class="results"></div>
+
+<script>
+  let tesis = [];
+
+  async function cargarTesis() {
+    try {
+      const response = await fetch('json/tesis_ucm.json');
+      if (!response.ok) throw new Error('No se pudo cargar el archivo JSON');
+      tesis = await response.json();
+    } catch (error) {
+      document.getElementById('results').innerHTML = '<p>Error al cargar las tesis.</p>';
+      console.error(error);
+    }
+  }
+
+  function search() {
+    const type = document.getElementById('search-type').value;
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const resultsContainer = document.getElementById('results');
+    const countContainer = document.getElementById('result-count');
+    resultsContainer.innerHTML = '';
+    countContainer.innerHTML = '';
+
+    const filtered = tesis.filter(t => {
+      if (!query) return true; // mostrar todo si no hay query
+      if (Array.isArray(t[type])) {
+        return t[type].some(v => v.toLowerCase().includes(query));
+      } else {
+        return t[type]?.toLowerCase().includes(query);
+      }
+    });
+
+    countContainer.innerHTML = `Se encontraron <strong>${filtered.length}</strong> tesis.`;
+
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = "<p>No se encontraron resultados.</p>";
+      return;
+    }
+
+    filtered.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'article';
+      div.innerHTML = `
+        <h2 style="text-align: center; color:#90caf9;">${t.title}</h2>
+        <p style="text-align: center; font-style: italic;">${t.authors.join(', ')}</p>
+        <p class="meta">Fecha de publicación: ${t.pub_date || '-'} | Defensa: ${t.defense_date || '-'}</p>
+        <h3>Resumen</h3>
+        <p class="abstract-text">${t.summary}</p>
+        ${t.subjects_ucm?.length ? `<p><strong>Materias UCM:</strong> ${t.subjects_ucm.join(', ')}</p>` : ''}
+        ${t.subjects_unesco?.length ? `<p><strong>Materias UNESCO:</strong> ${t.subjects_unesco.join(', ')}</p>` : ''}
+        ${t.pdf ? `
+          <div class="pdf-viewer">
+            <iframe src="${t.pdf}"></iframe>
+          </div>` : ''}
+      `;
+      resultsContainer.appendChild(div);
+    });
+  }
+
+  cargarTesis();
+</script>
+</body>
+</html>
+
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
+
