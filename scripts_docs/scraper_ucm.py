@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#python3 scraper_ucm.py --start 1 --end 2240 --batch 500
 
 import json
 import time
@@ -33,9 +34,18 @@ def extract_thesis_data(link):
         print(f"⚠️ No se pudo cargar {link}")
         return None
 
-    data = {"title": "", "link": link, "authors": [], "directors": [],
-            "summary": "", "pub_date": "", "defense_date": "",
-            "subjects_ucm": [], "subjects_unesco": [], "pdf": ""}
+    data = {
+        "title": "",
+        "link": link,
+        "authors": [],
+        "directors": [],
+        "summary": "",
+        "pub_date": "",
+        "defense_date": "",
+        "subjects_ucm": [],
+        "subjects_unesco": [],
+        "pdf": ""
+    }
 
     # Título
     try:
@@ -79,12 +89,10 @@ def extract_thesis_data(link):
         data["subjects_unesco"] = [s.text.strip() for s in subjects_unesco]
     except: pass
 
-    # PDF (corregido, sin duplicar BASE_URL)
+    # PDF
     try:
         pdf_link = driver.find_element(By.XPATH, "//a[contains(@href,'/bitstreams/') and contains(@href,'download')]")
-        href = pdf_link.get_attribute("href")
-        if href:
-            data["pdf"] = href.strip()
+        data["pdf"] = BASE_URL + pdf_link.get_attribute("href")
     except: pass
 
     return data
@@ -95,7 +103,7 @@ def main(start, end, batch_size):
     thesis_data = []
 
     for page in range(start, end + 1):
-        url = f"{BASE_URL}/browse/type?value=doctoral%20thesis&bbm.page={page}"
+        url = f"{BASE_URL}/search?spc.page={page}&f.itemtype=doctoral%20thesis,equals"
         print(f"📄 Cargando {url}")
         driver.get(url)
 
@@ -122,14 +130,16 @@ def main(start, end, batch_size):
             data = extract_thesis_data(link)
             if data:
                 thesis_data.append(data)
-            time.sleep(1)
+            time.sleep(1)  # para no sobrecargar el servidor
 
+            # Guardar en lotes
             if len(thesis_data) % batch_size == 0:
-                filename = f"tesis_ucm_{page}_{len(thesis_data)}.json"
+                filename = f"tesis_ucm_batch_{page}_{len(thesis_data)}.json"
                 with open(filename, "w", encoding="utf-8") as f:
                     json.dump(thesis_data, f, ensure_ascii=False, indent=2)
                 print(f"💾 Guardado lote en {filename}")
 
+    # Guardar lo que quede
     if thesis_data:
         filename = f"tesis_ucm_{start}_{end}.json"
         with open(filename, "w", encoding="utf-8") as f:
