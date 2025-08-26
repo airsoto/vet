@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscador de Tesis Doctorales UCM</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 2em;
+    }
+
+    h1 {
+      text-align: center;
+      color: #90caf9;
+      font-size: 2.2em;
+    }
+
+    .search-section {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1em;
+      margin: 2em 0;
+    }
+
+    input, select {
+      width: 260px;
+      padding: 0.75em;
+      font-size: 1.1em;
+      border-radius: 8px;
+      border: none;
+      background-color: #1f1f1f;
+      color: #f0f0f0;
+    }
+
+    .results {
+      margin-top: 2em;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5em;
+    }
+
+    .article {
+      background-color: #1e1e1e;
+      padding: 1.5em;
+      border-left: 5px solid #90caf9;
+      border-radius: 10px;
+    }
+
+    .abstract-text {
+      font-style: italic;
+      text-align: justify;
+      line-height: 1.6;
+      margin-top: 1em;
+      font-size: 1.1em;
+    }
+
+    .meta {
+      font-size: 0.95em;
+      margin-top: 0.5em;
+      color: #bbb;
+    }
+
+    #result-count, #stats {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 1em;
+      color: #90caf9;
+    }
+
+    .word-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6em;
+      justify-content: center;
+      margin-top: 1em;
+    }
+
+    .word-cloud span {
+      font-size: calc(0.8em + var(--size));
+      color: #ffcc80;
+    }
+  </style>
+</head>
+<body>
+  <h1>Buscador de Tesis Doctorales de la UCM</h1>
+
+  <div class="search-section" aria-label="Controles de búsqueda">
+    <input type="text" id="search-title" placeholder="Buscar por título..." aria-label="Buscar por título">
+    <input type="text" id="search-author" placeholder="Buscar por autor..." aria-label="Buscar por autor">
+    <input type="text" id="search-director" placeholder="Buscar por director..." aria-label="Buscar por director">
+    <input type="text" id="search-subject" placeholder="Materia UCM o UNESCO..." aria-label="Buscar por materia">
+    <input type="number" id="start-year" placeholder="Año desde" aria-label="Año inicial">
+    <input type="number" id="end-year" placeholder="Año hasta" aria-label="Año final">
+    <select id="sort">
+      <option value="">Ordenar por...</option>
+      <option value="title">Título A-Z</option>
+      <option value="author">Autor A-Z</option>
+      <option value="year">Fecha (más reciente)</option>
+    </select>
+  </div>
+
+  <div id="result-count"></div>
+  <div id="stats"></div>
+  <div id="word-cloud" class="word-cloud"></div>
+  <div id="results" class="results"></div>
+
+  <script>
+    let tesis = [];
+
+    async function cargarTesis() {
+      const res = await fetch('json/tesis_ucm_v1.json');
+      tesis = await res.json();
+      filtrar();
+    }
+
+    function filtrar() {
+      const title = document.getElementById('search-title').value.toLowerCase();
+      const author = document.getElementById('search-author').value.toLowerCase();
+      const director = document.getElementById('search-director').value.toLowerCase();
+      const subject = document.getElementById('search-subject').value.toLowerCase();
+      const startYear = parseInt(document.getElementById('start-year').value);
+      const endYear = parseInt(document.getElementById('end-year').value);
+      const sort = document.getElementById('sort').value;
+
+      let filtradas = tesis.filter(t => {
+        const titleMatch = !title || t.title.toLowerCase().includes(title);
+        const authorMatch = !author || t.authors.some(a => a.toLowerCase().includes(author));
+        const directorMatch = !director || (t.directors && t.directors.some(d => d.toLowerCase().includes(director)));
+        const subjectMatch = !subject ||
+          (t.subjects_ucm && t.subjects_ucm.join(',').toLowerCase().includes(subject)) ||
+          (t.subjects_unesco && t.subjects_unesco.join(',').toLowerCase().includes(subject));
+        const pubYear = parseInt(t.pub_date?.substring(0,4));
+        const yearMatch = (!startYear || pubYear >= startYear) && (!endYear || pubYear <= endYear);
+
+        return titleMatch && authorMatch && directorMatch && subjectMatch && yearMatch;
+      });
+
+      if (sort === 'title') filtradas.sort((a,b) => a.title.localeCompare(b.title));
+      if (sort === 'author') filtradas.sort((a,b) => a.authors[0]?.localeCompare(b.authors[0]));
+      if (sort === 'year') filtradas.sort((a,b) => b.pub_date?.localeCompare(a.pub_date));
+
+      mostrarResultados(filtradas);
+      mostrarEstadisticas(filtradas);
+      mostrarNube(filtradas);
+    }
+
+    function mostrarResultados(lista) {
+      const results = document.getElementById('results');
+      const count = document.getElementById('result-count');
+      results.innerHTML = '';
+      count.innerHTML = `Se encontraron <strong>${lista.length}</strong> tesis.`;
+
+      for (const t of lista) {
+        const div = document.createElement('div');
+        div.className = 'article';
+        div.innerHTML = `
+          <h2 style="color:#90caf9;">${t.title}</h2>
+          <p><em>${t.authors.join(', ')}</em></p>
+          <p class="meta">${t.pub_date || ''}</p>
+          <p class="abstract-text">${t.summary}</p>
+        `;
+        results.appendChild(div);
+      }
+    }
+
+    function mostrarEstadisticas(lista) {
+      const stats = document.getElementById('stats');
+      const porAnio = {};
+      for (const t of lista) {
+        const year = t.pub_date?.substring(0, 4);
+        if (year) porAnio[year] = (porAnio[year] || 0) + 1;
+      }
+      const resumen = Object.entries(porAnio).sort().map(([y, c]) => `${y}: ${c}`).join(' · ');
+      stats.innerHTML = `<strong>Tesis por año:</strong> ${resumen}`;
+    }
+
+    function mostrarNube(lista) {
+      const nube = document.getElementById('word-cloud');
+      const frecuencias = {};
+      for (const t of lista) {
+        const palabras = t.title.toLowerCase().split(/\s+/);
+        for (const p of palabras) {
+          if (p.length > 4) frecuencias[p] = (frecuencias[p] || 0) + 1;
+        }
+      }
+      const top = Object.entries(frecuencias).sort((a,b) => b[1]-a[1]).slice(0,20);
+      nube.innerHTML = top.map(([w,c]) => `<span style="--size: ${c/2}em">${w}</span>`).join(' ');
+    }
+
+    document.querySelectorAll('input,select').forEach(el => el.addEventListener('input', filtrar));
+    cargarTesis();
+  </script>
+</body>
+</html>
+
+
+
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
