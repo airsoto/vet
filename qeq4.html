@@ -244,11 +244,10 @@
     <section class="col">
       <h3 style="margin:4px 6px">Tablero humano — toca para descartar o restaurar</h3>
 
-      <!-- NUEVA: Pregunta compuesta del humano (1–3 condiciones con "o") -->
+      <!-- Pregunta del humano (1–3 condiciones unidas por "o") -->
       <div class="ask-box" style="margin-bottom:8px">
         <div class="controls" style="flex-wrap:wrap; gap:12px">
-          <div id="humanQuery" class="hidden">
-            <!-- fila 1 (OCULTA de inicio; se muestra con + Añadir) -->
+          <div id="humanQuery">
             <div class="hq-row hidden" data-i="0" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
@@ -261,7 +260,6 @@
             </div>
             <div class="or-chip hidden" data-after="0">o</div>
 
-            <!-- fila 2 (oculta al inicio) -->
             <div class="hq-row hidden" data-i="1" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
@@ -274,7 +272,6 @@
             </div>
             <div class="or-chip hidden" data-after="1">o</div>
 
-            <!-- fila 3 (oculta al inicio) -->
             <div class="hq-row hidden" data-i="2" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
@@ -286,12 +283,11 @@
               </div>
             </div>
 
-            </div>
-
             <div style="display:flex; gap:8px; margin:.25rem 0 .5rem">
               <button id="addCond" class="btn">+ Añadir condición</button>
-              <button id="removeCond" class="btn" disabled>– Eliminar última</button>
+              <button id="removeCond" class="btn">– Eliminar última</button>
             </div>
+          </div>
 
           <button id="askBtn" class="btn-ask">Preguntar a CPU</button>
           <button id="toggleSuggest" class="btn btn-suggest">Resaltar sugerencias</button>
@@ -364,6 +360,7 @@ function predicateSet(candidates, pred){ return new Set(candidates.filter(n=>byN
 function union(sets){const u=new Set(); sets.forEach(s=>s.forEach(x=>u.add(x))); return u}
 function intersect(sets){ if(!sets.length) return new Set(); const [first,...rest]=sets; const r=new Set(first); for(const s of rest){ for(const x of r){ if(!s.has(x)) r.delete(x);} } return r;}
 function diff(a,b){const d=new Set(); a.forEach(x=>{if(!b.has(x)) d.add(x)}); return d}
+function inter(a,b){const r=new Set(); a.forEach(x=>{if(b.has(x)) r.add(x)}); return r}
 function describePredicate({f,v}){
   const m={
     "Gafas":(v)=> v===YES?"lleva gafas":"no lleva gafas",
@@ -499,7 +496,7 @@ function renderPicker(){
   });
 }
 
-/* ===== Poblado de selects (simple y compuestos) ===== */
+/* ===== Poblado de selects (compuestos) ===== */
 function updateRowValues(idx){
   const rows = $$('#humanQuery .hq-row');
   const row = rows[idx];
@@ -529,11 +526,6 @@ function updateFeatureLegend(){
     else chip.classList.add('dim');
     cont.appendChild(chip);
   });
-}</span>`);
-    if(asked.has(f)) chip.classList.add('active');
-    else chip.classList.add('dim');
-    cont.appendChild(chip);
-  });
 }
 function updateOrChips(){
   // Muestra el chip "o" entre filas visibles
@@ -553,15 +545,14 @@ function updateAddRemoveButtons(){
   const addBtn = $('#addCond');
   const rmvBtn = $('#removeCond');
   addBtn.disabled = rows.length >= 3;
-  rmvBtn.disabled = rows.length <= 0;   // ahora se permite llegar a 0
+  rmvBtn.disabled = rows.length <= 0;
   addBtn.style.opacity = addBtn.disabled ? 0.6 : 1;
   rmvBtn.style.opacity = rmvBtn.disabled ? 0.6 : 1;
-  updateAskButton(); // Preguntar deshabilitado si no hay filas
+  updateAskButton();
 }
 
 /* -------------------------------------------------------------------- */
 function populateSelectors(){
-  // filas de preguntas (no se muestran de inicio)
   const rows = $$('#humanQuery .hq-row');
   rows.forEach((row, idx)=>{
     const fSel = row.querySelector('.hq-feat');
@@ -571,7 +562,7 @@ function populateSelectors(){
       updateFeatureLegend();
     });
     updateRowValues(idx);
-    row.classList.add('hidden'); // ⬅️ todas ocultas por defecto
+    row.classList.add('hidden'); // todas ocultas por defecto
   });
 
   updateOrChips();
@@ -602,7 +593,7 @@ function applyCpuAnswer(isYes, unionSet){
   const before = new Set(candHuman);
   const u = new Set(unionSet);
   candHuman = new Set([...candHuman].filter(n => isYes ? u.has(n) : !u.has(n)));
-  const removed = isYes ? diff(before,u) : union([u]); // si NO, se eliminan los que cumplen alguna condición
+  const removed = isYes ? diff(before,u) : inter(before,u);
   removed.forEach(nm=>{
     const elDiv = document.querySelector(`.cand[data-name="${nm}"]`);
     if(elDiv){ elDiv.classList.add('drop'); setTimeout(()=>elDiv.remove(), 520); }
@@ -626,7 +617,6 @@ function getHumanCompoundSet(){
     const v = r.querySelector('.hq-val').value;
     return {f,v};
   });
-  // Unión (OR) de todos los predicados seleccionados
   const sets = preds.map(p => new Set([...candCpu].filter(nm => byName[nm][p.f]===p.v)));
   const result = sets.length ? union(sets) : new Set();
   return {preds, set: result};
@@ -639,7 +629,7 @@ function humanAsk(){
   const {preds, set} = getHumanCompoundSet();
   if(!preds.length){ toast('Añade al menos una condición'); return; }
 
-  // La CPU responde "Sí" si su carta cumple al menos una condición (OR puro)
+  // La CPU responde "Sí" si su carta cumple al menos una condición (OR)
   const cpuMatches = preds.some(p => cpuSecret[p.f] === p.v);
 
   const chip=$('#lastAnswer');
@@ -647,13 +637,12 @@ function humanAsk(){
   chip.classList.add(cpuMatches?'ok':'bad');
   chip.querySelector('b').textContent = cpuMatches?'Sí':'No';
 
-  // Filtrado de candidatos del humano sobre la CPU
   if(cpuMatches){
-    candCpu = new Set([...candCpu].filter(n=>set.has(n)));      // keep union
-    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm))); // sugiere descartar
+    candCpu = new Set([...candCpu].filter(n=>set.has(n)));
+    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm)));
   } else {
-    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));     // remove union
-    suggestSet = new Set([...set]);                             // sugiere descartar los del set
+    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));
+    suggestSet = new Set([...set]);
   }
 
   $$('#humanQuery .hq-row').forEach((_,i)=>updateRowValues(i));
@@ -688,7 +677,6 @@ function newRound(){
   rows.forEach(r=> r.classList.add('hidden'));
   populateSelectors();
 
-  $('#humanQuery').classList.add('hidden');
   updateOrChips();
   updateAddRemoveButtons();
   updateFeatureLegend();
@@ -755,7 +743,8 @@ function toggleSuggestions(){
 window.addEventListener('DOMContentLoaded', ()=>{
   (async()=>{
     try{ await loadData(); }
-    catch(e){ alert(e.message + '\nSi abres el archivo desde file://, usa un servidor local para que fetch funcione.'); return; }
+    catch(e){ alert(e.message + '
+Si abres el archivo desde file://, usa un servidor local para que fetch funcione.'); return; }
 
     renderScores();
     populateSelectors();
@@ -771,25 +760,14 @@ window.addEventListener('DOMContentLoaded', ()=>{
     $('#mode').addEventListener('change', (e)=>{ mode=e.target.value; score={human:0,cpu:0}; renderScores(); toast(mode==='bo5'?'Modo campeonato a 5':'Partida única'); });
     $('#infoBtn').addEventListener('click', ()=>{ location.href='estrategia_guess_who.html'; });
 
-    // añadir / quitar condiciones
+    // añadir / quitar condiciones (máx 3)
     $('#addCond').addEventListener('click', ()=>{
-      const hq = $('#humanQuery');
       const rows=$$('#humanQuery .hq-row');
-      if(hq.classList.contains('hidden')){
-        hq.classList.remove('hidden');
-        const first = rows.find(r=>r.classList.contains('hidden'));
-        if(first){
-          first.classList.remove('hidden');
-          const idx = parseInt(first.getAttribute('data-i'), 10) || 0;
-          updateRowValues(idx);
-        }
-      } else {
-        const next = rows.find(r=>r.classList.contains('hidden'));
-        if(next){
-          next.classList.remove('hidden');
-          const idx = parseInt(next.getAttribute('data-i'), 10) || 0;
-          updateRowValues(idx);
-        }
+      const next = rows.find(r=>r.classList.contains('hidden'));
+      if(next){
+        next.classList.remove('hidden');
+        const idx = parseInt(next.getAttribute('data-i'), 10) || 0;
+        updateRowValues(idx);
       }
       updateOrChips();
       updateAddRemoveButtons();
@@ -799,9 +777,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
       const rows=visibleRows();
       if(rows.length>0){
         rows[rows.length-1].classList.add('hidden');
-      }
-      if(visibleRows().length===0){
-        $('#humanQuery').classList.add('hidden');
       }
       updateOrChips();
       updateAddRemoveButtons();
