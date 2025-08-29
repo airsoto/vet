@@ -185,6 +185,10 @@
     border-color:rgba(124,199,255,.45);
   }
   .feat-chip.dim{opacity:.2; filter:grayscale(.2)}
+
+  /* Chip "o" entre condiciones */
+  .or-chip{align-self:center; padding:.2rem .55rem; border-radius:999px; font-weight:800; font-size:12px; letter-spacing:.02em; color:#0b1220;
+    background:linear-gradient(90deg,#f59e0b,#fcd34d); border:1px solid rgba(255,255,255,.18)}
 </style>
 </head>
 <body>
@@ -193,8 +197,8 @@
       <div class="logo">QeQ</div>
       <h1 class="title">QUIÉN es QUIÉN – Humano vs Computadora</h1>
       <h2 style="text-align: center;">
-  <span style="color: #ff9900;">Desarrollado por: Angel Soto</span>
-</h2>
+        <span style="color: #ff9900;">Desarrollado por: Angel Soto</span>
+      </h2>
     </div>
     <div class="controls">
       <button id="infoBtn" class="btn"><span class="qmark"></span> INFORMACIÓN / estrategia</button>
@@ -240,12 +244,12 @@
     <section class="col">
       <h3 style="margin:4px 6px">Tablero humano — toca para descartar o restaurar</h3>
 
-      <!-- NUEVA: Pregunta compuesta del humano (hasta 3 condiciones) -->
+      <!-- NUEVA: Pregunta compuesta del humano (1–3 condiciones con "o") -->
       <div class="ask-box" style="margin-bottom:8px">
         <div class="controls" style="flex-wrap:wrap; gap:12px">
           <div id="humanQuery">
             <!-- fila 1 (OCULTA de inicio; se muestra con + Añadir) -->
-            <div class="hq-row hidden" data-i="0" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:8px">
+            <div class="hq-row hidden" data-i="0" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
                 <select class="hq-feat" aria-label="Atributo"></select>
@@ -254,17 +258,11 @@
                 <label class="muted" style="font-size:12px">Valor</label><br>
                 <select class="hq-val" aria-label="Valor"></select>
               </div>
-              <div class="hq-join-wrap">
-                <label class="muted" style="font-size:12px">Unir con</label><br>
-                <select class="hq-join" aria-label="Operador">
-                  <option value="OR" selected>o</option>
-                  <option value="AND">y</option>
-                </select>
-              </div>
             </div>
+            <div class="or-chip hidden" data-after="0">o</div>
 
             <!-- fila 2 (oculta al inicio) -->
-            <div class="hq-row hidden" data-i="1" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:8px">
+            <div class="hq-row hidden" data-i="1" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
                 <select class="hq-feat"></select>
@@ -272,18 +270,12 @@
               <div>
                 <label class="muted" style="font-size:12px">Valor</label><br>
                 <select class="hq-val"></select>
-              </div>
-              <div class="hq-join-wrap">
-                <label class="muted" style="font-size:12px">Unir con</label><br>
-                <select class="hq-join">
-                  <option value="OR" selected>o</option>
-                  <option value="AND">y</option>
-                </select>
               </div>
             </div>
+            <div class="or-chip hidden" data-after="1">o</div>
 
             <!-- fila 3 (oculta al inicio) -->
-            <div class="hq-row hidden" data-i="2" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:8px">
+            <div class="hq-row hidden" data-i="2" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
                 <label class="muted" style="font-size:12px">Característica</label><br>
                 <select class="hq-feat"></select>
@@ -291,10 +283,6 @@
               <div>
                 <label class="muted" style="font-size:12px">Valor</label><br>
                 <select class="hq-val"></select>
-              </div>
-              <!-- sin join después de la última -->
-              <div class="hq-join-wrap" style="visibility:hidden">
-                <select class="hq-join"><option>—</option></select>
               </div>
             </div>
 
@@ -458,7 +446,6 @@ function setTurn(t){
   const cpuTurn = (t==='cpu');
   setDisabled('#btnYes', !cpuTurn);
   setDisabled('#btnNo',  !cpuTurn);
-  // askBtn también depende de si hay filas visibles
   updateAskButton();
   $('#turnTag').textContent = 'Turno: ' + (t==='cpu' ? 'Computadora' : t==='human' ? 'Humano' : t==='setup' ? 'Preparación' : 'Fin');
   const q=$('#question'); cpuTurn ? q.classList.remove('muted') : q.classList.add('muted');
@@ -512,16 +499,11 @@ function renderPicker(){
 }
 
 /* ===== Poblado de selects (simple y compuestos) ===== */
-function updateValueSelector(){
-  const feat=$('#featSel')?.value;
-  if(!feat) return;
-  const vals = uniq([...candCpu].map(n=>byName[n][feat]).filter(Boolean));
-  const valSel=$('#valSel'); if(valSel) valSel.innerHTML = vals.map(v=>`<option value="${v}">${v}</option>`).join('');
-}
 function updateRowValues(idx){
   const rows = $$('#humanQuery .hq-row');
   const row = rows[idx];
-  const feat = row.querySelector('.hq-feat').value;
+  const fSel = row.querySelector('.hq-feat');
+  const feat = fSel.value || FEATURES[0];
   const vals = uniq([...candCpu].map(n=>byName[n][feat]).filter(Boolean));
   row.querySelector('.hq-val').innerHTML = vals.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
@@ -545,13 +527,18 @@ function updateFeatureLegend(){
     cont.appendChild(chip);
   });
 }
-function updateJoinVisibility(){
-  const rows = visibleRows();
-  $$('#humanQuery .hq-row .hq-join-wrap').forEach(j => j.style.visibility = 'hidden');
-  rows.slice(0, -1).forEach(r => {
-    const j = r.querySelector('.hq-join-wrap');
-    if (j) j.style.visibility = 'visible';
-  });
+function updateOrChips(){
+  // Muestra el chip "o" entre filas visibles
+  const rows = $$('#humanQuery .hq-row');
+  const vIdx = rows.map((r,i)=>!r.classList.contains('hidden')?i:null).filter(i=>i!==null);
+  const chips = $$('#humanQuery .or-chip');
+  chips.forEach(c=>c.classList.add('hidden'));
+  if(vIdx.length>=2){
+    const c0 = $(`.or-chip[data-after="${vIdx[0]}"]`); if(c0) c0.classList.remove('hidden');
+  }
+  if(vIdx.length>=3){
+    const c1 = $(`.or-chip[data-after="${vIdx[1]}"]`); if(c1) c1.classList.remove('hidden');
+  }
 }
 function updateAddRemoveButtons(){
   const rows = visibleRows();
@@ -566,14 +553,10 @@ function updateAddRemoveButtons(){
 
 /* -------------------------------------------------------------------- */
 function populateSelectors(){
-  const featSel=$('#featSel'); if(featSel){ featSel.innerHTML = FEATURES.map(f=>`<option value="${f}">${f}</option>`).join(''); }
-  updateValueSelector();
-
   // filas de preguntas (no se muestran de inicio)
   const rows = $$('#humanQuery .hq-row');
   rows.forEach((row, idx)=>{
     const fSel = row.querySelector('.hq-feat');
-    const vSel = row.querySelector('.hq-val');
     fSel.innerHTML = FEATURES.map(f=>`<option value="${f}">${f}</option>`).join('');
     fSel.addEventListener('change', ()=>{
       updateRowValues(idx);
@@ -583,7 +566,7 @@ function populateSelectors(){
     row.classList.add('hidden'); // ⬅️ todas ocultas por defecto
   });
 
-  updateJoinVisibility();
+  updateOrChips();
   updateAddRemoveButtons();
   updateFeatureLegend();
 }
@@ -611,7 +594,7 @@ function applyCpuAnswer(isYes, unionSet){
   const before = new Set(candHuman);
   const u = new Set(unionSet);
   candHuman = new Set([...candHuman].filter(n => isYes ? u.has(n) : !u.has(n)));
-  const removed = isYes ? diff(before,u) : diff(before, diff(before,u));
+  const removed = isYes ? diff(before,u) : union([u]); // si NO, se eliminan los que cumplen alguna condición
   removed.forEach(nm=>{
     const elDiv = document.querySelector(`.cand[data-name="${nm}"]`);
     if(elDiv){ elDiv.classList.add('drop'); setTimeout(()=>elDiv.remove(), 520); }
@@ -627,7 +610,7 @@ function cpuTryGuess(){
   endRound(correct ? 'cpu' : 'human', `La CPU acusa: <b>${guessName}</b>. ${correct? '¡Acertó!':'Falló.'}`);
 }
 
-/* ====== Lógica de la pregunta compuesta del humano ====== */
+/* ====== Lógica de la pregunta compuesta del humano (solo "o") ====== */
 function getHumanCompoundSet(){
   const rows = visibleRows();
   const preds = rows.map(r=>{
@@ -635,48 +618,38 @@ function getHumanCompoundSet(){
     const v = r.querySelector('.hq-val').value;
     return {f,v};
   });
-
+  // Unión (OR) de todos los predicados seleccionados
   const sets = preds.map(p => new Set([...candCpu].filter(nm => byName[nm][p.f]===p.v)));
-  const joins = rows.slice(0, rows.length-1).map(r => r.querySelector('.hq-join')?.value || 'OR');
-
-  let result = sets[0] || new Set();
-  for(let i=1;i<sets.length;i++){
-    result = (joins[i-1]==='AND') ? intersect([result, sets[i]]) : union([result, sets[i]]);
-  }
-  return {preds, set: result, joins};
+  const result = sets.length ? union(sets) : new Set();
+  return {preds, set: result};
 }
 
 function humanAsk(){
   if(turn!=='human'){ toast('Espera tu turno'); return; }
   if(!humanSecret){ toast('Elige tu personaje primero'); $('#pickModal').showModal(); return; }
 
-  const {preds, set, joins} = getHumanCompoundSet();
+  const {preds, set} = getHumanCompoundSet();
   if(!preds.length){ toast('Añade al menos una condición'); return; }
 
-  const cpuMatches = (()=>{
-    const truth = preds.map(p => cpuSecret[p.f] === p.v);
-    let acc = truth[0];
-    for(let i=1;i<truth.length;i++){
-      acc = (joins[i-1]==='AND') ? (acc && truth[i]) : (acc || truth[i]);
-    }
-    return acc;
-  })();
+  // La CPU responde "Sí" si su carta cumple al menos una condición (OR puro)
+  const cpuMatches = preds.some(p => cpuSecret[p.f] === p.v);
 
   const chip=$('#lastAnswer');
   chip.classList.remove('hidden','ok','bad');
   chip.classList.add(cpuMatches?'ok':'bad');
   chip.querySelector('b').textContent = cpuMatches?'Sí':'No';
 
+  // Filtrado de candidatos del humano sobre la CPU
   if(cpuMatches){
-    candCpu = new Set([...candCpu].filter(n=>set.has(n)));
-    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm)));
+    candCpu = new Set([...candCpu].filter(n=>set.has(n)));      // keep union
+    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm))); // sugiere descartar
   } else {
-    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));
-    suggestSet = new Set([...set]);
+    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));     // remove union
+    suggestSet = new Set([...set]);                             // sugiere descartar los del set
   }
 
   $$('#humanQuery .hq-row').forEach((_,i)=>updateRowValues(i));
-  updateJoinVisibility();
+  updateOrChips();
   updateAddRemoveButtons();
   updateFeatureLegend();
 
@@ -707,7 +680,7 @@ function newRound(){
   rows.forEach(r=> r.classList.add('hidden'));
   populateSelectors();
 
-  updateJoinVisibility();
+  updateOrChips();
   updateAddRemoveButtons();
   updateFeatureLegend();
 
@@ -754,6 +727,21 @@ function toast(msg){
   document.body.appendChild(t); setTimeout(()=>t.remove(), 1600);
 }
 
+/* ===== Sugerencias visuales en tablero (sin cambios de lógica) ===== */
+function toggleSuggestions(){
+  const cards = $$('#board .card');
+  const turningOn = !cards.some(c=>c.classList.contains('suggest'));
+  cards.forEach(c=>{
+    const nm = c.getAttribute('data-name');
+    if(turningOn){
+      if(suggestSet.has(nm)) c.classList.add('suggest');
+      else c.classList.remove('suggest');
+    } else {
+      c.classList.remove('suggest');
+    }
+  });
+}
+
 /* ================ Inicio ================ */
 window.addEventListener('DOMContentLoaded', ()=>{
   (async()=>{
@@ -783,7 +771,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
         const idx = parseInt(next.getAttribute('data-i'), 10) || 0;
         updateRowValues(idx);
       }
-      updateJoinVisibility();
+      updateOrChips();
       updateAddRemoveButtons();
       updateFeatureLegend();
     });
@@ -792,46 +780,15 @@ window.addEventListener('DOMContentLoaded', ()=>{
       if(rows.length>0){
         rows[rows.length-1].classList.add('hidden');
       }
-      updateJoinVisibility();
+      updateOrChips();
       updateAddRemoveButtons();
       updateFeatureLegend();
     });
   })();
 });
-
-/* ===== Sugerencias visuales en tablero (sin cambios de lógica) ===== */
-function toggleSuggestions(){
-  const cards = $$('#board .card');
-  const turningOn = !cards.some(c=>c.classList.contains('suggest'));
-  cards.forEach(c=>{
-    const nm = c.getAttribute('data-name');
-    if(turningOn){
-      if(suggestSet.has(nm)) c.classList.add('suggest');
-      else c.classList.remove('suggest');
-    } else {
-      c.classList.remove('suggest');
-    }
-  });
-}
 </script>
 </body>
 </html>
-
-<!-- Contenedor del footer -->
-<div id="footer"></div>
-
-<script>
-  fetch("footer.html")
-    .then(response => {
-      if (!response.ok) throw new Error("No se pudo cargar footer.html");
-      return response.text();
-    })
-    .then(data => {
-      document.getElementById("footer").innerHTML = data;
-    })
-    .catch(error => console.error("Error cargando el footer:", error));
-</script>
-
 
 <!-- Contenedor del footer -->
 <div id="footer"></div>
