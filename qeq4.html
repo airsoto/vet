@@ -247,7 +247,7 @@
       <!-- NUEVA: Pregunta compuesta del humano (1–3 condiciones con "o") -->
       <div class="ask-box" style="margin-bottom:8px">
         <div class="controls" style="flex-wrap:wrap; gap:12px">
-          <div id="humanQuery">
+          <div id="humanQuery" class="hidden">
             <!-- fila 1 (OCULTA de inicio; se muestra con + Añadir) -->
             <div class="hq-row hidden" data-i="0" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:6px">
               <div>
@@ -286,11 +286,12 @@
               </div>
             </div>
 
+            </div>
+
             <div style="display:flex; gap:8px; margin:.25rem 0 .5rem">
               <button id="addCond" class="btn">+ Añadir condición</button>
-              <button id="removeCond" class="btn">– Eliminar última</button>
+              <button id="removeCond" class="btn" disabled>– Eliminar última</button>
             </div>
-          </div>
 
           <button id="askBtn" class="btn-ask">Preguntar a CPU</button>
           <button id="toggleSuggest" class="btn btn-suggest">Resaltar sugerencias</button>
@@ -514,14 +515,21 @@ function visibleRows(){
 }
 function updateFeatureLegend(){
   const cont = $('#featLegend'); if(!cont) return;
+  const rowsNow = visibleRows();
+  if(rowsNow.length===0){ cont.innerHTML=''; return; }
   const asked = new Set(
-    visibleRows()
+    rowsNow
       .map(r => r.querySelector('.hq-feat')?.value)
       .filter(Boolean)
   );
   cont.innerHTML = '';
   FEATURES.forEach(f=>{
     const chip = h(`<span class="feat-chip">${f}</span>`);
+    if(asked.has(f)) chip.classList.add('active');
+    else chip.classList.add('dim');
+    cont.appendChild(chip);
+  });
+}</span>`);
     if(asked.has(f)) chip.classList.add('active');
     else chip.classList.add('dim');
     cont.appendChild(chip);
@@ -680,6 +688,7 @@ function newRound(){
   rows.forEach(r=> r.classList.add('hidden'));
   populateSelectors();
 
+  $('#humanQuery').classList.add('hidden');
   updateOrChips();
   updateAddRemoveButtons();
   updateFeatureLegend();
@@ -764,12 +773,23 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
     // añadir / quitar condiciones
     $('#addCond').addEventListener('click', ()=>{
+      const hq = $('#humanQuery');
       const rows=$$('#humanQuery .hq-row');
-      const next = rows.find(r=>r.classList.contains('hidden'));
-      if(next){
-        next.classList.remove('hidden');
-        const idx = parseInt(next.getAttribute('data-i'), 10) || 0;
-        updateRowValues(idx);
+      if(hq.classList.contains('hidden')){
+        hq.classList.remove('hidden');
+        const first = rows.find(r=>r.classList.contains('hidden'));
+        if(first){
+          first.classList.remove('hidden');
+          const idx = parseInt(first.getAttribute('data-i'), 10) || 0;
+          updateRowValues(idx);
+        }
+      } else {
+        const next = rows.find(r=>r.classList.contains('hidden'));
+        if(next){
+          next.classList.remove('hidden');
+          const idx = parseInt(next.getAttribute('data-i'), 10) || 0;
+          updateRowValues(idx);
+        }
       }
       updateOrChips();
       updateAddRemoveButtons();
@@ -779,6 +799,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
       const rows=visibleRows();
       if(rows.length>0){
         rows[rows.length-1].classList.add('hidden');
+      }
+      if(visibleRows().length===0){
+        $('#humanQuery').classList.add('hidden');
       }
       updateOrChips();
       updateAddRemoveButtons();
