@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -155,7 +158,7 @@
   .your-big img{width:100%; height:100%; object-fit:contain}
   .answer-chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.15);display:inline-flex;gap:8px;align-items:center}
   .answer-chip.ok{background:rgba(32,201,151,.12);border-color:rgba(32,201,151,.35)}
-  .answer-chip.bad{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.35)}
+  .answer-chip.bad{background:rgba(255,107,107,.12);border-color:rgba(255,255,255,.35)}
   .turntag{
     padding:.35rem .6rem;border-radius:999px;border:1px solid rgba(255,255,255,.2);
     background:linear-gradient(90deg,rgba(124,199,255,.25),rgba(167,139,250,.25));font-weight:800
@@ -244,7 +247,7 @@
     <section class="col">
       <h3 style="margin:4px 6px">Tablero humano — toca para descartar o restaurar</h3>
 
-      <!-- Pregunta del humano (1–3 condiciones unidas por "o") -->
+      <!-- Pregunta del humano (1–3 condiciones OR) -->
       <div class="ask-box" style="margin-bottom:8px">
         <div class="controls" style="flex-wrap:wrap; gap:12px">
           <div id="humanQuery">
@@ -334,19 +337,46 @@
 
 <script>
 /* ================ Carga de datos ================ */
-const JSON_URL = 'json/guess_who.json';
+// Posibles ubicaciones del JSON (intenta en orden)
+const JSON_CANDIDATES = [
+  'json/guess_who.json',
+  './json/guess_who.json',
+  './guess_who.json',
+  '/json/guess_who.json'
+];
 let DATA = [], byName = {}, FEATURES = [], VALUES = {};
 
 async function loadData(){
-  const res = await fetch(JSON_URL, {cache:'no-store'});
-  if(!res.ok) throw new Error('No se pudo cargar ' + JSON_URL);
-  DATA = await res.json();
-  byName = Object.fromEntries(DATA.map(d=>[d.Nombre, d]));
-  const exclude = new Set(["Nombre","URL"]);
-  FEATURES = Array.from(new Set(DATA.flatMap(o=>Object.keys(o)))).filter(k=>!exclude.has(k));
-  VALUES = Object.fromEntries(
-    FEATURES.map(f=>[f, Array.from(new Set(DATA.map(d=>d[f]).filter(v=>v!=null))).sort()])
-  );
+  let lastErr;
+  const bust = Date.now();
+  for(const raw of JSON_CANDIDATES){
+    const url = raw.includes('?') ? `${raw}&_=${bust}` : `${raw}?_=${bust}`;
+    try{
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok){ lastErr = new Error(`HTTP ${res.status} en ${raw}`); continue; }
+      const parsed = await res.json();
+      if(!Array.isArray(parsed) || parsed.length===0){ lastErr = new Error(`JSON vacío en ${raw}`); continue; }
+      if(!(('Nombre' in parsed[0]) && ('URL' in parsed[0]))){
+        const keys = Object.keys(parsed[0]||{});
+        throw new Error(`Estructura inesperada. Primer objeto tiene claves: ${keys.join(', ')}`);
+      }
+      // OK
+      DATA = parsed;
+      byName = Object.fromEntries(DATA.map(d=>[d.Nombre, d]));
+      const exclude = new Set(["Nombre","URL"]);
+      FEATURES = Array.from(new Set(DATA.flatMap(o=>Object.keys(o)))).filter(k=>!exclude.has(k));
+      VALUES = Object.fromEntries(
+        FEATURES.map(f=>[f, Array.from(new Set(DATA.map(d=>d[f]).filter(v=>v!=null))).sort()])
+      );
+      console.info('[guess_who] JSON cargado desde', raw, 'registros:', DATA.length);
+      return; // éxito
+    }catch(e){
+      lastErr = e; console.warn('[guess_who] Falló', raw, e);
+    }
+  }
+  const extra = location.protocol==='file:' ? "\nApertura por file:// detectada. Sirve el proyecto con un servidor local (p.ej., VS Code Live Server, npx http-server, o python -m http.server)." : '';
+  alert('No se pudo cargar el JSON. ' + (lastErr?.message||'') + extra);
+  throw lastErr || new Error('No se pudo cargar el JSON');
 }
 
 /* ================ Utilidades ================ */
@@ -617,6 +647,7 @@ function getHumanCompoundSet(){
     const v = r.querySelector('.hq-val').value;
     return {f,v};
   });
+  // Unión (OR) de todos los predicados seleccionados
   const sets = preds.map(p => new Set([...candCpu].filter(nm => byName[nm][p.f]===p.v)));
   const result = sets.length ? union(sets) : new Set();
   return {preds, set: result};
@@ -629,7 +660,7 @@ function humanAsk(){
   const {preds, set} = getHumanCompoundSet();
   if(!preds.length){ toast('Añade al menos una condición'); return; }
 
-  // La CPU responde "Sí" si su carta cumple al menos una condición (OR)
+  // La CPU responde "Sí" si su carta cumple al menos una condición (OR puro)
   const cpuMatches = preds.some(p => cpuSecret[p.f] === p.v);
 
   const chip=$('#lastAnswer');
@@ -637,12 +668,13 @@ function humanAsk(){
   chip.classList.add(cpuMatches?'ok':'bad');
   chip.querySelector('b').textContent = cpuMatches?'Sí':'No';
 
+  // Filtrado de candidatos del humano sobre la CPU
   if(cpuMatches){
-    candCpu = new Set([...candCpu].filter(n=>set.has(n)));
-    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm)));
+    candCpu = new Set([...candCpu].filter(n=>set.has(n)));      // keep union
+    suggestSet = new Set(DATA.map(p=>p.Nombre).filter(nm => !set.has(nm))); // sugiere descartar
   } else {
-    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));
-    suggestSet = new Set([...set]);
+    candCpu = new Set([...candCpu].filter(n=>!set.has(n)));     // remove union
+    suggestSet = new Set([...set]);                             // sugiere descartar los del set
   }
 
   $$('#humanQuery .hq-row').forEach((_,i)=>updateRowValues(i));
@@ -743,8 +775,7 @@ function toggleSuggestions(){
 window.addEventListener('DOMContentLoaded', ()=>{
   (async()=>{
     try{ await loadData(); }
-    catch(e){ alert(e.message + '
-Si abres el archivo desde file://, usa un servidor local para que fetch funcione.'); return; }
+    catch(e){ alert(e.message + '\nSi abres el archivo desde file://, usa un servidor local para que fetch funcione.'); return; }
 
     renderScores();
     populateSelectors();
@@ -787,6 +818,8 @@ Si abres el archivo desde file://, usa un servidor local para que fetch funcione
 </script>
 </body>
 </html>
+
+
 
 <!-- Contenedor del footer -->
 <div id="footer"></div>
