@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Guess Who – Humano vs Computadora (alterno + móvil)</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#101a2e; --panel-2:#0e1628; --card:#12213b;
+    --text:#e8eefc; --muted:#a9b6d4; --brand:#7cc7ff; --brand-2:#a78bfa;
+    --ok:#20c997; --bad:#ff6b6b; --warn:#ffc107; --radius:16px;
+
+    /* nuevos colores de botones */
+    --btn-ask:#1e88e5;        /* Preguntar a CPU */
+    --btn-ask-h:#1565c0;
+    --btn-suggest:#f59e0b;    /* Resaltar sugerencias */
+    --btn-suggest-h:#b45309;
+    --btn-accuse:#ef4444;     /* ¡Acusar! */
+    --btn-accuse-h:#b91c1c;
+    --btn-yes:#16a34a;        /* Sí */
+    --btn-yes-h:#15803d;
+    --btn-no:#dc2626;         /* No */
+    --btn-no-h:#991b1b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial;
+    background:linear-gradient(180deg, #0a1020, var(--bg));
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  a{color:var(--brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  header{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 16px;
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
+    border-bottom:1px solid rgba(255,255,255,.08);
+    backdrop-filter:saturate(140%) blur(8px);
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:40px;height:40px;display:grid;place-items:center;border-radius:12px;
+    border:1px solid #1e40af88;background:linear-gradient(135deg,#2563eb33,#22d3ee33);
+    font-weight:800;color:#dbeafe;flex:0 0 auto;
+  }
+  .title{
+    margin:0;line-height:1;font-weight:800;font-size:clamp(18px,3.2vw,28px);
+    background:linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 70%, var(--brand) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  select,button,.btn{
+    background:var(--panel); color:var(--text); border:1px solid rgba(255,255,255,.10);
+    border-radius:12px; padding:.7rem .9rem; font:inherit; font-size:16px; line-height:1;
+    cursor:pointer; transition:transform .08s ease, background .2s ease, border-color .2s ease; outline:none;
+  }
+  button:hover,.btn:hover{transform:translateY(-1px); background:var(--panel-2)}
+
+  /* estilos de botones especiales */
+  .btn-ask{background:var(--btn-ask); border-color:transparent}
+  .btn-ask:hover{background:var(--btn-ask-h)}
+  .btn-suggest{background:var(--btn-suggest); border-color:transparent; color:#0b0b0b; font-weight:700}
+  .btn-suggest:hover{background:var(--btn-suggest-h); color:#fff}
+  .btn-accuse{background:var(--btn-accuse); border-color:transparent}
+  .btn-accuse:hover{background:var(--btn-accuse-h)}
+  .btn-yes{background:var(--btn-yes); border-color:transparent; font-size:18px}
+  .btn-yes:hover{background:var(--btn-yes-h)}
+  .btn-no{background:var(--btn-no); border-color:transparent; font-size:18px}
+  .btn-no:hover{background:var(--btn-no-h)}
+
+  .question{font-size:20px; font-weight:700;}
+  .yn{display:flex;gap:8px;margin-top:8px}
+  .yn button{flex:1; padding:0.9rem 1rem}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">GW</div>
+      <h1 class="title">QUIÉN es QUIÉN – Humano vs Computadora</h1>
+      <h2 style="text-align: center;">
+        <span style="color: #ff9900;">Desarrollado por: Angel Soto</span>
+      </h2>
+    </div>
+    <div class="controls">
+      <button id="infoBtn" class="btn"><span class="qmark"></span> INFORMACIÓN / estrategia</button>
+      <button id="newRound">Nueva ronda</button>
+      <div class="score"><span>👤 Tú: <b id="hs">0</b></span> <span>🤖 CPU: <b id="cs">0</b></span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Columna central: Tablero + preguntas -->
+    <section class="col">
+      <h3>Tablero humano — toca para descartar o restaurar</h3>
+      <div class="ask-box">
+        <div id="humanQuery">
+          <!-- Fila 1 -->
+          <div class="hq-row hidden" data-i="0">
+            <select class="hq-feat"></select>
+            <select class="hq-val"></select>
+            <select class="hq-join"><option value="OR">o</option><option value="AND">y</option></select>
+          </div>
+          <!-- Fila 2 -->
+          <div class="hq-row hidden" data-i="1">
+            <select class="hq-feat"></select>
+            <select class="hq-val"></select>
+            <select class="hq-join"><option value="OR">o</option><option value="AND">y</option></select>
+          </div>
+          <!-- Fila 3 -->
+          <div class="hq-row hidden" data-i="2">
+            <select class="hq-feat"></select>
+            <select class="hq-val"></select>
+          </div>
+          <div>
+            <button id="addCond">+ Añadir condición</button>
+            <button id="removeCond">– Eliminar última</button>
+          </div>
+        </div>
+        <button id="askBtn" class="btn-ask">Preguntar a CPU</button>
+      </div>
+      <div class="board" id="board"></div>
+    </section>
+  </main>
+
+<script>
+const JSON_URL = 'json/guess_who.json';
+let DATA=[], byName={}, FEATURES=[];
+
+async function loadData(){
+  const res = await fetch(JSON_URL); DATA=await res.json();
+  byName = Object.fromEntries(DATA.map(d=>[d.Nombre,d]));
+  FEATURES = Object.keys(DATA[0]).filter(k=>!["Nombre","URL"].includes(k));
+}
+
+/* ========= CPU preguntas balanceadas ========= */
+function bestORQuestion(candidates){
+  const names = Array.from(candidates);
+  const n = names.length;
+  const feats = FEATURES.filter(f=>{
+    const vals = new Set(names.map(nm=>byName[nm][f]).filter(v=>v!==undefined));
+    return vals.size>=2;
+  });
+  const preds=[];
+  feats.forEach(f=>{
+    const vals = [...new Set(names.map(nm=>byName[nm][f]))];
+    vals.forEach(v=>preds.push({f,v,set:new Set(names.filter(nm=>byName[nm][f]===v))}));
+  });
+  if(!preds.length) return {preds:[], set:new Set()};
+  const target=n/2;
+  preds.sort((a,b)=>Math.abs(a.set.size-target)-Math.abs(b.set.size-target));
+  let choice=[preds[0]], unionSet=new Set(preds[0].set);
+  for(let k=2;k<=3;k++){
+    let best=null,bestScore=Infinity,bestSet=null;
+    for(const p of preds){
+      if(choice.some(c=>c.f===p.f&&c.v===p.v)) continue;
+      const u=new Set([...unionSet,...p.set]);
+      const sc=Math.abs(u.size-target);
+      if(sc<bestScore){best=p;bestScore=sc;bestSet=u;}
+    }
+    if(best && Math.abs(bestSet.size-target)<Math.abs(unionSet.size-target)){
+      choice.push(best); unionSet=bestSet;
+    } else break;
+  }
+  return {preds:choice.map(({f,v})=>({f,v})), set:unionSet};
+}
+
+/* ========= Inicialización ========= */
+function renderBoard(){
+  const board=document.getElementById("board"); board.innerHTML="";
+  DATA.forEach(p=>{
+    const card=document.createElement("div");
+    card.className="card"; card.innerHTML=`<img src="${p.URL}"/><div class="name">${p.Nombre}</div>`;
+    board.appendChild(card);
+  });
+}
+
+function populateSelectors(){
+  document.querySelectorAll('.hq-feat').forEach(sel=>{
+    sel.innerHTML = FEATURES.map(f=>`<option>${f}</option>`).join('');
+  });
+}
+
+function newRound(){
+  renderBoard(); populateSelectors();
+  document.querySelectorAll('.hq-row').forEach(r=>r.classList.add("hidden"));
+}
+
+/* ========= Botones ========= */
+window.addEventListener("DOMContentLoaded",async()=>{
+  await loadData(); newRound();
+  document.getElementById("addCond").onclick=()=>{
+    const hidden=[...document.querySelectorAll(".hq-row.hidden")];
+    if(hidden.length) hidden[0].classList.remove("hidden");
+  };
+  document.getElementById("removeCond").onclick=()=>{
+    const vis=[...document.querySelectorAll(".hq-row:not(.hidden)")];
+    if(vis.length) vis[vis.length-1].classList.add("hidden");
+  };
+  document.getElementById("newRound").onclick=newRound;
+});
+</script>
+</body>
+</html>
