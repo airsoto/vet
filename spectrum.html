@@ -13,199 +13,140 @@
     flex-direction: column;
     height: 100vh;
   }
-  #editor {
-    width: 100%;
-    height: 200px;
-    background: #111;
-    color: #0f0;
-    border: none;
-    padding: 10px;
-    resize: none;
-    font-family: inherit;
-    font-size: 14px;
-  }
   #screen {
     flex: 1;
-    background: #000;
-    border-top: 2px solid #0f0;
-    display: flex;
-    flex-direction: column;
-  }
-  #console {
-    flex: 1;
     padding: 10px;
-    overflow-y: auto;
     white-space: pre-wrap;
+    overflow-y: auto;
+  }
+  #inputLine {
+    display: inline;
+  }
+  #cursor {
+    display: inline;
+    background: #0f0;
+    color: #000;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% { background: #000; color: #0f0; }
   }
   canvas {
     border: 1px solid #0f0;
     background: #000;
     margin: 10px auto;
   }
-  button {
-    background: #0f0;
-    color: #000;
-    border: none;
-    padding: 10px 20px;
-    font-weight: bold;
-    cursor: pointer;
-  }
 </style>
 </head>
 <body>
-<textarea id="editor">
-10 CLS
-20 PRINT "HELLO WORLD"
-30 FOR I=1 TO 5
-40 SOUND 440, 200
-50 NEXT I
-60 PSET 100,100
-70 LINE 50,50,200,200
-80 CIRCLE 160,120,40
-90 END
-</textarea>
-<button onclick="runBasic()">Ejecutar</button>
-<div id="screen">
-  <div id="console"></div>
-  <canvas id="gfx" width="320" height="200"></canvas>
-</div>
+<div id="screen"></div>
+<canvas id="gfx" width="320" height="200"></canvas>
 
 <script>
+let program = {};
 let vars = {};
-let pc = 0;
-let lines = {};
-let lineNumbers = [];
-const consoleDiv = document.getElementById("console");
+let screen = document.getElementById("screen");
+let inputBuffer = "";
 const canvas = document.getElementById("gfx");
 const ctx = canvas.getContext("2d");
 
-// sonido BEEP / SOUND
+function printLine(text="") {
+  screen.innerHTML += text + "\n";
+  screen.scrollTop = screen.scrollHeight;
+}
+
+function newPrompt() {
+  screen.innerHTML += '<div id="inputLine"></div><div id="cursor">&nbsp;</div>';
+}
+
 function beep(freq = 440, duration = 200) {
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioCtx.createOscillator();
+  const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  oscillator.type = "square";
-  oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  osc.type = "square";
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
   gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-  oscillator.connect(gain).connect(audioCtx.destination);
-  oscillator.start();
-  oscillator.stop(audioCtx.currentTime + duration / 1000);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration / 1000);
 }
 
-// limpiar pantalla de texto
 function cls() {
-  consoleDiv.textContent = "";
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  screen.innerHTML = "";
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 }
 
-function printLine(text) {
-  consoleDiv.textContent += text + "\n";
-  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+function interpret(line) {
+  if (/^\d+ /.test(line)) {
+    let num = parseInt(line.split(" ")[0]);
+    let code = line.slice(line.indexOf(" ")+1);
+    if (code.trim()==="") delete program[num];
+    else program[num] = code;
+    return;
+  }
+  let parts = line.trim().split(" ");
+  let cmd = parts.shift().toUpperCase();
+  switch(cmd) {
+    case "PRINT":
+      printLine(parts.join(" ").replace(/"/g,""));
+      break;
+    case "BEEP":
+      beep(); break;
+    case "SOUND":
+      beep(parseInt(parts[0]), parseInt(parts[1])); break;
+    case "CLS":
+      cls(); break;
+    case "RUN":
+      runProgram();
+      break;
+    case "LIST":
+      let out="";
+      Object.keys(program).sort((a,b)=>a-b).forEach(n=>{
+        out += n+" "+program[n]+"\n";
+      });
+      printLine(out);
+      break;
+    case "NEW":
+      program = {};
+      printLine("Nuevo programa cargado.");
+      break;
+    default:
+      printLine("Comando desconocido: "+cmd);
+  }
 }
 
-// intérprete principal
-async function runBasic() {
-  cls();
+async function runProgram() {
   vars = {};
-  pc = 0;
-  lines = {};
-  const code = document.getElementById("editor").value.split("\n");
-  for (let line of code) {
-    let m = line.trim().match(/^(\d+)\s+(.*)$/);
-    if (m) lines[parseInt(m[1])] = m[2];
-  }
-  lineNumbers = Object.keys(lines).map(n => parseInt(n)).sort((a,b)=>a-b);
-
-  while (pc < lineNumbers.length) {
-    let ln = lineNumbers[pc];
-    let line = lines[ln].trim();
-    if (line === "") { pc++; continue; }
-
-    let parts = line.split(" ");
-    let cmd = parts.shift().toUpperCase();
-
-    switch(cmd) {
-      case "REM": break;
-      case "CLS": cls(); break;
-      case "PRINT":
-        let text = parts.join(" ");
-        text = text.replace(/"/g,"").replace(/([A-Z]\w*)/gi, v => vars[v] ?? v);
-        printLine(text);
-        break;
-      case "LET":
-        let [varName, value] = parts.join(" ").split("=");
-        try { vars[varName.trim()] = eval(value.trim()); }
-        catch { vars[varName.trim()] = value.trim(); }
-        break;
-      case "INPUT":
-        let promptText = parts.join(" ").replace(/"/g,"");
-        let userVal = prompt(promptText);
-        let vName = promptText.split(";").pop().trim();
-        vars[vName] = isNaN(userVal) ? userVal : Number(userVal);
-        break;
-      case "IF":
-        let cond = line.match(/IF (.+) THEN/)[1];
-        let thenPart = line.split("THEN")[1].trim();
-        let result = eval(cond.replace(/([A-Z]\w*)/gi, v => vars[v] ?? 0));
-        if (result) {
-          if (thenPart.startsWith("GOTO")) {
-            let target = parseInt(thenPart.split(" ")[1]);
-            pc = lineNumbers.indexOf(target) - 1;
-          } else if (thenPart.startsWith("PRINT")) {
-            printLine(thenPart.replace("PRINT","").replace(/"/g,""));
-          }
-        }
-        break;
-      case "GOTO":
-        let target = parseInt(parts[0]);
-        pc = lineNumbers.indexOf(target) - 1;
-        break;
-      case "FOR":
-        let [varName2, rest] = parts.join("").split("=");
-        let [start, to] = rest.split("TO");
-        vars[varName2] = parseInt(start);
-        vars["FOR_END"] = parseInt(to);
-        vars["FOR_VAR"] = varName2;
-        break;
-      case "NEXT":
-        let v = vars["FOR_VAR"];
-        vars[v]++;
-        if (vars[v] <= vars["FOR_END"]) {
-          pc = lineNumbers.indexOf(lineNumbers[pc]-10); // vuelve 1 línea antes del NEXT
-        }
-        break;
-      case "END":
-        return;
-      case "BEEP":
-        beep(); break;
-      case "SOUND":
-        let freq = parseInt(parts[0]);
-        let dur = parseInt(parts[1]);
-        beep(freq, dur);
-        break;
-      case "PSET":
-        ctx.fillStyle = "#0f0";
-        ctx.fillRect(parseInt(parts[0]), parseInt(parts[1]), 2, 2);
-        break;
-      case "LINE":
-        ctx.strokeStyle = "#0f0";
-        ctx.beginPath();
-        ctx.moveTo(parseInt(parts[0]), parseInt(parts[1]));
-        ctx.lineTo(parseInt(parts[2]), parseInt(parts[3]));
-        ctx.stroke();
-        break;
-      case "CIRCLE":
-        ctx.strokeStyle = "#0f0";
-        ctx.beginPath();
-        ctx.arc(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]), 0, 2*Math.PI);
-        ctx.stroke();
-        break;
-      default:
-        printLine("Comando no reconocido: " + cmd);
-    }
-    pc++;
+  let lines = Object.keys(program).map(n=>parseInt(n)).sort((a,b)=>a-b);
+  for (let ln of lines) {
+    let code = program[ln];
+    interpret(code);
+    await new Promise(r=>setTimeout(r,10));
   }
 }
+
+document.addEventListener("keydown", e => {
+  let inputLine = document.getElementById("inputLine");
+  if (!inputLine) return;
+  if (e.key.length === 1 && !e.ctrlKey) {
+    inputBuffer += e.key;
+    inputLine.textContent = inputBuffer;
+  } else if (e.key === "Backspace") {
+    inputBuffer = inputBuffer.slice(0,-1);
+    inputLine.textContent = inputBuffer;
+  } else if (e.key === "Enter") {
+    screen.innerHTML = screen.innerHTML.replace('<div id="cursor">&nbsp;</div>',"");
+    printLine();
+    interpret(inputBuffer);
+    inputBuffer = "";
+    newPrompt();
+  }
+});
+
+// iniciar
+printLine("GW-BASIC 2.0 EMULATOR");
+printLine("1985 (C) Microsoft");
+newPrompt();
 </script>
 </body>
 </html>
