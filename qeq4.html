@@ -110,11 +110,11 @@
     background:rgba(255,255,255,.05);
     border:1px dashed rgba(255,255,255,.15);
     border-radius:10px;padding:10px;display:flex;align-items:center;
-    font-size:20px; font-weight:700;
+    font-size:20px; font-weight:700;   /* ⬅️ más grande */
   }
 
   .yn{display:flex;gap:8px;margin-top:8px}
-  .yn button{flex:1; padding:0.9rem 1rem}
+  .yn button{flex:1; padding:0.9rem 1rem} /* ⬅️ más grandes */
 
   .candidates{
     overflow:auto;border-radius:14px;background:var(--panel);border:1px solid rgba(255,255,255,.10);
@@ -170,6 +170,21 @@
   .picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60svh;overflow:auto}
   .pick{cursor:pointer}
   .pick:hover{outline:2px solid var(--brand)}
+
+  /* ====== NUEVO: Leyenda de características (chips) ====== */
+  .feat-legend{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .feat-chip{
+    font-size:12px; padding:4px 8px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.04);
+    opacity:.35; transition:opacity .2s ease, background .2s ease, border-color .2s ease;
+  }
+  .feat-chip.active{
+    opacity:1;
+    background:linear-gradient(90deg, rgba(124,199,255,.20), rgba(167,139,250,.20));
+    border-color:rgba(124,199,255,.45);
+  }
+  .feat-chip.dim{opacity:.2; filter:grayscale(.2)}
 </style>
 </head>
 <body>
@@ -225,7 +240,7 @@
     <section class="col">
       <h3 style="margin:4px 6px">Tablero humano — toca para descartar o restaurar</h3>
 
-      <!-- Pregunta compuesta del humano (hasta 3 condiciones) -->
+      <!-- NUEVA: Pregunta compuesta del humano (hasta 3 condiciones) -->
       <div class="ask-box" style="margin-bottom:8px">
         <div class="controls" style="flex-wrap:wrap; gap:12px">
           <div id="humanQuery">
@@ -293,6 +308,10 @@
           <button id="toggleSuggest" class="btn btn-suggest">Resaltar sugerencias</button>
           <button id="accuseBtn" class="btn btn-accuse">¡Acusar!</button>
         </div>
+
+        <!-- ===== NUEVO: leyenda visual de características ===== -->
+        <div id="featLegend" class="feat-legend"></div>
+
         <div id="lastAnswer" class="answer-chip hidden" style="margin-top:8px"><span>Respuesta CPU:</span> <b>—</b></div>
       </div>
 
@@ -501,9 +520,24 @@ function updateRowValues(idx){
   row.querySelector('.hq-val').innerHTML = vals.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
 
-/* ---------------- NUEVAS utilidades para condiciones compuestas ---------------- */
+/* ---------------- NUEVO: sombreado de características ---------------- */
 function visibleRows(){
   return $$('#humanQuery .hq-row').filter(r=>!r.classList.contains('hidden'));
+}
+function updateFeatureLegend(){
+  const cont = $('#featLegend'); if(!cont) return;
+  const asked = new Set(
+    visibleRows()
+      .map(r => r.querySelector('.hq-feat')?.value)
+      .filter(Boolean)
+  );
+  cont.innerHTML = '';
+  FEATURES.forEach(f=>{
+    const chip = h(`<span class="feat-chip">${f}</span>`);
+    if(asked.has(f)) chip.classList.add('active');
+    else chip.classList.add('dim');
+    cont.appendChild(chip);
+  });
 }
 function updateJoinVisibility(){
   const rows = visibleRows();
@@ -518,11 +552,11 @@ function updateAddRemoveButtons(){
   const addBtn = $('#addCond');
   const rmvBtn = $('#removeCond');
   addBtn.disabled = rows.length >= 3;
-  rmvBtn.disabled = rows.length <= 1;   // ⬅️ siempre deja al menos 1 fila
+  rmvBtn.disabled = rows.length <= 1;   // deja mínimo 1
   addBtn.style.opacity = addBtn.disabled ? 0.6 : 1;
   rmvBtn.style.opacity = rmvBtn.disabled ? 0.6 : 1;
 }
-/* ------------------------------------------------------------------------------ */
+/* -------------------------------------------------------------------- */
 
 function populateSelectors(){
   const featSel=$('#featSel'); if(featSel){ featSel.innerHTML = FEATURES.map(f=>`<option value="${f}">${f}</option>`).join(''); }
@@ -534,16 +568,20 @@ function populateSelectors(){
     const fSel = row.querySelector('.hq-feat');
     const vSel = row.querySelector('.hq-val');
     fSel.innerHTML = FEATURES.map(f=>`<option value="${f}">${f}</option>`).join('');
-    fSel.addEventListener('change', ()=>updateRowValues(idx));
+    fSel.addEventListener('change', ()=>{
+      updateRowValues(idx);
+      updateFeatureLegend();     // ⬅️ actualizar sombreado al cambiar característica
+    });
     updateRowValues(idx);
   });
+
   // por defecto: 1ª visible, 2ª y 3ª ocultas
   rows[1].classList.add('hidden');
   rows[2].classList.add('hidden');
 
-  // ajustar joins y botones
   updateJoinVisibility();
   updateAddRemoveButtons();
+  updateFeatureLegend();          // ⬅️ inicial
 }
 
 /* ================ Turnos ================ */
@@ -633,9 +671,11 @@ function humanAsk(){
     suggestSet = new Set([...set]);
   }
 
+  // actualizar valores y sombreado
   $$('#humanQuery .hq-row').forEach((_,i)=>updateRowValues(i));
   updateJoinVisibility();
   updateAddRemoveButtons();
+  updateFeatureLegend();   // ⬅️ mantener la leyenda al día
 
   setTurn('cpu'); setTimeout(cpuAsk, 450);
 }
@@ -659,13 +699,14 @@ function newRound(){
   $('#yourImg').src=''; $('#yourName').textContent='(elige al empezar)';
   $('#lastAnswer').classList.add('hidden');
 
-  // ⬇️ Reinicia: 1ª condición visible, 2ª y 3ª ocultas
+  // Reinicia: 1ª condición visible, 2ª y 3ª ocultas
   const rows = $$('#humanQuery .hq-row');
   rows.forEach((r,i)=> i===0 ? r.classList.remove('hidden') : r.classList.add('hidden'));
   populateSelectors();
 
   updateJoinVisibility();
   updateAddRemoveButtons();
+  updateFeatureLegend();   // ⬅️ resetear legend
 
   if (starter === 'cpu') {
     setTurn('cpu');
@@ -722,7 +763,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     renderCandidatesGrid();
     newRound();
 
-    // Controles
+    // Botones y controles
     $('#askBtn').addEventListener('click', humanAsk);
     $('#toggleSuggest').addEventListener('click', toggleSuggestions);
     $('#newRound').addEventListener('click', newRound);
@@ -741,14 +782,16 @@ window.addEventListener('DOMContentLoaded', ()=>{
       }
       updateJoinVisibility();
       updateAddRemoveButtons();
+      updateFeatureLegend();  // ⬅️ actualizar sombreado al añadir
     });
     $('#removeCond').addEventListener('click', ()=>{
       const rows=visibleRows();
-      if(rows.length>1){ // deja mínimo 1
+      if(rows.length>1){
         rows[rows.length-1].classList.add('hidden');
       }
       updateJoinVisibility();
       updateAddRemoveButtons();
+      updateFeatureLegend();  // ⬅️ actualizar sombreado al quitar
     });
   })();
 });
