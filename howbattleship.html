@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Juego Hundir la Flota – Estrategia CPU vs Humano</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: 'Georgia', serif;
+      padding: 2em;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      color: #90caf9;
+      margin-bottom: 0.2em;
+    }
+    h1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    a {
+      color: #64b5f6;
+    }
+    .section {
+      background-color: #1e1e1e;
+      border-left: 5px solid #64b5f6;
+      padding: 1.2em;
+      margin-top: 2em;
+      border-radius: 8px;
+    }
+    .code-box {
+      background-color: #1b1b1b;
+      border-left: 5px solid #ff9900;
+      padding: 1em;
+      margin-top: 1em;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95em;
+      overflow-x: auto;
+      color: #dcdcdc;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    Juego Hundir la Flota – Estrategia CPU vs Humano
+    <!-- Enlace inicio -->
+    <p style="margin:0; font-size:0.9em; text-align:right;">
+      <a href="https://airsoto.github.io/vet/" 
+         style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+        🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
+      </a>
+    </p>
+  </h1>
+
+  <div class="section">
+    <h2>Instrucciones del juego</h2>
+    <p>
+      El tablero tiene un tamaño de <b>10×10</b>. La flota en mi versión incluye:
+    </p>
+    <ul>
+      <li>1 portaaviones (5 casillas)</li>
+      <li>2 acorazados (4 casillas)</li>
+      <li>6 barcos de 3 casillas (3 cruceros + 3 submarinos)</li>
+      <li>5 destructores (2 casillas)</li>
+    </ul>
+    <p>
+      <b>Regla clave:</b> No está permitido que los barcos se toquen ni por los lados ni por las esquinas, dejando siempre una casilla de agua alrededor.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Estrategia de la CPU</h2>
+    <p>
+      Para programar la inteligencia artificial de la CPU he seguido las ideas del artículo de 
+      <i>Rodin et al. (1988)</i>, con ajustes necesarios a mi flota y reglas.
+    </p>
+
+    <h3>División en fases</h3>
+    <ol>
+      <li><b>Localizar:</b> la CPU realiza disparos según un patrón de muestreo (“strafing”) optimizado para detectar barcos.</li>
+      <li><b>Derribo:</b> una vez localizado un impacto, inicia un algoritmo sistemático para hundir el barco completo.</li>
+    </ol>
+
+    <h3>Fase 1 — Localizar</h3>
+    <ul>
+      <li>Se emplea un patrón diagonal que garantiza tocar barcos de ≥3 casillas.</li>
+      <li>Se calculan <b>frecuencias de ocupación</b> (matriz de calor) según cuántas posiciones válidas de cada barco pasan por cada casilla.</li>
+      <li>En mi flota se pondera: 
+        <div class="code-box">
+          Freq_comp = 1·F5 + 2·F4 + 6·F3 (+ opcionalmente F2)
+        </div>
+      </li>
+      <li>El orden de disparo se organiza desde el centro hacia afuera, con prioridad en casillas más probables.</li>
+      <li>Dado que hay muchos barcos de 2 casillas, la CPU inyecta periódicamente disparos en casillas con alta frecuencia F2.</li>
+    </ul>
+
+    <h3>Fase 2 — Derribo</h3>
+    <p>Cuando la CPU logra un impacto:</p>
+    <ul>
+      <li>Si solo hay un impacto, prueba ortogonales (arriba/abajo/izquierda/derecha), priorizando hacia el centro.</li>
+      <li>Con dos o más impactos alineados, sigue la orientación hasta hundir el barco.</li>
+      <li>En mi versión, se elimina el “caso especial de barcos pegados” porque la regla de no contacto lo prohíbe.</li>
+      <li>Una vez hundido un barco, continúa con otros impactos pendientes o retoma el patrón de localización.</li>
+    </ul>
+
+    <h3>Mop-up para barcos de 2</h3>
+    <p>
+      Los barcos pequeños son los más difíciles de encontrar. Si al final quedan destructores sin localizar, la CPU aplica un patrón de limpieza (“mop-up”) diseñado para cubrir de manera óptima barcos de 2 casillas.
+    </p>
+
+    <h3>Colocación de la CPU (defensa)</h3>
+    <p>
+      Para defenderse, la CPU coloca los barcos siguiendo estrategias perimetrales y rotando entre partidas, siempre con corona de agua alrededor para cumplir la regla de no contacto.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Referencia</h2>
+    <p>
+      Rodin, E. Y., Cowley, J., Huck, K., Payne, S., & Politte, D. (1988). 
+      Developing a strategy for "battleship". <i>Mathematical and Computer Modelling</i>, 10(2), 145-153. 
+      <a href="https://doi.org/10.1016/0895-7177(88)90075-1" target="_blank">DOI</a>
+    </p>
+  </div>
+</body>
+</html>
