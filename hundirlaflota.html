@@ -16,17 +16,14 @@
     margin:0; background: radial-gradient(1200px 800px at 70% -10%, #17264a 0%, var(--bg) 45%, #060b16 100%);
     color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
   }
-  header{
-    padding:24px 16px 8px; max-width:1100px; margin:0 auto;
-  }
+  header{ padding:24px 16px 8px; max-width:1100px; margin:0 auto; }
   h1{margin:0 0 8px; font-size: clamp(24px, 4vw, 36px); letter-spacing:.3px}
-  .subrow{
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-  }
+  .subrow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .by{ margin:0; color:#ff9900; font-weight:600; }
   .home-link{margin:0; font-size:0.9em; text-align:right;}
   .home-link a{color:var(--accent); text-decoration:none; display:flex; align-items:center; gap:6px; justify-content:flex-end}
   .wrap{ max-width:1100px; margin:0 auto; padding:12px 16px 40px; }
+
   .topbar{
     display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;
     background:linear-gradient(180deg, var(--panel), var(--bg2));
@@ -64,13 +61,40 @@
   .board-title h3{margin:0; font-size:18px; color:#e6f0ff}
   .legend{font-size:12px; color:var(--muted)}
 
+  /* Cuerpo del tablero + panel de flota a un lado */
+  .board-body{
+    display:grid; grid-template-columns: 1fr 120px; gap:12px; align-items:start;
+  }
+  .fleetPanel{
+    background:linear-gradient(180deg, #0f1a30, #0b1220);
+    border:1px solid #1b2947; border-radius:12px; padding:8px;
+    font-size:12px; color:#c9d6f7;
+  }
+  .fleetPanel h4{ margin:0 0 6px; font-size:12px; color:#a9c2ff; letter-spacing:.3px }
+  .fleetRow{ display:flex; align-items:center; gap:6px; margin:6px 0; }
+  .sizeTag{ width:24px; text-align:center; font-weight:700; color:#cfe2ff; background:#0f203d; border:1px solid #1c3158; border-radius:6px; padding:2px 0; }
+  .miniShips{ display:flex; flex-wrap:wrap; gap:4px; }
+  .miniShip{
+    position:relative; display:grid; grid-auto-flow:column; gap:2px; padding:3px 4px; border-radius:6px;
+    background:#0c1528; border:1px solid #203153;
+    filter: drop-shadow(0 0 4px rgba(144,202,249,.5)); /* sombreado = pendiente */
+  }
+  .miniShip.is-sunk{
+    opacity:.35; filter:none; /* hundido = sin sombra */
+  }
+  .miniShip.is-sunk::after{
+    content:""; position:absolute; left:4px; right:4px; top:50%; height:2px; background:#ff6b6b; opacity:.7; transform:rotate(-10deg);
+    border-radius:2px;
+  }
+  .seg{ width:6px; height:8px; border-radius:2px; background:#6b7b92; }
+  .counts{ margin-top:6px; color:#9fb4e8; font-size:11px; }
+
   .grid{
     --cell: 34px;
     display:grid; grid-template-columns: 22px repeat(10, var(--cell));
     grid-template-rows: 22px repeat(10, var(--cell));
     gap:4px; background:transparent; user-select:none;
-    touch-action: manipulation;               /* ► Tap inmediato en móvil */
-    -webkit-tap-highlight-color: transparent; /* ► Sin flash azul en iOS */
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   .lbl{
     display:flex; align-items:center; justify-content:center;
@@ -90,29 +114,45 @@
   .cell.hit::after{
     content:""; position:absolute; inset:0; background:
       radial-gradient(circle at 50% 50%, rgba(239,68,68,.95) 0 40%, transparent 42% 100%);
-    pointer-events:none;
-    mix-blend-mode:screen;
+    pointer-events:none; mix-blend-mode:screen;
   }
 
-  /* Mis barcos visibles */
   .my .cell.ship{ background: linear-gradient(180deg, #273040, #1d2533); border-color:#435066; }
 
-  /* Piezas (proa/popa/medio) */
-  .piece{
-    position:absolute; inset:3px; border-radius:6px; background:linear-gradient(180deg, var(--ship), #374151);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.3);
-  }
-  .cpu .cell:not(.hit):not(.sunk) .piece{ display:none; }
-  .piece.hit{ background: linear-gradient(180deg, #b91c1c, var(--ship-hit)); }
-  .piece.sunk{ background: linear-gradient(180deg, #7b8796, var(--sunk)); }
-  .piece.bow.right{ clip-path: polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%); }
-  .piece.stern.left{ clip-path: polygon(100% 0%, 15% 0%, 0% 50%, 15% 100%, 100% 100%); }
-  .piece.mid.h{ }
-  .piece.bow.left{ clip-path: polygon(100% 0%, 15% 0%, 0% 50%, 15% 100%, 100% 100%); transform: scaleX(-1); }
-  .piece.stern.right{ clip-path: polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%); transform: scaleX(-1); }
-  .piece.bow.down{ clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%); }
-  .piece.stern.up{ clip-path: polygon(0% 100%, 100% 100%, 100% 15%, 50% 0%, 0% 15%); }
-  .piece.mid.v{ }
+/* === Piezas con imágenes (b1=proa, b2=medio, b3=popa) === */
+.piece{
+  position:absolute; inset:3px; border-radius:6px;
+  background: none !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;   /* usa 'cover' si quieres rellenar a tope */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.3);
+  transition: filter .15s ease;
+}
+
+/* Tablero CPU: ocultar piezas no reveladas */
+.cpu .cell:not(.hit):not(.sunk) .piece{ display:none !important; }
+
+/* Efectos de estado sin cambiar la imagen */
+.piece.hit{  filter: brightness(1.05) saturate(1.2) drop-shadow(0 0 6px rgba(239,68,68,.8)); }
+.piece.sunk{ filter: grayscale(.85) brightness(.85); }
+
+/* --- Mapeo por rol y orientación --- */
+/* Horizontal (izq→der): primer tramo 'bow.right', último 'stern.left' */
+.piece.bow.right  { background-image: url('imagenes/b1.png') !important; transform: none !important; }
+.piece.mid.h      { background-image: url('imagenes/b2.png') !important; transform: none !important; }
+.piece.stern.left { background-image: url('imagenes/b3.png') !important; transform: none !important; }
+
+/* Vertical (arriba→abajo): primer tramo 'bow.down', último 'stern.up' */
+.piece.bow.down { background-image: url('imagenes/b1.png') !important; transform: rotate(90deg) !important; }
+.piece.mid.v    { background-image: url('imagenes/b2.png') !important; transform: rotate(90deg) !important; }
+.piece.stern.up { background-image: url('imagenes/b3.png') !important; transform: rotate(90deg) !important; }
+
+/* (Opcionales por si más adelante generas estas clases) */
+.piece.bow.left    { background-image: url('imagenes/b1.png') !important; transform: scaleX(-1) !important; }
+.piece.stern.right { background-image: url('imagenes/b3.png') !important; transform: scaleX(-1) !important; }
+
+
 
   .status{
     margin-top:16px; background: linear-gradient(180deg, var(--panel), #0c1528);
@@ -121,19 +161,15 @@
   }
   .msg{font-size:15px}
   .hint{font-size:12px; color:var(--muted)}
-  .queue{
-    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
-    margin-top:10px; color:var(--muted); font-size:13px;
-  }
+
+  .queue{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; color:var(--muted); font-size:13px; }
   .badge{ background:#0f203d; border:1px solid #1c3158; padding:6px 8px; border-radius:999px; display:flex; gap:6px; align-items:center; }
   .badge .dot{width:10px; height:10px; border-radius:50%; background:var(--brand); display:inline-block}
 
-  .foot{margin-top:16px; font-size:12px; color:var(--muted); text-align:center}
+  .foot{margin-top:16px; font-size:12px; color:#muted; text-align:center}
 
-  /* Estados de interactividad */
-  .noinput{ pointer-events:none; }  /* desactiva clicks/taps sin cambiar opacidad */
+  .noinput{ pointer-events:none; }
 
-  /* Apuesta (apuntado) de la CPU antes de resolver el tiro */
   .cell.aim::before{
     content:""; position:absolute; inset:3px; border:2px dashed #ffd166; border-radius:6px;
     animation: aimPing .6s ease-in-out infinite alternate;
@@ -143,7 +179,6 @@
     to{ transform: scale(1.02); opacity:.4 }
   }
 
-  /* Modal */
   .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:1000}
   .modal.open{display:flex}
   .modal .box{
@@ -154,14 +189,36 @@
   .modal .box h3{margin-top:0}
   .modal .box p, .modal .box li{color:#d7e3ff}
   .closeX{float:right; background:#3a4764; border-color:#54658a}
-  @media (max-width: 900px){ .boards{grid-template-columns:1fr} }
+
+  @media (max-width: 900px){
+    .boards{grid-template-columns:1fr}
+    .board-body{ grid-template-columns: 1fr; }
+  }
+
+  .nav-links{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.how-link{ margin:0; font-size:0.9em; text-align:right; }
+.how-link a{
+  color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:6px;
+}
+
+
 </style>
 </head>
 <body>
   <header>
-    <h1>Hundir la Flota — Humano vs CPU</h1>
-    <div class="subrow">
-      <h2 class="by">Desarrollado por: Angel Soto</h2>
+  <header>
+  <h1>Hundir la Flota — Humano vs CPU</h1>
+  <div class="subrow">
+    <h2 class="by">Desarrollado por: Angel Soto</h2>
+
+    <div class="nav-links">
+      <p class="how-link">
+        <a href="https://airsoto.github.io/vet/howbattleship.html">
+          📄 <span style="font-size:0.9em;">Como está creada esta página</span>
+        </a>
+      </p>
       <!-- Enlace inicio -->
       <p class="home-link">
         <a href="https://airsoto.github.io/vet/">
@@ -169,7 +226,9 @@
         </a>
       </p>
     </div>
-  </header>
+  </div>
+</header>
+
 
   <div class="wrap">
     <div class="topbar">
@@ -188,21 +247,37 @@
     </div>
 
     <div class="boards">
+      <!-- TABLERO HUMANO -->
       <div class="board-card">
         <div class="board-title">
           <h3>Tu tablero</h3>
-          <div class="legend">Coloca tus barcos (no se tocan ni en esquinas). Orientación actual: <b><span id="oriLabel">Horizontal</span></b></div>
+          <div class="legend">Coloca tus barcos (no se tocan ni en esquinas). Orientación: <b><span id="oriLabel">Horizontal</span></b></div>
         </div>
-        <div id="gridMe" class="grid my" aria-label="Tablero Humano"></div>
+        <div class="board-body">
+          <div id="gridMe" class="grid my" aria-label="Tablero Humano"></div>
+          <aside class="fleetPanel" id="fleetMe">
+            <h4>CPU → tú</h4>
+            <div class="fleetList"></div>
+            <div class="counts"></div>
+          </aside>
+        </div>
         <div class="queue" id="queue"></div>
       </div>
 
+      <!-- TABLERO CPU -->
       <div class="board-card">
         <div class="board-title">
           <h3>Tablero CPU</h3>
           <div class="legend">Toca una casilla para disparar (A–J, 1–10)</div>
         </div>
-        <div id="gridCPU" class="grid cpu" aria-label="Tablero CPU"></div>
+        <div class="board-body">
+          <div id="gridCPU" class="grid cpu" aria-label="Tablero CPU"></div>
+          <aside class="fleetPanel" id="fleetCPU">
+            <h4>Tú → CPU</h4>
+            <div class="fleetList"></div>
+            <div class="counts"></div>
+          </aside>
+        </div>
       </div>
     </div>
 
@@ -225,14 +300,14 @@
         <li><b>No</b> está permitido que los barcos se toquen ni por los lados ni por las esquinas.</li>
         <li>Coloca tus barcos (clic o toque). <b>Rotar (R)</b> cambia orientación. Puedes usar <b>Colocación automática</b>.</li>
         <li>Pulsa <b>Nueva partida</b> para empezar. El comienzo es <b>aleatorio</b> y se anuncia en pantalla.</li>
-        <li>Dispara tocando el tablero de la CPU. La CPU mostrará dónde apunta y 0.3 s después el resultado.</li>
+        <li>Dispara tocando el tablero de la CPU. La CPU muestra dónde apunta y 0.3 s después el resultado.</li>
       </ul>
     </div>
   </div>
 
 <script>
 (() => {
-  // ===================== Configuración del juego =====================
+  // ===================== Configuración =====================
   const SIZE = 10;
   const FLEET_DEF = [
     { name: "Portaaviones", size: 5, count: 1, key: "P5" },
@@ -244,12 +319,12 @@
   const ORI = { H: "H", V: "V" };
   const STATE = { UNKNOWN:0, MISS:1, HIT:2, SUNK:3 };
 
-  // IA (búsqueda/derribo)
+  // IA
   const WEIGHTS = { w5:1, w4:2, w3:6 };
   const F2_INJECT_EVERY = 6;
   const CENTER = { r: (SIZE-1)/2, c: (SIZE-1)/2 };
 
-  // ===================== Estado global =====================
+  // Estado
   let boardMe, boardCPU;
   let shipsMe = [], shipsCPU = [];
   let placing = true;
@@ -260,45 +335,36 @@
 
   // IA CPU
   let cpuShots = new Set();
-  let cpuMode = "SEARCH";      // SEARCH | TARGET | MOPUP
+  let cpuMode = "SEARCH";
   let cpuHitQueue = [];
   let cpuSearchCount = 0;
   let cpuRemaining = {};
 
-  // Marcador persistente
+  // Marcador
   let score = { human:0, cpu:0 };
 
-  // ===================== Utilidades =====================
+  // Utils
   const RC = (r,c) => `${r},${c}`;
   const inBounds = (r,c) => r>=0 && r<SIZE && c>=0 && c<SIZE;
   const distCenter = (r,c) => Math.hypot(r - CENTER.r, c - CENTER.c);
 
   function loadScore(){
-    try{
-      const raw = localStorage.getItem("battleship_score");
-      if(raw){ score = JSON.parse(raw); }
-    }catch(e){}
+    try{ const raw = localStorage.getItem("battleship_score"); if(raw) score = JSON.parse(raw); }catch(e){}
     updateScoreUI();
   }
-  function saveScore(){
-    try{ localStorage.setItem("battleship_score", JSON.stringify(score)); }catch(e){}
-  }
+  function saveScore(){ try{ localStorage.setItem("battleship_score", JSON.stringify(score)); }catch(e){} }
   function updateScoreUI(){
     document.getElementById("humanScore").textContent = score.human;
     document.getElementById("cpuScore").textContent = score.cpu;
   }
 
   function makeEmptyBoard(){
-    return Array.from({length:SIZE}, () =>
-      Array.from({length:SIZE}, () => ({ shipId:-1, state:STATE.UNKNOWN }))
-    );
+    return Array.from({length:SIZE}, () => Array.from({length:SIZE}, () => ({ shipId:-1, state:STATE.UNKNOWN })));
   }
 
   function fleetToQueue(){
     const q = [];
-    FLEET_DEF.forEach(f=>{
-      for(let i=0;i<f.count;i++) q.push({ name:f.name, size:f.size, key:f.key, id:null });
-    });
+    FLEET_DEF.forEach(f=>{ for(let i=0;i<f.count;i++) q.push({ name:f.name, size:f.size, key:f.key, id:null }); });
     q.sort((a,b)=> b.size - a.size);
     return q;
   }
@@ -337,11 +403,8 @@
   function placeShip(board, ships, name, size, r, c, ori){
     const id = ships.length;
     const coords=[];
-    if(ori===ORI.H){
-      for(let k=0;k<size;k++){ board[r][c+k].shipId = id; coords.push({r:r, c:c+k}); }
-    }else{
-      for(let k=0;k<size;k++){ board[r+k][c].shipId = id; coords.push({r:r+k, c:c}); }
-    }
+    if(ori===ORI.H){ for(let k=0;k<size;k++){ board[r][c+k].shipId=id; coords.push({r:r,c:c+k}); } }
+    else{ for(let k=0;k<size;k++){ board[r+k][c].shipId=id; coords.push({r:r+k,c:c}); } }
     ships.push({ id, name, size, coords, hits:new Set(), sunk:false, ori });
     return ships[ships.length-1];
   }
@@ -358,10 +421,7 @@
           const ori = (Math.random()<0.5)? ORI.H : ORI.V;
           const r = Math.floor(Math.random()*SIZE);
           const c = Math.floor(Math.random()*SIZE);
-          if(canPlace(board,r,c,item.size,ori)){
-            placeShip(board,ships,item.name,item.size,r,c,ori);
-            placed=true; break;
-          }
+          if(canPlace(board,r,c,item.size,ori)){ placeShip(board,ships,item.name,item.size,r,c,ori); placed=true; break; }
         }
         if(!placed){ ok=false; break; }
       }
@@ -371,28 +431,25 @@
   }
 
   function computeSegments(ship){
-    const M={};
-    const horiz = ship.ori===ORI.H;
+    const M={}; const horiz = ship.ori===ORI.H;
     const coords = ship.coords.slice().sort((a,b)=> horiz? (a.c-b.c):(a.r-b.r));
     coords.forEach((p,i)=>{
-      if(i===0){
-        M[RC(p.r,p.c)] = { role:"bow",   dir: horiz? "right":"down" };
-      }else if(i===coords.length-1){
-        M[RC(p.r,p.c)] = { role:"stern", dir: horiz? "left":"up" };
-      }else{
-        M[RC(p.r,p.c)] = { role:"mid",   dir: horiz? "h":"v" };
-      }
+      if(i===0)      M[RC(p.r,p.c)] = { role:"bow",   dir: horiz? "right":"down" };
+      else if(i===coords.length-1) M[RC(p.r,p.c)] = { role:"stern", dir: horiz? "left":"up" };
+      else            M[RC(p.r,p.c)] = { role:"mid",   dir: horiz? "h":"v" };
     });
     return M;
   }
 
-  // ===================== Render =====================
+  // ====== DOM refs ======
   const gridMe = document.getElementById("gridMe");
   const gridCPU = document.getElementById("gridCPU");
   const statusMsg = document.getElementById("statusMsg");
   const turnHint = document.getElementById("turnHint");
   const oriLabel = document.getElementById("oriLabel");
   const queueDiv = document.getElementById("queue");
+  const fleetMe = document.getElementById("fleetMe");
+  const fleetCPU = document.getElementById("fleetCPU");
 
   function buildGrids(){
     const rows = "ABCDEFGHIJ".split("");
@@ -412,13 +469,11 @@
     makeGrid(gridMe);
     makeGrid(gridCPU);
 
-    // Colocación manual (mouse/touch)
     gridMe.addEventListener("mouseover", onHoverPlace);
     gridMe.addEventListener("mouseleave", clearHover);
     gridMe.addEventListener("click", onClickPlace);
     gridMe.addEventListener("pointerdown", (e)=>{ if(placing) e.preventDefault(); });
 
-    // Disparo humano sobre CPU (click/tap)
     gridCPU.addEventListener("click", onClickShoot);
   }
 
@@ -445,7 +500,7 @@
         cell.classList.toggle("hit",  b.state===STATE.HIT || b.state===STATE.SUNK);
         cell.classList.toggle("sunk", b.state===STATE.SUNK);
         cell.classList.toggle("ship", b.shipId!==-1);
-        cell.classList.remove("aim"); // limpiar posible puntería antigua
+        cell.classList.remove("aim");
         cell.querySelectorAll(".piece").forEach(p=>p.remove());
       }
     }
@@ -468,7 +523,7 @@
       });
     });
 
-    // CPU tablero (solo mostrar impactos/hundidos)
+    // CPU tablero (solo impactos/hundidos)
     for(let r=0;r<SIZE;r++){
       for(let c=0;c<SIZE;c++){
         const cell = getCell(gridCPU, r,c);
@@ -499,29 +554,83 @@
         }
       });
     });
+
+    // Actualiza paneles de flota
+    updateFleetPanels();
   }
 
-  function updateQueueUI(){
-    queueDiv.innerHTML = "";
-    const counts = {};
-    placingQueue.forEach(b=> counts[b.size]=(counts[b.size]||0)+1 );
-    const sizes = [...new Set(placingQueue.map(b=>b.size))].sort((a,b)=>b-a);
-    sizes.forEach(sz=>{
-      const badge = document.createElement("div"); badge.className="badge";
-      const dot = document.createElement("span"); dot.className="dot"; badge.appendChild(dot);
-      const lab = document.createElement("span");
-      lab.textContent = `x${counts[sz]} — ${sz} casilla${sz>1?"s":""}`;
-      badge.appendChild(lab);
-      queueDiv.appendChild(badge);
+  // ====== Panel lateral de flota ======
+  function defCountsBySize(){
+    const map = new Map();
+    FLEET_DEF.forEach(f=>{
+      map.set(f.size, (map.get(f.size)||0) + f.count);
     });
-    if(placingQueue.length===0){
-      const done = document.createElement("div");
-      done.textContent = "✅ ¡Todos los barcos colocados! Pulsa “Nueva partida”.";
-      queueDiv.appendChild(done);
-    }
+    // Ordenar desc por tamaño
+    return [...map.entries()].sort((a,b)=> b[0]-a[0]); // [ [size,total], ... ]
   }
 
-  // ===================== Colocación manual =====================
+  function shipsSunkBySize(ships){
+    const sunk = new Map();
+    ships.forEach(s=>{
+      if(s.sunk) sunk.set(s.size, (sunk.get(s.size)||0)+1);
+    });
+    return sunk; // size -> sunkCount
+  }
+
+  function renderFleetPanel(panelEl, shipsArray){
+    const list = panelEl.querySelector(".fleetList");
+    const countsDiv = panelEl.querySelector(".counts");
+    list.innerHTML = "";
+
+    const def = defCountsBySize();
+    const sunkMap = shipsSunkBySize(shipsArray);
+
+    let total=0, sunk=0;
+    def.forEach(([size,totalCount])=>{
+      total += totalCount;
+      const sunkCount = sunkMap.get(size)||0;
+      sunk += sunkCount;
+
+      const row = document.createElement("div");
+      row.className = "fleetRow";
+
+      const tag = document.createElement("div");
+      tag.className = "sizeTag";
+      tag.textContent = size;
+      row.appendChild(tag);
+
+      const miniWrap = document.createElement("div");
+      miniWrap.className = "miniShips";
+
+      // Dibuja 'totalCount' mini barcos de longitud 'size'
+      for(let i=0;i<totalCount;i++){
+        const ms = document.createElement("div");
+        ms.className = "miniShip";
+        if(i < sunkCount) ms.classList.add("is-sunk"); // hundidos → sin sombra + línea
+        // segmentos
+        for(let k=0;k<size;k++){
+          const sg = document.createElement("div");
+          sg.className = "seg";
+          ms.appendChild(sg);
+        }
+        miniWrap.appendChild(ms);
+      }
+      row.appendChild(miniWrap);
+      list.appendChild(row);
+    });
+
+    const remain = total - sunk;
+    countsDiv.textContent = `Hundidos: ${sunk} · Quedan: ${remain}`;
+  }
+
+  function updateFleetPanels(){
+    // En el panel del HUMANO (fleetMe) mostramos lo que la CPU te ha hundido (tu flota)
+    renderFleetPanel(fleetMe, shipsMe);
+    // En el panel de la CPU (fleetCPU) mostramos lo que tú has hundido (flota de la CPU)
+    renderFleetPanel(fleetCPU, shipsCPU);
+  }
+
+  // ====== Colocación manual ======
   function onHoverPlace(e){
     if(!placing) return;
     const cell = e.target.closest(".cell"); if(!cell) return;
@@ -554,7 +663,7 @@
     statusMsg.textContent = "Barcos colocados automáticamente. Pulsa “Nueva partida”.";
   }
 
-  // ===================== Disparo & turnos =====================
+  // ====== Disparo & turnos ======
   function allSunk(ships){ return ships.every(s=> s.sunk); }
   function markSunk(board, ship){
     ship.sunk = true;
@@ -578,9 +687,7 @@
   }
   function coordLabel(r,c){ return `${"ABCDEFGHIJ"[r]}, ${c+1}`; }
 
-  function setHumanInput(enabled){
-    gridCPU.classList.toggle("noinput", !enabled);
-  }
+  function setHumanInput(enabled){ gridCPU.classList.toggle("noinput", !enabled); }
 
   function onClickShoot(e){
     if(gameOver || placing) return;
@@ -598,10 +705,7 @@
     }
     if(allSunk(shipsCPU)){ endGame(true); return; }
 
-    // Alterna turno → CPU
-    humanTurn = false;
-    updateTurnHint();
-    setHumanInput(false);
+    humanTurn = false; updateTurnHint(); setHumanInput(false);
     setTimeout(cpuTurn, 550);
   }
 
@@ -619,30 +723,25 @@
     updateTurnHint();
   }
 
-  // ===================== IA CPU (con pre-aim de 0.3 s) =====================
+  // ====== IA con pre-aim ======
   function initCpuState(){
     cpuShots.clear(); cpuMode = "SEARCH";
     cpuHitQueue = []; cpuSearchCount = 0;
     cpuRemaining = {};
     FLEET_DEF.forEach(f=>{ cpuRemaining[f.size] = (cpuRemaining[f.size]||0) + f.count; });
   }
-
   function frequencyMatrix(board, n){
     const F = Array.from({length:SIZE}, ()=> Array(SIZE).fill(0));
     for(let r=0;r<SIZE;r++){
       for(let c=0;c<=SIZE-n;c++){
-        let ok=true;
-        for(let k=0;k<n;k++){ if(board[r][c+k].state===STATE.MISS) { ok=false; break; } }
-        if(!ok) continue;
-        for(let k=0;k<n;k++) F[r][c+k]++;
+        let ok=true; for(let k=0;k<n;k++){ if(board[r][c+k].state===STATE.MISS){ ok=false; break; } }
+        if(!ok) continue; for(let k=0;k<n;k++) F[r][c+k]++;
       }
     }
     for(let c=0;c<SIZE;c++){
       for(let r=0;r<=SIZE-n;r++){
-        let ok=true;
-        for(let k=0;k<n;k++){ if(board[r+k][c].state===STATE.MISS){ ok=false; break; } }
-        if(!ok) continue;
-        for(let k=0;k<n;k++) F[r+k][c]++;
+        let ok=true; for(let k=0;k<n;k++){ if(board[r+k][c].state===STATE.MISS){ ok=false; break; } }
+        if(!ok) continue; for(let k=0;k<n;k++) F[r+k][c]++;
       }
     }
     return F;
@@ -723,19 +822,12 @@
     return seq[0] || null;
   }
 
-  function showCpuAim(r,c){
-    const cell = getCell(gridMe, r,c);
-    if(cell){ cell.classList.add("aim"); }
-  }
-  function clearCpuAim(r,c){
-    const cell = getCell(gridMe, r,c);
-    if(cell){ cell.classList.remove("aim"); }
-  }
+  function showCpuAim(r,c){ const cell = getCell(gridMe, r,c); if(cell){ cell.classList.add("aim"); } }
+  function clearCpuAim(r,c){ const cell = getCell(gridMe, r,c); if(cell){ cell.classList.remove("aim"); } }
 
   function cpuTurn(){
     if(gameOver) return;
 
-    // Si solo quedan 2s → entrar en MOPUP
     const hasBig = Object.entries(cpuRemaining).some(([len,count])=> +len>=3 && count>0);
     cpuMode = hasBig? cpuMode : "MOPUP";
 
@@ -743,17 +835,11 @@
     if(cpuMode==="TARGET" && cpuHitQueue.length){
       const cluster = cpuPickTarget();
       shot = cpuExpandFrom(cluster);
-      if(!shot){
-        cpuHitQueue.shift();
-        if(cpuHitQueue.length===0) cpuMode="SEARCH";
-        return cpuTurn();
-      }
+      if(!shot){ cpuHitQueue.shift(); if(cpuHitQueue.length===0) cpuMode="SEARCH"; return cpuTurn(); }
     }else if(cpuMode==="MOPUP"){
       shot = nextF2Shot() || nextSearchShot();
     }else{
-      if(cpuSearchCount>0 && cpuSearchCount % F2_INJECT_EVERY === 0){
-        shot = nextF2Shot();
-      }
+      if(cpuSearchCount>0 && cpuSearchCount % F2_INJECT_EVERY === 0) shot = nextF2Shot();
       if(!shot) shot = nextSearchShot();
       cpuSearchCount++;
     }
@@ -765,16 +851,13 @@
     }
 
     const key = RC(shot.r,shot.c);
-    if(cpuShots.has(key)){ return setTimeout(cpuTurn, 10); }
+    if(cpuShots.has(key)) return setTimeout(cpuTurn, 10);
     cpuShots.add(key);
 
-    // Paso 1: mostrar puntería y anunciar coordenadas
     showCpuAim(shot.r, shot.c);
     say(`CPU apunta a ${coordLabel(shot.r,shot.c)}…`);
-    // Bloquear entrada humana hasta resolver
     setHumanInput(false);
 
-    // Paso 2 (0.3s): resolver y mostrar resultado
     setTimeout(()=>{
       clearCpuAim(shot.r, shot.c);
       const res = shoot(boardMe, shipsMe, shot.r, shot.c);
@@ -806,30 +889,23 @@
 
       if(allSunk(shipsMe)){ endGame(false); return; }
 
-      // Alterna turno → Humano
-      humanTurn = true;
-      updateTurnHint();
-      setHumanInput(true);
+      humanTurn = true; updateTurnHint(); setHumanInput(true);
     }, 300);
   }
 
-  // ===================== Inicio / Nueva partida =====================
+  // ====== Inicio / Nueva partida ======
   function randomStartTurn(){
     humanTurn = Math.random()<0.5;
     updateTurnHint();
-    // Mensaje explícito de quién comienza
     say(humanTurn
       ? "Comienza el HUMANO. ¡Dispara sobre el tablero de la CPU!"
       : "Comienza la CPU. Observa dónde apunta…"
     );
-    // Si empieza la CPU, que dispare tras un breve margen
     if(!humanTurn){ setTimeout(cpuTurn, 650); }
   }
 
   function newGame(){
-    if(placingQueue.length>0){
-      flash("Primero coloca todos tus barcos (o usa Colocación automática)."); return;
-    }
+    if(placingQueue.length>0){ flash("Primero coloca todos tus barcos (o usa Colocación automática)."); return; }
     boardCPU = makeEmptyBoard(); shipsCPU.length=0;
     const ok = autoPlaceAll(boardCPU, shipsCPU);
     if(!ok){ flash("Error al colocar la CPU, reintenta."); return; }
@@ -844,8 +920,6 @@
     placing = false; gameOver = false;
     initCpuState();
     drawBoards();
-
-    // Interactividad humano depende de quién empiece
     randomStartTurn();
   }
 
@@ -861,7 +935,7 @@
     setHumanInput(false);
   }
 
-  // ===================== Modal & Controles =====================
+  // ====== Modal & Controles ======
   const modal = document.getElementById("modal");
   document.getElementById("btnHelp").addEventListener("click", ()=> modal.classList.add("open"));
   document.getElementById("closeModal").addEventListener("click", ()=> modal.classList.remove("open"));
@@ -875,7 +949,27 @@
   });
   window.addEventListener("keydown", (e)=>{ if(e.key.toLowerCase()==="r") rotateOri(); });
 
-  // ===================== Boot =====================
+  // ====== Boot ======
+  function updateQueueUI(){
+    queueDiv.innerHTML = "";
+    const counts = {};
+    placingQueue.forEach(b=> counts[b.size]=(counts[b.size]||0)+1 );
+    const sizes = [...new Set(placingQueue.map(b=>b.size))].sort((a,b)=>b-a);
+    sizes.forEach(sz=>{
+      const badge = document.createElement("div"); badge.className="badge";
+      const dot = document.createElement("span"); dot.className="dot"; badge.appendChild(dot);
+      const lab = document.createElement("span");
+      lab.textContent = `x${counts[sz]} — ${sz} casilla${sz>1?"s":""}`;
+      badge.appendChild(lab);
+      queueDiv.appendChild(badge);
+    });
+    if(placingQueue.length===0){
+      const done = document.createElement("div");
+      done.textContent = "✅ ¡Todos los barcos colocados! Pulsa “Nueva partida”.";
+      queueDiv.appendChild(done);
+    }
+  }
+
   function boot(){
     loadScore();
     boardMe = makeEmptyBoard();
@@ -892,26 +986,3 @@
 </script>
 </body>
 </html>
-
-
-
-
-<!-- Contenedor del footer -->
-<!-- Contenedor del footer -->
-<!-- Contenedor del footer -->
-
-<div id="footer"></div>
-
-<script>
-  // Cargar footer.html y colocarlo en #footer
-  fetch("footer.html")
-    .then(response => {
-      if (!response.ok) throw new Error("No se pudo cargar footer.html");
-      return response.text();
-    })
-    .then(data => {
-      document.getElementById("footer").innerHTML = data;
-    })
-    .catch(error => console.error("Error cargando el footer:", error));
-</script>
-
