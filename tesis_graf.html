@@ -1,154 +1,443 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Gráficos de Tesis UCM</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <title>Gráficos y Explorador de Tesis UCM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
   <style>
-    body {
-      background: #121212;
-      color: #e0e0e0;
-      font-family: 'Georgia', serif;
-      margin: 0;
-      padding: 2em;
+    :root{
+      --bg:#0f1116; --panel:#151a22; --card:#1b2230;
+      --text:#e6edf3; --muted:#a9b6d4; --brand:#90caf9; --accent:#ff9800;
+      --ok:#43a047; --border:#263244; --pill:#263238; --pill-text:#cde7ff;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:14px;
     }
-    h1, h2 {
-      text-align: center;
-      color: #90caf9;
+    *{box-sizing:border-box}
+    body{
+      margin:0; padding:24px; background:linear-gradient(180deg,#0b0f16, #111826 35%, #0f1116);
+      color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,"Apple Color Emoji","Segoe UI Emoji";
     }
-    #chart-container {
-      max-width: 900px;
-      margin: 2em auto;
-      background: #1e1e1e;
-      padding: 1.5em;
-      border-radius: 12px;
-      box-shadow: 0 0 12px rgba(144,202,249,.3);
+    header{
+      max-width:1200px; margin:0 auto 18px; padding:18px 20px;
+      background:linear-gradient(180deg,#111827, #0f1624);
+      border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow);
     }
-    #results {
-      max-width: 1000px;
-      margin: 2em auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1em;
+    h1{margin:0 0 10px 0; text-align:center; color:var(--brand); letter-spacing:.3px}
+    .subrow{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap}
+    .subrow h2{margin:0; font-weight:600}
+    .home a{color:var(--brand); text-decoration:none; display:flex; align-items:center; gap:6px}
+    .home a:hover{text-decoration:underline}
+
+    .stats{
+      max-width:1200px; margin:18px auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px;
     }
-    .card {
-      background: #1e1e1e;
-      padding: 1em;
-      border-radius: 10px;
-      border-left: 4px solid #90caf9;
-      transition: transform .2s;
+    .stat{
+      background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px 16px; box-shadow:var(--shadow);
     }
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 12px rgba(144,202,249,.4);
+    .stat .label{color:var(--muted); font-size:.9rem}
+    .stat .value{font-size:1.4rem; font-weight:700; color:#fff}
+
+    .controls{
+      max-width:1200px; margin:18px auto; background:var(--panel); border:1px solid var(--border);
+      border-radius:var(--radius); padding:14px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; box-shadow:var(--shadow);
     }
-    .pill {
-      display: inline-block;
-      background: #263238;
-      color: #cde7ff;
-      border-radius: 999px;
-      padding: 0.2em 0.6em;
-      font-size: 0.8em;
-      margin: 0.2em;
+    .controls .group{display:flex; align-items:center; gap:8px; background:#0f1624; border:1px solid var(--border); padding:10px 12px; border-radius:10px}
+    .controls label{font-size:.9rem; color:var(--muted)}
+    .controls select, .controls input[type="text"]{
+      background:#0e1521; color:#e6edf3; border:1px solid var(--border); border-radius:8px; padding:8px 10px; min-width:160px;
     }
-    .abstract {
-      font-style: italic;
-      font-size: 0.9em;
-      margin-top: 0.5em;
-      text-align: justify;
+    .range-wrap{display:flex; align-items:center; gap:10px}
+    .range-wrap input[type="range"]{accent-color:var(--accent)}
+    .badge{background:#1a2638; color:#ffd9a6; border:1px solid #3a2d12; padding:3px 8px; border-radius:999px; font-size:.85rem}
+
+    .panel{
+      max-width:1200px; margin:16px auto; background:var(--panel); border:1px solid var(--border);
+      border-radius:var(--radius); padding:18px; box-shadow:var(--shadow);
     }
-    canvas {
-      background: #212121;
-      border-radius: 8px;
-      padding: 1em;
+    #chartBox{padding:10px; background:#0f1624; border:1px solid var(--border); border-radius:12px}
+    canvas{width:100% !important; height:460px !important; background:#0f1624; border-radius:12px}
+
+    .results-header{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
+    .results-header h3{margin:0; color:var(--brand)}
+    .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+    .chip{background:var(--pill); color:var(--pill-text); border:1px solid #375a7f; padding:.2em .6em; border-radius:999px; font-size:.85em}
+
+    #results{
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; margin-top:14px;
+    }
+    .card{
+      background:var(--card); border:1px solid var(--border); border-left:4px solid var(--brand);
+      border-radius:12px; padding:14px; transition:transform .2s, box-shadow .2s;
+    }
+    .card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(0,0,0,.35)}
+    .meta{color:var(--muted); font-size:.93rem; margin:.25em 0}
+    .abstract{font-style:italic; line-height:1.55; margin-top:.5em}
+    .btn{
+      display:inline-block; background:var(--ok); color:#fff; padding:.5em .9em; border-radius:8px; text-decoration:none; font-weight:600; margin-top:.6em;
+    }
+    .btn:hover{filter:brightness(1.05)}
+    .link{color:var(--accent)}
+
+    .empty{color:var(--muted); text-align:center; padding:20px}
+
+    @media (max-width:640px){
+      canvas{height:360px !important}
     }
   </style>
 </head>
 <body>
-  <h1>Distribución de Tesis por Materias UCM</h1>
 
-  <div id="chart-container">
-    <canvas id="subjectChart"></canvas>
-  </div>
+  <header>
+    <h1>Gráficos y Explorador de Tesis UCM</h1>
 
-  <h2 id="selected-subject">Seleccione una materia en el gráfico</h2>
-  <div id="results"></div>
+    <!-- Bloque solicitado: debajo del título -->
+    <div class="subrow">
+      <!-- Autor -->
+      <h2 style="margin:0;">
+        <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+      </h2>
+
+      <!-- Enlace inicio -->
+      <p class="home" style="margin:0; font-size:0.9em; text-align:right;">
+        <a href="https://airsoto.github.io/vet/">
+          🏠 <span style="font-size:0.9em;">volver a página de inicio</span>
+        </a>
+      </p>
+      <!-- Enlace inicio -->
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="label">Tesis cargadas</div>
+      <div class="value" id="stat-total">…</div>
+    </div>
+    <div class="stat">
+      <div class="label">Materias UCM únicas</div>
+      <div class="value" id="stat-subjects">…</div>
+    </div>
+    <div class="stat">
+      <div class="label">Materia seleccionada</div>
+      <div class="value" id="stat-selected">—</div>
+    </div>
+  </section>
+
+  <section class="controls">
+    <div class="group">
+      <label for="chartType">Tipo de gráfico</label>
+      <select id="chartType">
+        <option value="bar">Barras</option>
+        <option value="doughnut">Dona</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label for="order">Orden</label>
+      <select id="order">
+        <option value="desc">Descendente</option>
+        <option value="asc">Ascendente</option>
+      </select>
+    </div>
+
+    <div class="group range-wrap">
+      <label for="topN">Top N</label>
+      <input id="topN" type="range" min="5" max="60" step="1" value="30" />
+      <span class="badge" id="topNVal">30</span>
+    </div>
+
+    <div class="group" style="flex:1 1 260px;">
+      <label for="subjectSearch">Buscar materia</label>
+      <input id="subjectSearch" type="text" placeholder="Escribe para filtrar materias…" />
+    </div>
+  </section>
+
+  <section class="panel" id="chartPanel">
+    <div id="chartBox">
+      <canvas id="subjectChart" aria-label="Distribución de tesis por materia UCM" role="img"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="results-header">
+      <h3 id="resultsTitle">Selecciona una barra o dona para ver las tesis</h3>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="results" aria-live="polite"></div>
+  </section>
 
   <script>
+    // ---- Estado global ----
     let tesis = [];
+    let subjectCounts = {};            // { materia: count }
+    let subjectToIndexes = {};         // { materia: [indices de tesis] }
+    let chart;                         // instancia Chart.js
+    const els = {
+      total: document.getElementById('stat-total'),
+      subjects: document.getElementById('stat-subjects'),
+      selected: document.getElementById('stat-selected'),
+      chartType: document.getElementById('chartType'),
+      order: document.getElementById('order'),
+      topN: document.getElementById('topN'),
+      topNVal: document.getElementById('topNVal'),
+      subjectSearch: document.getElementById('subjectSearch'),
+      chartCanvas: document.getElementById('subjectChart'),
+      results: document.getElementById('results'),
+      resultsTitle: document.getElementById('resultsTitle'),
+      chips: document.getElementById('chips')
+    };
 
-    async function loadData(){
-      const res = await fetch('json/tesis_ucm_v2.json');
-      tesis = await res.json();
-      renderChart();
-    }
+    // Utilidades
+    const norm = s => (s || '').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+    const uniq = arr => [...new Set(arr.filter(Boolean))];
 
-    function renderChart(){
-      // Contar materias
-      const counts = {};
-      tesis.forEach(t=>{
+    // Cargar JSON
+    (async function init(){
+      try{
+        const res = await fetch('json/tesis_ucm_v2.json');
+        if(!res.ok) throw new Error('No se pudo cargar json/tesis_ucm_v2.json');
+        const data = await res.json();
+        tesis = Array.isArray(data) ? data : [];
+        computeSubjects();
+        updateStats();
+        buildChart(); // primer render
+      }catch(err){
+        console.error(err);
+        els.results.innerHTML = '<div class="empty">No se pudo cargar el archivo JSON.</div>';
+      }
+      bindControls();
+    })();
+
+    function computeSubjects(){
+      subjectCounts = {};
+      subjectToIndexes = {};
+      tesis.forEach((t,idx)=>{
         (t.subjects_ucm || []).forEach(s=>{
-          counts[s] = (counts[s]||0)+1;
+          subjectCounts[s] = (subjectCounts[s] || 0) + 1;
+          (subjectToIndexes[s] ||= []).push(idx);
         });
       });
+    }
 
-      const labels = Object.keys(counts);
-      const values = Object.values(counts);
+    function updateStats(){
+      els.total.textContent = tesis.length.toLocaleString('es-ES');
+      els.subjects.textContent = Object.keys(subjectCounts).length.toLocaleString('es-ES');
+    }
 
-      const ctx = document.getElementById('subjectChart').getContext('2d');
-      new Chart(ctx,{
-        type:'bar',
-        data:{
-          labels:labels,
-          datasets:[{
-            label:'Número de tesis',
-            data:values,
-            backgroundColor:'#42a5f5'
-          }]
-        },
-        options:{
-          responsive:true,
-          plugins:{
-            legend:{display:false}
+    function filteredSubjects(){
+      const q = norm(els.subjectSearch.value);
+      const entries = Object.entries(subjectCounts);
+      return entries
+        .filter(([s]) => !q || norm(s).includes(q))
+        .map(([s,c]) => ({subject:s, count:c}));
+    }
+
+    function topSubjects(){
+      const order = els.order.value; // 'asc' | 'desc'
+      const N = parseInt(els.topN.value, 10) || 30;
+      const arr = filteredSubjects();
+      arr.sort((a,b)=> order==='asc' ? (a.count-b.count) : (b.count-a.count));
+      return arr.slice(0, N);
+    }
+
+    function palette(n){
+      // paleta agradable para barras/donas
+      const base = [
+        '#90caf9','#64b5f6','#4fc3f7','#4dd0e1','#80cbc4','#a5d6a7','#c5e1a5','#ffd54f','#ffb74d','#ff8a65',
+        '#f48fb1','#ce93d8','#b39ddb','#9fa8da','#81d4fa','#4db6ac','#81c784','#dce775','#ffcc80','#ffab91'
+      ];
+      const colors = [];
+      for(let i=0;i<n;i++){ colors.push(base[i % base.length]); }
+      return colors;
+    }
+
+    function gradient(ctx){
+      const g = ctx.createLinearGradient(0,0,0,420);
+      g.addColorStop(0,'rgba(144,202,249,0.95)');
+      g.addColorStop(1,'rgba(79,195,247,0.35)');
+      return g;
+    }
+
+    function buildChart(){
+      const ctx = els.chartCanvas.getContext('2d');
+      const top = topSubjects();
+      const labels = top.map(x=>x.subject);
+      const values = top.map(x=>x.count);
+      const totalAll = Object.values(subjectCounts).reduce((a,b)=>a+b,0) || 1;
+
+      // destruir previo
+      if(chart){ chart.destroy(); }
+
+      const type = els.chartType.value;
+      const data = {
+        labels,
+        datasets: [{
+          label: 'Número de tesis',
+          data: values,
+          backgroundColor: type==='bar' ? gradient(ctx) : palette(values.length),
+          borderColor: type==='bar' ? '#203246' : undefined,
+          borderWidth: type==='bar' ? 1 : 0
+        }]
+      };
+
+      chart = new Chart(ctx, {
+        type,
+        data,
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: type!=='bar', labels:{ color:'#d9e2ef' } },
+            tooltip: {
+              callbacks:{
+                label: (tooltipCtx)=>{
+                  const val = tooltipCtx.parsed;
+                  const pct = ((val/totalAll)*100).toFixed(1);
+                  return ` ${val} tesis · ${pct}% del total`;
+                }
+              }
+            }
           },
-          scales:{
-            x:{ticks:{color:'#e0e0e0'}},
-            y:{ticks:{color:'#e0e0e0'}}
-          },
-          onClick:(e,els)=>{
-            if(els.length>0){
-              const i = els[0].index;
+          scales: type==='bar' ? {
+            x: { ticks:{ color:'#c8d3e0', maxRotation:40, minRotation:0 }, grid:{ color:'rgba(255,255,255,.06)'} },
+            y: { ticks:{ color:'#c8d3e0' }, grid:{ color:'rgba(255,255,255,.06)' } }
+          } : {},
+          onClick: (e, elsActive)=>{
+            if(elsActive.length>0){
+              const i = elsActive[0].index;
               const subject = labels[i];
-              showResults(subject);
+              showSubject(subject);
             }
           }
         }
       });
+
+      // chips rápidas de materias top
+      renderChips(labels.slice(0, Math.min(12, labels.length)));
+      // limpiar resultados si se re-filtra
+      if(!currentSubject) {
+        els.resultsTitle.textContent = 'Selecciona una barra o dona para ver las tesis';
+        els.results.innerHTML = '';
+        els.selected.textContent = '—';
+      }
     }
 
-    function showResults(subject){
-      document.getElementById('selected-subject').textContent = `Tesis en: ${subject}`;
-      const container = document.getElementById('results');
-      container.innerHTML = '';
-
-      const filtered = tesis.filter(t=>(t.subjects_ucm||[]).includes(subject));
-
-      filtered.forEach(t=>{
-        const div=document.createElement('div');
-        div.className='card';
-        div.innerHTML=`
-          <h3 style="color:#90caf9;margin:0 0 .5em 0">${t.title}</h3>
-          <div><strong>Autores:</strong> ${(t.authors||[]).join(', ') || '-'}</div>
-          <div><strong>Directores:</strong> ${(t.directors||[]).join(', ') || '-'}</div>
-          <div>${(t.subjects_ucm||[]).map(s=>`<span class="pill">${s}</span>`).join('')}</div>
-          <p class="abstract">${t.summary || '(Sin resumen)'}</p>
-          ${t.pdf ? `<a href="${t.pdf}" target="_blank" style="color:#ff9800;">📄 Ver PDF</a>`:''}
-        `;
-        container.appendChild(div);
+    function renderChips(labelList){
+      els.chips.innerHTML = '';
+      labelList.forEach(s=>{
+        const el = document.createElement('button');
+        el.className = 'chip';
+        el.textContent = s;
+        el.title = 'Ver tesis de ' + s;
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', ()=> showSubject(s));
+        els.chips.appendChild(el);
       });
     }
 
-    loadData();
+    let currentSubject = '';
+    function showSubject(subject){
+      currentSubject = subject;
+      els.selected.textContent = subject || '—';
+      els.resultsTitle.innerHTML = `Tesis en: <span class="link">${subject}</span>`;
+      const idxs = subjectToIndexes[subject] || [];
+      els.results.innerHTML = '';
+
+      if(!idxs.length){
+        els.results.innerHTML = '<div class="empty">No hay tesis para esta materia.</div>';
+        return;
+      }
+
+      idxs.forEach(i=>{
+        const t = tesis[i] || {};
+        const authors = (t.authors||[]).filter(Boolean).join(', ') || '-';
+        const directors = (t.directors||[]).filter(Boolean).join(', ') || '-';
+        const pub = t.pub_date || '-';
+        const def = t.defense_date || '-';
+        const subs = (t.subjects_ucm || []).map(s=>`<span class="chip">${s}</span>`).join(' ');
+        const abs = (t.summary || '').trim();
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h4 style="margin:.2em 0 .35em 0; color:var(--brand)">${t.title || '(Sin título)'}</h4>
+          <div class="meta"><strong>Autores:</strong> ${authors}</div>
+          <div class="meta"><strong>Directores:</strong> ${directors}</div>
+          <div class="meta"><strong>Publicación:</strong> ${pub} &nbsp;&middot;&nbsp; <strong>Defensa:</strong> ${def}</div>
+          <div style="margin:.35em 0 0 0">${subs}</div>
+          <p class="abstract" data-full="${escapeHtml(abs)}">${truncate(abs, 420)}</p>
+          ${abs && abs.length > 420 ? `<a href="#" class="link" data-toggle>mostrar más</a>` : ``}
+          ${t.pdf ? `<div><a class="btn" href="${t.pdf}" target="_blank" rel="noopener">📄 Abrir PDF</a></div>` : ``}
+        `;
+        els.results.appendChild(card);
+      });
+
+      // activar toggles
+      els.results.querySelectorAll('[data-toggle]').forEach(a=>{
+        a.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          const p = a.previousElementSibling; // <p.abstract>
+          const full = unescapeHtml(p.getAttribute('data-full')||'');
+          const isExpanded = a.getAttribute('data-expanded') === '1';
+          if(isExpanded){
+            p.innerHTML = escapeHtml(truncate(full, 420));
+            a.textContent = 'mostrar más';
+            a.setAttribute('data-expanded','0');
+          }else{
+            p.textContent = full || '(Sin resumen)';
+            a.textContent = 'mostrar menos';
+            a.setAttribute('data-expanded','1');
+          }
+        });
+      });
+      window.scrollTo({ top: document.getElementById('chartPanel').offsetTop, behavior: 'smooth' });
+    }
+
+    function bindControls(){
+      els.chartType.addEventListener('change', buildChart);
+      els.order.addEventListener('change', buildChart);
+      els.topN.addEventListener('input', ()=>{
+        els.topNVal.textContent = els.topN.value;
+      });
+      els.topN.addEventListener('change', buildChart);
+      let searchDebounce;
+      els.subjectSearch.addEventListener('input', ()=>{
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(buildChart, 220);
+      });
+    }
+
+    // Helpers texto
+    function truncate(str, n){
+      if(!str) return '(Sin resumen)';
+      return str.length > n ? (str.slice(0, n).trim() + '…') : str;
+    }
+    function escapeHtml(s){
+      return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function unescapeHtml(s){
+      return (s||'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+    }
   </script>
 </body>
 </html>
+
+
+
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
