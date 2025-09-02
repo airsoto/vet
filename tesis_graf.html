@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gráficos de Tesis UCM</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #121212;
+      color: #e0e0e0;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 2em;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #90caf9;
+    }
+    #chart-container {
+      max-width: 900px;
+      margin: 2em auto;
+      background: #1e1e1e;
+      padding: 1.5em;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(144,202,249,.3);
+    }
+    #results {
+      max-width: 1000px;
+      margin: 2em auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1em;
+    }
+    .card {
+      background: #1e1e1e;
+      padding: 1em;
+      border-radius: 10px;
+      border-left: 4px solid #90caf9;
+      transition: transform .2s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 12px rgba(144,202,249,.4);
+    }
+    .pill {
+      display: inline-block;
+      background: #263238;
+      color: #cde7ff;
+      border-radius: 999px;
+      padding: 0.2em 0.6em;
+      font-size: 0.8em;
+      margin: 0.2em;
+    }
+    .abstract {
+      font-style: italic;
+      font-size: 0.9em;
+      margin-top: 0.5em;
+      text-align: justify;
+    }
+    canvas {
+      background: #212121;
+      border-radius: 8px;
+      padding: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Distribución de Tesis por Materias UCM</h1>
+
+  <div id="chart-container">
+    <canvas id="subjectChart"></canvas>
+  </div>
+
+  <h2 id="selected-subject">Seleccione una materia en el gráfico</h2>
+  <div id="results"></div>
+
+  <script>
+    let tesis = [];
+
+    async function loadData(){
+      const res = await fetch('json/tesis_ucm_v2.json');
+      tesis = await res.json();
+      renderChart();
+    }
+
+    function renderChart(){
+      // Contar materias
+      const counts = {};
+      tesis.forEach(t=>{
+        (t.subjects_ucm || []).forEach(s=>{
+          counts[s] = (counts[s]||0)+1;
+        });
+      });
+
+      const labels = Object.keys(counts);
+      const values = Object.values(counts);
+
+      const ctx = document.getElementById('subjectChart').getContext('2d');
+      new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels:labels,
+          datasets:[{
+            label:'Número de tesis',
+            data:values,
+            backgroundColor:'#42a5f5'
+          }]
+        },
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{display:false}
+          },
+          scales:{
+            x:{ticks:{color:'#e0e0e0'}},
+            y:{ticks:{color:'#e0e0e0'}}
+          },
+          onClick:(e,els)=>{
+            if(els.length>0){
+              const i = els[0].index;
+              const subject = labels[i];
+              showResults(subject);
+            }
+          }
+        }
+      });
+    }
+
+    function showResults(subject){
+      document.getElementById('selected-subject').textContent = `Tesis en: ${subject}`;
+      const container = document.getElementById('results');
+      container.innerHTML = '';
+
+      const filtered = tesis.filter(t=>(t.subjects_ucm||[]).includes(subject));
+
+      filtered.forEach(t=>{
+        const div=document.createElement('div');
+        div.className='card';
+        div.innerHTML=`
+          <h3 style="color:#90caf9;margin:0 0 .5em 0">${t.title}</h3>
+          <div><strong>Autores:</strong> ${(t.authors||[]).join(', ') || '-'}</div>
+          <div><strong>Directores:</strong> ${(t.directors||[]).join(', ') || '-'}</div>
+          <div>${(t.subjects_ucm||[]).map(s=>`<span class="pill">${s}</span>`).join('')}</div>
+          <p class="abstract">${t.summary || '(Sin resumen)'}</p>
+          ${t.pdf ? `<a href="${t.pdf}" target="_blank" style="color:#ff9800;">📄 Ver PDF</a>`:''}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
