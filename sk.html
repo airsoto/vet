@@ -1,208 +1,88 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Stephen King — Character Relationship Explorer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- D3 for force-directed graph -->
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <style>
     :root{
-      --bg:#0f1420;
-      --panel:#121a2a;
-      --card:#18233a;
-      --ink:#dbe7ff;
-      --muted:#a6b6d6;
-      --accent:#64b5f6;
-      --accent-2:#ff9900;
-      --link:#90caf9;
-      --edge:#5d6d97;
-      --edge-hi:#9cc1ff;
-      --chip:#243454;
-      --chip-ink:#cfe2ff;
-      --good: #4caf50;
-      --warn: #ffb300;
+      --bg:#0f1420; --panel:#121a2a; --card:#18233a; --ink:#dbe7ff; --muted:#a6b6d6;
+      --link:#90caf9; --accent:#64b5f6; --accent-2:#ff9900; --edge:#5d6d97; --edge-hi:#9cc1ff;
+      --chip:#243454; --chip-ink:#cfe2ff;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0;
-      color:var(--ink);
+      margin:0; color:var(--ink);
       background: radial-gradient(1200px 800px at 20% -20%, #1a2540 0%, transparent 60%) , var(--bg);
-      font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      font: 16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
     }
 
-    header{
-      padding:24px 20px 10px;
-      border-bottom:1px solid #1e2a46;
-      background:linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
-    }
-    h1{
-      margin:0 0 6px;
-      font-size: clamp(24px, 2.4vw + 12px, 40px);
-      letter-spacing:.5px;
-      color:var(--link);
-      text-align:center;
-      font-weight:800;
-    }
-    .brand-row{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      max-width:1200px;
-      margin:0 auto;
-    }
-    .dev{
-      margin:0;
-      font-weight:700;
-      color:var(--accent-2);
-    }
-    .home{
-      margin-left:auto;
-    }
-    .home a{
-      color:var(--link);
-      text-decoration:none;
-      display:inline-flex;
-      gap:6px;
-      align-items:center;
-      transition:opacity .2s ease;
-    }
+    header{padding:24px 20px 10px; border-bottom:1px solid #1e2a46; background:linear-gradient(180deg, rgba(255,255,255,.03), transparent)}
+    h1{margin:0 0 6px; font-size:clamp(24px,2.4vw + 12px,40px); color:var(--link); text-align:center; font-weight:800}
+    .brand-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; max-width:1200px; margin:0 auto}
+    .dev{margin:0; font-weight:700; color:var(--accent-2); display:flex; align-items:center; gap:8px; position:relative}
+    .home{margin-left:auto}
+    .home a{color:var(--link); text-decoration:none; display:inline-flex; gap:6px; align-items:center; transition:opacity .2s ease}
     .home a:hover{opacity:.85}
 
-    .toolbar{
-      max-width:1200px;
-      margin:14px auto 0;
-      padding:10px 14px;
-      display:grid;
-      grid-template-columns: 1fr auto auto;
-      gap:12px;
-      align-items:center;
-      background: var(--panel);
-      border:1px solid #213053;
-      border-radius:16px;
-      box-shadow: 0 10px 30px rgba(5,10,30,.3), inset 0 1px 0 rgba(255,255,255,.04);
+    /* Info button + popover */
+    .info-btn{
+      border:1px solid #2a3a61; background:linear-gradient(180deg,#2a3d66,#213455);
+      color:#e8f0ff; width:28px; height:28px; border-radius:50%;
+      display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+      box-shadow:0 6px 18px rgba(20,40,90,.35), inset 0 1px 0 rgba(255,255,255,.06);
+      transition:filter .2s ease, transform .05s ease;
     }
+    .info-btn:hover{filter:brightness(1.07)} .info-btn:active{transform:translateY(1px)}
+
+    .popover{
+      position:absolute; top: calc(100% + 10px); left: 0;
+      background:var(--panel); border:1px solid #213053; border-radius:14px;
+      width:min(360px, 92vw); max-height:260px; overflow:auto; padding:12px 14px;
+      box-shadow:0 12px 32px rgba(5,10,30,.45), inset 0 1px 0 rgba(255,255,255,.04);
+      transform-origin:top left; transform:scale(.96) translateY(-4px); opacity:0; pointer-events:none;
+      transition:opacity .18s ease, transform .18s ease; z-index:20;
+    }
+    .popover.show{opacity:1; transform:scale(1) translateY(0); pointer-events:auto}
+    .popover:before{
+      content:""; position:absolute; top:-6px; left:16px; width:10px; height:10px; background:var(--panel);
+      border-left:1px solid #213053; border-top:1px solid #213053; transform:rotate(45deg);
+    }
+    .popover h4{margin:0 0 8px; color:#cfe2ff; font-size:14px}
+    .popover ul{margin:0; padding-left:18px; color:#e7efff}
+
+    .toolbar{max-width:1200px; margin:14px auto 0; padding:10px 14px; display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; background:var(--panel); border:1px solid #213053; border-radius:16px; box-shadow:0 10px 30px rgba(5,10,30,.3), inset 0 1px 0 rgba(255,255,255,.04)}
     .toolbar .hint{color:var(--muted); font-size:.95rem}
     .toolbar .controls{display:flex; gap:10px; flex-wrap:wrap; justify-self:end}
-    select[multiple]{
-      min-width:340px;
-      max-width:650px;
-      min-height:120px;
-      padding:10px;
-      color:var(--ink);
-      background:var(--card);
-      border:1px solid #243353;
-      border-radius:12px;
-      outline:none;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-    }
-    .btn{
-      appearance:none;
-      border:1px solid #2a3a61;
-      background:linear-gradient(180deg, #2a3d66, #213455);
-      color:white; padding:10px 14px; border-radius:12px;
-      font-weight:700; cursor:pointer;
-      transition: transform .05s ease, filter .2s ease, box-shadow .2s ease;
-      box-shadow: 0 6px 18px rgba(20,40,90,.35), inset 0 1px 0 rgba(255,255,255,.06);
-    }
-    .btn:hover{filter:brightness(1.07)}
-    .btn:active{transform:translateY(1px)}
-    .btn.secondary{background:#22314f}
-    .stats{
-      justify-self:start;
-      display:flex; gap:8px; align-items:center;
-      padding:8px 10px; border-radius:999px;
-      background:var(--chip);
-      color:var(--chip-ink);
-      font-weight:700;
-    }
+    select[multiple]{min-width:340px; max-width:650px; min-height:120px; padding:10px; color:var(--ink); background:var(--card); border:1px solid #243353; border-radius:12px; outline:none; box-shadow: inset 0 1px 0 rgba(255,255,255,.04)}
+    .btn{appearance:none; border:1px solid #2a3a61; background:linear-gradient(180deg,#2a3d66,#213455); color:white; padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer; transition:transform .05s ease, filter .2s ease, box-shadow .2s ease; box-shadow:0 6px 18px rgba(20,40,90,.35), inset 0 1px 0 rgba(255,255,255,.06)}
+    .btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(1px)} .btn.secondary{background:#22314f}
+    .stats{justify-self:start; display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:999px; background:var(--chip); color:var(--chip-ink); font-weight:700}
 
-    .layout{
-      height: calc(100% - 210px);
-      max-height:calc(100% - 210px);
-      display:grid;
-      grid-template-columns: 1fr 350px;
-      gap:14px;
-      max-width:1200px;
-      margin:12px auto;
-      padding:0 12px 18px;
-    }
-    @media (max-width: 980px){
-      .layout{grid-template-columns: 1fr}
-      .panel{order:-1}
-    }
+    .layout{height:calc(100% - 210px); max-height:calc(100% - 210px); display:grid; grid-template-columns:1fr 350px; gap:14px; max-width:1200px; margin:12px auto; padding:0 12px 18px}
+    @media (max-width:980px){.layout{grid-template-columns:1fr} .panel{order:-1}}
 
-    .stage{
-      background: radial-gradient(1400px 900px at 80% -30%, rgba(255,255,255,.06) 0%, transparent 60%);
-      border:1px solid #1e2a46;
-      border-radius:18px; position:relative; overflow:hidden;
-      min-height:480px;
-    }
+    .stage{background: radial-gradient(1400px 900px at 80% -30%, rgba(255,255,255,.06) 0%, transparent 60%); border:1px solid #1e2a46; border-radius:18px; position:relative; overflow:hidden; min-height:480px}
     svg{width:100%; height:100%; display:block}
-    .link{
-      stroke:var(--edge);
-      stroke-width:1.2px;
-      opacity:.7;
-    }
-    .link:hover{stroke:var(--edge-hi); opacity:1}
-    .link-label{
-      pointer-events:none;
-      font-size: 11.5px;
-      fill: var(--muted);
-      user-select:none;
-    }
-    .node{
-      cursor:grab;
-      filter: drop-shadow(0 2px 3px rgba(0,0,0,.45));
-    }
+    .link{stroke:#5d6d97; stroke-width:1.2px; opacity:.7}
+    .link:hover{stroke:#9cc1ff; opacity:1}
+    .link-label{pointer-events:none; font-size:11.5px; fill:var(--muted); user-select:none}
+    .node{cursor:grab; filter: drop-shadow(0 2px 3px rgba(0,0,0,.45))}
     .node:active{cursor:grabbing}
-    .node circle{
-      stroke:#c6d8ff;
-      stroke-width:2px;
-    }
-    .node text{
-      font-weight:700;
-      font-size:12px;
-      fill: #ecf2ff;
-      text-shadow:0 1px 0 rgba(0,0,0,.35);
-      pointer-events:none;
-    }
+    .node circle{stroke:#c6d8ff; stroke-width:2px}
+    .node text{font-weight:700; font-size:12px; fill:#ecf2ff; text-shadow:0 1px 0 rgba(0,0,0,.35); pointer-events:none}
 
-    .panel{
-      background:var(--panel);
-      border:1px solid #213053;
-      border-radius:18px;
-      padding:16px 16px 12px;
-      overflow:auto;
-      box-shadow: 0 10px 30px rgba(5,10,30,.3), inset 0 1px 0 rgba(255,255,255,.04);
-    }
+    .panel{background:var(--panel); border:1px solid #213053; border-radius:18px; padding:16px 16px 12px; overflow:auto; box-shadow:0 10px 30px rgba(5,10,30,.3), inset 0 1px 0 rgba(255,255,255,.04)}
     .panel h3{margin:0 0 8px; color:var(--link)}
-    .panel .empty{
-      margin:26px 0; color:var(--muted)
-    }
-    .chip{
-      background:var(--chip); color:var(--chip-ink);
-      display:inline-block; padding:4px 9px; border-radius:999px;
-      font-size:12px; font-weight:700; margin:2px 6px 2px 0;
-    }
+    .panel .empty{margin:26px 0; color:var(--muted)}
+    .chip{background:var(--chip); color:var(--chip-ink); display:inline-block; padding:4px 9px; border-radius:999px; font-size:12px; font-weight:700; margin:2px 6px 2px 0}
     .list{margin:10px 0 0; padding-left:18px; color:#cfe2ff}
     .sep{height:1px; background:#23345a; margin:12px 0}
     .footer-note{color:var(--muted); font-size:12px; margin-top:10px}
-    .legend{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
-    .legend .chip{opacity:.96}
 
-    .toast{
-      position:absolute; left:12px; bottom:12px;
-      background:rgba(23,35,60,.9);
-      border:1px solid #1f2e50;
-      color:#cfe2ff; padding:8px 12px; border-radius:10px;
-      font-size:13px; pointer-events:none; opacity:0; transform:translateY(6px);
-      transition:opacity .2s ease, transform .2s ease;
-    }
+    .toast{position:absolute; left:12px; bottom:12px; background:rgba(23,35,60,.9); border:1px solid #1f2e50; color:#cfe2ff; padding:8px 12px; border-radius:10px; font-size:13px; pointer-events:none; opacity:0; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease}
     .toast.show{opacity:1; transform:translateY(0)}
   </style>
 </head>
@@ -211,7 +91,39 @@
     <h1>Stephen King Character Network</h1>
 
     <div class="brand-row">
-      <h2 class="dev"><span style="color:#ff9900;">Developed by: Angel Soto</span></h2>
+      <h2 class="dev">
+        <span style="color:#ff9900;">Developed by: Angel Soto</span>
+        <!-- Info button -->
+        <button id="infoBtn" class="info-btn" aria-label="Source books" aria-haspopup="dialog" aria-expanded="false" aria-controls="infoPopover">i</button>
+
+        <!-- Popover -->
+        <div id="infoPopover" class="popover" role="dialog" aria-modal="false" aria-labelledby="infoTitle">
+          <h4 id="infoTitle">Character data were extracted from the following books:</h4>
+          <ul>
+            <li>Carrie</li>
+            <li>Salem’s Lot</li>
+            <li>The Shining</li>
+            <li>The Dead Zone</li>
+            <li>The Long Walk</li>
+            <li>Firestarter</li>
+            <li>Cujo</li>
+            <li>The Mist</li>
+            <li>Different Seasons</li>
+            <li>Christine</li>
+            <li>Pet Sematary</li>
+            <li>It</li>
+            <li>The Tommyknockers</li>
+            <li>Four Past Midnight</li>
+            <li>Needful Things</li>
+            <li>The Stand</li>
+            <li>The Green Mile</li>
+            <li>Dreamcatcher</li>
+            <li>Under the Dome</li>
+            <li>11_22_63</li>
+          </ul>
+        </div>
+      </h2>
+
       <p class="home">
         <a href="https://airsoto.github.io/vet/">
           🏠 <span style="font-size:0.9em;">Back to homepage</span>
@@ -264,384 +176,197 @@
     // ---------- Helpers ----------
     const $ = (sel, ctx=document) => ctx.querySelector(sel);
     const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
-
     function showToast(msg, ms=1800){
-      const t = $('#toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(()=>t.classList.remove('show'), ms);
+      const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+      clearTimeout(showToast._t); showToast._t = setTimeout(()=>t.classList.remove('show'), ms);
     }
-
     const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
-
-    // Normalize a name for fuzzy matching
-    function normalizeName(s){
-      return (s||'')
-        .toLowerCase()
-        .replace(/&/g,'and')
-        .replace(/[^\p{L}\p{N}\s/.-]/gu,'')
-        .replace(/\s*\/\s*/g,' / ')
-        .replace(/\s+/g,' ')
-        .trim();
-    }
-
-    // Create aliases from a character name (split by slashes, parentheses, "aka", etc.)
-    function makeAliases(name){
-      const raw = normalizeName(name);
-      const parts = raw.split('/').map(x=>x.trim()).filter(Boolean);
-      const aliases = new Set([raw, ...parts]);
-      // also split on parentheses and dashes
-      raw.split(/[\(\)\-]/).forEach(x=>{ if(x.trim().length>1) aliases.add(x.trim())});
-      return Array.from(aliases);
-    }
+    const normalizeName = s => (s||'').toLowerCase().replace(/&/g,'and').replace(/[^\p{L}\p{N}\s/.-]/gu,'').replace(/\s*\/\s*/g,' / ').replace(/\s+/g,' ').trim();
+    const makeAliases = name => { const raw = normalizeName(name); const parts = raw.split('/').map(x=>x.trim()).filter(Boolean); const aliases = new Set([raw, ...parts]); raw.split(/[\(\)\-]/).forEach(x=>{ if(x.trim().length>1) aliases.add(x.trim())}); return Array.from(aliases); };
 
     // ---------- Data loading ----------
-    let library = [];              // all books
-    let currentBooks = [];         // selected books
-    let graphData = {nodes:[], links:[]};
+    let library = [], currentBooks = [], graphData = {nodes:[], links:[]};
 
     async function loadData(){
       try{
         const res = await fetch('json/sk_EN.json', {cache:'no-store'});
         if(!res.ok) throw new Error(res.status + ' ' + res.statusText);
         const data = await res.json();
-        if(!Array.isArray(data)){
-          console.warn('Data is not array. Attempting to read "books" property.');
-          library = data.books || [];
-        }else{
-          library = data;
-        }
+        library = Array.isArray(data) ? data : (data.books || []);
         populateSelect(library);
-      }catch(err){
-        console.error(err);
-        showToast('Could not load json/sk_EN.json');
-      }
+      }catch(err){ console.error(err); showToast('Could not load json/sk_EN.json'); }
     }
-
     function populateSelect(data){
-      const sel = $('#bookSelect');
-      sel.innerHTML = '';
-      data
-        .slice()
-        .sort((a,b)=> (a.title||'').localeCompare(b.title||''))
-        .forEach((b,i)=>{
-          const opt = document.createElement('option');
-          opt.value = b.title;
-          opt.textContent = `${b.title}${b.year ? ' ('+b.year+')' : ''}`;
-          sel.appendChild(opt);
-        });
+      const sel = $('#bookSelect'); sel.innerHTML = '';
+      data.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'')).forEach(b=>{
+        const opt=document.createElement('option'); opt.value=b.title; opt.textContent=`${b.title}${b.year?' ('+b.year+')':''}`; sel.appendChild(opt);
+      });
       updateStats(0,0,0);
     }
 
-    // ---------- Build graph from selected books ----------
+    // ---------- Build graph ----------
     function buildGraph(selectedTitles){
-      // Filter chosen books
       const chosen = library.filter(b => selectedTitles.includes(b.title));
       currentBooks = chosen;
 
-      // Deduplicate characters by name, aggregate books they appear in
       const nodeMap = new Map();
       chosen.forEach((book, bi)=>{
         (book.characters||[]).forEach(ch=>{
           const key = normalizeName(ch.name);
           if(!nodeMap.has(key)){
-            nodeMap.set(key, {
-              id: key,
-              name: ch.name,
-              description: ch.description || '—',
-              books: new Set([book.title]),
-              years: new Set([book.year]),
-              color: colorScale(bi),
-              aliases: makeAliases(ch.name),
-              raw: ch
+            nodeMap.set(key,{
+              id:key, name:ch.name, description:ch.description||'—',
+              books:new Set([book.title]), years:new Set([book.year]),
+              color:colorScale(bi), aliases:makeAliases(ch.name), raw:ch
             });
           }else{
-            nodeMap.get(key).books.add(book.title);
-            nodeMap.get(key).years.add(book.year);
+            nodeMap.get(key).books.add(book.title); nodeMap.get(key).years.add(book.year);
           }
         });
       });
-
-      // Create a quick index for fuzzy lookup
       const nodes = Array.from(nodeMap.values());
       function findNodeByWithString(withStr){
         const q = normalizeName(withStr);
-        // exact by id
         if(nodeMap.has(q)) return nodeMap.get(q);
-        // fuzzy: alias contains each other
-        for(const n of nodes){
-          for(const al of n.aliases){
-            if(al === q || al.includes(q) || q.includes(al)) return n;
-          }
-        }
+        for(const n of nodes){ for(const al of n.aliases){ if(al===q || al.includes(q) || q.includes(al)) return n; } }
         return null;
       }
-
-      // Build links where both endpoints are present
-      const links = [];
-      chosen.forEach((book)=>{
+      const links=[];
+      chosen.forEach(book=>{
         (book.characters||[]).forEach(ch=>{
-          const srcKey = normalizeName(ch.name);
-          if(!nodeMap.has(srcKey)) return;
+          const srcKey = normalizeName(ch.name); if(!nodeMap.has(srcKey)) return;
           const src = nodeMap.get(srcKey);
           (ch.relationships||[]).forEach(rel=>{
-            const tgt = findNodeByWithString(rel.with);
-            if(!tgt) return; // only connect to characters present in selection
-            links.push({
-              source: src.id,
-              target: tgt.id,
-              type: rel.type || '',
-              detail: rel.detail || '',
-              book: book.title
-            });
+            const tgt = findNodeByWithString(rel.with); if(!tgt) return;
+            links.push({source:src.id, target:tgt.id, type:rel.type||'', detail:rel.detail||'', book:book.title});
           });
         });
       });
-
-      // Freeze aggregated sets to arrays for display
-      nodes.forEach(n=>{
-        n.books = Array.from(n.books);
-        n.years = Array.from(n.years).filter(Boolean);
-      });
+      nodes.forEach(n=>{ n.books = Array.from(n.books); n.years = Array.from(n.years).filter(Boolean); });
 
       graphData = {nodes, links};
       updateStats(currentBooks.length, nodes.length, links.length);
-      drawGraph(graphData);
-      drawLegend(currentBooks);
+      drawGraph(graphData); drawLegend(currentBooks);
       if(nodes.length && links.length) showToast('Drag nodes • Hover links for details • Click a node for more');
     }
-
     function updateStats(nb, nc, nl){
       $('#countBooks').textContent = `${nb} book${nb===1?'':'s'}`;
       $('#countChars').textContent = `${nc} character${nc===1?'':'s'}`;
       $('#countLinks').textContent = `${nl} relationship${nl===1?'':'s'}`;
     }
-
     function drawLegend(books){
-      const wrap = $('#panel');
-      let lg = wrap.querySelector('.legend');
-      if(!lg){
-        lg = document.createElement('div');
-        lg.className = 'legend';
-        wrap.insertBefore(lg, wrap.firstChild.nextSibling);
-      }
-      lg.innerHTML = '';
-      books.forEach((b,i)=>{
-        const span = document.createElement('span');
-        span.className = 'chip';
-        span.style.border = '1px solid rgba(255,255,255,.08)';
-        span.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.05)';
-        span.style.background = '#22314f';
-        span.style.outline = `3px solid ${d3.schemeTableau10[i % 10]}55`;
-        span.textContent = b.title + (b.year? ` (${b.year})` : '');
-        lg.appendChild(span);
-      });
+      const wrap = $('#panel'); let lg = wrap.querySelector('.legend');
+      if(!lg){ lg = document.createElement('div'); lg.className='legend'; wrap.insertBefore(lg, wrap.firstChild.nextSibling); }
+      lg.innerHTML=''; books.forEach((b,i)=>{ const span=document.createElement('span'); span.className='chip'; span.style.border='1px solid rgba(255,255,255,.08)'; span.style.boxShadow='inset 0 1px 0 rgba(255,255,255,.05)'; span.style.background='#22314f'; span.style.outline=`3px solid ${d3.schemeTableau10[i%10]}55`; span.textContent=b.title+(b.year?` (${b.year})`:'' ); lg.appendChild(span); });
     }
 
-    // ---------- D3 Force Graph ----------
-    let sim, svg, gNodes, gLinks, gLabels;
-    const stage = $('#stage');
-    const graphSvg = d3.select('#graph');
-    gLinks = graphSvg.select('#links');
-    gLabels = graphSvg.select('#linkLabels');
-    gNodes = graphSvg.select('#nodes');
+    // ---------- D3 Graph ----------
+    let sim; const stage=$('#stage'); const graphSvg=d3.select('#graph');
+    const gLinks=graphSvg.select('#links'), gLabels=graphSvg.select('#linkLabels'), gNodes=graphSvg.select('#nodes');
 
     function drawGraph({nodes, links}){
-      // clear old sim
       if(sim) sim.stop();
+      const rect=stage.getBoundingClientRect(), width=rect.width, height=rect.height;
+      graphSvg.attr('viewBox',[0,0,width,height]);
 
-      // Update viewBox to container size
-      const rect = stage.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
-      graphSvg.attr('viewBox', [0,0,width,height]);
-
-      // Links
-      const link = gLinks.selectAll('line')
-        .data(links, d=>d.source+'|'+d.target+'|'+d.type);
+      const link = gLinks.selectAll('line').data(links, d=>d.source+'|'+d.target+'|'+d.type);
       link.exit().remove();
-      const linkEnter = link.enter().append('line')
-        .attr('class','link')
-        .attr('stroke-opacity', .8)
-        .attr('filter','url(#glow)')
-        .append('title');
-      linkEnter.merge(link).select('title')
-        .text(d=> `${d.type ? d.type+': ' : ''}${d.detail || ''}${d.detail?'\n':''} [${d.book}]`);
+      const linkEnter = link.enter().append('line').attr('class','link').attr('stroke-opacity',.8).append('title');
+      linkEnter.merge(link).select('title').text(d=>`${d.type?d.type+': ':''}${d.detail||''}${d.detail?'\n':''}[${d.book}]`);
 
-      // Link labels (mild, to avoid clutter on dense graphs)
-      const lbl = gLabels.selectAll('text')
-        .data(links.filter(l=>l.type && links.length <= 120), d=>d.source+'|'+d.target+'|'+d.type);
-      lbl.exit().remove();
-      lbl.enter().append('text')
-         .attr('class','link-label')
-         .attr('dy','-2')
-         .text(d=>d.type);
+      const lbl = gLabels.selectAll('text').data(links.filter(l=>l.type && links.length<=120), d=>d.source+'|'+d.target+'|'+d.type);
+      lbl.exit().remove(); lbl.enter().append('text').attr('class','link-label').attr('dy','-2').text(d=>d.type);
 
-      // Nodes
-      const node = gNodes.selectAll('g.node')
-        .data(nodes, d=>d.id);
+      const node = gNodes.selectAll('g.node').data(nodes, d=>d.id);
       node.exit().remove();
-
-      const nodeEnter = node.enter().append('g')
-        .attr('class','node')
-        .call(d3.drag()
-          .on('start', dragstarted)
-          .on('drag', dragged)
-          .on('end', dragended))
-        .on('click', (_,d)=> showDetails(d))
+      const nodeEnter = node.enter().append('g').attr('class','node')
+        .call(d3.drag().on('start',dragstarted).on('drag',dragged).on('end',dragended))
+        .on('click',(_,d)=>showDetails(d))
         .on('mouseenter', function(){ d3.select(this).select('circle').attr('stroke-width',3.2) })
         .on('mouseleave', function(){ d3.select(this).select('circle').attr('stroke-width',2) });
 
-      nodeEnter.append('circle')
-        .attr('r', d=> 18 + Math.min(12, (d.books?.length||1)*3) )
-        .attr('fill', (d,i)=> d3.color(d.color||colorScale(i)).formatHex())
-        .attr('fill-opacity', .9)
-        .attr('stroke', '#c6d8ff')
-        .attr('stroke-width', 2);
+      nodeEnter.append('circle').attr('r', d=>18 + Math.min(12,(d.books?.length||1)*3))
+        .attr('fill',(d,i)=> d3.color(d.color || d3.schemeTableau10[i%10]).formatHex())
+        .attr('fill-opacity',.9).attr('stroke','#c6d8ff').attr('stroke-width',2);
 
-      nodeEnter.append('text')
-        .attr('text-anchor','middle')
-        .attr('dy', 4)
-        .text(d => d.name.length > 18 ? d.name.slice(0,17)+'…' : d.name);
+      nodeEnter.append('text').attr('text-anchor','middle').attr('dy',4)
+        .text(d=> d.name.length>18 ? d.name.slice(0,17)+'…' : d.name);
 
       const allNodes = nodeEnter.merge(node);
 
-      // Simulation
       sim = d3.forceSimulation(nodes)
         .force('charge', d3.forceManyBody().strength(-320))
         .force('link', d3.forceLink(links).id(d=>d.id).distance(110).strength(.9))
-        .force('center', d3.forceCenter(width/2, height/2))
-        .force('collide', d3.forceCollide().radius(d => 22 + Math.min(12, (d.books?.length||1)*3)))
+        .force('center', d3.forceCenter(width/2,height/2))
+        .force('collide', d3.forceCollide().radius(d=>22 + Math.min(12,(d.books?.length||1)*3)))
         .on('tick', ticked);
 
-      // gentle breathing motion
-      d3.interval(()=>{
-        if(!sim) return;
-        sim.alpha(Math.max(0.12, sim.alpha()*0.92)).restart();
-      }, 2800);
+      d3.interval(()=>{ if(!sim) return; sim.alpha(Math.max(0.12, sim.alpha()*0.92)).restart(); }, 2800);
 
       function ticked(){
-        gLinks.selectAll('line')
-          .attr('x1', d=>d.source.x)
-          .attr('y1', d=>d.source.y)
-          .attr('x2', d=>d.target.x)
-          .attr('y2', d=>d.target.y);
-
-        gLabels.selectAll('text')
-          .attr('x', d=>(d.source.x + d.target.x)/2)
-          .attr('y', d=>(d.source.y + d.target.y)/2);
-
+        gLinks.selectAll('line').attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+        gLabels.selectAll('text').attr('x',d=>(d.source.x+d.target.x)/2).attr('y',d=>(d.source.y+d.target.y)/2);
         allNodes.attr('transform', d=>`translate(${d.x},${d.y})`);
       }
-
-      function dragstarted(event, d){
-        if(!event.active) sim.alphaTarget(0.2).restart();
-        d.fx = d.x; d.fy = d.y;
-      }
-      function dragged(event, d){
-        d.fx = event.x; d.fy = event.y;
-      }
-      function dragended(event, d){
-        if(!event.active) sim.alphaTarget(0);
-        d.fx = null; d.fy = null;
-      }
+      function dragstarted(event,d){ if(!event.active) sim.alphaTarget(0.2).restart(); d.fx=d.x; d.fy=d.y; }
+      function dragged(event,d){ d.fx=event.x; d.fy=event.y; }
+      function dragended(event,d){ if(!event.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }
     }
 
     // ---------- Details panel ----------
     function showDetails(node){
-      const panel = $('#panel');
-      const empty = panel.querySelector('.empty');
-      const box = $('#details');
-      if(empty) empty.remove();
-      box.hidden = false;
-
-      box.innerHTML = `
+      const panel=$('#panel'); const empty=panel.querySelector('.empty'); const box=$('#details');
+      if(empty) empty.remove(); box.hidden=false;
+      box.innerHTML=`
         <h3>${node.name}</h3>
         <div class="sep"></div>
         <div><strong>Description</strong></div>
-        <p style="margin:.4em 0 0.8em; color:#e7efff">${node.description || '—'}</p>
-
+        <p style="margin:.4em 0 .8em; color:#e7efff">${node.description || '—'}</p>
         <div><strong>Appears in</strong></div>
-        <div style="margin:.35em 0 0.6em;">
-          ${node.books.map(t=>`<span class="chip">${t}</span>`).join('')}
-        </div>
-
+        <div style="margin:.35em 0 .6em;">${node.books.map(t=>`<span class="chip">${t}</span>`).join('')}</div>
         ${node.years.length ? `<div class="footer-note">Years: ${node.years.join(', ')}</div>` : ''}
-
         <div class="sep"></div>
         <div><strong>Relationships in current view</strong></div>
-        <ul class="list" id="relList"></ul>
-      `;
-
-      // collect relationships from current links
-      const rels = graphData.links
-        .filter(l => l.source.id === node.id || l.target.id === node.id)
-        .map(l => ({
-          other: l.source.id === node.id ? l.target : l.source,
-          type: l.type, detail:l.detail, book:l.book
-        }));
-
-      const list = $('#relList');
-      if(!rels.length){
-        list.innerHTML = `<li style="color:var(--muted)">No visible relationships for this selection.</li>`;
-      }else{
-        list.innerHTML = rels.map(r=>
-          `<li>
-             <span style="color:#bcd6ff; font-weight:700">${graphData.nodes.find(n=>n.id===r.other.id)?.name || '—'}</span>
-             ${r.type?`<span class="chip" title="${r.detail? r.detail : ''}">${r.type}</span>`:''}
-             <span class="footer-note">[${r.book}] ${r.detail? ' – '+r.detail : ''}</span>
-           </li>`).join('');
-      }
+        <ul class="list" id="relList"></ul>`;
+      const rels = graphData.links.filter(l=>l.source.id===node.id || l.target.id===node.id)
+                     .map(l=>({other:l.source.id===node.id?l.target:l.source, type:l.type, detail:l.detail, book:l.book}));
+      const list=$('#relList');
+      list.innerHTML = rels.length
+        ? rels.map(r=>`<li><span style="color:#bcd6ff; font-weight:700">${graphData.nodes.find(n=>n.id===r.other.id)?.name||'—'}</span> ${r.type?`<span class="chip" title="${r.detail?r.detail:''}">${r.type}</span>`:''} <span class="footer-note">[${r.book}] ${r.detail?' – '+r.detail:''}</span></li>`).join('')
+        : `<li style="color:var(--muted)">No visible relationships for this selection.</li>`;
     }
 
     // ---------- UI wiring ----------
     $('#bookSelect').addEventListener('change', e=>{
       const selected = Array.from(e.target.selectedOptions).map(o=>o.value);
-      if(selected.length===0){
-        updateStats(0,0,0);
-        drawGraph({nodes:[],links:[]});
-        $('#details').hidden = true;
-        const p = $('#panel');
-        if(!p.querySelector('.empty')){
-          const div = document.createElement('div');
-          div.className = 'empty';
-          div.textContent = 'Click a character to see their description and relationships.';
-          p.appendChild(div);
-        }
-        return;
-      }
+      if(!selected.length){ updateStats(0,0,0); drawGraph({nodes:[],links:[]}); $('#details').hidden=true; const p=$('#panel'); p.querySelector('.legend')?.remove(); if(!p.querySelector('.empty')){ const div=document.createElement('div'); div.className='empty'; div.textContent='Click a character to see their description and relationships.'; p.appendChild(div);} return; }
       buildGraph(selected);
     });
-
     $('#resetBtn').addEventListener('click', ()=>{
-      const sel = $('#bookSelect');
-      Array.from(sel.options).forEach(o=>o.selected=false);
-      // clear view
-      updateStats(0,0,0);
-      drawGraph({nodes:[],links:[]});
-      $('#details').hidden = true;
-      const p = $('#panel');
-      p.querySelector('.legend')?.remove();
-      if(!p.querySelector('.empty')){
-        const div = document.createElement('div');
-        div.className = 'empty';
-        div.textContent = 'Click a character to see their description and relationships.';
-        p.appendChild(div);
-      }
+      const sel=$('#bookSelect'); Array.from(sel.options).forEach(o=>o.selected=false);
+      updateStats(0,0,0); drawGraph({nodes:[],links:[]}); $('#details').hidden=true; const p=$('#panel'); p.querySelector('.legend')?.remove();
+      if(!p.querySelector('.empty')){ const div=document.createElement('div'); div.className='empty'; div.textContent='Click a character to see their description and relationships.'; p.appendChild(div); }
     });
+
+    // Info popover logic
+    const infoBtn = $('#infoBtn'), infoPop = $('#infoPopover');
+    function closeInfo(){ infoPop.classList.remove('show'); infoBtn.setAttribute('aria-expanded','false'); }
+    function toggleInfo(e){
+      e.stopPropagation();
+      const open = infoPop.classList.toggle('show');
+      infoBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if(open) infoPop.focus();
+    }
+    infoBtn.addEventListener('click', toggleInfo);
+    document.addEventListener('click', (e)=>{ if(!infoPop.contains(e.target) && e.target!==infoBtn && !infoBtn.contains(e.target)) closeInfo(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeInfo(); });
 
     // Resize handling
-    const ro = new ResizeObserver(()=> {
-      if(graphData.nodes.length) drawGraph(graphData);
-    });
-    ro.observe(stage);
+    const ro = new ResizeObserver(()=>{ if(graphData.nodes.length) drawGraph(graphData); });
+    ro.observe($('#stage'));
 
     // Kickoff
     loadData();
   </script>
 </body>
 </html>
-
-
-
