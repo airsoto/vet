@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Valores de Análisis de Sangre — Perro & Gato</title>
+  <style>
+    :root{
+      --bg: #0b0f17;
+      --bg-alt: #0f1524;
+      --card: #121a2b;
+      --muted: #9fb3c8;
+      --text: #e6eef8;
+      --accent: #90caf9; /* azul */
+      --accent-2: #ff9900; /* naranja */
+      --border: #1e2a43;
+      --shadow: rgba(0,0,0,.35);
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 600px at 10% -10%, #14203a 0%, transparent 60%) no-repeat, var(--bg);
+      color:var(--text); font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      line-height:1.45;
+    }
+    .wrap{max-width:1100px; margin:0 auto; padding:20px;}
+
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(6px);
+      background: linear-gradient(180deg, rgba(11,15,23,.85), rgba(11,15,23,.55) 70%, transparent);
+      border-bottom:1px solid var(--border);
+    }
+    header .wrap{padding-top:18px; padding-bottom:14px;}
+    h1{margin:0 0 8px; font-size: clamp(1.6rem, 2.5vw, 2.2rem); letter-spacing:.3px; color:var(--text)}
+    .meta{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap}
+    .meta a{color:var(--accent); text-decoration:none}
+
+    .controls{
+      display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:14px
+    }
+    label{font-size:.95rem; color:var(--muted)}
+    select, input[type="text"], button{
+      background:var(--bg-alt); border:1px solid var(--border); color:var(--text);
+      padding:14px 16px; border-radius:12px; font-size:clamp(1.05rem, 2.2vw, 1.2rem);
+      outline:none; box-shadow: 0 2px 10px var(--shadow) inset, 0 2px 10px var(--shadow);
+    }
+    select{min-width:230px}
+    input[type="text"]{flex:1; min-width:260px}
+    .btn{cursor:pointer; transition: transform .06s ease, filter .2s}
+    .btn:hover{filter: brightness(1.1)}
+    .btn:active{transform: translateY(1px)}
+    .btn-reset{border-color:#2c3d63}
+
+    main{padding:20px 0 60px}
+
+    .grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px}
+    .card{
+      background: linear-gradient(180deg, rgba(18,26,43,.92), rgba(18,26,43,.72));
+      border:1px solid var(--border); border-radius:16px; padding:16px 16px 14px; box-shadow: 0 12px 24px -12px var(--shadow);
+    }
+    .card h3{margin:0 0 10px; font-size: clamp(1.1rem, 2.3vw, 1.35rem); color:#e9f2ff}
+    .subtitle{margin: 6px 0 6px; font-size:.95rem; color:var(--muted)}
+
+    .kv{display:grid; grid-template-columns: 1fr; gap:6px; font-size: clamp(1.02rem, 2.1vw, 1.15rem)}
+
+    /* 2-column layout when we detect especie keys */
+    .species{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .species .sp{background: #0c1322; border:1px solid var(--border); border-radius:12px; padding:10px}
+    .sp h4{margin:0 0 8px; font-size:1rem; color:var(--accent)}
+
+    ul{margin:4px 0 0 18px; padding:0}
+    li{margin:2px 0}
+
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; background:#0e1b33; border:1px solid var(--border); font-size:.9rem; color:#cfe0ff}
+
+    .empty{margin:24px 0; text-align:center; color:var(--muted)}
+
+    .sr-only{position:absolute; width:1px; height:1px; margin:-1px; border:0; padding:0; white-space:nowrap; clip-path:inset(50%); clip:rect(0 0 0 0); overflow:hidden}
+
+    .loading{padding:28px 0; display:flex; align-items:center; gap:12px; color:var(--muted)}
+    .spinner{width:18px; height:18px; border:3px solid #28406b; border-top-color: var(--accent); border-radius:50%; animation: spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    footer{border-top:1px solid var(--border); margin-top:30px; padding:16px 0; color:var(--muted); font-size:.95rem}
+    .tagline{font-size:.98rem; color:#c9d8f1}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Valores de Análisis de Sangre — Perro & Gato</h1>
+
+      <!-- Bloque solicitado por el usuario -->
+      <div class="meta" aria-label="Créditos y navegación">
+        <div>
+          <h2 style="margin:0;">
+            <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+          </h2>
+        </div>
+        <p style="margin:0; font-size:0.9em; text-align:right;">
+          <a href="https://airsoto.github.io/vet/" style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+            🏠 <span style="font-size:0.9em;">volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <div class="controls" role="region" aria-label="Controles de filtrado">
+        <label for="groupSelect">Grupo</label>
+        <select id="groupSelect" aria-label="Selecciona grupo de parámetros"></select>
+
+        <label class="sr-only" for="search">Buscar parámetro</label>
+        <input id="search" type="text" placeholder="Buscar parámetro… (p. ej., Albúmina, Sodio, T4)" autocomplete="off" />
+
+        <button id="reset" class="btn btn-reset" title="Borrar búsqueda">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="status" class="loading"><span class="spinner"></span> Cargando valores…</div>
+    <main id="results" hidden>
+      <div class="tagline" id="groupTitle"></div>
+      <div class="grid" id="cards"></div>
+      <div class="empty" id="empty" hidden>No hay resultados para tu búsqueda.</div>
+    </main>
+
+    <footer>
+      <div>Consejo: escribe parte del nombre ("albúm", "sodio", "T4") para encontrar más rápido. Usa el selector para cambiar de grupo.</div>
+    </footer>
+  </div>
+
+  <script>
+  (function(){
+    const JSON_URL = 'json/analisis_sangre.json'; // coloca el archivo aquí
+    const groupSelect = document.getElementById('groupSelect');
+    const searchInput = document.getElementById('search');
+    const resetBtn = document.getElementById('reset');
+    const statusEl = document.getElementById('status');
+    const resultsEl = document.getElementById('results');
+    const groupTitle = document.getElementById('groupTitle');
+    const cards = document.getElementById('cards');
+    const emptyEl = document.getElementById('empty');
+
+    let DATA = {};
+    let currentGroup = '';
+    let debTimer = null;
+
+    fetch(JSON_URL)
+      .then(r => {
+        if(!r.ok) throw new Error('No se pudo cargar el JSON');
+        return r.json();
+      })
+      .then(json => {
+        DATA = json;
+        initGroups();
+        statusEl.hidden = true;
+        resultsEl.hidden = false;
+      })
+      .catch(err => {
+        statusEl.textContent = 'Error: ' + err.message + ' — Verifica la ruta ' + JSON_URL;
+      });
+
+    function initGroups(){
+      const keys = Object.keys(DATA);
+      // Orden sugerido si existen
+      const pref = [
+        'Hematología',
+        'Proteinograma',
+        'Iones',
+        'Bioquímica',
+        'Hormonas',
+        'Fármacos y Vitaminas',
+        'Coagulación'
+      ];
+      const ordered = pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
+
+      for(const k of ordered){
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = k;
+        groupSelect.appendChild(opt);
+      }
+      currentGroup = ordered[0] || '';
+      groupSelect.value = currentGroup;
+      render();
+    }
+
+    groupSelect.addEventListener('change', () => {
+      currentGroup = groupSelect.value;
+      render();
+    });
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debTimer);
+      debTimer = setTimeout(render, 180);
+    });
+
+    resetBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      render();
+      searchInput.focus();
+    });
+
+    function render(){
+      const q = searchInput.value.trim().toLowerCase();
+      const groupData = DATA[currentGroup] || {};
+      const paramMap = normalizeGroup(groupData);
+
+      groupTitle.textContent = currentGroup;
+      cards.innerHTML = '';
+
+      const entries = Object.entries(paramMap)
+        .filter(([name, val]) => matchQuery(name, val, q));
+
+      if(entries.length === 0){
+        emptyEl.hidden = false; return;
+      } else {
+        emptyEl.hidden = true;
+      }
+
+      for(const [param, val] of entries){
+        cards.appendChild(cardFor(param, val));
+      }
+    }
+
+    function matchQuery(name, val, q){
+      if(!q) return true;
+      if(name.toLowerCase().includes(q)) return true;
+      // buscar en subclaves si es objeto
+      if(val && typeof val === 'object' && !Array.isArray(val)){
+        for(const k of Object.keys(val)){
+          if(k.toLowerCase().includes(q)) return true;
+          const v = val[k];
+          if(typeof v === 'string' && v.toLowerCase().includes(q)) return true;
+        }
+      }
+      return false;
+    }
+
+    // Detecta si el grupo está en formato especie->param o param->especie y lo normaliza a param->{Perros, Gatos, ...}
+    function normalizeGroup(groupObj){
+      if(!groupObj || typeof groupObj !== 'object') return {};
+
+      const keys = Object.keys(groupObj);
+      const isSpeciesFirst = keys.some(k => k === 'Perros' || k === 'Gatos') &&
+                              keys.every(k => ['Perros','Gatos'].includes(k));
+
+      if(isSpeciesFirst){
+        const out = {};
+        for(const sp of ['Perros','Gatos']){
+          const block = groupObj[sp] || {};
+          for(const param of Object.keys(block)){
+            out[param] = out[param] || {};
+            out[param][sp] = block[param];
+          }
+        }
+        return out;
+      }
+
+      // Si ya es param->algo
+      return groupObj;
+    }
+
+    function cardFor(name, value){
+      const el = document.createElement('article');
+      el.className = 'card';
+
+      const h = document.createElement('h3');
+      h.textContent = name;
+      el.appendChild(h);
+
+      el.appendChild(renderValue(value));
+      return el;
+    }
+
+    function renderValue(v){
+      // string o número
+      if(typeof v === 'string' || typeof v === 'number'){
+        const div = document.createElement('div');
+        div.className = 'kv';
+        const span = document.createElement('span');
+        span.textContent = v;
+        div.appendChild(span);
+        return div;
+      }
+
+      // array
+      if(Array.isArray(v)){
+        const ul = document.createElement('ul');
+        for(const it of v){
+          const li = document.createElement('li');
+          li.textContent = it;
+          ul.appendChild(li);
+        }
+        return ul;
+      }
+
+      // objeto
+      if(v && typeof v === 'object'){
+        const keys = Object.keys(v);
+        const hasPerros = Object.prototype.hasOwnProperty.call(v,'Perros');
+        const hasGatos  = Object.prototype.hasOwnProperty.call(v,'Gatos');
+
+        // Presentación a dos columnas si hay claves de especie
+        if(hasPerros || hasGatos){
+          const wrap = document.createElement('div');
+          wrap.className = 'species';
+
+          const mkCol = (label, content) => {
+            const col = document.createElement('div');
+            col.className = 'sp';
+            const h4 = document.createElement('h4');
+            h4.textContent = label;
+            col.appendChild(h4);
+            col.appendChild(renderValue(content ?? '—'));
+            return col;
+          };
+
+          wrap.appendChild(mkCol('Perros', v['Perros']));
+          wrap.appendChild(mkCol('Gatos',  v['Gatos']));
+          return wrap;
+        }
+
+        // De lo contrario, mostrar sub-secciones
+        const block = document.createElement('div');
+        for(const k of keys){
+          const sub = document.createElement('div');
+          const st = document.createElement('div');
+          st.className = 'subtitle';
+          st.textContent = k;
+          sub.appendChild(st);
+          sub.appendChild(renderValue(v[k]));
+          block.appendChild(sub);
+        }
+        return block;
+      }
+
+      // fallback
+      const div = document.createElement('div');
+      div.textContent = '—';
+      return div;
+    }
+  })();
+  </script>
+</body>
+</html>
+
+
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
+
