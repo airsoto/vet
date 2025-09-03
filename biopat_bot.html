@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Anotar VN (Perro/Gato) en PDF desde JSON</title>
+<title>VN Perro/Gato en PDF (desde JSON)</title>
 <style>
   :root{--bg:#0f1115;--panel:#171a21;--ink:#e6e6e6;--muted:#9aa4b2;--pri:#4ea8de;--pri2:#1e88e5}
   *{box-sizing:border-box}
@@ -17,16 +17,18 @@
   @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
   label{display:block;font-weight:600;margin-bottom:6px;color:#c7d2fe}
   input[type="file"],button{width:100%;background:#11151c;border:1px solid #2a2f3a;color:var(--ink);border-radius:12px;padding:12px 14px;font-size:15px}
-  button{border:none;background:linear-gradient(180deg,var(--pri),var(--pri2));font-weight:700;cursor:pointer}
   .muted{color:var(--muted);font-size:13px}
   .log{background:#0c0f14;border:1px dashed #2a2f3a;border-radius:12px;padding:12px;min-height:140px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .toggle{display:flex;gap:10px}
+  .toggle button{flex:1;cursor:pointer;background:#141923}
+  .toggle button.active{background:linear-gradient(180deg,var(--pri),var(--pri2));font-weight:800}
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
     <h1>VN Perro/Gato en PDF (desde JSON)</h1>
-      <h2 style="margin:0;">
+         <h2 style="margin:0;">
     <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
   </h2>
 
@@ -38,14 +40,21 @@
     </a>
   </p>
     <!-- Enlace inicio -->
-    <p class="lead">Usa <code>json/inf_biopat_valores.json</code> y escribe las dos columnas (Perro y Gato) a la derecha de cada parámetro del PDF.</p>
+    <p class="lead">Carga <code>json/inf_biopat_valores.json</code>. Escribe la columna elegida (Perro o Gato) a 2&nbsp;cm del borde derecho, alineada con cada parámetro. “VALORES NORMALES (...)” va en negrita.</p>
   </div>
 </header>
 
 <main class="wrap grid" id="app">
   <section class="card">
-    <label for="pdfInput">PDF(s) a procesar</label>
-    <input id="pdfInput" type="file" accept="application/pdf" multiple />
+    <label>Especie</label>
+    <div class="toggle" id="speciesToggle">
+      <button type="button" data-species="perro" class="active">🐶 Perro</button>
+      <button type="button" data-species="gato">🐱 Gato</button>
+    </div>
+    <div style="margin-top:14px">
+      <label for="pdfInput">PDF(s) a procesar</label>
+      <input id="pdfInput" type="file" accept="application/pdf" multiple />
+    </div>
     <div style="margin-top:12px">
       <button id="runBtn">Procesar y descargar</button>
       <div class="muted" style="margin-top:8px">Se guardarán como <b>nombre_mod.pdf</b>.</div>
@@ -68,51 +77,52 @@
 (async function(){
   const JSON_PATH = "json/inf_biopat_valores.json";
 
-  // Columnas a la derecha (alineación a la derecha):
-  // El texto de PERRO quedará con su borde derecho a 2 cm del borde de la página.
-  // El de GATO quedará con su borde derecho a 0.5 cm del borde (más a la derecha).
-  const RIGHT_PERRO_CM = 2.0;
-  const RIGHT_GATO_CM  = 0.5;
-  const GAP_Y_ADJUST   = 0.25; // bajada ligera para alinear con la línea original
+  // Posición: borde derecho menos 2 cm (alineado a la derecha)
+  const RIGHT_SELECTED_CM = 2.0;
+  const Y_ADJUST = 0.25; // leve ajuste vertical
 
   const $ = (id)=>document.getElementById(id);
   const logBox = $("log");
   const jsonStatus = $("jsonStatus");
   const pdfInput = $("pdfInput");
   const runBtn = $("runBtn");
+  const toggle = $("speciesToggle");
 
   function log(msg, cls=""){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight;}
 
-  // Normalizador de cadenas para "match" tolerante
+  // Estado de especie
+  let species = "perro";
+  toggle.addEventListener("click", (e)=>{
+    const btn = e.target.closest("button[data-species]");
+    if(!btn) return;
+    species = btn.dataset.species;              // "perro" | "gato"
+    toggle.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b===btn));
+  });
+
+  // Normalizador tolerante
   function norm(s){
     return (s??"").toString()
       .normalize("NFD").replace(/\p{Diacritic}/gu,"")
       .replace(/\.+/g," ")
-      .replace(/\s+/g," ")
-      .trim()
-      .toLowerCase();
+      .replace(/\s+/g," ").trim().toLowerCase();
   }
-
-  // cm -> puntos PDF
-  function cm(n){ return n*28.3464567; }
+  const cm = (n)=> n*28.3464567;
 
   // ---- Cargar JSON ----
-  let mapping = null; // Map normalizado: nombre -> { raw, perro, gato }
+  let mapping = null; // Map: nombreNorm -> { raw, perro, gato }
   try{
     const resp = await fetch(JSON_PATH, {cache:"no-store"});
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     mapping = new Map();
-    let count=0;
-
-    // Admite array o objeto con array
     const list = Array.isArray(data) ? data : (data?.items || data?.valores || []);
+    let count=0;
     for(const row of list){
-      const pName = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
-      if(!pName) continue;
+      const name = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
+      if(!name) continue;
       const perro = (row["vn (Perro)"] ?? row["vn (Perro) "] ?? row["vn_perro"] ?? "").toString().replace(/\s+/g," ").trim();
       const gato  = (row["vn(Gato)"] ?? row["vn (Gato)"] ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
-      mapping.set(norm(pName), { raw:pName, perro, gato });
+      mapping.set(norm(name), { raw:name, perro, gato });
       count++;
     }
     jsonStatus.textContent = `JSON cargado (${count} filas).`;
@@ -123,9 +133,7 @@
   // ---- Procesar PDFs ----
   runBtn.addEventListener("click", async ()=>{
     logBox.innerHTML="";
-    if(!mapping || mapping.size===0){
-      log("⚠️ No se ha cargado el JSON o está vacío."); return;
-    }
+    if(!mapping || mapping.size===0){ log("⚠️ JSON no cargado o vacío."); return; }
     const files = Array.from(pdfInput.files||[]);
     if(files.length===0){ log("⚠️ Selecciona al menos un PDF."); return; }
 
@@ -134,19 +142,16 @@
         log(`\n📄 Procesando: ${file.name}`);
         const arrayBuf = await file.arrayBuffer();
 
-        // 1) Extraer líneas y posiciones con pdf.js
+        // 1) Extraer líneas con pdf.js
         const doc = await pdfjsLib.getDocument({data: arrayBuf}).promise;
         const linesByPage = [];
-        const pageHeights = [];
         for(let p=1;p<=doc.numPages;p++){
           const page = await doc.getPage(p);
-          const viewport = page.getViewport({scale:1});
-          pageHeights[p-1] = viewport.height; // por si hiciera falta invertir Y (no necesario aquí)
-          const text = await page.getTextContent();
-          const groups = new Map(); // y redondeada -> items
-          for(const it of text.items){
+          const content = await page.getTextContent();
+          const groups = new Map(); // yRounded -> items
+          for(const it of content.items){
             const t = it.str||""; if(!t) continue;
-            const tr = it.transform; // e=x, f=y
+            const tr = it.transform; // [a,b,c,d,e,f] ; e=x, f=y
             const e = tr[4], f = tr[5], d = Math.abs(tr[3]||10);
             const yKey = Math.round(f);
             const entry = {str:t,x:e,y:f,w:it.width||0,fs:d};
@@ -156,75 +161,74 @@
           for(const [yk, arr] of groups.entries()){
             arr.sort((a,b)=>a.x-b.x);
             const textLine = arr.map(a=>a.str).join("");
-            const maxX = Math.max(...arr.map(a=>a.x + (a.w||0)));
+            const maxX = Math.max(...arr.map(a=>a.x+(a.w||0)));
             const avgFs = arr.reduce((s,a)=>s+a.fs,0)/arr.length || 10;
             linesByPage.push({pageIndex:p-1, y:arr[0].y, text:textLine, maxX, fontSize:avgFs});
           }
         }
 
-        // 2) Escribir con pdf-lib
+        // 2) Escribir con pdf-lib (Courier / Courier Bold, negro)
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuf);
-        const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        const fontRegular = await pdfDoc.embedFont(PDFLib.StandardFonts.Courier);
+        const fontBold    = await pdfDoc.embedFont(PDFLib.StandardFonts.CourierBold);
 
-        // Helper de búsqueda
-        function findLinesContaining(q){
+        const findLines = (q)=> {
           const nq = norm(q);
           return linesByPage.filter(ln => norm(ln.text).includes(nq));
+        };
+
+        // SERIE ERITROIDE → leyenda en negrita
+        const hitsSerie = findLines("SERIE ERITROIDE");
+        if(hitsSerie.length){
+          for(const ln of hitsSerie){
+            const page = pdfDoc.getPage(ln.pageIndex);
+            const size = ln.fontSize;
+            const text = species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)";
+            page.drawText(text,{
+              x: ln.maxX + 10,
+              y: ln.y - (size*Y_ADJUST),
+              size, font: fontBold, color: PDFLib.rgb(0,0,0)
+            });
+          }
+          log(`Añadido rótulo de valores normales (${species}).`);
+        }else{
+          log("No se encontró la línea “SERIE ERITROIDE”.");
         }
 
-        let placedPerro = 0, placedGato = 0, notFound = [];
-
-        // Para cada fila del JSON, busca la línea y anota ambas columnas
+        // Para cada parámetro del JSON, anotar SOLO el seleccionado
+        let placed=0, missed=[];
         for(const {raw, perro, gato} of mapping.values()){
-          if(!perro && !gato) continue;
-          const hits = findLinesContaining(raw);
-          if(!hits.length){ notFound.push(raw); continue; }
+          const val = species==="perro" ? perro : gato;
+          if(!val) continue;
+          const hits = findLines(raw);
+          if(!hits.length){ missed.push(raw); continue; }
 
           for(const ln of hits){
             const page = pdfDoc.getPage(ln.pageIndex);
             const size = ln.fontSize;
             const pageW = page.getWidth();
 
-            // PERRO: alineado a la derecha a 2 cm del borde derecho
-            if(perro){
-              const perroText = perro;
-              const wPerro = font.widthOfTextAtSize(perroText, size);
-              const xPerroRight = pageW - cm(RIGHT_PERRO_CM);
-              const xPerro = xPerroRight - wPerro;
-              page.drawText(perroText, {
-                x: xPerro,
-                y: ln.y - (size*GAP_Y_ADJUST),
-                size, font, color: PDFLib.rgb(0.85,0.95,0.85)
-              });
-              placedPerro++;
-            }
+            const w = fontRegular.widthOfTextAtSize(val, size);
+            const xRight = pageW - cm(RIGHT_SELECTED_CM);
+            const x = xRight - w;
 
-            // GATO: alineado a la derecha a 0.5 cm del borde derecho (más a la derecha)
-            if(gato){
-              const gatoText = gato;
-              const wGato = font.widthOfTextAtSize(gatoText, size);
-              const xGatoRight = pageW - cm(RIGHT_GATO_CM);
-              const xGato = xGatoRight - wGato;
-              page.drawText(gatoText, {
-                x: xGato,
-                y: ln.y - (size*GAP_Y_ADJUST),
-                size, font, color: PDFLib.rgb(0.75,0.85,1)
-              });
-              placedGato++;
-            }
+            page.drawText(val,{
+              x, y: ln.y - (size*Y_ADJUST),
+              size, font: fontRegular, color: PDFLib.rgb(0,0,0)
+            });
+            placed++;
           }
         }
 
-        // 3) Guardar
-        const outBytes = await pdfDoc.save();
-        const blob = new Blob([outBytes], {type:"application/pdf"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = file.name.replace(/\.pdf$/i,"") + "_mod.pdf";
+        // 3) Descargar
+        const bytes = await pdfDoc.save();
+        const blob = new Blob([bytes], {type:"application/pdf"});
+        const a=document.createElement("a");
+        a.href=URL.createObjectURL(blob);
+        a.download=file.name.replace(/\.pdf$/i,"")+"_mod.pdf";
         document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
 
-        log(`✅ Colocados (Perro): ${placedPerro} | (Gato): ${placedGato}`);
-        if(notFound.length) log(`⚠️ No encontrados: ${notFound.slice(0,10).join(", ")}${notFound.length>10?"…":""}`);
+        log(`✅ Escrito(s): ${placed}. ${missed.length? "No encontrados: "+missed.slice(0,10).join(", ")+ (missed.length>10?"…":""):""}`);
 
       }catch(err){
         console.error(err);
@@ -236,3 +240,22 @@
 </script>
 </body>
 </html>
+
+
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
