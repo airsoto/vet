@@ -30,7 +30,19 @@
 <header>
   <div class="wrap">
     <h1>VN Perro/Gato en PDF (desde JSON)</h1>
-    <p class="lead">Usa <code>json/inf_biopat_valores.json</code>. Escribe únicamente la columna elegida (Perro o Gato) a 2&nbsp;cm del borde derecho. “VALORES NORMALES (…)” se añade en negrita junto a “SERIE ERITROIDE”.</p>
+         <h2 style="margin:0;">
+    <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+  </h2>
+
+  <!-- Enlace inicio -->
+  <p style="margin:0; font-size:0.9em; text-align:right;">
+    <a href="https://airsoto.github.io/vet/" 
+       style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+      🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
+    </a>
+  </p>
+    <!-- Enlace inicio -->
+    <p class="lead">Escribe <b>solo</b> la columna elegida (<code>vn (Perro)</code> o <code>vn(Gato)</code>) <b>a 2&nbsp;cm del borde derecho</b>. El rótulo de “SERIE ERITROIDE” ahora también va <b>alineado a la derecha</b> y a la misma altura.</p>
   </div>
 </header>
 
@@ -66,18 +78,19 @@
 <script>
 (async function(){
   const JSON_PATH = "json/inf_biopat_valores.json";
-  const RIGHT_SELECTED_CM = 2.0;         // distancia desde el borde derecho
-  const Y_ADJUST = 0.25;                 // pequeño ajuste vertical
-  const cm = (n)=> n*28.3464567;
 
-  const $ = (id)=>document.getElementById(id);
+  // Alineación a la derecha a 2 cm del borde
+  const RIGHT_CM = 2.0;
+  const Y_ADJUST = 0.25;
+  const cm = n => n*28.3464567;
+
+  const $ = id => document.getElementById(id);
   const logBox = $("log"), jsonStatus = $("jsonStatus");
   const pdfInput = $("pdfInput"), runBtn = $("runBtn"), toggle = $("speciesToggle");
 
-  function log(m,cls=""){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=m; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight; }
+  function log(m){ const d=document.createElement("div"); d.textContent=m; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight; }
   const norm = s => (s??"").toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/\.+/g," ").replace(/\s+/g," ").trim().toLowerCase();
 
-  // Estado especie (solo una a la vez)
   let species = "perro";
   toggle.addEventListener("click", e=>{
     const btn = e.target.closest("button[data-species]");
@@ -87,7 +100,8 @@
   });
 
   // --- Cargar JSON ---
-  let mapping = new Map();
+  let map = new Map();
+  let serieRow = null;
   try{
     const r = await fetch(JSON_PATH, {cache:"no-store"});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -95,11 +109,13 @@
     const list = Array.isArray(data) ? data : (data?.items || data?.valores || []);
     let n=0;
     for(const row of list){
-      const name = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
-      if(!name) continue;
+      const raw = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
+      if(!raw) continue;
       const perro = (row["vn (Perro)"] ?? row["vn (Perro) "] ?? row["vn_perro"] ?? "").toString().replace(/\s+/g," ").trim();
       const gato  = (row["vn(Gato)"]   ?? row["vn (Gato)"]   ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
-      mapping.set(norm(name), {raw:name, perro, gato});
+      const rec = {raw, perro, gato};
+      if(norm(raw)===norm("SERIE ERITROIDE")) serieRow = rec;
+      map.set(norm(raw), rec);
       n++;
     }
     jsonStatus.textContent = `JSON cargado (${n} filas).`;
@@ -109,7 +125,7 @@
 
   runBtn.addEventListener("click", async ()=>{
     logBox.innerHTML="";
-    if(mapping.size===0){ log("⚠️ JSON vacío o no cargado."); return; }
+    if(map.size===0){ log("⚠️ JSON vacío o no cargado."); return; }
     const files = Array.from(pdfInput.files||[]);
     if(!files.length){ log("⚠️ Selecciona al menos un PDF."); return; }
 
@@ -118,7 +134,7 @@
         log(`\n📄 Procesando: ${file.name}`);
         const buf = await file.arrayBuffer();
 
-        // 1) Extraer texto por líneas con pdf.js
+        // 1) Extraer líneas con pdf.js
         const doc = await pdfjsLib.getDocument({data: buf}).promise;
         const lines = [];
         for(let p=1;p<=doc.numPages;p++){
@@ -141,50 +157,57 @@
           }
         }
 
-        // 2) Escribir con pdf-lib
-        const out = await PDFLib.PDFDocument.load(buf);
-        const fontReg = await out.embedFont(PDFLib.StandardFonts.Courier);
-        const fontBold = await out.embedFont(PDFLib.StandardFonts.CourierBold);
-        const rgbBlack = PDFLib.rgb(0,0,0);
+        // 2) Escribir con pdf-lib (Courier regular y bold) en negro
+        const pdfOut = await PDFLib.PDFDocument.load(buf);
+        const fontRegular = await pdfOut.embedFont(PDFLib.StandardFonts.Courier);
+        const fontBold    = await pdfOut.embedFont(PDFLib.StandardFonts.CourierBold);
+        const BLACK = PDFLib.rgb(0,0,0);
 
-        const findLines = (q)=>lines.filter(ln=>norm(ln.text).includes(norm(q)));
+        const findLines = q => lines.filter(ln => norm(ln.text).includes(norm(q)));
 
-        // 2a) Añadir SOLO la leyenda junto a "SERIE ERITROIDE" (negrita)
-        const serieHits = findLines("SERIE ERITROIDE");
-        if(serieHits.length){
-          const textLegend = species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)";
-          for(const ln of serieHits){
-            const pg = out.getPage(ln.pageIndex);
-            const size = ln.fontSize;
-            pg.drawText(textLegend, { x: ln.maxX + 10, y: ln.y - size*0.25, size, font: fontBold, color: rgbBlack });
-          }
-          log(`Añadido rótulo de valores normales (${species}).`);
-        }else{
-          log("No se encontró “SERIE ERITROIDE”.");
+        // Utilidad: escribe alineando a la derecha a 2 cm
+        function drawRightAligned(page, text, y, font, size){
+          const pageW = page.getWidth();
+          const w = font.widthOfTextAtSize(text, size);
+          const x = (pageW - cm(RIGHT_CM)) - w;
+          page.drawText(text, { x, y, size, font, color: BLACK });
         }
 
-        // 2b) Para cada parámetro, escribir SOLO el valor de la especie seleccionada.
-        //     Además, SALTAMOS la fila "SERIE ERITROIDE" para no duplicar el rótulo.
-        let placed=0, missed=[];
-        for(const {raw, perro, gato} of mapping.values()){
-          if(norm(raw)===norm("SERIE ERITROIDE")) continue;          // evita duplicado
-          const val = species==="perro" ? perro : gato;               // ← CLAVE: una sola columna
-          if(!val) continue;
-          const hits = findLines(raw);
-          if(!hits.length){ missed.push(raw); continue; }
-          for(const ln of hits){
-            const pg = out.getPage(ln.pageIndex);
+        // 2a) Leyenda de SERIE ERITROIDE → AHORA también alineada a la derecha como el resto
+        const hitsSerie = findLines("SERIE ERITROIDE");
+        if(hitsSerie.length){
+          const legend = serieRow
+            ? (species==="perro" ? (serieRow.perro || "VALORES NORMALES (Perro)") : (serieRow.gato || "VALORES NORMALES (Gato)"))
+            : (species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)");
+          for(const ln of hitsSerie){
+            const pg = pdfOut.getPage(ln.pageIndex);
             const size = ln.fontSize;
-            const pageW = pg.getWidth();
-            const w = fontReg.widthOfTextAtSize(val, size);
-            const x = (pageW - cm(RIGHT_SELECTED_CM)) - w;
-            pg.drawText(val, { x, y: ln.y - size*0.25, size, font: fontReg, color: rgbBlack });
+            const y = ln.y - size*Y_ADJUST;
+            drawRightAligned(pg, legend, y, fontBold, size); // ← derecha, misma altura
+          }
+        }
+
+        // 2b) Parámetros: solo la columna seleccionada
+        let placed=0, missed=[];
+        for(const rec of map.values()){
+          if(norm(rec.raw)===norm("SERIE ERITROIDE")) continue; // rótulo ya pintado
+          const val = species==="perro" ? rec.perro : rec.gato;
+          if(!val) continue;
+
+          const hits = findLines(rec.raw);
+          if(!hits.length){ missed.push(rec.raw); continue; }
+
+          for(const ln of hits){
+            const pg = pdfOut.getPage(ln.pageIndex);
+            const size = ln.fontSize;
+            const y = ln.y - size*Y_ADJUST;
+            drawRightAligned(pg, val, y, fontRegular, size);
             placed++;
           }
         }
 
         // 3) Descargar
-        const bytes = await out.save();
+        const bytes = await pdfOut.save();
         const blob = new Blob([bytes], {type:"application/pdf"});
         const a=document.createElement("a");
         a.href=URL.createObjectURL(blob);
@@ -203,19 +226,32 @@
 </html>
 
 
-<!-- Contenedor del footer -->
-<div id="footer"></div>
 
-<script>
-  // Cargar footer.html y colocarlo en #footer
-  fetch("footer.html")
-    .then(response => {
-      if (!response.ok) throw new Error("No se pudo cargar footer.html");
-      return response.text();
-    })
-    .then(data => {
-      document.getElementById("footer").innerHTML = data;
-    })
-    .catch(error => console.error("Error cargando el footer:", error));
-</script>
 
+    <!-- FOOTER -->
+    <footer>
+        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+        <p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyecto con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
+  <p><strong>Excepciones:</strong></p>
+  <ul>
+  <li>Personal no veterinario del Ministerio de Agricultura, Pesca y Alimentaci&oacute;n de Espa&ntilde;a.</li>
+  <li>Miembros de las Cortes Generales de Espa&ntilde;a.</li>
+  <li>Titulares de cargos pol&iacute;ticos de elecci&oacute;n popular.</li>
+  </ul>
+  <p><strong>A estos colectivos se les aplicar&aacute; la siguiente licencia de software:</strong></p>
+  <p style="text-align: center;">&copy; 2025 Angel Soto. Todos los derechos reservados.  <p>
+     <p>Este software es propiedad de Angel Soto y est&aacute; protegido por las leyes de derechos de autor.  <p>
+        <p>No se permite copiar, modificar, distribuir o vender este software sin el permiso expreso por escrito de Angel Soto.</p>
+  <p style="text-align: center;">&nbsp;</p>
+  <p>Para m&aacute;s informaci&oacute;n, por favor contacta con el <a href="mailto:airsoto@gmail.com">desarrollador</a>.</p>
+  <p>&nbsp;</p>
+  
