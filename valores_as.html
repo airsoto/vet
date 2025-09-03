@@ -83,6 +83,9 @@
 
     footer{border-top:1px solid var(--border); margin-top:30px; padding:16px 0; color:var(--muted); font-size:.95rem}
     .tagline{font-size:.98rem; color:#c9d8f1}
+      /* Sobrescritura para letras grandes en buscador y botones */
+    .search-big select, .search-big input[type="text"], .search-big button{font-size:clamp(1.2rem,2.6vw,1.4rem)}
+    .card h3{font-size:clamp(1.25rem,2.6vw,1.55rem)}
   </style>
 </head>
 <body>
@@ -104,7 +107,7 @@
         </p>
       </div>
 
-      <div class="controls" role="region" aria-label="Controles de filtrado">
+      <div class="controls search-big" role="region" aria-label="Controles de filtrado">
         <label for="groupSelect">Grupo</label>
         <select id="groupSelect" aria-label="Selecciona grupo de parámetros"></select>
 
@@ -146,104 +149,98 @@
     let debTimer = null;
 
     fetch(JSON_URL)
-      .then(r => {
-        if(!r.ok) throw new Error('No se pudo cargar el JSON');
-        return r.json();
-      })
-      .then(json => {
-        DATA = json;
-        initGroups();
-        statusEl.hidden = true;
-        resultsEl.hidden = false;
-      })
-      .catch(err => {
-        statusEl.textContent = 'Error: ' + err.message + ' — Verifica la ruta ' + JSON_URL;
-      });
+      .then(r => { if(!r.ok) throw new Error('No se pudo cargar el JSON'); return r.json(); })
+      .then(json => { DATA = json; initGroups(); statusEl.hidden = true; resultsEl.hidden = false; render(); })
+      .catch(err => { statusEl.textContent = 'Error: ' + err.message + ' — Verifica la ruta ' + JSON_URL; });
 
     function initGroups(){
-      const keys = Object.keys(DATA);
-      // Orden sugerido si existen
-      const pref = [
-        'Hematología',
-        'Proteinograma',
-        'Iones',
-        'Bioquímica',
-        'Hormonas',
-        'Fármacos y Vitaminas',
-        'Coagulación'
-      ];
+      const keys = Object.keys(DATA || {});
+      const pref = ['Hematología','Proteinograma','Iones','Bioquímica','Hormonas','Fármacos y Vitaminas','Coagulación'];
       const ordered = pref.filter(k => keys.includes(k)).concat(keys.filter(k => !pref.includes(k)));
-
-      for(const k of ordered){
-        const opt = document.createElement('option');
-        opt.value = k; opt.textContent = k;
-        groupSelect.appendChild(opt);
-      }
+      for(const k of ordered){ const opt = document.createElement('option'); opt.value = k; opt.textContent = k; groupSelect.appendChild(opt); }
       currentGroup = ordered[0] || '';
       groupSelect.value = currentGroup;
-      render();
     }
 
-    groupSelect.addEventListener('change', () => {
-      currentGroup = groupSelect.value;
-      render();
-    });
-
-    searchInput.addEventListener('input', () => {
-      clearTimeout(debTimer);
-      debTimer = setTimeout(render, 180);
-    });
-
-    resetBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      render();
-      searchInput.focus();
-    });
+    groupSelect.addEventListener('change', () => { currentGroup = groupSelect.value; if(!searchInput.value.trim()) render(); });
+    searchInput.addEventListener('input', () => { clearTimeout(debTimer); debTimer = setTimeout(render, 160); });
+    resetBtn.addEventListener('click', () => { searchInput.value = ''; render(); searchInput.focus(); });
 
     function render(){
-      const q = searchInput.value.trim().toLowerCase();
-      const groupData = DATA[currentGroup] || {};
-      const paramMap = normalizeGroup(groupData);
-
-      groupTitle.textContent = currentGroup;
+      const qRaw = searchInput.value.trim();
+      const q = norm(qRaw);
       cards.innerHTML = '';
-
-      const entries = Object.entries(paramMap)
-        .filter(([name, val]) => matchQuery(name, val, q));
-
-      if(entries.length === 0){
-        emptyEl.hidden = false; return;
-      } else {
-        emptyEl.hidden = true;
+      if(!q){
+        // MODO 1: Mostrar TODO el grupo seleccionado
+        groupTitle.textContent = 'Grupo: ' + (currentGroup || '—');
+        const groupData = DATA[currentGroup] || {};
+        const paramMap = normalizeGroup(groupData);
+        const entries = Object.entries(paramMap);
+        if(entries.length === 0){ emptyEl.hidden = false; return; } else { emptyEl.hidden = true; }
+        for(const [param, val] of entries){ cards.appendChild(cardFor(param, val)); }
+        return;
       }
 
-      for(const [param, val] of entries){
-        cards.appendChild(cardFor(param, val));
+      // MODO 2: Búsqueda global por parámetro en TODOS los grupos
+      const resultsByGroup = {};
+      for(const groupName of Object.keys(DATA)){
+        const paramMap = normalizeGroup(DATA[groupName]);
+        const hits = Object.entries(paramMap).filter(([name, val]) => matchQuery(name, val, q));
+        if(hits.length) resultsByGroup[groupName] = hits;
+      }
+
+      const groupsFound = Object.keys(resultsByGroup);
+      groupTitle.textContent = `Resultados para "${qRaw}" (${groupsFound.length} grupo${groupsFound.length!==1?'s':''})`;
+
+      if(groupsFound.length === 0){ emptyEl.hidden = false; return; } else { emptyEl.hidden = true; }
+
+      // Mantener el orden preferido
+      const order = ['Hematología','Proteinograma','Iones','Bioquímica','Hormonas','Fármacos y Vitaminas','Coagulación'];
+      const orderedGroups = order.filter(g => groupsFound.includes(g)).concat(groupsFound.filter(g => !order.includes(g)));
+
+      for(const g of orderedGroups){
+        const header = document.createElement('div');
+        header.className = 'pill';
+        header.style.margin = '6px 0 6px';
+        header.textContent = `${g} · ${resultsByGroup[g].length} resultado${resultsByGroup[g].length!==1?'s':''}`;
+        cards.appendChild(header);
+        for(const [param, val] of resultsByGroup[g]){ cards.appendChild(cardFor(param, val)); }
       }
     }
 
     function matchQuery(name, val, q){
       if(!q) return true;
-      if(name.toLowerCase().includes(q)) return true;
-      // buscar en subclaves si es objeto
+      if(norm(name).includes(q)) return true;
       if(val && typeof val === 'object' && !Array.isArray(val)){
         for(const k of Object.keys(val)){
-          if(k.toLowerCase().includes(q)) return true;
+          if(norm(k).includes(q)) return true;
           const v = val[k];
-          if(typeof v === 'string' && v.toLowerCase().includes(q)) return true;
+          if(typeof v === 'string' && norm(v).includes(q)) return true;
+          if(v && typeof v === 'object' && !Array.isArray(v)){
+            // un nivel más por si hay sub-subsecciones
+            for(const kk of Object.keys(v)){
+              if(norm(kk).includes(q)) return true;
+              const vv = v[kk];
+              if(typeof vv === 'string' && norm(vv).includes(q)) return true;
+            }
+          }
         }
       }
       return false;
     }
 
-    // Detecta si el grupo está en formato especie->param o param->especie y lo normaliza a param->{Perros, Gatos, ...}
+    function norm(str){
+      return String(str)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase();
+    }
+
+    // Normaliza el grupo a forma param -> valor
     function normalizeGroup(groupObj){
       if(!groupObj || typeof groupObj !== 'object') return {};
-
       const keys = Object.keys(groupObj);
-      const isSpeciesFirst = keys.some(k => k === 'Perros' || k === 'Gatos') &&
-                              keys.every(k => ['Perros','Gatos'].includes(k));
-
+      const isSpeciesFirst = keys.every(k => ['Perros','Gatos'].includes(k));
       if(isSpeciesFirst){
         const out = {};
         for(const sp of ['Perros','Gatos']){
@@ -255,94 +252,56 @@
         }
         return out;
       }
-
-      // Si ya es param->algo
-      return groupObj;
+      return groupObj; // ya es param->...
     }
 
     function cardFor(name, value){
       const el = document.createElement('article');
       el.className = 'card';
-
-      const h = document.createElement('h3');
-      h.textContent = name;
-      el.appendChild(h);
-
+      const h = document.createElement('h3'); h.textContent = name; el.appendChild(h);
       el.appendChild(renderValue(value));
       return el;
     }
 
     function renderValue(v){
-      // string o número
       if(typeof v === 'string' || typeof v === 'number'){
-        const div = document.createElement('div');
-        div.className = 'kv';
-        const span = document.createElement('span');
-        span.textContent = v;
-        div.appendChild(span);
-        return div;
+        const div = document.createElement('div'); div.className = 'kv';
+        const span = document.createElement('span'); span.textContent = v; div.appendChild(span); return div;
       }
-
-      // array
       if(Array.isArray(v)){
-        const ul = document.createElement('ul');
-        for(const it of v){
-          const li = document.createElement('li');
-          li.textContent = it;
-          ul.appendChild(li);
-        }
-        return ul;
+        const ul = document.createElement('ul'); for(const it of v){ const li = document.createElement('li'); li.textContent = it; ul.appendChild(li);} return ul;
       }
-
-      // objeto
       if(v && typeof v === 'object'){
-        const keys = Object.keys(v);
         const hasPerros = Object.prototype.hasOwnProperty.call(v,'Perros');
         const hasGatos  = Object.prototype.hasOwnProperty.call(v,'Gatos');
-
-        // Presentación a dos columnas si hay claves de especie
         if(hasPerros || hasGatos){
-          const wrap = document.createElement('div');
-          wrap.className = 'species';
-
-          const mkCol = (label, content) => {
-            const col = document.createElement('div');
-            col.className = 'sp';
-            const h4 = document.createElement('h4');
-            h4.textContent = label;
-            col.appendChild(h4);
-            col.appendChild(renderValue(content ?? '—'));
-            return col;
-          };
-
-          wrap.appendChild(mkCol('Perros', v['Perros']));
-          wrap.appendChild(mkCol('Gatos',  v['Gatos']));
+          const wrap = document.createElement('div'); wrap.className = 'species';
+          wrap.appendChild(speciesCol('Perros', v['Perros']));
+          wrap.appendChild(speciesCol('Gatos',  v['Gatos']));
           return wrap;
         }
-
-        // De lo contrario, mostrar sub-secciones
         const block = document.createElement('div');
-        for(const k of keys){
+        for(const k of Object.keys(v)){
           const sub = document.createElement('div');
-          const st = document.createElement('div');
-          st.className = 'subtitle';
-          st.textContent = k;
-          sub.appendChild(st);
-          sub.appendChild(renderValue(v[k]));
-          block.appendChild(sub);
+          const st = document.createElement('div'); st.className = 'subtitle'; st.textContent = k; sub.appendChild(st);
+          sub.appendChild(renderValue(v[k])); block.appendChild(sub);
         }
         return block;
       }
+      const div = document.createElement('div'); div.textContent = '—'; return div;
+    }
 
-      // fallback
-      const div = document.createElement('div');
-      div.textContent = '—';
-      return div;
+    function speciesCol(label, content){
+      const col = document.createElement('div'); col.className = 'sp';
+      const h4 = document.createElement('h4'); h4.textContent = label; col.appendChild(h4);
+      col.appendChild(renderValue(content ?? '—'));
+      return col;
     }
   })();
   </script>
 </body>
 </html>
+
 
 
 
