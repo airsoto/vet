@@ -146,68 +146,122 @@
     <p><a href="https://airsoto.github.io/vet/">🏠 volver a página de inicio</a></p>
   </footer>
 
-  <script>
-    let data = [];
+<script>
+  let data = [];
 
-    // Cargar JSON externo
-    fetch("json/fcos_vet_cimavet.json")
-      .then(response => {
-        if (!response.ok) throw new Error("Error HTTP " + response.status);
-        return response.json();
-      })
-      .then(json => {
-        data = json["DATOS GENERALES"];
-        console.log("Datos cargados:", data);
-      })
-      .catch(err => console.error("No se pudo cargar el JSON:", err));
+  // Carga del JSON (array raíz)
+  async function loadData() {
+    // Si la página está servida con file:// no funcionará fetch
+    if (location.protocol === 'file:') {
+      console.error('Abre la página vía HTTP(S), no con file://');
+      document.getElementById('counter').textContent =
+        '⚠️ Abre la página vía HTTP(S); fetch no funciona con file://';
+      return;
+    }
 
-    // Buscar
-    document.getElementById("search").addEventListener("keyup", searchDrug);
+    try {
+      // Ajusta la ruta si tu página NO está en el mismo nivel que /json/
+      // Ejemplos alternativos:
+      // const url = '/vet/json/fcos_vet_cimavet.json'; // si tu sitio está bajo /vet/
+      const url = 'json/fcos_vet_cimavet.json';
 
-    function searchDrug() {
-      let query = document.getElementById('search').value.toLowerCase();
-      let resultsDiv = document.getElementById('results');
-      let counter = document.getElementById('counter');
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const json = await res.json();
+      if (!Array.isArray(json)) throw new Error('El JSON no es un array raíz');
+
+      data = json;
+      console.log('Registros cargados:', data.length);
+
+      // Habilita UI y muestra estado
+      document.getElementById('search').disabled = false;
+      document.getElementById('counter').textContent =
+        `Base de datos cargada: ${data.length} registros`;
+      document.getElementById('clearBtn')?.removeAttribute('disabled');
+    } catch (e) {
+      console.error('Error cargando JSON:', e);
+      document.getElementById('counter').textContent =
+        '❌ No se pudo cargar el JSON. Revisa la ruta en fetch().';
+    }
+  }
+
+  // Escapar caracteres especiales para RegExp
+  function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Resaltado seguro
+  function highlight(text, query) {
+    const t = String(text ?? '');
+    const q = String(query ?? '');
+    if (!q) return t;
+    const re = new RegExp(`(${escapeRegExp(q)})`, 'gi');
+    return t.replace(re, '<span class="highlight">$1</span>');
+  }
+
+  function renderResults(list, query) {
+    const resultsDiv = document.getElementById('results');
+    const counter = document.getElementById('counter');
+    resultsDiv.innerHTML = '';
+
+    counter.textContent = `${list.length} resultado(s)`;
+    if (list.length === 0) {
+      resultsDiv.innerHTML = '<p>No se encontraron resultados</p>';
+      return;
+    }
+
+    list.forEach(item => {
+      const med = item['MEDICAMENTO'] || '';
+      const pa  = item['PRINCIPIOS ACTIVOS'] || '';
+      const reg = item['NUMERO DE REGISTRO'] || '—';
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <strong>${highlight(med, query)}</strong><br>
+        <em>${highlight(pa, query)}</em><br>
+        <small>Número de Registro: ${reg}</small>
+      `;
+      resultsDiv.appendChild(card);
+    });
+  }
+
+  function searchDrug() {
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const resultsDiv = document.getElementById('results');
+    const counter = document.getElementById('counter');
+
+    if (!q) {
       resultsDiv.innerHTML = '';
-
-      if (!query) {
-        counter.textContent = '';
-        return;
-      }
-
-      let filtered = data.filter(item => 
-        item["MEDICAMENTO"].toLowerCase().includes(query) ||
-        item["PRINCIPIOS ACTIVOS"].toLowerCase().includes(query)
-      );
-
-      counter.textContent = `${filtered.length} resultado(s) encontrado(s)`;
-
-      if (filtered.length === 0) {
-        resultsDiv.innerHTML = '<p>No se encontraron resultados</p>';
-        return;
-      }
-
-      filtered.forEach(item => {
-        let card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `<strong>${highlight(item["MEDICAMENTO"], query)}</strong><br>
-                          <em>${highlight(item["PRINCIPIOS ACTIVOS"], query)}</em><br>
-                          <small>Número de Registro: ${item["NUMERO DE REGISTRO"]}</small>`;
-        resultsDiv.appendChild(card);
-      });
+      counter.textContent = '';
+      return;
     }
 
-    function clearSearch() {
-      document.getElementById("search").value = "";
-      document.getElementById("results").innerHTML = "";
-      document.getElementById("counter").textContent = "";
-    }
+    const filtered = data.filter(it => {
+      const med = (it['MEDICAMENTO'] || '').toLowerCase();
+      const pa  = (it['PRINCIPIOS ACTIVOS'] || '').toLowerCase();
+      return med.includes(q) || pa.includes(q);
+    });
 
-    function highlight(text, query) {
-      let regex = new RegExp(`(${query})`, "gi");
-      return text.replace(regex, `<span class="highlight">$1</span>`);
-    }
-  </script>
+    renderResults(filtered, q);
+  }
+
+  function clearSearch() {
+    document.getElementById('search').value = '';
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('counter').textContent = '';
+    document.getElementById('search').focus();
+  }
+
+  // Eventos
+  document.getElementById('search').addEventListener('input', searchDrug);
+  document.getElementById('clearBtn')?.addEventListener('click', clearSearch);
+
+  // Init
+  document.addEventListener('DOMContentLoaded', loadData);
+</script>
+
 </body>
 </html>
 
