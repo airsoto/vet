@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Anotar VN (Perro/Gato) en PDF desde JSON</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--ink:#e6e6e6;--muted:#9aa4b2;--pri:#4ea8de;--pri2:#1e88e5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  header{position:sticky;top:0;background:#0f1115cc;backdrop-filter:blur(6px);border-bottom:1px solid #222}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  h1{margin:0;color:#cfe8ff;font-size:clamp(20px,3vw,28px)}
+  p.lead{margin:.4rem 0 0;color:var(--muted)}
+  main .card{background:var(--panel);border:1px solid #222;border-radius:16px;padding:18px}
+  .grid{display:grid;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+  label{display:block;font-weight:600;margin-bottom:6px;color:#c7d2fe}
+  input[type="file"],button{width:100%;background:#11151c;border:1px solid #2a2f3a;color:var(--ink);border-radius:12px;padding:12px 14px;font-size:15px}
+  button{border:none;background:linear-gradient(180deg,var(--pri),var(--pri2));font-weight:700;cursor:pointer}
+  .muted{color:var(--muted);font-size:13px}
+  .log{background:#0c0f14;border:1px dashed #2a2f3a;border-radius:12px;padding:12px;min-height:140px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>VN Perro/Gato en PDF (desde JSON)</h1>
+      <h2 style="margin:0;">
+    <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+  </h2>
+
+  <!-- Enlace inicio -->
+  <p style="margin:0; font-size:0.9em; text-align:right;">
+    <a href="https://airsoto.github.io/vet/" 
+       style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+      🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
+    </a>
+  </p>
+    <!-- Enlace inicio -->
+    <p class="lead">Usa <code>json/inf_biopat_valores.json</code> y escribe las dos columnas (Perro y Gato) a la derecha de cada parámetro del PDF.</p>
+  </div>
+</header>
+
+<main class="wrap grid" id="app">
+  <section class="card">
+    <label for="pdfInput">PDF(s) a procesar</label>
+    <input id="pdfInput" type="file" accept="application/pdf" multiple />
+    <div style="margin-top:12px">
+      <button id="runBtn">Procesar y descargar</button>
+      <div class="muted" style="margin-top:8px">Se guardarán como <b>nombre_mod.pdf</b>.</div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="muted" id="jsonStatus">Cargando JSON…</div>
+    <div class="log" id="log" style="margin-top:10px"></div>
+  </section>
+</main>
+
+<!-- Librerías -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<script>
+(async function(){
+  const JSON_PATH = "json/inf_biopat_valores.json";
+
+  // Columnas a la derecha (alineación a la derecha):
+  // El texto de PERRO quedará con su borde derecho a 2 cm del borde de la página.
+  // El de GATO quedará con su borde derecho a 0.5 cm del borde (más a la derecha).
+  const RIGHT_PERRO_CM = 2.0;
+  const RIGHT_GATO_CM  = 0.5;
+  const GAP_Y_ADJUST   = 0.25; // bajada ligera para alinear con la línea original
+
+  const $ = (id)=>document.getElementById(id);
+  const logBox = $("log");
+  const jsonStatus = $("jsonStatus");
+  const pdfInput = $("pdfInput");
+  const runBtn = $("runBtn");
+
+  function log(msg, cls=""){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight;}
+
+  // Normalizador de cadenas para "match" tolerante
+  function norm(s){
+    return (s??"").toString()
+      .normalize("NFD").replace(/\p{Diacritic}/gu,"")
+      .replace(/\.+/g," ")
+      .replace(/\s+/g," ")
+      .trim()
+      .toLowerCase();
+  }
+
+  // cm -> puntos PDF
+  function cm(n){ return n*28.3464567; }
+
+  // ---- Cargar JSON ----
+  let mapping = null; // Map normalizado: nombre -> { raw, perro, gato }
+  try{
+    const resp = await fetch(JSON_PATH, {cache:"no-store"});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    mapping = new Map();
+    let count=0;
+
+    // Admite array o objeto con array
+    const list = Array.isArray(data) ? data : (data?.items || data?.valores || []);
+    for(const row of list){
+      const pName = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
+      if(!pName) continue;
+      const perro = (row["vn (Perro)"] ?? row["vn (Perro) "] ?? row["vn_perro"] ?? "").toString().replace(/\s+/g," ").trim();
+      const gato  = (row["vn(Gato)"] ?? row["vn (Gato)"] ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
+      mapping.set(norm(pName), { raw:pName, perro, gato });
+      count++;
+    }
+    jsonStatus.textContent = `JSON cargado (${count} filas).`;
+  }catch(err){
+    jsonStatus.textContent = `Error cargando JSON (${JSON_PATH}): ${err.message}`;
+  }
+
+  // ---- Procesar PDFs ----
+  runBtn.addEventListener("click", async ()=>{
+    logBox.innerHTML="";
+    if(!mapping || mapping.size===0){
+      log("⚠️ No se ha cargado el JSON o está vacío."); return;
+    }
+    const files = Array.from(pdfInput.files||[]);
+    if(files.length===0){ log("⚠️ Selecciona al menos un PDF."); return; }
+
+    for(const file of files){
+      try{
+        log(`\n📄 Procesando: ${file.name}`);
+        const arrayBuf = await file.arrayBuffer();
+
+        // 1) Extraer líneas y posiciones con pdf.js
+        const doc = await pdfjsLib.getDocument({data: arrayBuf}).promise;
+        const linesByPage = [];
+        const pageHeights = [];
+        for(let p=1;p<=doc.numPages;p++){
+          const page = await doc.getPage(p);
+          const viewport = page.getViewport({scale:1});
+          pageHeights[p-1] = viewport.height; // por si hiciera falta invertir Y (no necesario aquí)
+          const text = await page.getTextContent();
+          const groups = new Map(); // y redondeada -> items
+          for(const it of text.items){
+            const t = it.str||""; if(!t) continue;
+            const tr = it.transform; // e=x, f=y
+            const e = tr[4], f = tr[5], d = Math.abs(tr[3]||10);
+            const yKey = Math.round(f);
+            const entry = {str:t,x:e,y:f,w:it.width||0,fs:d};
+            if(!groups.has(yKey)) groups.set(yKey,[]);
+            groups.get(yKey).push(entry);
+          }
+          for(const [yk, arr] of groups.entries()){
+            arr.sort((a,b)=>a.x-b.x);
+            const textLine = arr.map(a=>a.str).join("");
+            const maxX = Math.max(...arr.map(a=>a.x + (a.w||0)));
+            const avgFs = arr.reduce((s,a)=>s+a.fs,0)/arr.length || 10;
+            linesByPage.push({pageIndex:p-1, y:arr[0].y, text:textLine, maxX, fontSize:avgFs});
+          }
+        }
+
+        // 2) Escribir con pdf-lib
+        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuf);
+        const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+        // Helper de búsqueda
+        function findLinesContaining(q){
+          const nq = norm(q);
+          return linesByPage.filter(ln => norm(ln.text).includes(nq));
+        }
+
+        let placedPerro = 0, placedGato = 0, notFound = [];
+
+        // Para cada fila del JSON, busca la línea y anota ambas columnas
+        for(const {raw, perro, gato} of mapping.values()){
+          if(!perro && !gato) continue;
+          const hits = findLinesContaining(raw);
+          if(!hits.length){ notFound.push(raw); continue; }
+
+          for(const ln of hits){
+            const page = pdfDoc.getPage(ln.pageIndex);
+            const size = ln.fontSize;
+            const pageW = page.getWidth();
+
+            // PERRO: alineado a la derecha a 2 cm del borde derecho
+            if(perro){
+              const perroText = perro;
+              const wPerro = font.widthOfTextAtSize(perroText, size);
+              const xPerroRight = pageW - cm(RIGHT_PERRO_CM);
+              const xPerro = xPerroRight - wPerro;
+              page.drawText(perroText, {
+                x: xPerro,
+                y: ln.y - (size*GAP_Y_ADJUST),
+                size, font, color: PDFLib.rgb(0.85,0.95,0.85)
+              });
+              placedPerro++;
+            }
+
+            // GATO: alineado a la derecha a 0.5 cm del borde derecho (más a la derecha)
+            if(gato){
+              const gatoText = gato;
+              const wGato = font.widthOfTextAtSize(gatoText, size);
+              const xGatoRight = pageW - cm(RIGHT_GATO_CM);
+              const xGato = xGatoRight - wGato;
+              page.drawText(gatoText, {
+                x: xGato,
+                y: ln.y - (size*GAP_Y_ADJUST),
+                size, font, color: PDFLib.rgb(0.75,0.85,1)
+              });
+              placedGato++;
+            }
+          }
+        }
+
+        // 3) Guardar
+        const outBytes = await pdfDoc.save();
+        const blob = new Blob([outBytes], {type:"application/pdf"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = file.name.replace(/\.pdf$/i,"") + "_mod.pdf";
+        document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
+
+        log(`✅ Colocados (Perro): ${placedPerro} | (Gato): ${placedGato}`);
+        if(notFound.length) log(`⚠️ No encontrados: ${notFound.slice(0,10).join(", ")}${notFound.length>10?"…":""}`);
+
+      }catch(err){
+        console.error(err);
+        log(`❌ Error con ${file.name}: ${err.message}`);
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
