@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -28,19 +30,7 @@
 <header>
   <div class="wrap">
     <h1>VN Perro/Gato en PDF (desde JSON)</h1>
-         <h2 style="margin:0;">
-    <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
-  </h2>
-
-  <!-- Enlace inicio -->
-  <p style="margin:0; font-size:0.9em; text-align:right;">
-    <a href="https://airsoto.github.io/vet/" 
-       style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
-      🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
-    </a>
-  </p>
-    <!-- Enlace inicio -->
-    <p class="lead">Carga <code>json/inf_biopat_valores.json</code>. Escribe la columna elegida (Perro o Gato) a 2&nbsp;cm del borde derecho, alineada con cada parámetro. “VALORES NORMALES (...)” va en negrita.</p>
+    <p class="lead">Usa <code>json/inf_biopat_valores.json</code>. Escribe únicamente la columna elegida (Perro o Gato) a 2&nbsp;cm del borde derecho. “VALORES NORMALES (…)” se añade en negrita junto a “SERIE ERITROIDE”.</p>
   </div>
 </header>
 
@@ -51,15 +41,17 @@
       <button type="button" data-species="perro" class="active">🐶 Perro</button>
       <button type="button" data-species="gato">🐱 Gato</button>
     </div>
+
     <div style="margin-top:14px">
       <label for="pdfInput">PDF(s) a procesar</label>
       <input id="pdfInput" type="file" accept="application/pdf" multiple />
     </div>
     <div style="margin-top:12px">
       <button id="runBtn">Procesar y descargar</button>
-      <div class="muted" style="margin-top:8px">Se guardarán como <b>nombre_mod.pdf</b>.</div>
+      <div class="muted" style="margin-top:8px">Salida: <b>nombre_mod.pdf</b>.</div>
     </div>
   </section>
+
   <section class="card">
     <div class="muted" id="jsonStatus">Cargando JSON…</div>
     <div class="log" id="log" style="margin-top:10px"></div>
@@ -68,171 +60,140 @@
 
 <!-- Librerías -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-</script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";</script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
 <script>
 (async function(){
   const JSON_PATH = "json/inf_biopat_valores.json";
-
-  // Posición: borde derecho menos 2 cm (alineado a la derecha)
-  const RIGHT_SELECTED_CM = 2.0;
-  const Y_ADJUST = 0.25; // leve ajuste vertical
+  const RIGHT_SELECTED_CM = 2.0;         // distancia desde el borde derecho
+  const Y_ADJUST = 0.25;                 // pequeño ajuste vertical
+  const cm = (n)=> n*28.3464567;
 
   const $ = (id)=>document.getElementById(id);
-  const logBox = $("log");
-  const jsonStatus = $("jsonStatus");
-  const pdfInput = $("pdfInput");
-  const runBtn = $("runBtn");
-  const toggle = $("speciesToggle");
+  const logBox = $("log"), jsonStatus = $("jsonStatus");
+  const pdfInput = $("pdfInput"), runBtn = $("runBtn"), toggle = $("speciesToggle");
 
-  function log(msg, cls=""){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight;}
+  function log(m,cls=""){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=m; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight; }
+  const norm = s => (s??"").toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/\.+/g," ").replace(/\s+/g," ").trim().toLowerCase();
 
-  // Estado de especie
+  // Estado especie (solo una a la vez)
   let species = "perro";
-  toggle.addEventListener("click", (e)=>{
+  toggle.addEventListener("click", e=>{
     const btn = e.target.closest("button[data-species]");
     if(!btn) return;
-    species = btn.dataset.species;              // "perro" | "gato"
+    species = btn.dataset.species;
     toggle.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b===btn));
   });
 
-  // Normalizador tolerante
-  function norm(s){
-    return (s??"").toString()
-      .normalize("NFD").replace(/\p{Diacritic}/gu,"")
-      .replace(/\.+/g," ")
-      .replace(/\s+/g," ").trim().toLowerCase();
-  }
-  const cm = (n)=> n*28.3464567;
-
-  // ---- Cargar JSON ----
-  let mapping = null; // Map: nombreNorm -> { raw, perro, gato }
+  // --- Cargar JSON ---
+  let mapping = new Map();
   try{
-    const resp = await fetch(JSON_PATH, {cache:"no-store"});
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    mapping = new Map();
+    const r = await fetch(JSON_PATH, {cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
     const list = Array.isArray(data) ? data : (data?.items || data?.valores || []);
-    let count=0;
+    let n=0;
     for(const row of list){
       const name = (row["Parámetro"] ?? row["Parametro"] ?? "").toString().trim();
       if(!name) continue;
       const perro = (row["vn (Perro)"] ?? row["vn (Perro) "] ?? row["vn_perro"] ?? "").toString().replace(/\s+/g," ").trim();
-      const gato  = (row["vn(Gato)"] ?? row["vn (Gato)"] ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
-      mapping.set(norm(name), { raw:name, perro, gato });
-      count++;
+      const gato  = (row["vn(Gato)"]   ?? row["vn (Gato)"]   ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
+      mapping.set(norm(name), {raw:name, perro, gato});
+      n++;
     }
-    jsonStatus.textContent = `JSON cargado (${count} filas).`;
-  }catch(err){
-    jsonStatus.textContent = `Error cargando JSON (${JSON_PATH}): ${err.message}`;
+    jsonStatus.textContent = `JSON cargado (${n} filas).`;
+  }catch(e){
+    jsonStatus.textContent = `Error cargando JSON: ${e.message}`;
   }
 
-  // ---- Procesar PDFs ----
   runBtn.addEventListener("click", async ()=>{
     logBox.innerHTML="";
-    if(!mapping || mapping.size===0){ log("⚠️ JSON no cargado o vacío."); return; }
+    if(mapping.size===0){ log("⚠️ JSON vacío o no cargado."); return; }
     const files = Array.from(pdfInput.files||[]);
-    if(files.length===0){ log("⚠️ Selecciona al menos un PDF."); return; }
+    if(!files.length){ log("⚠️ Selecciona al menos un PDF."); return; }
 
     for(const file of files){
       try{
         log(`\n📄 Procesando: ${file.name}`);
-        const arrayBuf = await file.arrayBuffer();
+        const buf = await file.arrayBuffer();
 
-        // 1) Extraer líneas con pdf.js
-        const doc = await pdfjsLib.getDocument({data: arrayBuf}).promise;
-        const linesByPage = [];
+        // 1) Extraer texto por líneas con pdf.js
+        const doc = await pdfjsLib.getDocument({data: buf}).promise;
+        const lines = [];
         for(let p=1;p<=doc.numPages;p++){
           const page = await doc.getPage(p);
-          const content = await page.getTextContent();
-          const groups = new Map(); // yRounded -> items
-          for(const it of content.items){
-            const t = it.str||""; if(!t) continue;
-            const tr = it.transform; // [a,b,c,d,e,f] ; e=x, f=y
-            const e = tr[4], f = tr[5], d = Math.abs(tr[3]||10);
-            const yKey = Math.round(f);
-            const entry = {str:t,x:e,y:f,w:it.width||0,fs:d};
-            if(!groups.has(yKey)) groups.set(yKey,[]);
-            groups.get(yKey).push(entry);
+          const text = await page.getTextContent();
+          const byY = new Map();
+          for(const it of text.items){
+            const str = it.str||""; if(!str) continue;
+            const [a,b,c,d,e,f] = it.transform; // e=x, f=y
+            const fs = Math.abs(d||10);
+            const yk = Math.round(f);
+            (byY.get(yk) || byY.set(yk,[]).get(yk)).push({str,x:e,y:f,w:it.width||0,fs});
           }
-          for(const [yk, arr] of groups.entries()){
-            arr.sort((a,b)=>a.x-b.x);
-            const textLine = arr.map(a=>a.str).join("");
-            const maxX = Math.max(...arr.map(a=>a.x+(a.w||0)));
-            const avgFs = arr.reduce((s,a)=>s+a.fs,0)/arr.length || 10;
-            linesByPage.push({pageIndex:p-1, y:arr[0].y, text:textLine, maxX, fontSize:avgFs});
+          for(const [yk, arr] of byY){
+            arr.sort((u,v)=>u.x - v.x);
+            const t = arr.map(x=>x.str).join("");
+            const maxX = Math.max(...arr.map(x=>x.x + (x.w||0)));
+            const fs = arr.reduce((s,x)=>s+x.fs,0)/arr.length || 10;
+            lines.push({pageIndex:p-1,y:arr[0].y,text:t,maxX,fontSize:fs});
           }
         }
 
-        // 2) Escribir con pdf-lib (Courier / Courier Bold, negro)
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuf);
-        const fontRegular = await pdfDoc.embedFont(PDFLib.StandardFonts.Courier);
-        const fontBold    = await pdfDoc.embedFont(PDFLib.StandardFonts.CourierBold);
+        // 2) Escribir con pdf-lib
+        const out = await PDFLib.PDFDocument.load(buf);
+        const fontReg = await out.embedFont(PDFLib.StandardFonts.Courier);
+        const fontBold = await out.embedFont(PDFLib.StandardFonts.CourierBold);
+        const rgbBlack = PDFLib.rgb(0,0,0);
 
-        const findLines = (q)=> {
-          const nq = norm(q);
-          return linesByPage.filter(ln => norm(ln.text).includes(nq));
-        };
+        const findLines = (q)=>lines.filter(ln=>norm(ln.text).includes(norm(q)));
 
-        // SERIE ERITROIDE → leyenda en negrita
-        const hitsSerie = findLines("SERIE ERITROIDE");
-        if(hitsSerie.length){
-          for(const ln of hitsSerie){
-            const page = pdfDoc.getPage(ln.pageIndex);
+        // 2a) Añadir SOLO la leyenda junto a "SERIE ERITROIDE" (negrita)
+        const serieHits = findLines("SERIE ERITROIDE");
+        if(serieHits.length){
+          const textLegend = species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)";
+          for(const ln of serieHits){
+            const pg = out.getPage(ln.pageIndex);
             const size = ln.fontSize;
-            const text = species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)";
-            page.drawText(text,{
-              x: ln.maxX + 10,
-              y: ln.y - (size*Y_ADJUST),
-              size, font: fontBold, color: PDFLib.rgb(0,0,0)
-            });
+            pg.drawText(textLegend, { x: ln.maxX + 10, y: ln.y - size*0.25, size, font: fontBold, color: rgbBlack });
           }
           log(`Añadido rótulo de valores normales (${species}).`);
         }else{
-          log("No se encontró la línea “SERIE ERITROIDE”.");
+          log("No se encontró “SERIE ERITROIDE”.");
         }
 
-        // Para cada parámetro del JSON, anotar SOLO el seleccionado
+        // 2b) Para cada parámetro, escribir SOLO el valor de la especie seleccionada.
+        //     Además, SALTAMOS la fila "SERIE ERITROIDE" para no duplicar el rótulo.
         let placed=0, missed=[];
         for(const {raw, perro, gato} of mapping.values()){
-          const val = species==="perro" ? perro : gato;
+          if(norm(raw)===norm("SERIE ERITROIDE")) continue;          // evita duplicado
+          const val = species==="perro" ? perro : gato;               // ← CLAVE: una sola columna
           if(!val) continue;
           const hits = findLines(raw);
           if(!hits.length){ missed.push(raw); continue; }
-
           for(const ln of hits){
-            const page = pdfDoc.getPage(ln.pageIndex);
+            const pg = out.getPage(ln.pageIndex);
             const size = ln.fontSize;
-            const pageW = page.getWidth();
-
-            const w = fontRegular.widthOfTextAtSize(val, size);
-            const xRight = pageW - cm(RIGHT_SELECTED_CM);
-            const x = xRight - w;
-
-            page.drawText(val,{
-              x, y: ln.y - (size*Y_ADJUST),
-              size, font: fontRegular, color: PDFLib.rgb(0,0,0)
-            });
+            const pageW = pg.getWidth();
+            const w = fontReg.widthOfTextAtSize(val, size);
+            const x = (pageW - cm(RIGHT_SELECTED_CM)) - w;
+            pg.drawText(val, { x, y: ln.y - size*0.25, size, font: fontReg, color: rgbBlack });
             placed++;
           }
         }
 
         // 3) Descargar
-        const bytes = await pdfDoc.save();
+        const bytes = await out.save();
         const blob = new Blob([bytes], {type:"application/pdf"});
         const a=document.createElement("a");
         a.href=URL.createObjectURL(blob);
         a.download=file.name.replace(/\.pdf$/i,"")+"_mod.pdf";
         document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
 
-        log(`✅ Escrito(s): ${placed}. ${missed.length? "No encontrados: "+missed.slice(0,10).join(", ")+ (missed.length>10?"…":""):""}`);
-
-      }catch(err){
-        console.error(err);
-        log(`❌ Error con ${file.name}: ${err.message}`);
+        log(`✅ Escrito(s): ${placed}. ${missed.length? "No encontrados: "+missed.slice(0,12).join(", ")+ (missed.length>12?"…":""):""}`);
+      }catch(e){
+        console.error(e); log(`❌ Error con ${file.name}: ${e.message}`);
       }
     }
   });
@@ -240,7 +201,6 @@
 </script>
 </body>
 </html>
-
 
 
 <!-- Contenedor del footer -->
