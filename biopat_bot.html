@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -19,7 +17,7 @@
   @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
   label{display:block;font-weight:600;margin-bottom:6px;color:#c7d2fe}
   input[type="file"],button{width:100%;background:#11151c;border:1px solid #2a2f3a;color:var(--ink);border-radius:12px;padding:12px 14px;font-size:15px}
-  .muted{color:var(--muted);font-size:13px}
+  .muted{color:#9aa4b2;font-size:13px}
   .log{background:#0c0f14;border:1px dashed #2a2f3a;border-radius:12px;padding:12px;min-height:140px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
   .toggle{display:flex;gap:10px}
   .toggle button{flex:1;cursor:pointer;background:#141923}
@@ -42,7 +40,7 @@
     </a>
   </p>
     <!-- Enlace inicio -->
-    <p class="lead">Escribe <b>solo</b> la columna elegida (<code>vn (Perro)</code> o <code>vn(Gato)</code>) <b>a 2&nbsp;cm del borde derecho</b>. El rótulo de “SERIE ERITROIDE” ahora también va <b>alineado a la derecha</b> y a la misma altura.</p>
+    <p class="lead">Usa <code>json/inf_biopat_valores.json</code>. Escribe <b>solo</b> la columna elegida a 2&nbsp;cm del borde derecho, misma altura que cada parámetro. Rótulo de “SERIE ERITROIDE” en negrita.</p>
   </div>
 </header>
 
@@ -81,7 +79,7 @@
 
   // Alineación a la derecha a 2 cm del borde
   const RIGHT_CM = 2.0;
-  const Y_ADJUST = 0.25;
+  const Y_ADJUST = 0.25; // pequeño ajuste vertical
   const cm = n => n*28.3464567;
 
   const $ = id => document.getElementById(id);
@@ -89,13 +87,45 @@
   const pdfInput = $("pdfInput"), runBtn = $("runBtn"), toggle = $("speciesToggle");
 
   function log(m){ const d=document.createElement("div"); d.textContent=m; logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight; }
-  const norm = s => (s??"").toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/\.+/g," ").replace(/\s+/g," ").trim().toLowerCase();
 
+  // ---------- Canonización y búsqueda por palabra completa ----------
+  function canon(s){
+    return (s ?? "")
+      .toString()
+      .normalize("NFD").replace(/\p{Diacritic}/gu,"")
+      .toLowerCase()
+      .replace(/[.\u00B7·]+/g," ")
+      .replace(/[^a-z0-9]+/g," ")
+      .trim()
+      .replace(/\s+/g," ");
+  }
+  function escapeRegExp(str){ return str.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+  function matchesWhole(lineText, query){
+    const cl = canon(lineText);
+    const cq = canon(query);
+    if(!cq) return false;
+    const tokens = cq.split(" ");
+    const qPattern = tokens.map(escapeRegExp).join("\\s+");
+    const re = new RegExp(`(^|\\s)${qPattern}(\\s|$)`);
+    return re.test(cl);
+  }
+  function findLinesStrict(lines, q){
+    let hits = lines.filter(ln => matchesWhole(ln.text, q));
+    if(hits.length) return hits;
+    const cq = canon(q);
+    if(cq.length >= 5 && cq.includes(" ")){
+      hits = lines.filter(ln => canon(ln.text).includes(cq));
+    }
+    return hits;
+  }
+  const CANON_SERIE = canon("SERIE ERITROIDE");
+
+  // Estado de especie
   let species = "perro";
   toggle.addEventListener("click", e=>{
     const btn = e.target.closest("button[data-species]");
     if(!btn) return;
-    species = btn.dataset.species;
+    species = btn.dataset.species; // "perro" | "gato"
     toggle.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b===btn));
   });
 
@@ -114,8 +144,9 @@
       const perro = (row["vn (Perro)"] ?? row["vn (Perro) "] ?? row["vn_perro"] ?? "").toString().replace(/\s+/g," ").trim();
       const gato  = (row["vn(Gato)"]   ?? row["vn (Gato)"]   ?? row["vn_gato"]  ?? "").toString().replace(/\s+/g," ").trim();
       const rec = {raw, perro, gato};
-      if(norm(raw)===norm("SERIE ERITROIDE")) serieRow = rec;
-      map.set(norm(raw), rec);
+      const key = canon(raw);
+      if(key === CANON_SERIE) serieRow = rec;
+      map.set(key, rec);
       n++;
     }
     jsonStatus.textContent = `JSON cargado (${n} filas).`;
@@ -134,7 +165,7 @@
         log(`\n📄 Procesando: ${file.name}`);
         const buf = await file.arrayBuffer();
 
-        // 1) Extraer líneas con pdf.js
+        // 1) Extraer texto por líneas con pdf.js
         const doc = await pdfjsLib.getDocument({data: buf}).promise;
         const lines = [];
         for(let p=1;p<=doc.numPages;p++){
@@ -157,15 +188,14 @@
           }
         }
 
-        // 2) Escribir con pdf-lib (Courier regular y bold) en negro
+        // 2) Escribir con pdf-lib (Courier y CourierBold) en negro
         const pdfOut = await PDFLib.PDFDocument.load(buf);
         const fontRegular = await pdfOut.embedFont(PDFLib.StandardFonts.Courier);
         const fontBold    = await pdfOut.embedFont(PDFLib.StandardFonts.CourierBold);
         const BLACK = PDFLib.rgb(0,0,0);
 
-        const findLines = q => lines.filter(ln => norm(ln.text).includes(norm(q)));
+        const findLines = q => findLinesStrict(lines, q);
 
-        // Utilidad: escribe alineando a la derecha a 2 cm
         function drawRightAligned(page, text, y, font, size){
           const pageW = page.getWidth();
           const w = font.widthOfTextAtSize(text, size);
@@ -173,24 +203,24 @@
           page.drawText(text, { x, y, size, font, color: BLACK });
         }
 
-        // 2a) Leyenda de SERIE ERITROIDE → AHORA también alineada a la derecha como el resto
-        const hitsSerie = findLines("SERIE ERITROIDE");
-        if(hitsSerie.length){
+        // 2a) Rótulo "SERIE ERITROIDE" → a la misma altura y derecha
+        const serieHits = findLines("SERIE ERITROIDE");
+        if(serieHits.length){
           const legend = serieRow
             ? (species==="perro" ? (serieRow.perro || "VALORES NORMALES (Perro)") : (serieRow.gato || "VALORES NORMALES (Gato)"))
             : (species==="perro" ? "VALORES NORMALES (Perro)" : "VALORES NORMALES (Gato)");
-          for(const ln of hitsSerie){
+          for(const ln of serieHits){
             const pg = pdfOut.getPage(ln.pageIndex);
             const size = ln.fontSize;
             const y = ln.y - size*Y_ADJUST;
-            drawRightAligned(pg, legend, y, fontBold, size); // ← derecha, misma altura
+            drawRightAligned(pg, legend, y, fontBold, size);
           }
         }
 
-        // 2b) Parámetros: solo la columna seleccionada
+        // 2b) Parámetros: SOLO la columna seleccionada, y coincidencia por palabra completa
         let placed=0, missed=[];
         for(const rec of map.values()){
-          if(norm(rec.raw)===norm("SERIE ERITROIDE")) continue; // rótulo ya pintado
+          if(canon(rec.raw) === CANON_SERIE) continue; // ya pintado como rótulo
           const val = species==="perro" ? rec.perro : rec.gato;
           if(!val) continue;
 
