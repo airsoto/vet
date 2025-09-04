@@ -1,0 +1,508 @@
+
+
+
+
+    <!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Entrenador de Código Morse — Modo oscuro</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#121a2b; --panel2:#0f1626; --muted:#9aa4b2; --txt:#e6e8ef;
+  --accent:#7aa2f7; --accent2:#6ee7f0; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --ring:#2a3860; --shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  color:var(--txt);
+  background:
+    radial-gradient(900px 500px at 20% -10%, #162136aa 0%, transparent 60%),
+    radial-gradient(800px 400px at 100% 0%, #102038aa 0%, transparent 60%),
+    var(--bg);
+}
+header{
+  position:sticky; top:0; z-index:5; padding:18px 12px 10px;
+  border-bottom:1px solid #1f2a44;
+  background:linear-gradient(180deg, rgba(11,18,32,.9), rgba(11,18,32,.65) 60%, transparent);
+  backdrop-filter: blur(6px);
+}
+.wrap{max-width:1100px; margin:0 auto; padding:0 12px}
+h1{display:flex; align-items:center; gap:10px; margin:0 0 12px}
+h1 .dot{width:12px;height:12px;border-radius:50%; background:conic-gradient(from 0deg,var(--accent),var(--accent2)); box-shadow:0 0 12px var(--accent)}
+.controls{
+  display:grid; gap:10px; grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width:860px){ .controls{grid-template-columns: 1fr 1fr} }
+@media (max-width:560px){ .controls{grid-template-columns: 1fr} }
+.control, .toggle{
+  background:var(--panel); border:1px solid #1f2a44; border-radius:14px; padding:10px 12px;
+  display:flex; gap:10px; align-items:center; box-shadow:var(--shadow);
+}
+select,input[type="text"],input[type="number"]{
+  width:100%; background:transparent; border:none; outline:none; color:var(--txt); font-size:14px;
+}
+.toggle{padding:6px}
+.toggle button{
+  flex:1; border:none; background:transparent; color:var(--muted);
+  padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:600;
+}
+.toggle button.active{
+  color:var(--txt); background:linear-gradient(180deg,#263458,#1a2444);
+  border:1px solid #2b3a66; box-shadow: inset 0 0 12px rgba(122,162,247,.22), 0 0 0 3px rgba(122,162,247,.12);
+}
+
+main{padding:18px 0 80px}
+.section{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid #1f2a44; border-radius:18px; padding:16px; margin:14px 0; box-shadow:var(--shadow)
+}
+.section h2{margin:0 0 10px; font-size:18px}
+.row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.kv{display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(240px,1fr));}
+.badge{background:#1a233a; border:1px solid #233257; border-radius:999px; padding:4px 8px; font-size:12px; color:var(--muted)}
+.card{
+  background:#0f1628; border:1px solid #1c2748; border-radius:14px; padding:10px;
+}
+.btn{
+  appearance:none; border:none; cursor:pointer; color:var(--txt);
+  background:linear-gradient(180deg,#2a3860,#1a2444); border:1px solid #2b3a66;
+  padding:10px 14px; border-radius:12px; font-weight:700; box-shadow:var(--shadow)
+}
+.btn:disabled{opacity:.6; cursor:not-allowed}
+.btn.ghost{background:#121a2b;border:1px solid #2b3a66}
+.bigTap{
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  width:100%; min-height:120px; border-radius:16px;
+  background:#0e1526; border:2px dashed #233257; color:#c7d2fe; font-weight:800; font-size:22px;
+  user-select:none;
+}
+.grid{
+  display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+.alphaItem{
+  background:#0f1626; border:1px solid #1c2748; border-radius:12px; padding:8px 10px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px
+}
+.alphaItem .l{font-weight:800}
+.alphaItem .m{color:var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+.out{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  padding:8px 10px; border-radius:10px; background:#0e1526; border:1px solid #1c2748; color:#a5b4fc
+}
+.score{display:flex; gap:10px; flex-wrap:wrap}
+.score .pill{background:#0f1b2e; border:1px solid #22325a; border-radius:999px; padding:6px 10px}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.small{font-size:12px; color:var(--muted)}
+footer{color:var(--muted); text-align:center; padding:30px 0}
+kbd{background:#0d1322; border:1px solid #22325a; border-radius:6px; padding:2px 6px; font-size:12px}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1><span class="dot"></span> Entrenador de Código Morse</h1>
+
+      
+
+     <h2 style="margin:0;">
+    <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+  </h2>
+
+  <!-- Enlace inicio -->
+  <p style="margin:0; font-size:0.9em; text-align:right;">
+    <a href="https://airsoto.github.io/vet/" 
+       style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+      🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
+    </a>
+  </p>
+    <!-- Enlace inicio -->
+      
+      <div class="controls">
+        <div class="toggle" title="Modo">
+          <button id="m-teclear" class="active">Teclear palabras</button>
+          <button id="m-adivinar">Adivinar por sonido</button>
+        </div>
+        <label class="control" title="Umbral entre punto y guion (ms)">
+          <span class="small">Umbral punto/guion (ms)</span>
+          <input id="threshold" type="number" min="80" max="400" step="10" value="200"/>
+        </label>
+        <label class="control" title="Duración unidad para audio (ms)">
+          <span class="small">Unidad (audio) ms</span>
+          <input id="unit" type="number" min="60" max="240" step="10" value="140"/>
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- MODO TECLAR -->
+    <section id="sec-type" class="section">
+      <h2>Practicar tecleando</h2>
+      <div class="kv">
+        <div class="card">
+          <div class="row">
+            <label class="small">Palabra:</label>
+            <select id="word">
+              <option>MORSE</option>
+              <option>RADIO</option>
+              <option>SOS</option>
+              <option>TIERRA</option>
+              <option>MARTE</option>
+              <option>VENUS</option>
+              <option>JUPITER</option>
+              <option>SATURNO</option>
+              <option>URANO</option>
+              <option>NEPTUNO</option>
+              <option>GATO</option>
+              <option>PERRO</option>
+            </select>
+            <button class="btn" id="startType">Iniciar</button>
+            <button class="btn ghost" id="clearType">Borrar</button>
+            <button class="btn" id="evalType">Evaluar</button>
+          </div>
+          <p class="small" style="margin:8px 0 0">Pulsa la <kbd>barra espaciadora</kbd> o el botón grande para emitir: corto = <strong>·</strong>, largo = <strong>—</strong>. Pausas cortas separan símbolos, una pausa de ~3 unidades separa letras y ~7 unidades separa palabras.</p>
+        </div>
+
+        <div class="card">
+          <div class="row" style="gap:8px;">
+            <span class="badge">Objetivo</span>
+            <span id="targetMorse" class="out"></span>
+          </div>
+          <div class="row" style="gap:8px;margin-top:6px">
+            <span class="badge">Tu entrada</span>
+            <span id="typedMorse" class="out"></span>
+          </div>
+          <div class="score" style="margin-top:10px">
+            <span class="pill">Exactitud: <strong id="acc">—</strong></span>
+            <span class="pill">Velocidad (LPM): <strong id="lpm">—</strong></span>
+            <span class="pill">Eficacia: <strong id="eff">—</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="tapArea" class="bigTap" tabindex="0" aria-label="Área de tecleo">● TOCAR (o barra espaciadora)</div>
+    </section>
+
+    <!-- MODO ADIVINAR -->
+    <section id="sec-guess" class="section" hidden>
+      <h2>Adivinar por sonido</h2>
+      <div class="kv">
+        <div class="card">
+          <div class="row">
+            <button class="btn" id="playWord">Reproducir palabra</button>
+            <button class="btn ghost" id="replay" disabled>Repetir</button>
+            <span class="badge">Unidad audio: <span id="uView">140</span> ms</span>
+          </div>
+          <p class="small" style="margin:8px 0 0">Escucha la secuencia y escribe la palabra que crees que es. (Lista de ejemplo: planetas y palabras comunes.)</p>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <input id="guess" type="text" placeholder="Tu respuesta…" />
+            <button class="btn" id="check">Comprobar</button>
+          </div>
+          <div class="score" style="margin-top:10px">
+            <span class="pill">Aciertos: <strong id="hits">0</strong></span>
+            <span class="pill">Fallos: <strong id="miss">0</strong></span>
+            <span class="pill">Racha: <strong id="streak">0</strong></span>
+          </div>
+          <p id="reveal" class="small" style="margin-top:8px"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALFABETO -->
+    <section class="section">
+      <h2>Abecedario Morse</h2>
+      <div id="alphabet" class="grid"></div>
+    </section>
+  </main>
+
+  <footer class="wrap">Desarrollado por: <strong>Angel Soto</strong></footer>
+
+<script>
+/* =======================
+   Mapeo Morse (ES)
+======================= */
+const MORSE = {
+  'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.',
+  'H':'....','I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.',
+  'Ñ':'--.--','O':'---','P':'.--.','Q':'--.-','R':'.-.','S':'...','T':'-',
+  'U':'..-','V':'...-','W':'.--','X':'-..-','Y':'-.--','Z':'--..',
+  '0':'-----','1':'.----','2':'..---','3':'...--','4':'....-',
+  '5':'.....','6':'-....','7':'--...','8':'---..','9':'----.',
+  'CH':'----' // tradicional en castellano
+};
+const WORDS = ['MORSE','RADIO','SOS','TIERRA','MARTE','VENUS','JUPITER','SATURNO','URANO','NEPTUNO','GATO','PERRO','PLUTON'];
+
+/* =======================
+   Utilidades
+======================= */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+function toMorse(text){
+  text = text.toUpperCase().replace(/\s+/g,' ').trim();
+  let out = [];
+  for(const word of text.split(' ')){
+    const letters = [];
+    for(let i=0;i<word.length;i++){
+      // Maneja "CH"
+      if(word[i]==='C' && word[i+1]==='H'){ letters.push(MORSE['CH']); i++; continue; }
+      const m = MORSE[word[i]];
+      if(m) letters.push(m);
+    }
+    out.push(letters);
+  }
+  return out; // array de palabras, cada una array de morse por letra
+}
+function fmtMorse(matrix){
+  // matrix: [ [".-","-.."], ["..."] ]  -> ".- -.. / ..."
+  return matrix.map(letters=>letters.join(' ')).join(' / ');
+}
+
+/* =======================
+   Audio (WebAudio)
+======================= */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const actx = new AudioCtx();
+let unlocked = false;
+document.body.addEventListener('click', ()=>{ if(!unlocked){ actx.resume(); unlocked=true; } }, {once:true});
+
+function beep(ms=100, freq=600, vol=0.2){
+  return new Promise(res=>{
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    g.gain.value=vol; o.connect(g); g.connect(actx.destination);
+    o.start();
+    setTimeout(()=>{ g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+0.03); o.stop(actx.currentTime+0.04); res(); }, ms);
+  });
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+async function playMorse(text, unit=140){
+  // punto = 1u; guion = 3u; entre símbolos = 1u; entre letras = 3u; entre palabras = 7u
+  const matrix = toMorse(text);
+  for(let w=0; w<matrix.length; w++){
+    const letters = matrix[w];
+    for(let l=0; l<letters.length; l++){
+      const code = letters[l];
+      for(let i=0;i<code.length;i++){
+        const c = code[i];
+        await beep(c==='.'? unit: unit*3);
+        if(i<code.length-1) await sleep(unit); // entre símbolos
+      }
+      if(l<letters.length-1) await sleep(unit*3); // entre letras
+    }
+    if(w<matrix.length-1) await sleep(unit*7); // entre palabras
+  }
+}
+
+/* =======================
+   UI: alfabeto
+======================= */
+function renderAlphabet(){
+  const cont = $('#alphabet');
+  const entries = Object.entries(MORSE).filter(([k])=>k!=='CH').sort(([a],[b])=>a.localeCompare(b));
+  const extra = [['CH', MORSE['CH']]];
+  cont.innerHTML = entries.concat(extra).map(([l,m])=>`
+    <div class="alphaItem">
+      <span class="l">${l}</span>
+      <span class="m">${m}</span>
+    </div>
+  `).join('');
+}
+renderAlphabet();
+
+/* =======================
+   Modo: Teclear palabras
+======================= */
+const threshold = $('#threshold');
+const unit = $('#unit');
+const uView = $('#uView');
+
+const wordSel = $('#word');
+const targetMorse = $('#targetMorse');
+const typedMorse = $('#typedMorse');
+const startType = $('#startType');
+const clearType = $('#clearType');
+const evalType = $('#evalType');
+const tapArea = $('#tapArea');
+
+let typing = false;
+let pressStart = 0, lastUp = 0, beganAt = 0;
+let typedLetters = [[]]; // array de letras, cada una array de '.' y '-'
+
+function resetTyping(){
+  typing=false; pressStart=0; lastUp=0; beganAt=0;
+  typedLetters=[[]];
+  typedMorse.textContent='';
+  $('#acc').textContent='—'; $('#lpm').textContent='—'; $('#eff').textContent='—';
+}
+
+function updateTarget(){
+  const matrix = toMorse(wordSel.value);
+  targetMorse.textContent = fmtMorse(matrix);
+}
+updateTarget();
+wordSel.addEventListener('change', ()=>{ updateTarget(); resetTyping(); });
+
+startType.addEventListener('click', ()=>{
+  resetTyping();
+  typing=true;
+  tapArea.focus();
+});
+
+clearType.addEventListener('click', resetTyping);
+
+function renderTyped(){
+  const s = typedLetters.map(L=>L.join('')).filter(x=>x.length||typedLetters.length===1).join(' ');
+  typedMorse.textContent = s.replace(/ /g,' ');
+}
+
+function pushSymbol(sym){
+  // Añade '.' o '-' a la letra actual
+  if(!typing) return;
+  const cur = typedLetters[typedLetters.length-1];
+  cur.push(sym);
+  renderTyped();
+}
+
+function newLetter(){
+  if(typedLetters[typedLetters.length-1].length===0) return; // evita letras vacías consecutivas
+  typedLetters.push([]);
+  renderTyped();
+}
+
+function tapDown(){
+  if(!typing) return;
+  pressStart = performance.now();
+  if(beganAt===0) beganAt = pressStart;
+  // Si hubo una pausa larga desde el último 'up', crea nueva letra
+  const gap = pressStart - lastUp;
+  if(lastUp>0 && gap > unit.value*3) newLetter();
+  // feedback sonoro suave
+  beep(60, 700, 0.08);
+}
+
+function tapUp(){
+  if(!typing || !pressStart) return;
+  const dur = performance.now() - pressStart;
+  const sym = dur <= Number(threshold.value) ? '.' : '-';
+  pushSymbol(sym);
+  lastUp = performance.now();
+  pressStart = 0;
+}
+
+tapArea.addEventListener('pointerdown', e=>{ e.preventDefault(); tapDown(); });
+tapArea.addEventListener('pointerup', e=>{ e.preventDefault(); tapUp(); });
+tapArea.addEventListener('keydown', e=>{
+  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat) tapDown(); }
+});
+tapArea.addEventListener('keyup', e=>{
+  if(e.code==='Space'){ e.preventDefault(); tapUp(); }
+});
+
+function evaluateTyping(){
+  const tgt = toMorse(wordSel.value);
+  // Flatten ambos a letras
+  const tgtLetters = tgt.flat();
+  const myLetters = typedLetters.map(L=>L.join('')).filter(x=>x.length);
+  // Exactitud por letra
+  let correct = 0;
+  const n = Math.max(tgtLetters.length, myLetters.length);
+  for(let i=0;i<n;i++){ if(tgtLetters[i]===myLetters[i]) correct++; }
+  const acc = n? Math.round((correct/n)*100):0;
+
+  // Velocidad (letras por minuto)
+  const elapsed = (lastUp && beganAt) ? (lastUp - beganAt)/1000 : 0;
+  const lpm = elapsed>0 ? Math.round((myLetters.length/elapsed)*60) : 0;
+
+  // Eficacia ponderada: 70% exactitud + 30% velocidad (objetivo 20 LPM)
+  const vScore = Math.min(100, Math.round((lpm/20)*100));
+  const eff = Math.round(0.7*acc + 0.3*vScore);
+
+  $('#acc').textContent = acc + '%';
+  $('#lpm').textContent = lpm;
+  $('#eff').textContent = eff + '%';
+}
+
+evalType.addEventListener('click', evaluateTyping);
+
+/* =======================
+   Modo: Adivinar por sonido
+======================= */
+const playWordBtn = $('#playWord');
+const replayBtn = $('#replay');
+const guessInp = $('#guess');
+const checkBtn = $('#check');
+const hits = $('#hits'); const miss = $('#miss'); const streak = $('#streak'); const reveal = $('#reveal');
+
+let currentWord = '';
+let stats = {hits:0, miss:0, streak:0};
+
+playWordBtn.addEventListener('click', async ()=>{
+  currentWord = WORDS[Math.floor(Math.random()*WORDS.length)];
+  replayBtn.disabled = false;
+  uView.textContent = unit.value;
+  await playMorse(currentWord, Number(unit.value));
+  reveal.textContent = '';
+  guessInp.focus();
+});
+
+replayBtn.addEventListener('click', async ()=>{
+  if(!currentWord) return;
+  await playMorse(currentWord, Number(unit.value));
+});
+
+checkBtn.addEventListener('click', ()=>{
+  const g = (guessInp.value||'').toUpperCase().trim();
+  if(!currentWord) return;
+  if(!g) { reveal.textContent='Escribe tu respuesta.'; return; }
+  if(g===currentWord){
+    stats.hits++; stats.streak++; reveal.innerHTML = `✅ ¡Correcto! Era <strong>${currentWord}</strong>.`;
+  }else{
+    stats.miss++; stats.streak=0; reveal.innerHTML = `❌ Era <strong>${currentWord}</strong>. Tú pusiste: <strong>${g}</strong>.`;
+  }
+  hits.textContent=stats.hits; miss.textContent=stats.miss; streak.textContent=stats.streak;
+  currentWord='';
+  guessInp.value='';
+});
+
+/* =======================
+   Modo: Toggle
+======================= */
+const mTeclear = $('#m-teclear');
+const mAdivinar = $('#m-adivinar');
+const secType = $('#sec-type');
+const secGuess = $('#sec-guess');
+
+function setMode(which){
+  [mTeclear,mAdivinar].forEach(b=>b.classList.remove('active'));
+  if(which==='type'){
+    mTeclear.classList.add('active');
+    secType.hidden = false; secGuess.hidden = true;
+  }else{
+    mAdivinar.classList.add('active');
+    secType.hidden = true; secGuess.hidden = false;
+  }
+}
+mTeclear.addEventListener('click', ()=>setMode('type'));
+mAdivinar.addEventListener('click', ()=>setMode('guess'));
+
+/* =======================
+   Vistas reactivas mínimas
+======================= */
+unit.addEventListener('input', ()=> uView.textContent = unit.value);
+threshold.addEventListener('input', ()=>{}); // editable
+
+// Inicial
+uView.textContent = unit.value;
+</script>
+</body>
+</html>
