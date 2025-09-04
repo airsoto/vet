@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planetas — Panel interactivo</title>
+<style>
+  :root{
+    --bg:#0d0f14;
+    --panel:#141824;
+    --panel-2:#1a2030;
+    --txt:#e6e8ef;
+    --muted:#9aa4b2;
+    --accent:#7aa2f7;
+    --accent-2:#6ee7f0;
+    --ok:#22c55e;
+    --warn:#f59e0b;
+    --bad:#ef4444;
+    --ring:#a78bfa;
+    --chip:#22283a;
+    --shadow: 0 6px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #162136 0%, transparent 60%) , var(--bg);
+    color:var(--txt);
+  }
+  header{
+    position:sticky; top:0; z-index:5;
+    backdrop-filter: blur(6px);
+    background: linear-gradient(180deg, rgba(13,15,20,.85), rgba(13,15,20,.65) 60%, transparent 100%);
+    padding: 18px 14px 8px;
+    border-bottom: 1px solid rgba(122,162,247,.15);
+  }
+  .wrap{max-width:1200px; margin:0 auto; padding:0 10px}
+  .title{
+    display:flex; align-items:center; gap:12px; margin:0 0 10px 0;
+    font-weight:700; letter-spacing:.3px
+  }
+  .title .dot{
+    width:10px;height:10px;border-radius:50%;
+    background: conic-gradient(from 0deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 12px var(--accent);
+  }
+  .controls{
+    display:grid; gap:10px;
+    grid-template-columns: 1fr 160px 160px 160px;
+  }
+  @media (max-width:900px){ .controls{grid-template-columns: 1fr 1fr 1fr} }
+  @media (max-width:680px){ .controls{grid-template-columns: 1fr 1fr} }
+  @media (max-width:460px){ .controls{grid-template-columns: 1fr} }
+
+  .control{
+    background:var(--panel);
+    border:1px solid #1f2740;
+    border-radius:14px;
+    padding:10px 12px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow: var(--shadow);
+  }
+  input[type="search"], select{
+    width:100%;
+    background:transparent; border:none; outline:none; color:var(--txt);
+    font-size:14px;
+  }
+  .toggle{
+    display:flex; gap:8px; align-items:center; justify-content:center;
+    background:var(--panel);
+    border:1px solid #1f2740;
+    border-radius:14px; padding:6px;
+  }
+  .toggle button{
+    flex:1; border:none; background:transparent; color:var(--muted);
+    padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:600;
+  }
+  .toggle button.active{
+    color:var(--txt);
+    background: linear-gradient(180deg, #243055, #1a2444);
+    border:1px solid #2a3660;
+    box-shadow: inset 0 0 12px rgba(122,162,247,.22), 0 0 0 3px rgba(122,162,247,.12);
+  }
+
+  main{padding:16px 0 80px}
+  .grid{
+    display:grid; gap:14px;
+    grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) );
+  }
+
+  .card{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid #1f2740; border-radius:20px; padding:16px;
+    box-shadow: var(--shadow);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    cursor:pointer; position:relative; overflow:hidden;
+  }
+  .card:hover{ transform: translateY(-3px); border-color:#2b3a66; box-shadow: 0 10px 28px rgba(0,0,0,.45) }
+  .card h3{ margin:0 0 10px; font-size:18px; letter-spacing:.2px }
+  .meta{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px }
+  .chip{
+    background:var(--chip);
+    border:1px solid #273150;
+    color:var(--muted);
+    padding:4px 8px; border-radius:999px; font-size:12px
+  }
+  .kv{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px; }
+  .kv div{ background:#141a2a; border:1px solid #1f2740; border-radius:12px; padding:8px }
+  .k{ font-size:12px; color:var(--muted) }
+  .v{ font-size:14px; font-weight:600 }
+
+  .color-dot{
+    width:10px;height:10px;border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle;
+    box-shadow: 0 0 10px rgba(255,255,255,.25);
+  }
+  .ring{ color:var(--ring) }
+  .ok{ color:var(--ok) }
+  .bad{ color:var(--bad) }
+
+  /* Chart area */
+  .chart-wrap{
+    margin:22px 0 14px;
+    background:var(--panel); border:1px solid #1f2740; border-radius:18px; padding:12px;
+  }
+  .chart-controls{ display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap }
+  .chart-controls select{ background:#12182a; border:1px solid #253253; padding:8px 10px; border-radius:10px; color:var(--txt) }
+  canvas{ width:100%; height:260px; display:block }
+
+  /* Modal */
+  dialog{
+    border:none; padding:0; width:min(900px, 92vw);
+    background:linear-gradient(180deg, #0f1320, #0b0e18);
+    color:var(--txt); border-radius:18px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  dialog::backdrop{ background: rgba(0,0,0,.5) }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #1c2440 }
+  .modal-body{ padding:16px 18px }
+  .close{ appearance:none; border:none; background:#1c2440; color:var(--txt); border-radius:10px; padding:8px 10px; cursor:pointer }
+  .detail-grid{
+    display:grid; gap:10px;
+    grid-template-columns: repeat( auto-fit, minmax(220px, 1fr) );
+  }
+  .detail{
+    background:#101524; border:1px solid #1f2740; border-radius:12px; padding:10px;
+  }
+  .detail .k{ font-size:12px; color:var(--muted) }
+  .detail .v{ font-size:14px; font-weight:600 }
+
+  /* Utility */
+  [hidden]{ display:none !important; }
+  .error{
+    margin:16px 0; padding:12px; border-radius:12px;
+    background:#23151a; border:1px solid #51202a; color:#fecaca
+  }
+  footer{
+    text-align:center; color:var(--muted); padding:24px 0 40px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1 class="title"><span class="dot"></span> Sistema Solar • Panel interactivo</h1>
+     <h2 style="margin:0;">
+    <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+  </h2>
+
+  <!-- Enlace inicio -->
+  <p style="margin:0; font-size:0.9em; text-align:right;">
+    <a href="https://airsoto.github.io/vet/" 
+       style="color:#90caf9; text-decoration:none; display:flex; align-items:center; gap:4px;">
+      🏠 <span style="font-size:0.8em;">volver a página de inicio</span>
+    </a>
+  </p>
+    <!-- Enlace inicio -->
+      <div class="controls">
+        <label class="control" title="Buscar por nombre">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 20.3l-5.2-5.2a7.5 7.5 0 10-1 1L20.3 21zM4 10a6 6 0 1112 0A6 6 0 014 10"/></svg>
+          <input id="q" type="search" placeholder="Buscar planeta…" autocomplete="off" />
+        </label>
+
+        <label class="control">
+          <span style="font-size:12px;color:var(--muted)">Ordenar</span>
+          <select id="sort">
+            <option value="Planet|asc">Nombre (A→Z)</option>
+            <option value="Planet|desc">Nombre (Z→A)</option>
+            <option value="Diameter (km)|desc">Diámetro ↓</option>
+            <option value="Diameter (km)|asc">Diámetro ↑</option>
+            <option value="Mass (10^24kg)|desc">Masa ↓</option>
+            <option value="Mass (10^24kg)|asc">Masa ↑</option>
+            <option value="Distance from Sun (10^6 km)|asc">Distancia al Sol ↑</option>
+            <option value="Distance from Sun (10^6 km)|desc">Distancia al Sol ↓</option>
+            <option value="Number of Moons|desc">Lunas ↓</option>
+            <option value="Mean Temperature (C)|desc">Temp media ↓</option>
+          </select>
+        </label>
+
+        <div class="toggle" title="Filtro de anillos">
+          <button id="f-all" class="active" type="button">Todos</button>
+          <button id="f-rings" type="button">Con anillos</button>
+        </div>
+
+        <div class="toggle" title="Filtro de campo magnético global">
+          <button id="f-mag-all" class="active" type="button">Mag: todos</button>
+          <button id="f-mag-yes" type="button">Mag: sí</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-controls">
+          <strong style="color:var(--muted);font-size:12px">Gráfico:</strong>
+          <select id="metric">
+            <option>Diameter (km)</option>
+            <option>Mass (10^24kg)</option>
+            <option>Distance from Sun (10^6 km)</option>
+            <option>Number of Moons</option>
+            <option>Mean Temperature (C)</option>
+            <option>Surface Gravity(m/s^2)</option>
+            <option>Escape Velocity (km/s)</option>
+            <option>Orbital Period (days)</option>
+          </select>
+        </div>
+        <canvas id="chart" width="1200" height="260" aria-label="Gráfico comparativo"></canvas>
+      </div>
+
+      <div id="error" class="error" hidden></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="grid" class="grid" aria-live="polite"></section>
+  </main>
+
+  <footer class="wrap">Datos cargados desde <code>json/planets.json</code></footer>
+
+  <dialog id="modal">
+    <div class="modal-head">
+      <h3 id="modal-title" style="margin:0"></h3>
+      <button class="close" id="close">Cerrar</button>
+    </div>
+    <div class="modal-body">
+      <div id="detail" class="detail-grid"></div>
+    </div>
+  </dialog>
+
+<script>
+(function(){
+  const PATH = 'json/planets.json'; // ajusta si tu ruta es distinta
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q');
+  const sortSel = document.getElementById('sort');
+  const metricSel = document.getElementById('metric');
+  const errorBox = document.getElementById('error');
+
+  const fAll = document.getElementById('f-all');
+  const fRings = document.getElementById('f-rings');
+  const fMagAll = document.getElementById('f-mag-all');
+  const fMagYes = document.getElementById('f-mag-yes');
+
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalClose = document.getElementById('close');
+  const detail = document.getElementById('detail');
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+
+  let DATA = [];
+  let state = {
+    query: '',
+    sortKey: 'Planet',
+    sortDir: 'asc',
+    rings: 'all', // all | yes
+    mag: 'all',   // all | yes
+  };
+
+  // Helpers
+  const num = (v) => {
+    if (v === null || v === undefined) return NaN;
+    if (typeof v === 'number') return v;
+    const t = String(v).replaceAll(',', '.').replace(/[^\d\.\-]/g,'');
+    return parseFloat(t);
+  };
+  const yes = (v) => String(v).trim().toLowerCase().startsWith('y') || String(v).trim().toLowerCase()==='sí' || String(v).trim().toLowerCase()==='si';
+  const hasRings = (row) => String(row['Ring System?']||'').toLowerCase().startsWith('y');
+  const hasMag = (row) => yes(row['Global Magnetic Field?']);
+
+  const colorMap = (name) => {
+    const k = String(name||'').toLowerCase();
+    const map = {
+      grey:'#9aa4b2', gray:'#9aa4b2', blue:'#60a5fa', brown:'#b7791f',
+      red:'#ef4444', orange:'#fb923c', yellow:'#facc15', green:'#22c55e',
+      white:'#e5e7eb', black:'#111827', tan:'#d1bfa1', gold:'#eab308',
+      cyan:'#22d3ee', purple:'#a78bfa'
+    };
+    return map[k] || '#7aa2f7';
+  };
+
+  const fmt = (k,v)=>{
+    if (v===null || v===undefined || v==='') return '—';
+    // No altero los valores del JSON; solo formato ligero para números largos
+    if (typeof v==='number') return v.toLocaleString('es-ES');
+    return v;
+  };
+
+  function setToggleActive(group, which){
+    [...group.children].forEach(b=>b.classList.remove('active'));
+    which.classList.add('active');
+  }
+
+  function applyFilters(rows){
+    return rows.filter(r=>{
+      if (state.query){
+        const hay = String(r['Planet']||'').toLowerCase().includes(state.query);
+        if (!hay) return false;
+      }
+      if (state.rings==='yes' && !hasRings(r)) return false;
+      if (state.mag==='yes' && !hasMag(r)) return false;
+      return true;
+    });
+  }
+
+  function sortRows(rows){
+    const {sortKey, sortDir} = state;
+    const dir = sortDir==='asc'?1:-1;
+    const isNum = !Number.isNaN(num(rows[0]?.[sortKey]));
+    rows.sort((a,b)=>{
+      let va=a[sortKey], vb=b[sortKey];
+      if (isNum){ va=num(va); vb=num(vb); if (Number.isNaN(va)) va=-Infinity; if (Number.isNaN(vb)) vb=-Infinity; }
+      else { va=String(va||''); vb=String(vb||''); }
+      if (va<vb) return -1*dir;
+      if (va>vb) return 1*dir;
+      return 0;
+    });
+    return rows;
+  }
+
+  function render(){
+    const rows = sortRows(applyFilters([...DATA]));
+    grid.innerHTML = rows.map(row=>{
+      const moons = num(row['Number of Moons']);
+      const temp = row['Mean Temperature (C)'];
+      const color = colorMap(row['Color']);
+      return `
+        <article class="card" data-planet="${row['Planet']}">
+          <h3><span class="color-dot" style="background:${color}"></span>${row['Planet']}</h3>
+          <div class="meta">
+            <span class="chip"><strong>Color:</strong> ${row['Color']||'—'}</span>
+            <span class="chip">${hasRings(row)?'<span class="ring">⟲</span> Con anillos':'Sin anillos'}</span>
+            <span class="chip">${hasMag(row)?'🧲 Campo magnético':'Sin campo magnético'}</span>
+          </div>
+          <div class="kv">
+            <div><div class="k">Diámetro (km)</div><div class="v">${fmt('Diameter (km)',row['Diameter (km)'])}</div></div>
+            <div><div class="k">Masa (10^24kg)</div><div class="v">${fmt('Mass (10^24kg)',row['Mass (10^24kg)'])}</div></div>
+            <div><div class="k">Distancia al Sol (10^6 km)</div><div class="v">${fmt('Distance from Sun (10^6 km)',row['Distance from Sun (10^6 km)'])}</div></div>
+            <div><div class="k">Lunas</div><div class="v">${Number.isNaN(moons)?'—':moons}</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px">
+            <span class="chip" title="Temperatura media">
+              ${typeof temp!=='undefined' ? (`Temp media: <strong style="color:${num(temp)>80?'#f97316':num(temp)<0?'#60a5fa':'#a3e635'}">${fmt('Mean Temperature (C)',temp)} °C</strong>`) : 'Temp: —'}
+            </span>
+            <span class="chip">Gravedad: ${fmt('Surface Gravity(m/s^2)',row['Surface Gravity(m/s^2)'])}</span>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    // Cards click -> modal
+    document.querySelectorAll('.card').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const name = el.getAttribute('data-planet');
+        const row = DATA.find(x=>x.Planet===name);
+        openModal(row);
+      });
+    });
+
+    drawChart(rows);
+  }
+
+  function openModal(row){
+    modalTitle.textContent = row.Planet;
+    const entries = Object.entries(row);
+    detail.innerHTML = entries.map(([k,v])=>{
+      const val = fmt(k,v);
+      return `<div class="detail"><div class="k">${k}</div><div class="v">${val}</div></div>`;
+    }).join('');
+    modal.showModal();
+  }
+
+  modalClose.addEventListener('click', ()=>modal.close());
+  modal.addEventListener('click', (e)=>{ if (e.target === modal) modal.close(); });
+
+  // Chart (simple bar chart with auto-scale)
+  function drawChart(rows){
+    const metric = metricSel.value;
+    const labels = rows.map(r=>r.Planet);
+    const vals = rows.map(r=> num(r[metric]) );
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    // Background grid
+    ctx.save();
+    ctx.globalAlpha = .15;
+    ctx.strokeStyle = '#4b5563';
+    for(let i=0;i<6;i++){
+      const y = H - (H*(i/5));
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // scale
+    const valid = vals.filter(v=>!Number.isNaN(v));
+    const max = valid.length? Math.max(...valid) : 1;
+    const barW = Math.max(18, (W - 40) / Math.max(vals.length, 1) - 8);
+    const baseY = H - 24;
+
+    // bars
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#7aa2f7');
+    grad.addColorStop(1,'#6ee7f0');
+    ctx.fillStyle = grad;
+
+    labels.forEach((lab, i)=>{
+      const v = vals[i];
+      const x = 20 + i * (barW + 8);
+      const h = Number.isNaN(v)? 0 : Math.max(2, (v/max) * (H-60));
+      ctx.fillRect(x, baseY - h, barW, h);
+
+      // label
+      ctx.save();
+      ctx.fillStyle = '#9aa4b2';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.translate(x + barW/2, H - 6);
+      ctx.fillText(lab, 0, 0);
+      ctx.restore();
+    });
+
+    // title
+    ctx.save();
+    ctx.fillStyle = '#9aa4b2';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(metric, 10, 16);
+    ctx.restore();
+  }
+
+  // Events
+  q.addEventListener('input', ()=>{
+    state.query = q.value.trim().toLowerCase();
+    render();
+  });
+  sortSel.addEventListener('change', ()=>{
+    const [k,dir] = sortSel.value.split('|');
+    state.sortKey = k; state.sortDir = dir;
+    render();
+  });
+  metricSel.addEventListener('change', ()=> drawChart(sortRows(applyFilters([...DATA]))));
+
+  fAll.addEventListener('click', ()=>{ state.rings='all'; setToggleActive(fAll.parentElement,fAll); render(); });
+  fRings.addEventListener('click', ()=>{ state.rings='yes'; setToggleActive(fRings.parentElement,fRings); render(); });
+
+  fMagAll.addEventListener('click', ()=>{ state.mag='all'; setToggleActive(fMagAll.parentElement,fMagAll); render(); });
+  fMagYes.addEventListener('click', ()=>{ state.mag='yes'; setToggleActive(fMagYes.parentElement,fMagYes); render(); });
+
+  // Load
+  fetch(PATH, {cache:'no-store'})
+    .then(r=>{
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(json=>{
+      if (!Array.isArray(json)) throw new Error('El JSON debe ser un array');
+      DATA = json;
+      render();
+    })
+    .catch(err=>{
+      console.error(err);
+      errorBox.hidden = false;
+      errorBox.textContent = `No se pudo cargar ${PATH}. Detalle: ${err.message}. 
+Sugerencia: sirve este HTML desde un servidor local (p. ej., "python3 -m http.server") o usa GitHub Pages para evitar restricciones de CORS.`;
+    });
+
+})();
+</script>
+</body>
+</html>
+
+
+
+
+      <p class="credit">
+        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE, Version 2 <span id="year"></span> Ángel Soto · <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">airsoto.github.io/vet</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer{
+    margin-top: 28px;
+    background: #0d1322;
+    border-top: 1px solid #1e2a43;
+    color: #c9d8f1;
+    font-size: 0.95rem;
+  }
+  .site-footer a{ color:#90caf9; text-decoration:none; }
+  .site-footer a:hover{ text-decoration:underline; }
+  .footer-wrap{
+    max-width: 1100px; margin: 0 auto;
+    padding: 18px 20px; display: grid; gap: 16px;
+    grid-template-columns: 1.3fr 1fr;
+  }
+  .footer-col h3{ margin: 0 0 8px; font-size: 1.05rem; color:#e6eef8; }
+  .ref-list{ list-style: none; margin: 0; padding: 0; }
+  .ref-list li{ margin: 6px 0; line-height: 1.35; }
+  .footer-note p{ margin: 6px 0; }
+  .credit{ color:#9fb3c8; font-size: .9rem; }
+  @media (max-width: 720px){
+    .footer-wrap{ grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  // año automático en el aviso ©
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
+
+
+
