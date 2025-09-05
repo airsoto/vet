@@ -1,1 +1,362 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscador de Artículos (arXiv)</title>
+  <style>
+    :root{
+      --bg:#121212; --panel:#1f1f1f; --card:#1e1e1e; --ink:#f0f0f0; --muted:#bbb;
+      --brand:#90caf9; --accent:#1e88e5; --pill-bg:#263238; --pill-bd:#375a7f; --ok:#43a047;
+    }
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans',sans-serif;margin:0;padding:2em}
+    h1{text-align:center;color:var(--brand);margin:.2em 0 .4em}
+
+    .top{display:flex;justify-content:space-between;align-items:center;gap:1em;flex-wrap:wrap}
+    .top a{color:var(--brand);text-decoration:none}
+
+    .search-bar{display:flex;flex-wrap:wrap;gap:.75em;justify-content:center;margin:1.25em 0}
+    select,input,button{padding:.6em .8em;font-size:1em;border-radius:8px;border:none;background:var(--panel);color:var(--ink)}
+    select,input{min-width:220px}
+    button{background:var(--accent);color:#fff;cursor:pointer}
+    button:hover{filter:brightness(1.05)}
+
+    .toolbar{display:flex;gap:.75em;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:.75em}
+    .count{font-size:1.05em;color:var(--brand);text-align:center;margin-top:.5em}
+    .muted{opacity:.85;color:var(--muted)}
+
+    .results{margin-top:1.25em;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1.25em}
+    .card{background:var(--card);border-left:4px solid var(--brand);border-radius:10px;padding:1.25em;transition:transform .2s, box-shadow .2s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 0 12px rgba(144,202,249,.35)}
+    .meta{font-size:.92em;color:#bbb;margin:.35em 0}
+    .abstract{font-style:italic;text-align:justify;line-height:1.55;margin-top:.6em}
+    .pill{display:inline-block;background:var(--pill-bg);color:#cde7ff;border:1px solid var(--pill-bd);border-radius:999px;padding:.15em .6em;margin:.15em .25em 0 0;font-size:.82em}
+    .btn{display:inline-block;background:var(--ok);color:#fff;padding:.5em .9em;border-radius:7px;margin-top:.6em;text-decoration:none;font-size:.95em}
+    .btn:hover{filter:brightness(1.05)}
+
+    [hidden]{display:none !important;}
+    @media (max-width:480px){.results{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <h1>Buscador de Artículos de arXiv</h1>
+
+  <div class="top">
+    <h2 style="margin:0; font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+    </h2>
+    <p style="margin:0; font-size:0.9em; text-align:right;">
+      <a href="https://airsoto.github.io/vet/" style="display:flex; align-items:center; gap:6px;">🏠 <span style="font-size:0.9em;">volver a página de inicio</span></a>
+    </p>
+  </div>
+
+  <p style="text-align:center; margin:.2em 0 0;">
+    <em class="muted">Fuente de datos: <code>json/arxiv.json</code></em>
+  </p>
+
+  <h2 id="main-title" style="text-align:center; font-weight:600;">
+    Encuentra un artículo entre <span id="paperCount">...</span>
+  </h2>
+
+  <div class="search-bar">
+    <select id="search-type" aria-label="Tipo de búsqueda">
+      <option value="global">Búsqueda global</option>
+      <option value="title">Título</option>
+      <option value="authors">Autor/es</option>
+      <option value="keywords">Palabras clave</option>
+      <option value="topics">Temas</option>
+      <option value="year">Año</option>
+    </select>
+
+    <input id="search-input" type="text" placeholder="Buscar... (p. ej. black holes, 2024, Lai)" list="dynamic-datalist" aria-label="Texto a buscar" />
+
+    <select id="sort-by" aria-label="Ordenar por">
+      <option value="year">Fecha (más reciente)</option>
+      <option value="title">Título A-Z</option>
+      <option value="author">Autor A-Z</option>
+    </select>
+
+    <button id="btn-search">Buscar</button>
+    <button id="btn-clear" title="Limpiar búsqueda">Limpiar</button>
+  </div>
+
+  <div class="toolbar muted" id="hints" hidden></div>
+  <div class="count" id="result-count"></div>
+
+  <div id="results" class="results"></div>
+
+  <datalist id="dynamic-datalist"></datalist>
+
+  <script>
+    // --- Estado ---
+    let raw = [];        // registros originales
+    let papers = [];     // registros canónicos
+    let authorsList = []; let topicsList = []; let keywordsList = [];
+
+    const els = {
+      type: document.getElementById('search-type'),
+      input: document.getElementById('search-input'),
+      datalist: document.getElementById('dynamic-datalist'),
+      sort: document.getElementById('sort-by'),
+      btnSearch: document.getElementById('btn-search'),
+      btnClear: document.getElementById('btn-clear'),
+      results: document.getElementById('results'),
+      count: document.getElementById('result-count'),
+      hints: document.getElementById('hints'),
+    };
+
+    // --- Utilidades ---
+    const norm = (s) => (s ?? '').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+    const uniq = (arr) => [...new Set((arr||[]).filter(Boolean))];
+    const clamp = (n,min,max)=>Math.min(Math.max(n,min),max);
+
+    function fillDatalist(options){
+      els.datalist.innerHTML = (options||[]).slice(0, 5000)
+        .map(v=>`<option value="${(v+"").replaceAll('"','&quot;')}"></option>`).join('');
+    }
+
+    function updateDatalistByType(){
+      const t = els.type.value;
+      els.hints.hidden = false;
+      if(t === 'authors'){ fillDatalist(authorsList); els.hints.textContent = 'Sugerencias de autores detectadas en el JSON'; }
+      else if(t === 'topics'){ fillDatalist(topicsList); els.hints.textContent = 'Sugerencias de temas detectadas en el JSON'; }
+      else if(t === 'keywords'){ fillDatalist(keywordsList); els.hints.textContent = 'Sugerencias de palabras clave detectadas en el JSON'; }
+      else if(t === 'year'){ fillDatalist([]); els.hints.textContent = 'Admite 2024, 2020-2024, ">=2022" o "<=2019"'; }
+      else { fillDatalist([]); els.hints.hidden = true; }
+    }
+
+    // Parse helpers (resistentes a formatos raros)
+    function parseAuthors(v){
+      if(Array.isArray(v)) return v.map(x=>x+"").map(x=>x.trim()).filter(Boolean);
+      if(!v) return [];
+      const s = v+"";
+      // separa por comas o " and "
+      return s.split(/,|\band\b/gi).map(x=>x.trim()).filter(Boolean);
+    }
+    function parseKeywords(v){
+      if(Array.isArray(v)) return v.map(x=>x+"").map(x=>x.trim()).filter(Boolean);
+      if(!v) return [];
+      const s = v+"";
+      // Si viene como diccionario en string: {'black holes': 1, 'AGN': 2}
+      const hits = s.match(/'([^']+)'/g) || s.match(/"([^"]+)"/g) || [];
+      const keys = hits.map(x=>x.slice(1,-1));
+      if(keys.length) return keys;
+      // fallback separar por coma
+      return s.split(/[,;\|]/).map(x=>x.trim()).filter(Boolean);
+    }
+    function parseTopics(v){
+      if(Array.isArray(v)) return v.map(x=>x+"").map(x=>x.trim()).filter(Boolean);
+      if(!v) return [];
+      const s = v+"";
+      const hits = s.match(/'([^']+)'/g) || s.match(/"([^"]+)"/g) || [];
+      const items = hits.map(x=>x.slice(1,-1));
+      if(items.length) return items;
+      return s.replace(/[\[\]]/g,'').split(/[,;\|]/).map(x=>x.trim()).filter(Boolean);
+    }
+    function parseYear(v, fallback){
+      let y = v ?? fallback;
+      if(y==null) return null;
+      const n = parseInt(y,10);
+      return Number.isFinite(n) ? n : null;
+    }
+    function parseMonth(v){
+      if(v==null) return null;
+      const n = parseInt(v,10);
+      if(Number.isFinite(n)) return clamp(n,1,12);
+      // intenta extraer de "MM.YYYY"
+      const m = (v+"").match(/^(\d{1,2})[\/.-]/);
+      return m ? clamp(parseInt(m[1],10),1,12) : null;
+    }
+
+    function canonicalize(rec){
+      const title = rec.Title || rec.title || '(Sin título)';
+      const link = rec.Link || rec.link || '';
+      const authors = parseAuthors(rec.Authors || rec.authors);
+      const abstract = rec.Abstract || rec.abstract || '';
+      const keywords = parseKeywords(rec.Keywords || rec.keywords);
+      const topics = parseTopics(rec.Topic || rec.Topics || rec.topic || rec.topics);
+      const year = parseYear(rec.Year, (rec.Date||'').slice(-4));
+      const month = parseMonth(rec.Month ?? rec.Date);
+      const dateStr = rec.Date || (month && year ? String(month).padStart(2,'0')+'.'+year : (year||''));
+      return { title, link, authors, abstract, keywords, topics, year, month, dateStr };
+    }
+
+    function bestDateStamp(p){
+      // ordenar por año (y mes si hay)
+      const y = p.year || 0; const m = p.month || 1;
+      return new Date(y || 0, (m||1)-1, 1).getTime();
+    }
+
+    function buildLists(){
+      const a=[], t=[], k=[];
+      for(const p of papers){
+        p.authors.forEach(x=>a.push(x));
+        p.topics.forEach(x=>t.push(x));
+        p.keywords.forEach(x=>k.push(x));
+      }
+      authorsList = uniq(a).sort((x,y)=>norm(x).localeCompare(norm(y)));
+      topicsList = uniq(t).sort((x,y)=>norm(x).localeCompare(norm(y)));
+      keywordsList = uniq(k).sort((x,y)=>norm(x).localeCompare(norm(y)));
+    }
+
+    // --- Filtro y orden ---
+    function parseYearQuery(q){
+      q = (q||'').trim();
+      if(!q) return null;
+      if(/^>=\s*\d{4}$/.test(q)) return { type:'min', val: parseInt(q.match(/\d{4}/)[0],10) };
+      if(/^<=\s*\d{4}$/.test(q)) return { type:'max', val: parseInt(q.match(/\d{4}/)[0],10) };
+      if(/^\d{4}\s*-\s*\d{4}$/.test(q)){
+        const [a,b] = q.split('-').map(s=>parseInt(s,10));
+        return { type:'range', a:Math.min(a,b), b:Math.max(a,b) };
+      }
+      if(/^\d{4}$/.test(q)) return { type:'eq', val: parseInt(q,10) };
+      return { type:'text', val:q }; // cae a búsqueda textual si no encaja
+    }
+
+    function filterBy(type, query){
+      const qn = norm(query);
+      const yr = (type==='year') ? parseYearQuery(query) : null;
+      if(!qn && !yr) return [...papers];
+
+      return papers.filter(p=>{
+        if(type==='year' && yr){
+          const y = p.year || 0;
+          if(yr.type==='eq') return y===yr.val;
+          if(yr.type==='min') return y>=yr.val;
+          if(yr.type==='max') return y<=yr.val;
+          if(yr.type==='range') return y>=yr.a && y<=yr.b;
+          // texto libre
+        }
+        const hay = (s)=>norm(s).includes(qn);
+        if(type==='title') return hay(p.title);
+        if(type==='authors') return p.authors.some(hay);
+        if(type==='keywords') return p.keywords.some(hay);
+        if(type==='topics') return p.topics.some(hay);
+        // global: mira en varios campos
+        return hay(p.title) || p.authors.some(hay) || hay(p.abstract) || p.keywords.some(hay) || p.topics.some(hay) || (p.year+''===query.trim());
+      });
+    }
+
+    function sortResults(arr, by){
+      const copy = [...arr];
+      if(by==='title') copy.sort((a,b)=>norm(a.title).localeCompare(norm(b.title)));
+      else if(by==='author'){
+        const fa = (x)=>norm((x.authors && x.authors[0]) || '');
+        copy.sort((a,b)=>fa(a).localeCompare(fa(b)));
+      } else { // por defecto: año/mes descendente
+        copy.sort((a,b)=>bestDateStamp(b) - bestDateStamp(a));
+      }
+      return copy;
+    }
+
+    // --- Render ---
+    function render(list){
+      els.results.innerHTML = '';
+      els.count.innerHTML = list.length ? `Se encontraron <strong>${list.length}</strong> artículos.` : 'No se encontraron resultados.';
+
+      for(const p of list){
+        const authors = p.authors.length ? p.authors.join(', ') : '-';
+        const topics = p.topics.map(s=>`<span class="pill">${s}</span>`).join(' ');
+        const keys = p.keywords.map(s=>`<span class="pill">${s}</span>`).join(' ');
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h2 style="color:var(--brand);text-align:center;margin:0 0 .4em 0">${p.title}</h2>
+          <div class="meta"><strong>Autores:</strong> ${authors}</div>
+          <div class="meta"><strong>Fecha:</strong> ${p.dateStr || (p.year||'-')}</div>
+          ${p.topics.length ? `<div class="meta"><strong>Temas:</strong> ${topics}</div>` : ''}
+          ${p.keywords.length ? `<div class="meta"><strong>Palabras clave:</strong> ${keys}</div>` : ''}
+          ${p.abstract ? `<h3 style="margin:.6em 0 0 0;">Resumen</h3><p class="abstract">${p.abstract}</p>` : ''}
+          ${p.link ? `<a class="btn" href="${p.link}" target="_blank" rel="noopener noreferrer">Abrir PDF</a>` : ''}
+        `;
+        els.results.appendChild(card);
+      }
+    }
+
+    function updatePaperCount(){
+      const n = papers.filter(p=>p.title && p.link).length;
+      document.getElementById('paperCount').textContent = n.toLocaleString('es-ES');
+    }
+
+    function runSearch(){
+      const type = els.type.value;
+      const q = els.input.value;
+      const sortBy = els.sort.value;
+      const filtered = filterBy(type, q);
+      const ordered = sortResults(filtered, sortBy);
+      render(ordered);
+    }
+
+    function clearSearch(){
+      els.input.value = '';
+      els.sort.value = 'year';
+      updateDatalistByType();
+      render(papers);
+      els.input.focus();
+      els.count.textContent = '';
+    }
+
+    // --- Carga ---
+    async function loadJSON(){
+      const res = await fetch('json/arxiv.json', { cache: 'no-store' });
+      if(!res.ok) throw new Error('No se pudo cargar json/arxiv.json');
+      const data = await res.json();
+      raw = Array.isArray(data) ? data : [];
+      papers = raw.map(canonicalize);
+      buildLists();
+    }
+
+    // Eventos UI
+    els.type.addEventListener('change', ()=>{ updateDatalistByType(); els.input.focus(); });
+    els.sort.addEventListener('change', runSearch);
+    els.btnSearch.addEventListener('click', runSearch);
+    els.btnClear.addEventListener('click', clearSearch);
+    els.input.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+
+    // Init
+    (async function init(){
+      try{
+        await loadJSON();
+        updateDatalistByType();
+        render(papers);
+        updatePaperCount();
+      }catch(err){
+        console.error(err);
+        els.results.innerHTML = `<div class="card"><strong>Error:</strong> ${err.message}. Verifica la ruta <code>json/arxiv.json</code> y el formato.</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>
+
+
+
+
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
