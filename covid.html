@@ -1,1 +1,185 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🌍 COVID Data Explorer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1e1e1e;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1rem;
+      justify-content: center;
+    }
+    select, button {
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: none;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 1rem;
+    }
+    #chart-container {
+      width: 90%;
+      max-width: 1000px;
+      margin: 2rem auto;
+      background: #1e1e1e;
+      padding: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+    table {
+      width: 90%;
+      margin: 2rem auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.5rem;
+      border: 1px solid #444;
+      text-align: center;
+    }
+    th {
+      background: #2a2a2a;
+    }
+  </style>
+</head>
+<body>
+  <header>🌍 COVID Data Explorer</header>
+
+  <div class="controls">
+    <label>
+      Select metric:
+      <select id="metricSelect">
+        <option value="Total Cases">Total Cases</option>
+        <option value="Total Deaths">Total Deaths</option>
+        <option value="Tot Cases//1M pop">Cases per 1M</option>
+        <option value="Tot Deaths/1M pop">Deaths per 1M</option>
+        <option value="Death percentage">Death %</option>
+      </select>
+    </label>
+
+    <label>
+      Select continent:
+      <select id="continentSelect">
+        <option value="All">🌍 All</option>
+        <option value="Asia">Asia</option>
+        <option value="Europe">Europe</option>
+        <option value="Africa">Africa</option>
+        <option value="North America">North America</option>
+        <option value="South America">South America</option>
+        <option value="Oceania">Oceania</option>
+      </select>
+    </label>
+
+    <button id="refreshBtn">🔄 Update</button>
+  </div>
+
+  <div id="chart-container">
+    <canvas id="covidChart"></canvas>
+  </div>
+
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Population</th>
+        <th>Continent</th>
+        <th>Total Cases</th>
+        <th>Total Deaths</th>
+        <th>Death %</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+let covidData = [];
+let chart;
+
+// Cargar JSON
+async function loadData() {
+  const res = await fetch("json/covid.json");
+  covidData = await res.json();
+  updateChart();
+}
+
+// Actualizar tabla y gráfica
+function updateChart() {
+  const metric = document.getElementById("metricSelect").value;
+  const continent = document.getElementById("continentSelect").value;
+
+  let filtered = covidData;
+  if (continent !== "All") {
+    filtered = covidData.filter(c => c.Continent === continent);
+  }
+
+  filtered.sort((a, b) => (b[metric] || 0) - (a[metric] || 0));
+  const top = filtered.slice(0, 15);
+
+  const labels = top.map(c => c.Country);
+  const values = top.map(c => parseFloat(c[metric]) || 0);
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById("covidChart").getContext("2d");
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: metric,
+        data: values,
+        backgroundColor: 'rgba(75,192,192,0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: "#fff" } },
+        tooltip: { callbacks: { label: ctx => ctx.raw.toLocaleString() } }
+      },
+      scales: {
+        x: { ticks: { color: "#fff" } },
+        y: { ticks: { color: "#fff" } }
+      }
+    }
+  });
+
+  // Llenar tabla
+  const tbody = document.querySelector("#dataTable tbody");
+  tbody.innerHTML = "";
+  top.forEach(c => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${c.Country}</td>
+        <td>${c.Population.toLocaleString()}</td>
+        <td>${c.Continent}</td>
+        <td>${c["Total Cases"].toLocaleString()}</td>
+        <td>${c["Total Deaths"].toLocaleString()}</td>
+        <td>${parseFloat(c["Death percentage"]).toFixed(2)}%</td>
+      </tr>
+    `;
+  });
+}
+
+document.getElementById("refreshBtn").addEventListener("click", updateChart);
+
+loadData();
+</script>
+</body>
+</html>
