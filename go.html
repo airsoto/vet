@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go 9×9 — vs IA (Fácil/Medio/Experto)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b1118; --panel:#0f1722; --ink:#e6edf3; --muted:#9bb0c3;
+    --accent:#7cc7ff; --accent2:#a78bfa; --ok:#2ecc71; --warn:#ffd166; --bad:#ff6b6b;
+    --board:#d3a258; /* madera */
+    --line:#1a1a1a; --shadow:0 15px 40px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+    color:var(--ink); background: radial-gradient(1200px 800px at 70% -10%, #13202f 0%, #0b1118 60%, #091019 100%);
+    display:flex; align-items:center; justify-content:center; padding:18px;
+  }
+  .app{
+    width:min(1080px,100%); display:grid; gap:16px;
+    grid-template-columns: 1fr 320px;
+  }
+  @media (max-width: 980px){
+    .app{grid-template-columns:1fr}
+  }
+  .card{
+    background:linear-gradient(180deg,#0f1722 0%, #0d1520 100%);
+    border:1px solid #203044; border-radius:18px; box-shadow:var(--shadow);
+  }
+  .board-wrap{
+    padding:18px; display:flex; align-items:center; justify-content:center;
+  }
+  canvas#board{
+    background: repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 8px, rgba(0,0,0,.04) 8px 16px),
+                radial-gradient(1200px 800px at -20% -10%, rgba(255,255,255,.09) 0%, transparent 60%),
+                var(--board);
+    border-radius:16px; box-shadow: inset 0 2px 0 rgba(255,255,255,.08), inset 0 -4px 16px rgba(0,0,0,.25);
+    display:block; max-width:100%;
+    touch-action:none; /* para móvil */
+  }
+  .side{
+    padding:16px 16px 18px; display:flex; flex-direction:column; gap:14px;
+  }
+  h1{
+    margin:0 0 6px; font-size:22px; font-weight:800; letter-spacing:.2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+  label{font-size:12px; color:var(--muted); margin-bottom:6px; display:block}
+  select,button{
+    width:100%; border:1px solid #2a3b52; background:#101a29; color:var(--ink);
+    padding:10px 12px; border-radius:12px; font-weight:600;
+  }
+  button{
+    background:linear-gradient(180deg,#182636,#101a29); cursor:pointer;
+  }
+  button.primary{
+    background:linear-gradient(180deg,#1b2f45,#132235);
+    border-color:#2c4563;
+  }
+  button.primary:hover{filter:brightness(1.05)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 10px;
+    border:1px dashed #2a3b52; border-radius:999px; color:var(--muted); font-size:12px;
+  }
+  .stats{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  }
+  .stat{
+    background:#0c1420; border:1px solid #233a52; border-radius:12px; padding:10px 12px;
+  }
+  .stat h3{margin:0; font-size:12px; color:var(--muted); font-weight:600}
+  .stat p{margin:4px 0 0; font-size:14px; font-weight:800}
+  .legend{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px;
+  }
+  .stone-icon{
+    width:16px; height:16px; border-radius:50%;
+    box-shadow: inset 0 3px 6px rgba(255,255,255,.14), inset 0 -6px 14px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.4);
+    border:1px solid rgba(0,0,0,.35);
+  }
+  .stone-black{ background: radial-gradient(100% 100% at 30% 30%, #444 0%, #111 45%, #000 100%);}
+  .stone-white{ background: radial-gradient(100% 100% at 30% 30%, #fff 0%, #e9e9e9 55%, #bdbdbd 100%);}
+  .foot{margin-top:8px; font-size:11px; color:var(--muted)}
+  .hint{font-size:12px; color:var(--warn)}
+  .sep{height:1px; background:linear-gradient(90deg,transparent, #223246, transparent); margin:2px 0 8px}
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; border-radius:999px;
+    background:#0b1726; border:1px solid #24354e; color:#cfe2ff;
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="card board-wrap">
+      <canvas id="board" width="720" height="720" aria-label="Tablero de Go 9x9"></canvas>
+    </div>
+    <div class="card side">
+      <h1>Go 9×9 — vs IA</h1>
+      <!-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -->
+
+  <div class="top">
+    <h2 style="margin:0; font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+    </h2>
+    <p style="margin:0; font-size:0.9em; text-align:right;">
+      <a href="https://airsoto.github.io/vet/" style="display:flex; align-items:center; gap:6px;">🏠 <span style="font-size:0.9em;">volver a página de inicio</span></a>
+    </p>
+  </div>
+
+  
+      <div class="row">
+        <div>
+          <label for="difficulty">Dificultad</label>
+          <select id="difficulty">
+            <option value="easy">Fácil</option>
+            <option value="medium" selected>Medio</option>
+            <option value="expert">Experto</option>
+          </select>
+        </div>
+        <div>
+          <label for="color">Juegas con</label>
+          <select id="color">
+            <option value="1" selected>Negras (empiezan)</option>
+            <option value="2">Blancas</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <button id="restart" class="primary">Reiniciar partida</button>
+        <button id="pass">Pasar</button>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="stats">
+        <div class="stat">
+          <h3><span class="stone-icon stone-black"></span> Negras</h3>
+          <p id="blackCaptures">Capturas: 0</p>
+          <p id="blackTerritory">Territorio (est.): 0</p>
+        </div>
+        <div class="stat">
+          <h3><span class="stone-icon stone-white"></span> Blancas</h3>
+          <p id="whiteCaptures">Capturas: 0</p>
+          <p id="whiteTerritory">Territorio (est.): 0</p>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="badge" id="turnBadge">Turno: Negras</span>
+        <span class="pill" id="koInfo">Ko: —</span>
+      </div>
+      <div class="hint" id="hint">Consejo: puedes “Pasar”. La partida termina si ambos pasan seguidos.</div>
+      <div class="foot">Reglas implementadas: capturas, libertades, suicidio prohibido (salvo capturar), ko simple, contar capturas y estimar territorio por cercado.</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // --- Configuración base ---
+  const N = 9;                     // tamaño 9x9
+  const EMPTY = 0, BLACK = 1, WHITE = 2;
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+
+  const ui = {
+    diff: document.getElementById('difficulty'),
+    colorSel: document.getElementById('color'),
+    restart: document.getElementById('restart'),
+    pass: document.getElementById('pass'),
+    blackCapt: document.getElementById('blackCaptures'),
+    whiteCapt: document.getElementById('whiteCaptures'),
+    blackTerr: document.getElementById('blackTerritory'),
+    whiteTerr: document.getElementById('whiteTerritory'),
+    turnBadge: document.getElementById('turnBadge'),
+    koInfo: document.getElementById('koInfo'),
+    hint: document.getElementById('hint')
+  };
+
+  // Adaptar canvas a tamaño contenedor manteniendo cuadrado (hidpi)
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const sizeCSS = Math.min(rect.width, rect.height);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(sizeCSS * dpr);
+    canvas.height = Math.round(sizeCSS * dpr);
+    canvas.style.width = `${sizeCSS}px`;
+    canvas.style.height = `${sizeCSS}px`;
+    draw();
+  }
+  window.addEventListener('resize', fitCanvas);
+
+  // --- Estado del juego ---
+  const state = {
+    board: Array.from({length:N}, () => Array(N).fill(EMPTY)),
+    toPlay: BLACK,
+    captures: {[BLACK]:0,[WHITE]:0},
+    ko: null, // ko como {x,y} prohibido para el jugador que acaba de capturar una sola piedra
+    lastMovePass: false,
+    gameOver: false,
+    playerColor: BLACK,
+    rngSeed: 1234567
+  };
+
+  // RNG determinista simple (para reproducibilidad de IA)
+  function rand() {
+    // xorshift32
+    let x = state.rngSeed | 0;
+    x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+    state.rngSeed = x;
+    return ((x >>> 0) / 0xFFFFFFFF);
+  }
+
+  function cloneBoard(b){ return b.map(row => row.slice()); }
+
+  function neighbors(x,y){
+    const ns = [];
+    if (x>0) ns.push([x-1,y]);
+    if (x<N-1) ns.push([x+1,y]);
+    if (y>0) ns.push([x,y-1]);
+    if (y<N-1) ns.push([x,y+1]);
+    return ns;
+  }
+
+  function getGroupAndLiberties(board,x,y){
+    const color = board[y][x];
+    if (color===EMPTY) return {stones:new Set(), libs:new Set()};
+    const key=(a,b)=>`${a},${b}`;
+    const stones = new Set([key(x,y)]);
+    const libs = new Set();
+    const stack=[[x,y]];
+    while(stack.length){
+      const [cx,cy]=stack.pop();
+      for(const [nx,ny] of neighbors(cx,cy)){
+        const v = board[ny][nx];
+        if (v===EMPTY) libs.add(key(nx,ny));
+        else if (v===color){
+          const k=key(nx,ny);
+          if(!stones.has(k)){stones.add(k); stack.push([nx,ny]);}
+        }
+      }
+    }
+    return {stones, libs};
+  }
+
+  // Remueve capturas del color opuesto si quedan sin libertades después de poner piedra en (x,y).
+  function applyCaptures(board,x,y,player){
+    let totalRemoved = 0;
+    const opp = (player===BLACK)?WHITE:BLACK;
+    const touched = neighbors(x,y).filter(([nx,ny])=>board[ny][nx]===opp);
+    for(const [nx,ny] of touched){
+      const {stones, libs} = getGroupAndLiberties(board,nx,ny);
+      if (libs.size===0){
+        for(const s of stones){
+          const [sx,sy]=s.split(',').map(Number);
+          board[sy][sx]=EMPTY;
+          totalRemoved++;
+        }
+      }
+    }
+    return totalRemoved;
+  }
+
+  function isKoPosition(prevBoard, newBoard){
+    // Ko simple: prohíbe regresar a la posición anterior exacta (superko posicional no implementado)
+    if(!prevBoard) return false;
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        if(prevBoard[y][x]!==newBoard[y][x]) return false;
+      }
+    }
+    return true;
+  }
+
+  function boardHash(b){
+    // hash sencillo para mostrar info de ko (no usado para reglas)
+    let h=0;
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        h = ((h*131) ^ b[y][x]) >>> 0;
+      }
+    }
+    return h.toString(16);
+  }
+
+  function isLegalMove(board,x,y,player, prevBoardForKo){
+    if (board[y][x]!==EMPTY) return false;
+    // Colocar piedra
+    const test = cloneBoard(board);
+    test[y][x]=player;
+    const removed = applyCaptures(test,x,y,player);
+
+    // Suicidio: permitido sólo si capturas al menos una del rival (regla típica prohíbe suicidio)
+    const {libs} = getGroupAndLiberties(test,x,y);
+    if (libs.size===0 && removed===0) return false;
+
+    // Ko simple: no permitir volver exactamente a la posición anterior
+    if (isKoPosition(prevBoardForKo, test)) return false;
+
+    return true;
+  }
+
+  function playMove(x,y){
+    if (state.gameOver) return false;
+    const player = state.toPlay;
+    if (!isLegalMove(state.board,x,y,player, playMove.prevBoard)) return false;
+
+    const prev = cloneBoard(state.board);
+    state.board[y][x]=player;
+    const removed = applyCaptures(state.board,x,y,player);
+    state.captures[player]+=removed;
+
+    // Actualizar ko: si se capturó exactamente 1 piedra y el grupo resultante tiene 1 libertad,
+    // marcar la intersección capturada como prohibida para el rival en el siguiente turno (aprox)
+    state.ko = null;
+    if (removed===1){
+      // Encontrar dónde estaba la piedra capturada: comparando prev y actual
+      for(let yy=0;yy<N;yy++){
+        for(let xx=0;xx<N;xx++){
+          if (prev[yy][xx]!==EMPTY && state.board[yy][xx]===EMPTY){
+            state.ko = {x:xx,y:yy};
+          }
+        }
+      }
+    }
+
+    // Guardar tablero previo (para ko simple)
+    playMove.prevBoard = prev;
+    state.toPlay = (player===BLACK)?WHITE:BLACK;
+    state.lastMovePass = false;
+    return true;
+  }
+  playMove.prevBoard = null;
+
+  function passMove(){
+    if (state.gameOver) return;
+    if (state.lastMovePass){
+      state.gameOver = true;
+      ui.hint.textContent = "Partida terminada por dobles 'pasar'. Recuento final estimado mostrado.";
+    }else{
+      state.lastMovePass = true;
+      state.toPlay = (state.toPlay===BLACK)?WHITE:BLACK;
+      ui.hint.textContent = "Has pasado. Si ambos pasan seguidos, termina la partida.";
+    }
+    draw();
+    if (!state.gameOver) maybeComputerMove(); else tallyAndUpdate();
+  }
+
+  // --- Conteo simple de territorio (estimación): grupos de vacíos rodeados por un único color ---
+  function estimateTerritory(board){
+    const seen = new Set();
+    const key=(x,y)=>`${x},${y}`;
+    const res = {[BLACK]:0,[WHITE]:0};
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        if (board[y][x]!==EMPTY) continue;
+        const k=key(x,y);
+        if (seen.has(k)) continue;
+
+        // BFS del área vacía
+        const q=[[x,y]]; const area=[]; seen.add(k);
+        const borders = new Set(); // colores adyacentes
+        while(q.length){
+          const [cx,cy]=q.pop(); area.push([cx,cy]);
+          for(const [nx,ny] of neighbors(cx,cy)){
+            const v = board[ny][nx];
+            if (v===EMPTY){
+              const kk=key(nx,ny);
+              if(!seen.has(kk)){seen.add(kk); q.push([nx,ny]);}
+            }else{
+              borders.add(v);
+            }
+          }
+        }
+        // si solo bordea por un color, asignar territorio
+        if (borders.size===1){
+          const color = [...borders][0];
+          if (color===BLACK || color===WHITE) res[color]+=area.length;
+        }
+      }
+    }
+    return res;
+  }
+
+  // --- Dibujo del tablero y piedras ---
+  function draw(){
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    const margin = Math.round(W * 0.06);
+    const size = W - margin*2;
+    const cell = size/(N-1);
+    // guardar para clicks
+    draw.grid = {margin, cell, size};
+
+    // tablero: líneas
+    ctx.lineWidth = Math.max(1, Math.round(W/360));
+    ctx.strokeStyle = "#1a1a1a";
+    for(let i=0;i<N;i++){
+      // horizontales
+      const y = margin + i*cell + .5;
+      ctx.beginPath();
+      ctx.moveTo(margin+.5, y);
+      ctx.lineTo(margin+size+.5, y);
+      ctx.stroke();
+      // verticales
+      const x = margin + i*cell + .5;
+      ctx.beginPath();
+      ctx.moveTo(x, margin+.5);
+      ctx.lineTo(x, margin+size+.5);
+      ctx.stroke();
+    }
+
+    // puntos estrella (para 9x9 son 4 esquinas y centro)
+    const stars = [
+      [2,2],[6,2],[2,6],[6,6],[4,4]
+    ];
+    ctx.fillStyle = "#111";
+    for(const [sx,sy] of stars){
+      const px = margin + sx*cell;
+      const py = margin + sy*cell;
+      ctx.beginPath();
+      ctx.arc(px,py, Math.max(2, cell*0.06), 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // piedras
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        const v = state.board[y][x];
+        if (v===EMPTY) continue;
+        drawStone(x,y,v);
+      }
+    }
+
+    // indicar ko
+    if (state.ko){
+      const {x,y}=state.ko;
+      const px = margin + x*cell;
+      const py = margin + y*cell;
+      ctx.beginPath();
+      ctx.arc(px,py, cell*0.12, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(255, 214, 102, .8)";
+      ctx.fill();
+    }
+
+    // badge de turno
+    ui.turnBadge.textContent = `Turno: ${state.toPlay===BLACK?'Negras':'Blancas'}`;
+    ui.koInfo.textContent = `Ko: ${state.ko? `${state.ko.x+1},${state.ko.y+1}` : '—'}`;
+
+    // actualizar contadores
+    tallyAndUpdate();
+  }
+
+  function drawStone(x,y,color){
+    const {margin,cell} = draw.grid;
+    const px = margin + x*cell;
+    const py = margin + y*cell;
+    const r = cell*0.45;
+
+    // base
+    const grad = ctx.createRadialGradient(px - r*0.3, py - r*0.3, r*0.2, px, py, r);
+    if (color===BLACK){
+      grad.addColorStop(0, "#666");
+      grad.addColorStop(0.5, "#222");
+      grad.addColorStop(1, "#000");
+      ctx.strokeStyle = "rgba(255,255,255,.08)";
+    }else{
+      grad.addColorStop(0, "#fff");
+      grad.addColorStop(0.5, "#e7e7e7");
+      grad.addColorStop(1, "#bdbdbd");
+      ctx.strokeStyle = "rgba(0,0,0,.25)";
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(px,py, r, 0, Math.PI*2);
+    ctx.fill();
+    // brillo
+    ctx.lineWidth = Math.max(1, r*0.08);
+    ctx.stroke();
+  }
+
+  // --- Mapeo click -> coordenadas ---
+  function nearestIntersection(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const x = (clientX - rect.left) * dpr;
+    const y = (clientY - rect.top) * dpr;
+    const {margin, cell, size} = draw.grid;
+    const gx = Math.round((x - margin)/cell);
+    const gy = Math.round((y - margin)/cell);
+    if (gx<0||gx>=N||gy<0||gy>=N) return null;
+    const px = margin + gx*cell;
+    const py = margin + gy*cell;
+    // exigir estar razonablemente cerca de la intersección
+    const dist2 = (x-px)*(x-px) + (y-py)*(y-py);
+    if (dist2 > (cell*0.4)*(cell*0.4)) return null;
+    return {x:gx,y:gy};
+  }
+
+  // --- IA ---
+  function allLegalMoves(board, player, prevBoard){
+    const moves=[];
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        if (isLegalMove(board,x,y,player, prevBoard)) moves.push([x,y]);
+      }
+    }
+    return moves;
+  }
+
+  function pickMoveEasy(board, player, prevBoard){
+    const moves = allLegalMoves(board, player, prevBoard);
+    if (!moves.length) return null;
+    return moves[Math.floor(rand()*moves.length)];
+  }
+
+  function pickMoveMedium(board, player, prevBoard){
+    const opp = player===BLACK?WHITE:BLACK;
+    const moves = allLegalMoves(board, player, prevBoard);
+    if (!moves.length) return null;
+
+    // 1) priorizar capturas máximas
+    let best = null, bestScore=-1;
+    for(const [x,y] of moves){
+      const test = cloneBoard(board);
+      test[y][x]=player;
+      const removed = applyCaptures(test,x,y,player);
+      if (removed>bestScore){bestScore=removed; best=[x,y];}
+    }
+    if (bestScore>0) return best;
+
+    // 2) evitar suicidios y preferir centro/estrellas
+    const centerBias = ([x,y]) => {
+      const cx=4, cy=4;
+      const dx = Math.abs(x-cx), dy=Math.abs(y-cy);
+      return - (dx*dx + dy*dy);
+    };
+
+    // 3) si puedes salir de atari propio (añadir libertad), prefierelo
+    let atariSaver = null, saverVal = -1e9;
+    for(const [x,y] of moves){
+      const test = cloneBoard(board);
+      test[y][x]=player;
+      // contar total de libertades de grupos propios adyacentes tras mover
+      let libs = 0;
+      for(const [nx,ny] of neighbors(x,y)){
+        if (test[ny][nx]===player){
+          libs += getGroupAndLiberties(test,nx,ny).libs.size;
+        }
+      }
+      const val = libs + centerBias([x,y])*0.1;
+      if (val > saverVal){ saverVal=val; atariSaver=[x,y]; }
+    }
+    return atariSaver ?? moves[Math.floor(rand()*moves.length)];
+  }
+
+  // Monte Carlo rápido (experto): playouts aleatorios limitados por pasos
+  function pickMoveExpert(board, player, prevBoard){
+    const moves = allLegalMoves(board, player, prevBoard);
+    if (!moves.length) return null;
+
+    // filtrar top-K por heurística simple (capturas y centro)
+    const scored = moves.map(([x,y])=>{
+      const test = cloneBoard(board);
+      test[y][x]=player;
+      const cap = applyCaptures(test,x,y,player);
+      const center = -((x-4)*(x-4) + (y-4)*(y-4));
+      return {move:[x,y], base: cap*10 + center*0.2};
+    }).sort((a,b)=>b.base-a.base).slice(0,28);
+
+    const playoutsPerMove = 22;  // rendimiento razonable para 9x9
+    const maxSteps = 70;
+
+    function randomPlayout(b, toPlay, prevB){
+      let steps=0;
+      let passStreak=0;
+      while(steps<maxSteps && passStreak<2){
+        const ms = allLegalMoves(b, toPlay, prevB);
+        if (!ms.length || rand()<0.08){ // a veces pasar
+          passStreak++;
+          toPlay = (toPlay===BLACK)?WHITE:BLACK;
+          steps++; continue;
+        }
+        passStreak=0;
+        const m = ms[Math.floor(rand()*ms.length)];
+        const prev = cloneBoard(b);
+        b[m[1]][m[0]] = toPlay;
+        applyCaptures(b,m[0],m[1],toPlay);
+        prevB = prev;
+        toPlay = (toPlay===BLACK)?WHITE:BLACK;
+        steps++;
+      }
+      const terr = estimateTerritory(b);
+      // puntuación simple = territorio + capturas implícitas (no las contamos aquí)
+      // usamos territorio como proxy
+      const blackScore = terr[BLACK];
+      const whiteScore = terr[WHITE];
+      return (player===BLACK)? (blackScore - whiteScore) : (whiteScore - blackScore);
+    }
+
+    let bestMove = scored[0].move, bestScore = -1e9;
+    for(const cand of scored){
+      let sum=0;
+      for(let i=0;i<playoutsPerMove;i++){
+        const b = cloneBoard(board);
+        const prevB = cloneBoard(prevBoard || board); // aproximado para ko simple en playout
+        // jugar la candidata
+        const [x,y] = cand.move;
+        b[y][x] = player;
+        applyCaptures(b,x,y,player);
+        const val = randomPlayout(b, player===BLACK?WHITE:BLACK, prevB);
+        sum += val;
+      }
+      if (sum>bestScore){bestScore=sum; bestMove=cand.move;}
+    }
+    return bestMove;
+  }
+
+  function computerPickMove(){
+    const player = state.toPlay;
+    const diff = ui.diff.value;
+    if (diff==='easy') return pickMoveEasy(state.board, player, playMove.prevBoard);
+    if (diff==='medium') return pickMoveMedium(state.board, player, playMove.prevBoard);
+    return pickMoveExpert(state.board, player, playMove.prevBoard);
+  }
+
+  function maybeComputerMove(){
+    if (state.gameOver) return;
+    if (state.toPlay !== (state.playerColor===BLACK?WHITE:BLACK)) return; // no es turno de la IA
+    // pequeña pausa para UX
+    setTimeout(()=>{
+      const mv = computerPickMove();
+      if (!mv){ // pasar
+        passMove();
+        return;
+      }
+      playMove(mv[0], mv[1]);
+      draw();
+      // si vuelve a ser IA (no debería), repetir
+      if (state.toPlay !== state.playerColor) maybeComputerMove();
+    }, 80);
+  }
+
+  // --- UI eventos ---
+  canvas.addEventListener('pointerdown', (e)=>{
+    if (state.gameOver) return;
+    const hit = nearestIntersection(e.clientX, e.clientY);
+    if (!hit) return;
+    // Solo permitir jugar si coincide color jugador
+    if (state.toPlay !== state.playerColor) return;
+    if (playMove(hit.x, hit.y)){
+      draw();
+      maybeComputerMove();
+    }
+  });
+
+  ui.pass.addEventListener('click', ()=>{
+    if (state.gameOver) return;
+    if (state.toPlay !== state.playerColor){
+      ui.hint.textContent = "Es turno del ordenador; espera su jugada.";
+      return;
+    }
+    passMove();
+  });
+
+  ui.restart.addEventListener('click', newGame);
+  ui.diff.addEventListener('change', ()=>{
+    // no reiniciamos automáticamente para que puedas subir/bajar dificultad en vivo
+    ui.hint.textContent = `Dificultad: ${ui.diff.options[ui.diff.selectedIndex].text}.`;
+  });
+  ui.colorSel.addEventListener('change', ()=>{
+    // cambiar color del jugador reinicia (para consistencia de turnos)
+    newGame();
+  });
+
+  function tallyAndUpdate(){
+    const terr = estimateTerritory(state.board);
+    ui.blackCapt.textContent = `Capturas: ${state.captures[BLACK]}`;
+    ui.whiteCapt.textContent = `Capturas: ${state.captures[WHITE]}`;
+    ui.blackTerr.textContent = `Territorio (est.): ${terr[BLACK]}`;
+    ui.whiteTerr.textContent = `Territorio (est.): ${terr[WHITE]}`;
+  }
+
+  function newGame(){
+    state.board.forEach(row=>row.fill(EMPTY));
+    state.toPlay = BLACK;
+    state.captures[BLACK]=0; state.captures[WHITE]=0;
+    state.ko = null;
+    state.lastMovePass = false;
+    state.gameOver = false;
+    state.playerColor = parseInt(ui.colorSel.value,10);
+    state.rngSeed = Math.floor(Math.random()*1e9);
+    playMove.prevBoard = null;
+    ui.hint.textContent = "Partida nueva. ¡Suerte!";
+    draw();
+    // si elige blancas, mueve primero la IA
+    if (state.playerColor===WHITE) maybeComputerMove();
+  }
+
+  // init
+  fitCanvas();
+  newGame();
+})();
+</script>
+</body>
+</html>
+
+
+
+
+<!-- Contenedor del footer -->
+<!-- Contenedor del footer -->
+
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
