@@ -3,6 +3,461 @@
 
 
 
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Solitario Klondike — Juego de Paciencia</title>
+<style>
+  :root{
+    --felt:#0a4630; --felt-dark:#083b28; --panel:#0e1a14;
+    --ink:#e9f1ec; --muted:#bdd6cb; --accent:#ff9900;
+    --slot:#0c3424; --slot-border:#14543c;
+    --card:#ffffff; --card-edge:#e8e8e8; --shadow:0 12px 30px rgba(0,0,0,.35);
+    --gap: clamp(10px, 2vw, 14px); --radius: 14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(255,255,255,.08), transparent 60%),
+      radial-gradient(1000px 600px at 20% 110%, rgba(0,0,0,.25), transparent 60%),
+      linear-gradient(180deg, var(--felt) 0%, var(--felt-dark) 100%);
+    color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    user-select:none; -webkit-tap-highlight-color: transparent;
+  }
+  header{
+    padding: clamp(14px, 2.5vw, 20px);
+    display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px 24px; justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,.06); background:linear-gradient(to bottom, rgba(0,0,0,.25), transparent);
+  }
+  header h1{margin:0; font-size:clamp(18px,3.6vw,28px); font-weight:800}
+  header .subtitle{color:var(--muted); margin:.25rem 0 0 0; font-size:clamp(12px,2.6vw,14px)}
+  .brand-block{display:flex; flex-direction:column; gap:6px}
+  .controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;}
+  .controls .group{
+    background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.07);
+    padding:8px 10px; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow: var(--shadow);
+  }
+  select,button{
+    appearance:none; border:1px solid rgba(255,255,255,.12); background:#14281f; color:var(--ink);
+    padding:8px 12px; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+  button.primary{background:linear-gradient(180deg,#1e5a43,#134634); border-color:#1c6b50}
+  button.secondary{background:#152a21}
+  button:disabled{opacity:.6; cursor:not-allowed}
+
+  .table{max-width:1400px; margin: clamp(10px,2vw,16px) auto; padding:0 clamp(10px,2vw,16px) clamp(40px,6vw,60px);}
+  .row-top{display:grid; grid-template-columns: repeat(7, 1fr); gap:var(--gap); margin-bottom: clamp(16px,3vw,24px);}
+  .row-bottom{display:grid; grid-template-columns: repeat(7, 1fr); gap:var(--gap); align-items:start;}
+
+  .slot{
+    position:relative; width:100%; aspect-ratio:5/7; min-height:110px; border-radius:var(--radius);
+    background:linear-gradient(180deg,var(--slot) 0%,#0a2c20 100%); border:2px dashed var(--slot-border);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .slot.labelled::after{
+    content: attr(data-label); position:absolute; inset:auto 8px 8px auto; font-size:11px; color:rgba(255,255,255,.5);
+    background:rgba(0,0,0,.25); padding:3px 6px; border-radius:7px;
+  }
+
+  /* CARTAS con caras grandes */
+  .card{
+    position:absolute; top:0; left:0; width:100%; aspect-ratio:5/7;
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--card); border:1px solid var(--card-edge); box-shadow: var(--shadow);
+    touch-action:none;
+    transition: transform .14s ease, box-shadow .14s ease, left .14s ease, top .14s ease;
+    overflow:hidden;
+  }
+  .card.face-down{
+    background: repeating-linear-gradient(45deg,#0f4d37,#0f4d37 8px,#106345 8px,#106345 16px);
+    border-color:#0a2f22;
+  }
+  .card .inner{position:absolute; inset:0; padding:8px; display:grid; grid-template-rows:auto 1fr auto;}
+  .card.face-up .corner{
+    display:flex; align-items:center; gap:6px; line-height:1; font-weight:900; font-size: clamp(20px, 3.8vw, 28px);
+  }
+  .card.face-up .corner.bottom{justify-self:end; transform: rotate(180deg)}
+  .card.face-up .rank{letter-spacing:.5px}
+  .card.face-up .suit{font-size: 1.15em}
+  .card.face-up .watermark{
+    align-self:center; justify-self:center; opacity:.12; filter:contrast(1.1);
+    font-size: clamp(64px, 12vw, 110px); font-weight:900; line-height:1;
+  }
+  /* Capa con sprite de caras (J/Q/K) */
+  .face-art{
+    position:absolute; inset:4px; border-radius: calc(var(--radius) - 4px);
+    background-repeat:no-repeat;
+    background-size: 1300% 400%; /* 13 columnas x 4 filas */
+    filter: saturate(1.05);
+  }
+
+  .red{color:#bd1717} .black{color:#111}
+  .selected{outline:3px solid var(--accent); outline-offset:-3px}
+
+  .column{ position:relative; }
+  .column .card{ position:absolute; }
+  .column .card{ transform: translateY(var(--offset, 0px)); }
+
+  .drag-ghost{ position:fixed; left:0; top:0; pointer-events:none; z-index:9999; }
+  .drag-ghost .card{ position:absolute; }
+
+  details.rules{
+    max-width:100%; margin:14px auto 0; background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:12px 14px;
+  }
+  details.rules summary{cursor:pointer; font-weight:700; color:var(--muted)}
+  details.rules p{margin:8px 0; color:#e8f5ee; line-height:1.45}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand-block">
+      <h1>Solitario Klondike</h1>
+      <p class="subtitle">Juego de paciencia: organiza en cimientos por palo, de As a Rey.</p>
+
+      <!-- Bloque solicitado -->
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">🏠 <span>volver a página de inicio</span></a>
+      </p>
+    </div>
+
+    <div class="controls">
+      <div class="group">
+        <label for="drawMode">Robar:</label>
+        <select id="drawMode">
+          <option value="1">1 carta</option>
+          <option value="3" selected>3 cartas</option>
+        </select>
+      </div>
+      <div class="group">
+        <button id="restartBtn" class="primary">🔄 Reiniciar</button>
+        <button id="autoBtn" class="secondary">⚡ Auto</button>
+        <button id="hintBtn" class="secondary">💡 Sugerencia</button>
+      </div>
+      <div class="group">
+        <span id="moves">Movimientos: 0</span>
+        <span id="status" style="color:var(--muted)"></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="table">
+    <div class="row-top">
+      <div id="stock" class="slot labelled" data-label="Mazo"></div>
+      <div id="waste" class="slot labelled" data-label="Descarte"></div>
+      <div id="foundation-0" class="slot labelled" data-label="Cimiento ♣"></div>
+      <div id="foundation-1" class="slot labelled" data-label="Cimiento ♠"></div>
+      <div id="foundation-2" class="slot labelled" data-label="Cimiento ♥"></div>
+      <div id="foundation-3" class="slot labelled" data-label="Cimiento ♦"></div>
+      <div></div>
+    </div>
+
+    <div class="row-bottom" id="tableau">
+      <div class="slot column" id="col-0"></div>
+      <div class="slot column" id="col-1"></div>
+      <div class="slot column" id="col-2"></div>
+      <div class="slot column" id="col-3"></div>
+      <div class="slot column" id="col-4"></div>
+      <div class="slot column" id="col-5"></div>
+      <div class="slot column" id="col-6"></div>
+    </div>
+
+    <details class="rules">
+      <summary>Reglas y ayuda</summary>
+      <p>Arrastra cartas o pilas. Doble clic intenta mandar al cimiento. <b>Auto</b> mueve todo lo seguro a cimientos. Huecos: solo Reyes.</p>
+    </details>
+  </div>
+
+<script>
+(() => {
+  // === CONFIG: ruta a la hoja de sprites de caras (4 filas x 13 columnas) ===
+  const FACE_SPRITE_URL = 'imagenes/faces_sheet.png'; // ← cambia a tu ruta (p.ej. 'imagenes/0932c321-dc80-...png')
+
+  // === Estado y reglas ===
+  // Orden de filas del sprite según tu imagen: 0:♣, 1:♠, 2:♥, 3:♦
+  const SUITS = ['♣','♠','♥','♦'];
+  const SUIT_TO_FOUNDATION = {'♣':0,'♠':1,'♥':2,'♦':3};
+  const COLORS = {'♣':'black','♠':'black','♥':'red','♦':'red'};
+
+  let stock=[], waste=[], foundations=[[],[],[],[]], tableau=[[],[],[],[],[],[],[]];
+  let drawCount=3, moves=0, selected=null;
+  const movesEl=document.getElementById('moves'), statusEl=document.getElementById('status');
+
+  // Utilidades
+  function makeDeck(){
+    const d=[];
+    for(const s of SUITS){ for(let r=1;r<=13;r++){ d.push({suit:s,rank:r,color:COLORS[s],faceUp:false,id:`${s}${r}-${crypto.getRandomValues(new Uint32Array(1))[0]}`}); } }
+    return d;
+  }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+  const RANK_LABEL = r => ({1:'A',11:'J',12:'Q',13:'K'})[r] || r.toString();
+  const canMoveToFoundation = c => { const f=foundations[SUIT_TO_FOUNDATION[c.suit]]; return f.length? f[f.length-1].rank+1===c.rank : c.rank===1; };
+  const canPlaceOnTableau = (card, colIdx) => {
+    const col=tableau[colIdx];
+    if(!col.length) return card.rank===13;
+    const top=col[col.length-1]; if(!top.faceUp) return false;
+    return (top.color!==card.color) && (top.rank===card.rank+1);
+  };
+  const isSequenceFrom = (colIdx, start) => {
+    const col=tableau[colIdx];
+    for(let i=start;i<col.length-1;i++){ const a=col[i], b=col[i+1];
+      if(!(a.faceUp && b.faceUp)) return false;
+      if(a.rank!==b.rank+1) return false;
+      if(a.color===b.color) return false;
+    } return true;
+  };
+  const updateMoves = (n=1)=>{ moves+=n; movesEl.textContent=`Movimientos: ${moves}`; };
+  const checkWin = ()=>{ const total=foundations.reduce((t,f)=>t+f.length,0); if(total===52){ statusEl.textContent='¡Victoria! 🎉'; alert('¡Has ganado!'); } };
+
+  // Render
+  const stockEl=document.getElementById('stock'), wasteEl=document.getElementById('waste');
+  const fEls=[0,1,2,3].map(i=>document.getElementById(`foundation-${i}`));
+  function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+
+  function createFaceUpCardInner(card){
+    const wrap=document.createElement('div'); wrap.className='inner';
+    const colorCls = card.color==='red'?'red':'black';
+    const top=document.createElement('div');
+    top.className='corner';
+    top.innerHTML=`<span class="rank ${colorCls}">${RANK_LABEL(card.rank)}</span><span class="suit ${colorCls}">${card.suit}</span>`;
+    const bottom=document.createElement('div');
+    bottom.className='corner bottom';
+    bottom.innerHTML=`<span class="rank ${colorCls}">${RANK_LABEL(card.rank)}</span><span class="suit ${colorCls}">${card.suit}</span>`;
+    wrap.appendChild(top);
+
+    // Si es J/Q/K, pintar sprite; si no, marca de agua grande
+    if(card.rank>=11 && card.rank<=13){
+      const art=document.createElement('div');
+      art.className='face-art';
+      art.style.backgroundImage = `url("${FACE_SPRITE_URL}")`;
+      // columna: 10 (J) 11 (Q) 12 (K) → index = rank-1
+      const colIndex = card.rank - 1; // 10..12
+      const rowIndex = SUITS.indexOf(card.suit); // 0..3 (♣,♠,♥,♦)
+      const posX = (colIndex/12)*100;  // 0..100
+      const posY = (rowIndex/3)*100;   // 0..100
+      art.style.backgroundPosition = `${posX}% ${posY}%`;
+      wrap.appendChild(art);
+    } else {
+      const wm=document.createElement('div');
+      wm.className='watermark';
+      wm.style.color = card.color==='red' ? '#bd1717' : '#111';
+      wm.textContent = card.suit;
+      wrap.appendChild(wm);
+    }
+
+    wrap.appendChild(bottom);
+    return wrap;
+  }
+
+  function createCardEl(card){
+    const el=document.createElement('div');
+    el.className='card' + (card.faceUp?'':' face-down') + (selected && selected.card && selected.card.id===card.id?' selected':'');
+    el.dataset.cardId=card.id;
+    el.appendChild(card.faceUp ? createFaceUpCardInner(card) : (()=>{const i=document.createElement('div');i.className='inner';return i;})());
+    return el;
+  }
+
+  function render(){
+    clear(stockEl); if(stock.length){ stockEl.appendChild(createCardEl({faceUp:false,id:'back'})); }
+    clear(wasteEl); if(waste.length){ wasteEl.appendChild(createCardEl(waste[waste.length-1])); }
+    for(let i=0;i<4;i++){ clear(fEls[i]); const f=foundations[i]; if(f.length) fEls[i].appendChild(createCardEl(f[f.length-1])); }
+    for(let c=0;c<7;c++){
+      const colEl=document.getElementById(`col-${c}`); clear(colEl);
+      const col=tableau[c]; let y=0; const down=18, up=26;
+      for(let i=0;i<col.length;i++){ const card=col[i], el=createCardEl(card); const step=card.faceUp?up:down;
+        el.style.transform=`translateY(${y}px)`; el.style.setProperty('--offset', `${y}px`); el.style.zIndex=i+1; y+=step; colEl.appendChild(el);
+      }
+    }
+    checkWin();
+  }
+
+  // Buscar carta
+  function findCard(id){
+    const wi=waste.findIndex(c=>c.id===id); if(wi>=0) return {source:'waste', index:wi, card:waste[wi]};
+    for(let f=0;f<4;f++){ const idx=foundations[f].findIndex(c=>c.id===id); if(idx>=0) return {source:'foundation', fIndex:f, index:idx, card:foundations[f][idx]}; }
+    for(let c=0;c<7;c++){ const idx=tableau[c].findIndex(ca=>ca.id===id); if(idx>=0) return {source:'tableau', col:c, index:idx, card:tableau[c][idx]}; }
+    return null;
+  }
+
+  // Mazo / descarte
+  stockEl.addEventListener('click', ()=>{
+    if(!stock.length){
+      if(!waste.length) return;
+      while(waste.length){ const c=waste.pop(); c.faceUp=false; stock.push(c); }
+      updateMoves(); statusEl.textContent='Reciclado el mazo.'; render(); return;
+    }
+    const n=Math.min(drawCount, stock.length);
+    for(let i=0;i<n;i++){ const c=stock.pop(); c.faceUp=true; waste.push(c); }
+    updateMoves(); render();
+  });
+  wasteEl.addEventListener('dblclick', ()=>{ if(!waste.length) return; const c=waste[waste.length-1]; if(canMoveToFoundation(c)){ foundations[SUIT_TO_FOUNDATION[c.suit]].push(waste.pop()); updateMoves(); render(); }});
+  wasteEl.addEventListener('click', ()=>{ if(!waste.length) return; selected={source:'waste', index:waste.length-1, card:waste[waste.length-1]}; render(); });
+
+  // Cimientos
+  fEls.forEach((node)=> node.addEventListener('click', ()=>{ if(!selected) return; const top=getSelectedTop(); if(top && canMoveToFoundation(top)){ moveToFoundation(top); } }));
+
+  // Columnas (clics básicos)
+  for(let c=0;c<7;c++){
+    const colEl=document.getElementById(`col-${c}`);
+    colEl.addEventListener('click', (ev)=>{
+      const cid=ev.target.closest?.('.card')?.dataset?.cardId;
+      if(!cid){ // click en hueco
+        if(selected){ const stack=getSelectedStack(); if(stack?.length && canPlaceOnTableau(stack[0], c)){ moveToTableau(c, stack); } }
+        return;
+      }
+      const info=findCard(cid); if(!info) return;
+      if(info.source==='tableau'){
+        const col=tableau[info.col];
+        if(info.index===col.length-1 && !col[info.index].faceUp){ col[info.index].faceUp=true; updateMoves(); render(); return; }
+      }
+      if(ev.detail===2){ if(info.card.faceUp && canMoveToFoundation(info.card)){ moveToFoundation(info.card); } return; }
+      if(!selected){
+        if(info.source==='tableau'){ if(!info.card.faceUp) return; if(isSequenceFrom(info.col, info.index)){ selected={source:'tableau', col:info.col, index:info.index, card:info.card}; render(); } }
+        else if(info.source==='waste'){ selected={source:'waste', index:info.index, card:info.card}; render(); }
+      }else{
+        const stack=getSelectedStack(); if(!stack?.length) return;
+        if(info.source==='tableau'){ if(canPlaceOnTableau(stack[0], info.col)){ moveToTableau(info.col, stack); } else { selected=null; render(); } }
+      }
+    });
+  }
+
+  // Arrastrar & soltar (pointer)
+  let dragging=null;
+  document.addEventListener('pointerdown', (ev)=>{
+    const el=ev.target.closest?.('.card'); if(!el) return;
+    const info=findCard(el.dataset.cardId); if(!info || !info.card.faceUp) return;
+    if(info.source==='tableau'){ const col=tableau[info.col]; if(info.index===col.length-1 && !col[info.index].faceUp) return; }
+    let stack=[]; if(info.source==='waste'){ stack=[waste[waste.length-1]]; }
+    else if(info.source==='tableau'){ if(!isSequenceFrom(info.col, info.index)) return; stack=tableau[info.col].slice(info.index); }
+    else return;
+
+    ev.preventDefault();
+    const r=el.getBoundingClientRect(), ghost=document.createElement('div');
+    ghost.className='drag-ghost'; document.body.appendChild(ghost);
+    const step=26;
+    stack.forEach((c,i)=>{ const n=createCardEl(c); n.style.left='0px'; n.style.top=`${i*step}px`; n.style.width=`${r.width}px`; ghost.appendChild(n); });
+    ghost.style.left=`${r.left}px`; ghost.style.top=`${r.top}px`; ghost.style.width=`${r.width}px`; ghost.style.height=`${r.height+(stack.length-1)*step}px`;
+    dragging={origin:info, stackCards:stack, ghost, offsetX:ev.clientX-r.left, offsetY:ev.clientY-r.top};
+    document.addEventListener('pointermove', onDragMove, {passive:false});
+    document.addEventListener('pointerup', onDragEnd, {passive:false, once:true});
+  }, {passive:false});
+  function onDragMove(ev){ if(!dragging) return; ev.preventDefault(); dragging.ghost.style.left=`${ev.clientX-dragging.offsetX}px`; dragging.ghost.style.top=`${ev.clientY-dragging.offsetY}px`; }
+  function onDragEnd(ev){
+    if(!dragging) return;
+    const rect=dragging.ghost.getBoundingClientRect(); const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+    const target=document.elementFromPoint(cx,cy);
+    const fNode=target?.closest?.('[id^="foundation-"]');
+    if(fNode && dragging.stackCards.length===1){
+      const card=dragging.stackCards[0]; if(canMoveToFoundation(card)){ moveToFoundation(card); cleanupDrag(); return; }
+    }
+    const colNode=target?.closest?.('.column');
+    if(colNode){ const col=parseInt(colNode.id.split('-')[1],10); const first=dragging.stackCards[0]; if(canPlaceOnTableau(first,col)){ moveToTableau(col, dragging.stackCards); cleanupDrag(); return; } }
+    cleanupDrag(); render();
+  }
+  function cleanupDrag(){ document.removeEventListener('pointermove', onDragMove); dragging?.ghost?.remove(); dragging=null; }
+
+  // Movimiento helpers
+  const getSelectedTop = ()=> selected ? (selected.source==='waste'? waste[waste.length-1] : tableau[selected.col][selected.index]) : null;
+  const getSelectedStack = ()=> !selected ? null : (selected.source==='waste' ? [waste[waste.length-1]] : tableau[selected.col].slice(selected.index));
+  function moveToFoundation(card){
+    if(selected?.source==='waste' && waste[waste.length-1].id===card.id){
+      foundations[SUIT_TO_FOUNDATION[card.suit]].push(waste.pop()); selected=null; updateMoves(); render(); return;
+    }
+    if(selected?.source==='tableau'){
+      const col=tableau[selected.col];
+      if(col[col.length-1].id===card.id && canMoveToFoundation(card)){
+        foundations[SUIT_TO_FOUNDATION[card.suit]].push(col.pop());
+        if(col.length && !col[col.length-1].faceUp) col[col.length-1].faceUp=true;
+        selected=null; updateMoves(); render(); return;
+      }
+    }
+    if(dragging?.origin){
+      const o=dragging.origin;
+      if(o.source==='waste' && waste[waste.length-1].id===card.id){
+        foundations[SUIT_TO_FOUNDATION[card.suit]].push(waste.pop()); updateMoves(); render(); return;
+      }
+      if(o.source==='tableau'){
+        const col=tableau[o.col];
+        if(col[col.length-1].id===card.id && canMoveToFoundation(card)){
+          foundations[SUIT_TO_FOUNDATION[card.suit]].push(col.pop());
+          if(col.length && !col[col.length-1].faceUp) col[col.length-1].faceUp=true;
+          updateMoves(); render(); return;
+        }
+      }
+    }
+  }
+  function moveToTableau(targetCol, stack){
+    if(!stack?.length) return;
+    if(selected?.source==='waste'){ tableau[targetCol].push(waste.pop()); selected=null; updateMoves(); render(); return; }
+    if(selected?.source==='tableau'){
+      const from=tableau[selected.col]; const moving=from.splice(selected.index);
+      tableau[targetCol].push(...moving);
+      if(from.length && !from[from.length-1].faceUp) from[from.length-1].faceUp=true;
+      selected=null; updateMoves(); render(); return;
+    }
+    if(dragging?.origin){
+      const o=dragging.origin;
+      if(o.source==='waste'){ tableau[targetCol].push(waste.pop()); updateMoves(); render(); return; }
+      if(o.source==='tableau'){
+        const from=tableau[o.col]; const idx=from.indexOf(stack[0]); const moving=from.splice(idx);
+        tableau[targetCol].push(...moving);
+        if(from.length && !from[from.length-1].faceUp) from[from.length-1].faceUp=true;
+        updateMoves(); render(); return;
+      }
+    }
+  }
+
+  // Sugerencia & Auto
+  function hint(){
+    if(waste.length && canMoveToFoundation(waste[waste.length-1])){ statusEl.textContent='Sug.: descarte → cimiento.'; flash(wasteEl); return; }
+    for(let c=0;c<7;c++){ const col=tableau[c]; if(!col.length) continue; const top=col[col.length-1];
+      if(top.faceUp && canMoveToFoundation(top)){ statusEl.textContent=`Sug.: col ${c+1} → cimiento.`; flash(document.getElementById(`col-${c}`)); return; } }
+    if(waste.length){ const card=waste[waste.length-1]; for(let c=0;c<7;c++){ if(canPlaceOnTableau(card,c)){ statusEl.textContent=`Sug.: descarte → col ${c+1}.`; flash(document.getElementById(`col-${c}`)); return; } } }
+    for(let from=0;from<7;from++){ const col=tableau[from];
+      for(let i=0;i<col.length;i++){ const card=col[i]; if(!card.faceUp) continue; if(!isSequenceFrom(from,i)) continue;
+        for(let to=0;to<7;to++){ if(to===from) continue; if(canPlaceOnTableau(card,to)){ statusEl.textContent=`Sug.: col ${from+1} → ${to+1}.`; flash(document.getElementById(`col-${to}`)); return; } } } }
+    statusEl.textContent='Sin sugerencias claras. Prueba a robar.'; flash(stockEl);
+  }
+  function autoMove(){
+    let moved=true, total=0;
+    while(moved){
+      moved=false;
+      if(waste.length && canMoveToFoundation(waste[waste.length-1])){ const c=waste.pop(); foundations[SUIT_TO_FOUNDATION[c.suit]].push(c); total++; moved=true; continue; }
+      for(let i=0;i<7;i++){ const col=tableau[i]; if(!col.length) continue; const top=col[col.length-1];
+        if(top.faceUp && canMoveToFoundation(top)){ foundations[SUIT_TO_FOUNDATION[top.suit]].push(col.pop());
+          if(col.length && !col[col.length-1].faceUp) col[col.length-1].faceUp=true; total++; moved=true; break; } }
+    }
+    if(total){ updateMoves(total); render(); }
+  }
+  function flash(el){ const old=el.style.outline; el.style.outline='3px solid var(--accent)'; setTimeout(()=>{ el.style.outline=old||'none'; }, 800); }
+
+  // Inicialización
+  function deal(){
+    const deck=makeDeck(); shuffle(deck);
+    stock=[]; waste=[]; foundations=[[],[],[],[]]; tableau=[[],[],[],[],[],[],[]]; moves=0;
+    movesEl.textContent='Movimientos: 0'; statusEl.textContent='';
+    for(let c=0;c<7;c++){ for(let k=0;k<=c;k++){ const card=deck.pop(); card.faceUp=(k===c); tableau[c].push(card); } }
+    stock=deck; selected=null; render();
+  }
+
+  // Botones
+  document.getElementById('restartBtn').addEventListener('click', deal);
+  document.getElementById('hintBtn').addEventListener('click', hint);
+  document.getElementById('autoBtn').addEventListener('click', autoMove);
+  document.getElementById('drawMode').addEventListener('change', e=> drawCount=parseInt(e.target.value,10)||1);
+
+  deal();
+})();
+</script>
+</body>
+</html>
 
 
 
