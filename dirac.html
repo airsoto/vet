@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guía interactiva — Ecuación de Dirac (modo dark)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script>
+  // Carga diferida de MathJax para fórmulas \LaTeX
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --bg:#0b1118; --panel:#101826; --ink:#e6edf3; --muted:#9bb0c3;
+    --accent:#7cc7ff; --accent2:#a78bfa; --ok:#2ecc71; --warn:#ffd166; --bad:#ff6b6b;
+    --border:#1f2b3d; --shadow:0 18px 50px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.6;display:flex;flex-direction:column;min-height:100vh}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,rgba(16,24,38,.96),rgba(16,24,38,.75));backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--border)}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px}
+  h1{margin:0;font-weight:800;letter-spacing:.2px;font-size:clamp(20px,2.5vw,34px)}
+  h2{margin:18px 0 8px;font-weight:800;font-size:clamp(18px,2vw,26px)}
+  p{margin:0 0 10px}
+  .sub{color:var(--muted);font-weight:400}
+  .grid{display:grid;gap:16px;grid-template-columns:1.1fr .9fr}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 6px;font-size:18px}
+  .card .content{padding:18px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .chip{padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type="range"]{width:100%}
+  select,button,.btn{background:#0f1522;border:1px solid var(--border);color:var(--ink);padding:10px 12px;border-radius:12px}
+  select:focus,button:focus{outline:2px solid var(--accent)}
+  .btn{cursor:pointer;transition:.15s transform ease}
+  .btn:hover{transform:translateY(-1px)}
+  .accent{color:var(--accent)}
+  .accent2{color:var(--accent2)}
+
+  /* SVG chart */
+  #chart{width:100%;height:380px;display:block;border-bottom-left-radius:18px;border-bottom-right-radius:18px}
+  .chartHead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:14px 18px}
+  .kpi{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px}
+  .kpi .it{background:#0d1422;border:1px solid var(--border);padding:10px;border-radius:12px}
+  .it .big{font-weight:800;font-size:20px}
+
+  details{border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:#0f1522}
+  details+details{margin-top:10px}
+  summary{cursor:pointer;color:var(--accent);font-weight:600}
+  summary::-webkit-details-marker{display:none}
+
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#0f1522;border:1px solid var(--border);color:var(--muted)}
+  .legend{display:flex;gap:10px;align-items:center}
+  .dot{width:10px;height:10px;border-radius:50%}
+
+  footer{margin-top:auto;border-top:1px solid var(--border);background:#0f1522}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center}
+  a{color:var(--accent)}
+
+  /* tooltip */
+  .tip{border-bottom:1px dotted var(--muted);cursor:help}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Guía interactiva de la <span class="accent">ecuación de Dirac</span></h1>
+      <p class="sub">Para personas con formación universitaria (no necesariamente en física). Modo dark, con explicaciones paso a paso e interactividad.</p>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top:18px;padding-bottom:28px">
+    <div class="grid">
+      <!-- IZQUIERDA: Controles + gráfica -->
+      <section class="card" aria-labelledby="controles">
+        <div class="content">
+          <h3 id="controles">Explora la relación energía–momento</h3>
+          <p>La ecuación de Dirac describe partículas de <b>espín 1/2</b> (como el electrón) de forma compatible con la <b>relatividad especial</b>. Una de sus consecuencias es la relación de dispersión:
+            $$E_\pm(p) = \pm\sqrt{(pc)^2 + (mc^2)^2}\,,$$ que predice <span class="accent2">ramas de energía positiva y negativa</span> (base para la idea de <em>antimateria</em>).</p>
+        </div>
+        <div class="chartHead">
+          <div class="row">
+            <span class="pill">Unidades: 
+              <select id="units">
+                <option value="natural">Naturales (c = \hbar = 1)</option>
+                <option value="si">SI</option>
+              </select>
+            </span>
+            <span class="pill">Partícula: 
+              <select id="preset">
+                <option value="electron">Electrón</option>
+                <option value="muon">Muón</option>
+                <option value="proton">Protón</option>
+                <option value="custom">Personalizada</option>
+              </select>
+            </span>
+          </div>
+          <div class="legend">
+            <span class="pill legend"><span class="dot" style="background:#7cc7ff"></span> $E_+(p)$</span>
+            <span class="pill legend"><span class="dot" style="background:#a78bfa"></span> $E_-(p)$</span>
+          </div>
+        </div>
+        <svg id="chart" viewBox="0 0 1000 380" preserveAspectRatio="none" aria-label="Gráfica E(p)"></svg>
+        <div class="content">
+          <div class="row">
+            <div style="flex:1;min-width:220px">
+              <label for="mass">Masa $m$ (<span id="massUnitLabel">MeV</span>): <span class="accent" id="massVal">0.511</span></label>
+              <input type="range" id="mass" min="0.01" max="1000" step="0.001" value="0.511" />
+            </div>
+            <div style="flex:1;min-width:220px">
+              <label for="pmax">Rango de momento $p_\text{máx}$ (<span id="pUnitLabel">MeV</span>): <span class="accent" id="pmaxVal">5</span></label>
+              <input type="range" id="pmax" min="0.1" max="10000" step="0.1" value="5" />
+            </div>
+          </div>
+          <div class="kpi" style="margin-top:10px">
+            <div class="it">
+              <div class="muted">Energía de reposo</div>
+              <div class="big" id="restE">0.511 MeV</div>
+            </div>
+            <div class="it">
+              <div class="muted">Long. de Compton</div>
+              <div class="big" id="lambdaC">2.426 pm</div>
+            </div>
+            <div class="it">
+              <div class="muted">Ejemplo: $p = m$</div>
+              <div class="big" id="Eexample">$E_+ = 0$</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DERECHA: Conceptos clave -->
+      <aside class="card" aria-labelledby="conceptos">
+        <div class="content">
+          <h3 id="conceptos">Conceptos clave, sin dolor</h3>
+          <details open>
+            <summary>¿De dónde sale la ecuación de Dirac?</summary>
+            <p>La ecuación de Schrödinger no es relativista. El intento ingenuo de “relativizarla” lleva a la ecuación de Klein‑Gordon (de segundo orden en el tiempo), que funciona para espín 0 pero presenta problemas para probabilidades. Dirac buscó una ecuación <b>lineal en derivadas</b> y compatible con $E^2 = (pc)^2 + (mc^2)^2$. La solución introduce <span class="tip" title="Matrices 4×4 que obedecen el álgebra de Clifford">matrices $\gamma^\mu$</span> y <b>espinores</b> de 4 componentes:</p>
+            <p style="overflow:auto">$$ (\gamma^\mu p_\mu - mc)\,\psi = 0, \qquad \mu=0,1,2,3. $$</p>
+            <p>Aquí $p_\mu=(E/c, -\mathbf{p})$ y $\psi$ es el <em>espinor de Dirac</em>. La linealidad evita probabilidades negativas y revela naturalmente el <b>espín 1/2</b>.</p>
+          </details>
+          <details>
+            <summary>Antimateria y energías negativas</summary>
+            <p>La estructura $E_\pm$ sugiere <b>estados de energía negativa</b>. La reinterpretación (Stückelberg–Feynman) los ve como <b>antipartículas</b> con carga opuesta moviéndose hacia adelante en el tiempo. El <b>positrón</b> (antipartícula del electrón) se descubrió en 1932, validando la predicción de Dirac.</p>
+          </details>
+          <details>
+            <summary>Espín 1/2 y “bit cuántico” (visual interactiva)</summary>
+            <p>Un espín 1/2 puro en la dirección $\hat{n}(\theta,\varphi)$ tiene probabilidades $P(\uparrow_z)=\cos^2(\tfrac{\theta}{2})$, $P(\downarrow_z)=\sin^2(\tfrac{\theta}{2})$.</p>
+            <div class="row">
+              <div style="flex:1;min-width:160px">
+                <label for="theta">Ángulo $\theta$ (0–π): <span id="thetaVal" class="accent">0.90</span></label>
+                <input type="range" id="theta" min="0" max="3.14159" step="0.01" value="0.90" />
+              </div>
+              <div style="flex:1;min-width:160px">
+                <label for="phi">Ángulo $\varphi$ (0–2π): <span id="phiVal" class="accent">1.20</span></label>
+                <input type="range" id="phi" min="0" max="6.28318" step="0.01" value="1.20" />
+              </div>
+            </div>
+            <svg id="bloch" viewBox="0 0 260 220" style="width:100%;height:220px;display:block"></svg>
+            <p id="spinKPIs" class="sub">$P(\uparrow_z)=\dots$, $P(\downarrow_z)=\dots$</p>
+          </details>
+          <details>
+            <summary>Predicciones y aplicaciones</summary>
+            <ul>
+              <li><b>$g\approx2$ para el momento magnético del electrón</b> (con correcciones de QED).</li>
+              <li>Describe <b>estructuras finas</b> en el átomo de hidrógeno y <b>acoplamiento espín‑órbita</b>.</li>
+              <li>Base para entender <b>conductividad relativista</b> en materiales como <em>grafeno</em> (cuasipartículas tipo Dirac).</li>
+            </ul>
+          </details>
+          <details>
+            <summary>Implicaciones y simplificaciones útiles</summary>
+            <ul>
+              <li><b>Unidades naturales</b>: poner $c=\hbar=1$ simplifica $E_\pm = \pm\sqrt{p^2+m^2}$.</li>
+              <li><b>Límite no relativista</b>: si $p\ll m$, entonces $E_+\approx m+\tfrac{p^2}{2m}$ (recupera Schrödinger).</li>
+              <li><b>Partículas masivas vs. casi sin masa</b>: para $m\to0$, $E_\pm\approx\pm|p|$; las ecuaciones se desacoplan en quirialidades.</li>
+            </ul>
+          </details>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Más explicación -->
+    <section class="card" style="margin-top:16px" aria-labelledby="pasos">
+      <div class="content">
+        <h3 id="pasos">Resumen en 5 ideas</h3>
+        <ol>
+          <li><b>Compatibilidad relativista</b>: linealiza la relación $E^2=p^2c^2+m^2c^4$ usando matrices $\gamma^\mu$.</li>
+          <li><b>Espín y espinores</b>: la ecuación exige objetos de 4 componentes (espín 1/2 y antipartícula emergen naturalmente).</li>
+          <li><b>Antimateria</b>: la rama $E_-(p)$ se interpreta como antipartículas con carga opuesta.</li>
+          <li><b>Límites</b>: recupera Schrödinger en bajas velocidades y ondas de Weyl/Dirac masless cuando $m\to0$.</li>
+          <li><b>Predicciones reales</b>: momento magnético $\sim2$, espectros atómicos y fenómenos en materiales “tipo Dirac”.</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="sub">Hecho con ❤️ en modo dark. Fuente: <a href="https://es.wikipedia.org/wiki/Ecuaci%C3%B3n_de_Dirac" target="_blank" rel="noopener">Wikipedia — Ecuación de Dirac</a> y manuales estándar de MQ relativista.</div>
+      <div class="row">
+        <span class="chip">Sugerencia: mueve los deslizadores y observa las curvas</span>
+      </div>
+    </div>
+  </footer>
+
+<script>
+  // Constantes y utilidades
+  const HBAR_eVs = 6.582119569e-16;           // eV·s
+  const HBARJ = 1.054571817e-34;              // J·s
+  const C = 299792458;                        // m/s
+  const eVJ = 1.602176634e-19;                // 1 eV = eVJ J
+  const ME_e_MeV = 0.51099895;                // masa electrón (MeV)
+  const MMU_MeV = 105.6583755;                // muón
+  const MP_MeV  = 938.27208816;               // protón
+
+  // Estado
+  const st = {
+    units: 'natural', // 'natural' o 'si'
+    m_MeV: ME_e_MeV,
+    pmax_MeV: 5,
+    theta: 0.90,
+    phi: 1.20
+  };
+
+  // DOM refs
+  const unitsSel = document.getElementById('units');
+  const presetSel = document.getElementById('preset');
+  const massR = document.getElementById('mass');
+  const pmaxR = document.getElementById('pmax');
+  const massVal = document.getElementById('massVal');
+  const pmaxVal = document.getElementById('pmaxVal');
+  const restE = document.getElementById('restE');
+  const lambdaC = document.getElementById('lambdaC');
+  const Eexample = document.getElementById('Eexample');
+  const massUnitLabel = document.getElementById('massUnitLabel');
+  const pUnitLabel = document.getElementById('pUnitLabel');
+
+  const chart = document.getElementById('chart');
+  const bloch = document.getElementById('bloch');
+  const thetaR = document.getElementById('theta');
+  const phiR = document.getElementById('phi');
+  const thetaVal = document.getElementById('thetaVal');
+  const phiVal = document.getElementById('phiVal');
+  const spinKPIs = document.getElementById('spinKPIs');
+
+  // Helpers numéricos
+  const sqrt = Math.sqrt; const cos = Math.cos; const sin = Math.sin; const PI = Math.PI;
+
+  // Conversión y fórmulas
+  function Epm_nat(p, m){ // unidades naturales (c = ħ = 1)
+    const e = sqrt(p*p + m*m);
+    return [+e, -e];
+  }
+  function Epm_SI(p_SI, m_kg){ // devuelve Joules
+    // E = ± sqrt( (pc)^2 + (mc^2)^2 )
+    const pc = p_SI * C;
+    const mc2 = m_kg * C*C;
+    const EJ = sqrt(pc*pc + mc2*mc2);
+    return [+EJ, -EJ];
+  }
+  function MeV_to_kg(MeV){
+    // E = m c^2 => m = E/c^2; 1 MeV = 1e6 eV
+    const J = MeV*1e6*eVJ; return J/(C*C);
+  }
+  function kg_to_MeV(kg){
+    const J = kg*C*C; return J/eVJ/1e6;
+  }
+  function momentumNat_to_SI(p_MeV){
+    // En naturales: p (MeV). Para SI: p_SI = (E/c^2)*v? Evitamos v: usa equivalencia p c ≈ energía en naturales
+    // Relación práctica: 1 MeV (energía) = 1e6 eV * eVJ J. Para p en MeV (naturales), pc ≈ E (en MeV). Así p_SI = (p_MeV*1e6*eVJ)/C
+    return (p_MeV*1e6*eVJ)/C;
+  }
+  function compton_wavelength_m(m_MeV){
+    // λ_C = ħ / (mc) = ħc / (mc^2)
+    const mJ = m_MeV*1e6*eVJ; // mc^2 (J) si multiplicáramos por c^2; pero aquí m_MeV ya es energía
+    const hbarc_Jm = HBARJ*C; // J·m
+    const mc2J = m_MeV*1e6*eVJ; // en naturales m (MeV) actúa como mc^2
+    return hbarc_Jm / mc2J; // metros
+  }
+  function prettySIlen(m){
+    if(m<1e-12) return (m*1e12).toFixed(3)+" pm";
+    if(m<1e-9) return (m*1e9).toFixed(3)+" nm";
+    if(m<1e-6) return (m*1e6).toFixed(3)+" µm";
+    if(m<1e-3) return (m*1e3).toFixed(3)+" mm";
+    return m.toFixed(3)+" m";
+  }
+  function prettyEnergyMeV(x){
+    if(x<1) return x.toFixed(3)+" MeV";
+    if(x<1000) return x.toFixed(2)+" MeV";
+    return (x/1000).toFixed(3)+" GeV";
+  }
+
+  function renderChart(){
+    const W = 1000, H = 380, padL=50, padR=20, padT=20, padB=40;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+    const pmax = st.pmax_MeV; const m = st.m_MeV;
+
+    // Eje x: p in [0, pmax]
+    function x(p){return padL + innerW * (p/pmax)}
+
+    // Valores de energía para escalar eje y
+    const Emax = sqrt(pmax*pmax + m*m);
+    function y(E){return padT + innerH * (1 - ( (E + Emax) / (2*Emax) ));}
+    // Nota: mapeamos [-Emax, +Emax] a [padT+innerH, padT]
+
+    // Recolecta puntos
+    const N=200;
+    const pathPlus = [];
+    const pathMinus = [];
+    for(let i=0;i<=N;i++){
+      const p = (i/N)*pmax;
+      const [Ep,Em] = Epm_nat(p,m);
+      pathPlus.push(`${x(p)},${y(Ep)}`);
+      pathMinus.push(`${x(p)},${y(Em)}`);
+    }
+
+    chart.innerHTML = `
+      <defs>
+        <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#7cc7ff" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#7cc7ff" stop-opacity=".1"/>
+        </linearGradient>
+        <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#a78bfa" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#a78bfa" stop-opacity=".1"/>
+        </linearGradient>
+      </defs>
+      <!-- Ejes -->
+      <rect x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="none" stroke="${getComputedStyle(document.body).getPropertyValue('--border')}"/>
+      <!-- E=0 línea central -->
+      <line x1="${padL}" y1="${y(0)}" x2="${padL+innerW}" y2="${y(0)}" stroke="#2b3b56" stroke-dasharray="6,6"/>
+      <!-- Curvas -->
+      <polyline fill="none" stroke="#7cc7ff" stroke-width="3" points="${pathPlus.join(' ')}"/>
+      <polyline fill="none" stroke="#a78bfa" stroke-width="3" points="${pathMinus.join(' ')}"/>
+      <!-- Ticks X -->
+      ${[0,0.25,0.5,0.75,1].map(t=>{
+        const p=t*pmax;return `<g>
+          <line x1="${x(p)}" y1="${padT+innerH}" x2="${x(p)}" y2="${padT+innerH+6}" stroke="#2b3b56"/>
+          <text x="${x(p)}" y="${padT+innerH+22}" fill="#9bb0c3" font-size="12" text-anchor="middle">${p.toFixed(2)}</text>
+        </g>`;}).join('')}
+      <!-- Ticks Y (en naturales) -->
+      ${[-1,-0.5,0,0.5,1].map(tt=>{
+        const EE=tt*Emax;return `<g>
+          <line x1="${padL-6}" y1="${y(EE)}" x2="${padL}" y2="${y(EE)}" stroke="#2b3b56"/>
+          <text x="${padL-10}" y="${y(EE)+4}" fill="#9bb0c3" font-size="12" text-anchor="end">${EE.toFixed(2)}</text>
+        </g>`;}).join('')}
+      <!-- Etiquetas -->
+      <text x="${padL+innerW/2}" y="${H-8}" fill="#9bb0c3" font-size="12" text-anchor="middle">momento $p$ (mismas unidades que $m$)</text>
+      <text x="16" y="${padT+12}" fill="#9bb0c3" font-size="12">energía $E$</text>
+    `;
+  }
+
+  function updateKPIs(){
+    massVal.textContent = st.m_MeV.toFixed(3);
+    pmaxVal.textContent = st.pmax_MeV.toFixed(2);
+
+    // Energía de reposo (MeV)
+    restE.textContent = prettyEnergyMeV(st.m_MeV);
+
+    // Compton
+    const lam = compton_wavelength_m(st.m_MeV);
+    lambdaC.textContent = prettySIlen(lam);
+
+    // Ejemplo p=m
+    const [Ep] = Epm_nat(st.m_MeV, st.m_MeV);
+    Eexample.innerHTML = `E_+ = ${prettyEnergyMeV(Ep)}`;
+  }
+
+  function renderBloch(){
+    const W=260,H=220; const cx=100, cy=110, R=80;
+    const th=st.theta, ph=st.phi;
+    const x = R*Math.sin(th)*Math.cos(ph); // proyección
+    const y = -R*Math.cos(th);
+
+    const Pup = Math.cos(th/2)**2;
+    const Pdown = Math.sin(th/2)**2;
+
+    spinKPIs.innerHTML = `$P(\\uparrow_z)=${Pup.toFixed(3)}$, $P(\\downarrow_z)=${Pdown.toFixed(3)}$`;
+
+    bloch.innerHTML = `
+      <defs>
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#7cc7ff" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#7cc7ff" stop-opacity=".05"/>
+        </radialGradient>
+      </defs>
+      <!-- esfera (proyección 2D) -->
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="#0d1422" stroke="#1f2b3d"/>
+      <!-- ejes -->
+      <line x1="${cx-R}" y1="${cy}" x2="${cx+R}" y2="${cy}" stroke="#2b3b56" stroke-dasharray="5,5"/>
+      <line x1="${cx}" y1="${cy-R}" x2="${cx}" y2="${cy+R}" stroke="#2b3b56" stroke-dasharray="5,5"/>
+      <!-- vector estado -->
+      <line x1="${cx}" y1="${cy}" x2="${cx+x}" y2="${cy+y}" stroke="#7cc7ff" stroke-width="3"/>
+      <circle cx="${cx+x}" cy="${cy+y}" r="8" fill="url(#glow)" stroke="#7cc7ff"/>
+      <text x="${cx+R+8}" y="${cy}" fill="#9bb0c3" font-size="12">$z$</text>
+    `;
+  }
+
+  // Eventos UI
+  unitsSel.addEventListener('change', (e)=>{
+    st.units = e.target.value;
+    // En esta demo, el gráfico usa unidades naturales para claridad visual.
+    // Cambiamos solo las etiquetas de UI.
+    const nat = st.units==='natural';
+    massUnitLabel.textContent = nat? 'MeV' : 'kg (equivalente MeV)';
+    pUnitLabel.textContent = nat? 'MeV' : 'kg·m/s (≈ MeV/c)';
+  });
+
+  presetSel.addEventListener('change', (e)=>{
+    const v = e.target.value;
+    if(v==='electron') st.m_MeV = ME_e_MeV;
+    else if(v==='muon') st.m_MeV = MMU_MeV;
+    else if(v==='proton') st.m_MeV = MP_MeV;
+    // si custom, mantiene el valor actual
+    massR.value = st.m_MeV;
+    updateKPIs(); renderChart();
+    if(window.MathJax) MathJax.typesetPromise();
+  });
+
+  massR.addEventListener('input',(e)=>{ st.m_MeV = parseFloat(e.target.value); updateKPIs(); renderChart(); if(window.MathJax) MathJax.typesetPromise(); });
+  pmaxR.addEventListener('input',(e)=>{ st.pmax_MeV = parseFloat(e.target.value); updateKPIs(); renderChart(); if(window.MathJax) MathJax.typesetPromise(); });
+
+  thetaR.addEventListener('input', (e)=>{ st.theta = parseFloat(e.target.value); thetaVal.textContent = (+st.theta).toFixed(2); renderBloch(); if(window.MathJax) MathJax.typesetPromise(); })
+  phiR.addEventListener('input', (e)=>{ st.phi = parseFloat(e.target.value); phiVal.textContent = (+st.phi).toFixed(2); renderBloch(); if(window.MathJax) MathJax.typesetPromise(); })
+
+  // Init
+  function init(){
+    massR.value = st.m_MeV; pmaxR.value = st.pmax_MeV;
+    thetaVal.textContent = st.theta.toFixed(2); phiVal.textContent = st.phi.toFixed(2);
+    updateKPIs(); renderChart(); renderBloch();
+    if(window.MathJax) MathJax.typesetPromise();
+  }
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
+
+
+<!-- Contenedor del footer -->
+<div id="footer"></div>
+
+<script>
+  // Cargar footer.html y colocarlo en #footer
+  fetch("footer.html")
+    .then(response => {
+      if (!response.ok) throw new Error("No se pudo cargar footer.html");
+      return response.text();
+    })
+    .then(data => {
+      document.getElementById("footer").innerHTML = data;
+    })
+    .catch(error => console.error("Error cargando el footer:", error));
+</script>
+
+
+
+
+
