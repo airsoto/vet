@@ -25,11 +25,8 @@
   }
   h1{margin:.2rem 0 0.3rem 0; font-size:clamp(22px,4vw,30px)}
   .meta{color:#9bb0c3; font-size:clamp(12px,2.6vw,14px); margin-top:.25rem}
-  .song{
-    font-size:clamp(16px,3.2vw,20px); margin:1rem 0 0.75rem 0; font-weight:600;
-  }
+  .song{ font-size:clamp(16px,3.2vw,20px); margin:1rem 0 .75rem 0; font-weight:600; }
 
-  /* Botones principales */
   .controls{display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; margin:1rem 0 .5rem}
   .controls button{
     background:var(--accent); color:#000; border:none;
@@ -39,7 +36,6 @@
   .controls button:hover{ transform:translateY(-1px) }
   .controls button:active{ transform:translateY(0) scale(.98) }
 
-  /* Selector de años por botones */
   .year-wrap{
     border:1px solid var(--ring);
     border-radius:12px;
@@ -69,7 +65,6 @@
   .message{margin:1rem 0 .5rem 0; font-weight:700; min-height:1.6em}
   .points{font-size:1.1rem; margin:.6rem 0 1rem 0}
 
-  /* Input numérico como alternativa (opcional) */
   .alt-input{
     display:flex; gap:.5rem; justify-content:center; align-items:center;
     margin:.4rem 0 1rem 0; flex-wrap:wrap;
@@ -79,19 +74,21 @@
     font-size:1rem; background:#0f1624; color:var(--ink); outline:1px solid var(--ring);
   }
 
-  /* Estrellas */
   .stars{ position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; }
   .star{ position:absolute; color:gold; font-size:1.5rem; animation:fall 1s linear forwards; }
   @keyframes fall{ to{ transform:translateY(100vh) rotate(720deg); opacity:0; } }
 
   .footer-note{font-size:12px; color:#9bb0c3; margin-top:.8rem}
+  .error-box{
+    margin-top:.75rem; color:var(--error); font-size:0.95rem;
+  }
 </style>
 </head>
 <body>
   <div class="game-box" role="application" aria-label="Juego de adivinar año de canciones">
     <h1>🎧 Adivina el año</h1>
 
-    <!-- Bloque solicitado (sin los </div> sueltos del snippet original) -->
+    <!-- Bloque solicitado debajo del título -->
     <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
       <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
     </h2>
@@ -104,12 +101,10 @@
     <p class="meta">Selecciona el año de publicación del álbum (solo el año).</p>
     <p id="song" class="song" aria-live="polite"></p>
 
-    <!-- Selector por botones -->
     <div class="year-wrap" aria-label="Selector de año por botones">
       <div id="yearGrid" class="year-grid"></div>
     </div>
 
-    <!-- Alternativa: entrada manual + comprobar -->
     <div class="alt-input">
       <label for="yearInput" class="meta">Entrada manual (opcional):</label>
       <input type="number" id="yearInput" placeholder="Año">
@@ -125,6 +120,7 @@
     </div>
 
     <p class="footer-note">Reglas: +10 si aciertas. Si fallas, pierdes 1 punto por cada año de diferencia.</p>
+    <div id="err" class="error-box" role="alert" aria-live="assertive"></div>
   </div>
 
   <div class="stars" id="stars"></div>
@@ -134,22 +130,79 @@ let songs = [];
 let currentSong = null;
 let score = 0;
 let roundOver = false;
-let allYears = []; // Años únicos del JSON
+let allYears = [];
+
+/** Intenta parsear JSON; si falla, prueba a envolver objetos sueltos con [] */
+function safeParseJson(text){
+  // Elimina BOM y recorta
+  const t = text.replace(/^\uFEFF/, '').trim();
+
+  // Caso 1: ya es array
+  if(t.startsWith('[')){
+    return JSON.parse(t);
+  }
+
+  // Caso 2: parece ser varios objetos separados por "}, {"
+  // En muchos casos basta con envolver con corchetes.
+  if(t.startsWith('{') && t.includes('},')){
+    try{
+      return JSON.parse('[' + t + ']');
+    }catch(e){
+      // intentemos reparar comas extra al final si las hubiera
+      const repaired = ('[' + t + ']').replace(/,\s*]/, ']');
+      return JSON.parse(repaired);
+    }
+  }
+
+  // Caso 3: un solo objeto
+  if(t.startsWith('{') && t.endsWith('}')){
+    return [ JSON.parse(t) ];
+  }
+
+  throw new Error('Formato JSON no reconocido.');
+}
 
 async function loadSongs(){
-  const res = await fetch('/json/spotify.json');
-  songs = await res.json();
+  const errBox = document.getElementById('err');
+  errBox.textContent = '';
+  try{
+    const res = await fetch('/json/spotify.json', { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.text();
 
-  // Obtener años únicos de los datos
-  const yearSet = new Set();
-  for(const s of songs){
-    if(!s.track_album_release_date) continue;
-    const y = parseInt(String(s.track_album_release_date).substring(0,4));
-    if(!Number.isNaN(y)) yearSet.add(y);
+    let data;
+    try{
+      data = JSON.parse(raw);
+    }catch(_){
+      data = safeParseJson(raw);
+    }
+
+    if(!Array.isArray(data)) throw new Error('La raíz del JSON debe ser un array de canciones.');
+
+    // Normaliza y filtra por las que tengan fecha válida
+    songs = data.filter(s => {
+      const d = (s.track_album_release_date || '').toString();
+      return /^\d{4}-\d{2}-\d{2}$/.test(d) || /^\d{4}$/.test(d);
+    });
+
+    if(songs.length === 0) throw new Error('No se encontraron canciones con "track_album_release_date".');
+
+    // Años únicos
+    const yearSet = new Set();
+    for(const s of songs){
+      const y = parseInt(String(s.track_album_release_date).substring(0,4));
+      if(!Number.isNaN(y)) yearSet.add(y);
+    }
+    allYears = Array.from(yearSet).sort((a,b)=>a-b);
+    renderYearButtons(allYears);
+    nextSong();
+
+  }catch(e){
+    console.error(e);
+    document.getElementById('err').textContent =
+      'No se pudieron cargar las canciones: ' + (e.message || e.toString()) +
+      '. Revisa que /json/spotify.json sea un array JSON válido o que el archivo esté accesible.';
   }
-  allYears = Array.from(yearSet).sort((a,b)=>a-b); // ascendente
-  renderYearButtons(allYears);
-  nextSong();
 }
 
 function renderYearButtons(years){
@@ -160,7 +213,7 @@ function renderYearButtons(years){
     btn.className = 'year-btn';
     btn.type = 'button';
     btn.textContent = y;
-    btn.setAttribute('data-year', y);
+    btn.dataset.year = y;
     btn.setAttribute('aria-label', `Año ${y}`);
     btn.addEventListener('click', ()=> handleGuess(y, btn));
     grid.appendChild(btn);
@@ -238,7 +291,6 @@ document.getElementById('checkBtn').addEventListener('click', ()=>{
   if(!val) return;
   const y = parseInt(val);
   if(Number.isNaN(y)) return;
-  // intentar resaltar botón si existe
   const matchBtn = Array.from(document.querySelectorAll('.year-btn'))
     .find(b => parseInt(b.dataset.year) === y);
   if(matchBtn) markSelected(matchBtn);
@@ -256,12 +308,10 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   nextSong();
 });
 
-// Soporta Enter en el input manual
 document.getElementById('yearInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') document.getElementById('checkBtn').click();
 });
 
-// Cargar datos
 loadSongs();
 </script>
 </body>
