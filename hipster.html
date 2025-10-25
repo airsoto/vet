@@ -1,0 +1,142 @@
+
+
+
+
+
+  <!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎵 Juego Spotify Year Guess</title>
+<style>
+  :root{
+    --bg:#0b1118; --panel:#101826; --ink:#e6edf3;
+    --accent:#7cc7ff; --error:#f87171; --success:#4ade80;
+  }
+  body{
+    font-family: 'Inter', sans-serif;
+    background:var(--bg); color:var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100vh; margin:0; text-align:center;
+  }
+  .game-box{
+    background:var(--panel);
+    padding:2rem; border-radius:1rem; box-shadow:0 0 25px rgba(0,0,0,.3);
+    width:clamp(300px, 80%, 500px);
+  }
+  button{
+    background:var(--accent); color:#000; border:none;
+    padding:0.6rem 1.2rem; margin:0.5rem; font-weight:600;
+    border-radius:0.5rem; cursor:pointer;
+    transition:all .2s;
+  }
+  button:hover{ transform:scale(1.05); }
+  input{
+    padding:0.5rem; border:none; border-radius:0.3rem; width:100px; text-align:center;
+    font-size:1rem;
+  }
+  .stars{
+    position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden;
+  }
+  .star{
+    position:absolute; color:gold; font-size:1.5rem; animation:fall 1s linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(100vh) rotate(720deg); opacity:0; }
+  }
+  .points{font-size:1.2rem; margin-top:1rem;}
+  .message{margin:1rem; font-weight:600;}
+</style>
+</head>
+<body>
+  <div class="game-box">
+    <h1>🎧 Adivina el año</h1>
+
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+  </div>
+
+
+  
+    <p id="song"></p>
+    <input type="number" id="yearInput" placeholder="Año">
+    <button id="checkBtn">Comprobar</button>
+    <p class="message" id="message"></p>
+    <p class="points">Puntos: <span id="score">0</span></p>
+    <button id="nextBtn">Siguiente canción</button>
+    <button id="resetBtn">Reiniciar</button>
+  </div>
+  <div class="stars" id="stars"></div>
+
+<script>
+let songs = [];
+let currentSong = null;
+let score = 0;
+
+async function loadSongs(){
+  const res = await fetch('/json/spotify.json');
+  songs = await res.json();
+  nextSong();
+}
+
+function nextSong(){
+  currentSong = songs[Math.floor(Math.random()*songs.length)];
+  document.getElementById('song').innerText = 
+    `${currentSong.track_name} — ${currentSong.track_artist}`;
+  document.getElementById('message').innerText = '';
+  document.getElementById('yearInput').value = '';
+}
+
+function showStars(){
+  const container = document.getElementById('stars');
+  for(let i=0;i<20;i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.innerText = '⭐';
+    s.style.left = Math.random()*100+'%';
+    s.style.animationDuration = 0.8+Math.random()*0.5+'s';
+    container.appendChild(s);
+    setTimeout(()=>s.remove(),1000);
+  }
+}
+
+document.getElementById('checkBtn').addEventListener('click',()=>{
+  const input = document.getElementById('yearInput').value;
+  if(!input) return;
+  const year = parseInt(currentSong.track_album_release_date.substring(0,4));
+  const diff = Math.abs(year - input);
+  const msg = document.getElementById('message');
+  if(diff===0){
+    score += 10;
+    msg.style.color = 'var(--success)';
+    msg.innerText = '¡Correcto! 🎉 +10 puntos';
+    showStars();
+  }else{
+    const penalty = diff;
+    score -= penalty;
+    msg.style.color = 'var(--error)';
+    msg.innerText = `❌ Era ${year}. Pierdes ${penalty} puntos.`;
+  }
+  document.getElementById('score').innerText = score;
+});
+
+document.getElementById('nextBtn').addEventListener('click', nextSong);
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  score = 0;
+  document.getElementById('score').innerText = score;
+  nextSong();
+});
+
+loadSongs();
+</script>
+</body>
+</html>
