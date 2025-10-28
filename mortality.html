@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mortalidad anestésica por raza (canina) — Análisis reproducible</title>
+<style>
+  :root{
+    --bg:#0b1118; --panel:#101826; --ink:#e6edf3; --muted:#9bb0c3;
+    --accent:#7cc7ff; --accent2:#a78bfa; --border:#1f2b3d; --ok:#16a34a; --warn:#f59e0b; --bad:#ef4444;
+    --chip:#1f2b3d; --shadow:0 18px 50px rgba(0,0,0,.35);
+    --focus:#ffd166;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+  a{color:var(--accent)}
+  header{
+    position:sticky;top:0;z-index:10;background:linear-gradient(180deg,rgba(16,24,38,.9),rgba(16,24,38,.85));
+    backdrop-filter: blur(6px); border-bottom:1px solid var(--border); box-shadow:var(--shadow);
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  h1{font-size:clamp(18px,3.5vw,26px);margin:0 0 8px 0}
+  .attrib{color:var(--muted); font-size:12.5px; margin:10px 0 0 0}
+  .grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
+  @media (max-width:1000px){ .grid{grid-template-columns:1fr} }
+
+  /* Paneles */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow)}
+  .panel .head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .panel .body{padding:12px 14px}
+  .toggle{appearance:none;background:transparent;border:1px solid var(--border);color:var(--ink);
+          border-radius:10px;padding:8px 10px;cursor:pointer}
+  .toggle[aria-expanded="true"]{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,199,255,.2)}
+  .row{display:grid;gap:10px;grid-template-columns:1fr}
+  .row2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .row3{display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr}
+  label{font-weight:600;font-size:12px;color:var(--muted)}
+  input,select{width:100%;background:#0e1523;border:1px solid var(--border);color:var(--ink);
+               padding:8px 10px;border-radius:10px}
+
+  /* Chips y botones */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--border);font-size:12px}
+  .chip.ok{border-color:rgba(22,163,74,.35)} .chip.bad{border-color:rgba(239,68,68,.35)} .chip.warn{border-color:rgba(245,158,11,.35)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  button.btn{background:#0e1523;border:1px solid var(--border);color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
+  button.btn:hover{border-color:var(--accent)}
+  .switch{display:flex;align-items:center;gap:10px;margin-top:8px}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media (max-width:900px){ .kpis{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px}
+  .k{font-size:12px;color:var(--muted);margin:0}
+  .v{font-size:22px;font-weight:800;margin:2px 0}
+  .sub{font-size:12px;color:var(--muted)}
+
+  /* Gráficos y tablas */
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  @media (max-width:1000px){ .charts{grid-template-columns:1fr} }
+  .chart{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:10px;position:relative}
+  svg{width:100%;height:350px;display:block}
+  .tt{position:absolute;pointer-events:none;background:#0e1523;border:1px solid var(--border);padding:8px 10px;border-radius:10px;font-size:12px;color:var(--ink);display:none;z-index:5;max-width:280px}
+
+  .tables{display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+  thead th{position:sticky;top:0;background:#0e1523;text-align:left;font-size:12px;color:var(--muted);cursor:pointer}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,0.03)}
+  .sig{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid var(--border)}
+  .sig.p{background:rgba(239,68,68,.12);color:#fecaca;border-color:rgba(239,68,68,.35)}
+  .sig.ns{background:rgba(124,199,255,.08);color:#cde9ff}
+  .align-r{text-align:right}
+
+  /* Drawer */
+  .drawer{position:fixed;right:0;top:0;bottom:0;width:420px;max-width:100%;transform:translateX(100%);transition:transform .25s ease; background:var(--panel); border-left:1px solid var(--border); box-shadow:var(--shadow); z-index:20}
+  .drawer.open{transform:none}
+  .drawer .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .drawer .ct{padding:12px 14px;overflow:auto;height:calc(100% - 55px)}
+  .close{background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:10px;padding:6px 10px;cursor:pointer}
+  .sr-only{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+
+  /* Accesibilidad */
+  :focus{outline:2px dashed var(--focus);outline-offset:2px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1 aria-label="Mortalidad anestésica por raza en perros">Mortalidad anestésica por raza (55 019 casos)</h1>
+
+      <!-- Bloque solicitado literalmente después del título -->
+      <div class="subrow" style="display:flex;gap:16px;align-items:center;justify-content:space-between;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="attrib">basado en los datos de : - Breed-Specific Anaesthetic Mortality in Dogs: Evidence from an Analysis of 55,019 Cases by José I. Redondo 1,*ORCID,Fernando Martínez-Taboada 2ORCID,Eva Zoe Hernández-Magaña 1,Luis Domenech 3ORCID,Jaime Viscasillas 4ORCID andPablo Otero 5ORCID enlace: https://www.mdpi.com/2076-2615/15/21/3112</p>
+    </div>
+  </header>
+
+  <!-- Visor del PDF (colapsable) -->
+  <section class="wrap" style="margin-top:12px">
+    <div class="panel" aria-labelledby="pdf-h">
+      <div class="head">
+        <h2 id="pdf-h" style="margin:0;font-size:15px">Visor del artículo (PDF)</h2>
+        <button class="toggle" id="pdfToggle" aria-controls="pdfBody" aria-expanded="false">Mostrar</button>
+      </div>
+      <div class="body" id="pdfBody" style="display:none">
+        <div class="row2" style="align-items:center">
+          <div>
+            <label for="pdfPath">Cargar PDF local (opcional)</label>
+            <input id="pdfPath" type="file" accept="application/pdf" />
+          </div>
+          <div>
+            <small style="color:var(--muted)">Ruta por defecto: <code>/pdf/animals-15-03112.pdf</code>. Si no carga, usa el selector.</small>
+          </div>
+        </div>
+        <div style="margin-top:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0e1523">
+          <object id="pdfObj" data="/pdf/animals-15-03112.pdf" type="application/pdf" width="100%" height="640">
+            <p style="padding:12px">No se pudo mostrar el PDF aquí.
+              <a href="/pdf/animals-15-03112.pdf" target="_blank" rel="noopener">Ábrelo en una pestaña nueva</a>.
+            </p>
+          </object>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="wrap">
+    <div class="grid" role="region" aria-label="Layout con filtros y resultados">
+      <!-- FILTROS -->
+      <section class="panel" aria-labelledby="filtros-h" id="filtersPanel">
+        <div class="head">
+          <h2 id="filtros-h" style="margin:0;font-size:15px">Filtros</h2>
+          <button class="toggle" id="collapseBtn" aria-controls="filtersBody" aria-expanded="true">Colapsar</button>
+        </div>
+        <div class="body" id="filtersBody">
+          <div class="row">
+            <label for="breedSearch">Raza (multi, con buscador)</label>
+            <input id="breedSearch" type="text" placeholder="Escribe para filtrar razas… (Enter para añadir)" aria-describedby="breedHelp" />
+            <span id="breedHelp" class="sr-only">Pulsa Enter para añadir la raza seleccionada</span>
+            <div class="chips" id="breedChips" aria-live="polite"></div>
+          </div>
+
+          <div class="row2" style="margin-top:10px">
+            <div>
+              <label for="fciGroup">FCI: Grupo</label>
+              <select id="fciGroup"><option value="">(Todos)</option></select>
+            </div>
+            <div>
+              <label for="fciSection">FCI: Sección</label>
+              <select id="fciSection" disabled><option value="">(Todas)</option></select>
+            </div>
+          </div>
+
+          <div class="row3" style="margin-top:10px">
+            <div>
+              <label for="brachy">Braquicéfalo</label>
+              <select id="brachy">
+                <option value="">(Todos)</option>
+                <option value="yes">Sí</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <label for="mdr1">MDR1</label>
+              <select id="mdr1">
+                <option value="">(Todos)</option>
+                <option value="yes">Sí</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <label for="asa">ASA</label>
+              <select id="asa">
+                <option value="">Todas</option>
+                <option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="switch" role="group" aria-label="Ajuste por ASA">
+            <input id="adj" type="checkbox" />
+            <label for="adj">Mostrar Ajustado por ASA (cuando aplique)</label>
+          </div>
+
+          <div class="btns" role="group" aria-label="Acciones rápidas">
+            <button class="btn" id="btnTop30">Top 30 por tamaño muestral</button>
+            <button class="btn" id="btnAll">Todos</button>
+            <button class="btn" id="btnSig">Solo significativos (p&lt;0.05)</button>
+            <button class="btn" id="btnReset">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTADOS -->
+      <section aria-live="polite">
+        <!-- KPIs -->
+        <div class="kpis" aria-label="Indicadores clave">
+          <div class="card">
+            <p class="k">Mortalidad global</p>
+            <p class="v" id="kpiGlobal">—</p>
+            <p class="sub" id="kpiGlobalCI">IC95% —</p>
+          </div>
+          <div class="card">
+            <p class="k">Mortalidad (con filtros)</p>
+            <p class="v" id="kpiFilt">—</p>
+            <p class="sub" id="kpiFiltCI">IC95% —</p>
+          </div>
+          <div class="card">
+            <p class="k">RR vs. Mestizo (ref.)</p>
+            <p class="v" id="kpiRR">—</p>
+            <p class="sub" id="kpiRRci">IC95% — &nbsp; p —</p>
+          </div>
+        </div>
+
+        <!-- GRÁFICOS -->
+        <div class="charts" aria-label="Gráficos">
+          <div class="chart" id="volcanoChart" aria-label="Volcano plot razas (crudo)">
+            <div class="tt" id="tt1"></div>
+            <h3 style="margin:4px 6px 8px 6px;font-size:14px;color:var(--muted)">Volcano razas (Top 30) — X: Δ riesgo crudo vs mestizos; Y: −log10(p)</h3>
+            <svg id="svgVolcano" role="img" aria-labelledby="volcano-title">
+              <title id="volcano-title">Volcano plot de razas</title>
+            </svg>
+          </div>
+          <div class="chart" id="bubbleChart" aria-label="Burbuja grupos/secciones FCI">
+            <div class="tt" id="tt2"></div>
+            <h3 style="margin:4px 6px 8px 6px;font-size:14px;color:var(--muted)">Burbuja FCI — X: mortalidad (%), Y: log(n), área∝n</h3>
+            <svg id="svgBubbles" role="img" aria-labelledby="bubbles-title">
+              <title id="bubbles-title">Diagrama de burbujas FCI</title>
+            </svg>
+          </div>
+        </div>
+
+        <!-- TABLAS -->
+        <div class="tables" aria-label="Tablas">
+          <div>
+            <h3 style="margin:8px 2px">Razas (Top 30 por n)</h3>
+            <table id="tblBreeds" aria-describedby="breeds-desc">
+              <caption id="breeds-desc" class="sr-only">Tabla de razas con n, muertes, mortalidad, IC95%, p crudo, RR ajustada y p ajustada</caption>
+              <thead>
+                <tr>
+                  <th data-k="breed">Raza</th>
+                  <th data-k="n" class="align-r">n</th>
+                  <th data-k="d" class="align-r">Muertes</th>
+                  <th data-k="mort" class="align-r">% Mort</th>
+                  <th data-k="ci" class="align-r">IC95%</th>
+                  <th data-k="p" class="align-r">p (crudo)</th>
+                  <th data-k="rr" class="align-r">RR adj (ASA)</th>
+                  <th data-k="rrci" class="align-r">IC95% RR</th>
+                  <th data-k="padj" class="align-r">p adj</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div>
+            <h3 style="margin:8px 2px">FCI — Grupos</h3>
+            <table id="tblGroups">
+              <thead>
+                <tr>
+                  <th data-k="group">Grupo FCI</th>
+                  <th data-k="n" class="align-r">n</th>
+                  <th data-k="d" class="align-r">Muertes</th>
+                  <th data-k="mort" class="align-r">% Mort</th>
+                  <th data-k="ci" class="align-r">IC95%</th>
+                  <th data-k="p" class="align-r">p (crudo)</th>
+                  <th data-k="rr" class="align-r">RR adj</th>
+                  <th data-k="rrci" class="align-r">IC95% RR</th>
+                  <th data-k="padj" class="align-r">p adj</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div>
+            <h3 style="margin:8px 2px">FCI — Secciones</h3>
+            <table id="tblSections">
+              <thead>
+                <tr>
+                  <th data-k="section">Sección FCI</th>
+                  <th data-k="n" class="align-r">n</th>
+                  <th data-k="d" class="align-r">Muertes</th>
+                  <th data-k="mort" class="align-r">% Mort</th>
+                  <th data-k="ci" class="align-r">IC95%</th>
+                  <th data-k="p" class="align-r">p (crudo)</th>
+                  <th data-k="rr" class="align-r">RR adj</th>
+                  <th data-k="rrci" class="align-r">IC95% RR</th>
+                  <th data-k="padj" class="align-r">p adj</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:4px 0 8px 0">Barras apiladas por ASA</h3>
+            <p style="color:var(--muted);margin:0 0 8px 0">Distribución por ASA I–V (dato no publicado detallado para todas las categorías en el artículo). Se muestra aviso cuando no hay desglose.</p>
+            <div id="asaStack" style="height:300px;background:var(--panel);border:1px dashed var(--border);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--muted)">Desglose ASA no disponible para este subconjunto</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Drawer detalles -->
+  <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-labelledby="drawerTitle">
+    <div class="hd">
+      <h3 id="drawerTitle" style="margin:0;font-size:15px">Detalles</h3>
+      <button class="close" id="closeDrawer" aria-label="Cerrar panel">Cerrar</button>
+    </div>
+    <div class="ct" id="drawerCt"></div>
+  </aside>
+
+  <!-- Contenedor del footer -->
+  <div id="footer"></div>
+  <script>
+    // Cargar footer.html y colocarlo en #footer
+    fetch("footer.html")
+      .then(response => {
+        if (!response.ok) throw new Error("No se pudo cargar footer.html");
+        return response.text();
+      })
+      .then(data => {
+        document.getElementById("footer").innerHTML = data;
+      })
+      .catch(error => console.error("Error cargando el footer:", error));
+  </script>
+
+  <script>
+  /***********************
+   * DATA (Transcrito del artículo; ver comentarios de procedencia)
+   ************************/
+  const DATA = {
+    meta: { total_n: 54542, deaths: 378, mort_pct: 0.69, mort_ci: [0.62, 0.76],
+      mixed_ref: { n: 16129, d: 109, mort_pct: 0.68, mort_ci: [0.56,0.81] }
+    },
+    // Tabla 1 — Top 30 por n (pág. 5)
+    breeds: [
+      {breed:"Mixed Breed", n:16129, d:109, mort_pct:0.68, ci:[0.56,0.81], p:null, rr:null, rr_ci:null, p_adj:null, brachy:null, mdr1:null},
+      {breed:"Yorkshire Terrier", n:3157, d:29, mort_pct:0.92, ci:[0.64,1.32], p:0.139, rr:1.24, rr_ci:[0.84,1.84], p_adj:0.286},
+      {breed:"Labrador Retriever", n:2728, d:14, mort_pct:0.51, ci:[0.31,0.86], p:0.329, rr:0.64, rr_ci:[0.37,1.12], p_adj:0.116},
+      {breed:"French Bulldog", n:2621, d:15, mort_pct:0.57, ci:[0.35,0.94], p:0.544, rr:0.85, rr_ci:[0.50,1.46], p_adj:0.556},
+      {breed:"Poodle", n:1840, d:12, mort_pct:0.65, ci:[0.37,1.14], p:0.907, rr:1.01, rr_ci:[0.56,1.82], p_adj:0.984},
+      {breed:"Golden Retriever", n:1478, d:10, mort_pct:0.68, ci:[0.37,1.24], p:0.997, rr:0.85, rr_ci:[0.45,1.60], p_adj:0.604},
+      {breed:"Dachshund", n:1189, d:4, mort_pct:0.34, ci:[0.13,0.86], p:0.161, rr:0.55, rr_ci:[0.21,1.45], p_adj:0.229},
+      {breed:"Chihuahua", n:1182, d:16, mort_pct:1.35, ci:[0.83,2.19], p:0.008, rr:1.80, rr_ci:[1.08,2.99], p_adj:0.023},
+      {breed:"German Shepherd Dog", n:1165, d:17, mort_pct:1.46, ci:[0.91,2.32], p:0.002, rr:1.47, rr_ci:[0.88,2.44], p_adj:0.139},
+      {breed:"Maltese", n:1162, d:4, mort_pct:0.34, ci:[0.13,0.88], p:0.175, rr:0.59, rr_ci:[0.22,1.59], p_adj:0.300},
+      {breed:"Boxer", n:1138, d:5, mort_pct:0.44, ci:[0.19,1.02], p:0.341, rr:0.49, rr_ci:[0.20,1.20], p_adj:0.119},
+      {breed:"Beagle", n:1125, d:6, mort_pct:0.53, ci:[0.24,1.16], p:0.570, rr:0.89, rr_ci:[0.40,1.96], p_adj:0.770},
+      {breed:"English Cocker Spaniel", n:1096, d:4, mort_pct:0.36, ci:[0.14,0.93], p:0.217, rr:0.50, rr_ci:[0.19,1.35], p_adj:0.172},
+      {breed:"American Staffordshire Terrier", n:964, d:3, mort_pct:0.31, ci:[0.11,0.91], p:0.173, rr:0.49, rr_ci:[0.16,1.47], p_adj:0.201},
+      {breed:"Border Collie", n:934, d:6, mort_pct:0.64, ci:[0.29,1.39], p:0.903, rr:1.04, rr_ci:[0.46,2.37], p_adj:0.928},
+      {breed:"Bulldog", n:874, d:11, mort_pct:1.26, ci:[0.70,2.24], p:0.045, rr:1.51, rr_ci:[0.83,2.76], p_adj:0.177},
+      {breed:"Schnauzer", n:822, d:4, mort_pct:0.49, ci:[0.19,1.24], p:0.516, rr:0.59, rr_ci:[0.22,1.59], p_adj:0.294},
+      {breed:"Shih Tzu", n:793, d:4, mort_pct:0.50, ci:[0.20,1.29], p:0.563, rr:0.70, rr_ci:[0.26,1.92], p_adj:0.492},
+      {breed:"American Pit Bull Terrier", n:741, d:6, mort_pct:0.81, ci:[0.37,1.76], p:0.665, rr:1.12, rr_ci:[0.50,2.54], p_adj:0.782},
+      {breed:"Pug", n:688, d:9, mort_pct:1.31, ci:[0.69,2.47], p:0.060, rr:1.85, rr_ci:[0.94,3.63], p_adj:0.074},
+      {breed:"Spanish Greyhound", n:596, d:7, mort_pct:1.17, ci:[0.57,2.40], p:0.198, rr:2.01, rr_ci:[1.00,4.06], p_adj:0.051},
+      {breed:"Ibizan Hound", n:593, d:5, mort_pct:0.84, ci:[0.36,1.96], p:0.605, rr:1.48, rr_ci:[0.63,3.48], p_adj:0.368},
+      {breed:"West Highland White Terrier", n:556, d:6, mort_pct:1.08, ci:[0.50,2.33], p:0.286, rr:1.51, rr_ci:[0.71,3.23], p_adj:0.289},
+      {breed:"Miniature Pinscher", n:536, d:3, mort_pct:0.56, ci:[0.19,1.63], p:1.000, rr:0.94, rr_ci:[0.31,2.86], p_adj:0.907},
+      {breed:"Jack Russell Terrier", n:522, d:2, mort_pct:0.38, ci:[0.11,1.39], p:0.588, rr:0.66, rr_ci:[0.17,2.56], p_adj:0.543},
+      {breed:"Spanish Water Dog", n:479, d:6, mort_pct:1.25, ci:[0.58,2.71], p:0.150, rr:2.72, rr_ci:[1.23,6.01], p_adj:0.013},
+      {breed:"Bodeguero", n:441, d:1, mort_pct:0.23, ci:[0.04,1.27], p:0.375, rr:0.39, rr_ci:[0.05,2.88], p_adj:0.358},
+      {breed:"Brittany Spaniel", n:437, d:1, mort_pct:0.23, ci:[0.04,1.28], p:0.375, rr:0.28, rr_ci:[0.04,2.04], p_adj:0.208},
+      {breed:"Rottweiler", n:410, d:4, mort_pct:0.98, ci:[0.38,2.48], p:0.366, rr:1.09, rr_ci:[0.40,2.94], p_adj:0.871},
+      {breed:"German Spitz", n:407, d:4, mort_pct:0.98, ci:[0.38,2.50], p:0.362, rr:1.34, rr_ci:[0.50,3.59], p_adj:0.562},
+    ],
+    // Tabla 2 — Grupos FCI (pág. 7)
+    groups: [
+      {group:"Mixed Breed", n:16129, d:109, mort_pct:0.68, ci:[0.56,0.81], p:null, rr:null, rr_ci:null, p_adj:null},
+      {group:"Companion and Toy Dogs", n:9278, d:65, mort_pct:0.70, ci:[0.55,0.89], p:0.818, rr:1.02, rr_ci:[0.76,1.38], p_adj:0.878},
+      {group:"Terriers", n:7077, d:52, mort_pct:0.73, ci:[0.56,0.96], p:0.618, rr:1.04, rr_ci:[0.76,1.43], p_adj:0.806},
+      {group:"Pinscher/Schnauzer—Molossoid—Swiss Cattle", n:6172, d:45, mort_pct:0.73, ci:[0.55,0.97], p:0.667, rr:0.85, rr_ci:[0.60,1.19], p_adj:0.347},
+      {group:"Retrievers—Flushing—Water Dogs", n:5883, d:35, mort_pct:0.59, ci:[0.43,0.83], p:0.510, rr:0.78, rr_ci:[0.53,1.13], p_adj:0.188},
+      {group:"Sheepdogs and Cattle Dogs", n:3109, d:31, mort_pct:1.00, ci:[0.70,1.41], p:0.054, rr:1.24, rr_ci:[0.84,1.83], p_adj:0.286},
+      {group:"Spitz and Primitive Types", n:1748, d:14, mort_pct:0.80, ci:[0.48,1.34], p:0.548, rr:1.14, rr_ci:[0.67,1.93], p_adj:0.633},
+      {group:"Scent Hounds and Related Breeds", n:1636, d:8, mort_pct:0.49, ci:[0.25,0.96], p:0.373, rr:0.71, rr_ci:[0.35,1.43], p_adj:0.333},
+      {group:"Pointing Dogs", n:1525, d:8, mort_pct:0.52, ci:[0.27,1.03], p:0.487, rr:0.59, rr_ci:[0.29,1.21], p_adj:0.149},
+      {group:"Dachshunds", n:1189, d:4, mort_pct:0.34, ci:[0.13,0.86], p:0.161, rr:0.55, rr_ci:[0.21,1.45], p_adj:0.224},
+      {group:"Sighthounds", n:796, d:7, mort_pct:0.88, ci:[0.43,1.80], p:0.497, rr:1.48, rr_ci:[0.72,3.03], p_adj:0.288},
+    ],
+    // Tabla 3 — Secciones FCI (pág. 7–8)
+    sections: [
+      {section:"Mixed Breed", n:16129, d:109, mort_pct:0.68, ci:[0.56,0.81], p:null, rr:1.00, rr_ci:null, p_adj:null},
+      {section:"Molossian Type", n:4299, d:31, mort_pct:0.72, ci:[0.51,1.02], p:0.749, rr:0.81, rr_ci:[0.55,1.19], p_adj:0.283},
+      {section:"Retrievers", n:4236, d:24, mort_pct:0.57, ci:[0.38,0.84], p:0.432, rr:0.71, rr_ci:[0.46,1.10], p_adj:0.122},
+      {section:"Small Molossian Type Dogs", n:3412, d:25, mort_pct:0.73, ci:[0.50,1.08], p:0.714, rr:1.08, rr_ci:[0.70,1.66], p_adj:0.738},
+      {section:"Toy Terriers", n:3159, d:29, mort_pct:0.92, ci:[0.64,1.32], p:0.140, rr:1.23, rr_ci:[0.83,1.83], p_adj:0.295},
+      {section:"Sheepdogs", n:3043, d:30, mort_pct:0.99, ci:[0.69,1.40], p:0.064, rr:1.22, rr_ci:[0.82,1.81], p_adj:0.334},
+      {section:"Bull Type Terriers", n:2034, d:13, mort_pct:0.64, ci:[0.37,1.09], p:0.849, rr:0.88, rr_ci:[0.50,1.54], p_adj:0.652},
+      {section:"Poodle", n:1840, d:12, mort_pct:0.65, ci:[0.37,1.14], p:0.907, rr:1.00, rr_ci:[0.55,1.81], p_adj:0.997},
+      {section:"Pinscher and Schnauzer Type", n:1606, d:11, mort_pct:0.68, ci:[0.38,1.22], p:0.966, rr:0.88, rr_ci:[0.48,1.61], p_adj:0.680},
+      {section:"Bichons and Related Breeds", n:1529, d:5, mort_pct:0.33, ci:[0.14,0.76], p:0.104, rr:0.53, rr_ci:[0.22,1.28], p_adj:0.157},
+      {section:"Scent Hounds", n:1366, d:7, mort_pct:0.51, ci:[0.25,1.05], p:0.475, rr:0.79, rr_ci:[0.38,1.67], p_adj:0.539},
+      {section:"Dachshunds", n:1189, d:4, mort_pct:0.34, ci:[0.13,0.86], p:0.161, rr:0.55, rr_ci:[0.21,1.45], p_adj:0.224},
+      {section:"Chihuahueno", n:1182, d:16, mort_pct:1.35, ci:[0.83,2.19], p:0.008, rr:1.80, rr_ci:[1.08,2.99], p_adj:0.024},
+      {section:"Flushing Dogs", n:1158, d:5, mort_pct:0.43, ci:[0.18,1.01], p:0.322, rr:0.58, rr_ci:[0.24,1.40], p_adj:0.224},
+      {section:"Small Sized Terriers", n:1156, d:8, mort_pct:0.69, ci:[0.35,1.36], p:0.948, rr:1.05, rr_ci:[0.54,2.06], p_adj:0.882},
+      {section:"Continental Pointing Dogs", n:985, d:6, mort_pct:0.61, ci:[0.28,1.32], p:0.804, rr:0.65, rr_ci:[0.29,1.49], p_adj:0.311},
+      {section:"Tibetan Breeds", n:908, d:5, mort_pct:0.55, ci:[0.24,1.28], p:0.653, rr:0.79, rr_ci:[0.32,1.94], p_adj:0.605},
+      {section:"Short-Haired Sighthounds", n:746, d:7, mort_pct:0.94, ci:[0.46,1.92], p:0.396, rr:1.60, rr_ci:[0.78,3.28], p_adj:0.196},
+      {section:"Large and Medium Sized Terriers", n:728, d:2, mort_pct:0.27, ci:[0.08,1.00], p:0.244, rr:0.49, rr_ci:[0.12,1.99], p_adj:0.318},
+      {section:"Primitive Type—Hunting Dogs", n:601, d:6, mort_pct:1.00, ci:[0.46,2.16], p:0.311, rr:1.63, rr_ci:[0.77,3.45], p_adj:0.205},
+      {section:"British and Irish Pointers and Setters", n:540, d:2, mort_pct:0.37, ci:[0.10,1.34], p:0.589, rr:0.46, rr_ci:[0.11,1.87], p_adj:0.275},
+      {section:"Water Dogs", n:489, d:6, mort_pct:1.23, ci:[0.56,2.65], p:0.156, rr:2.42, rr_ci:[1.07,5.46], p_adj:0.033},
+      {section:"European Spitz", n:408, d:4, mort_pct:0.98, ci:[0.38,2.49], p:0.363, rr:1.33, rr_ci:[0.50,3.56], p_adj:0.570},
+      {section:"Asian Spitz and Related Breeds", n:299, d:3, mort_pct:1.00, ci:[0.34,2.91], p:0.461, rr:1.31, rr_ci:[0.44,3.90], p_adj:0.627},
+    ],
+    // Tabla 4 — Braquicéfalos y MDR1 (pág. 8)
+    strata: {
+      brachy: { yes:{n:14571, d:119, mort_pct:0.82, ci:[0.68,0.98], p:0.036, rr_adj:1.19, rr_ci:[0.96,1.47], p_adj:0.112},
+                no:{n:39971, d:259, mort_pct:0.65, ci:[0.57,0.73]} },
+      mdr1:   { yes:{n:1412, d:10, mort_pct:0.71, ci:[0.39,1.30], p:0.944, rr_adj:1.14, rr_ci:[0.61,2.14], p_adj:0.682},
+                no:{n:53130, d:368, mort_pct:0.69, ci:[0.63,0.77]} }
+    },
+    brachyBreeds: [
+      "Affenpinscher","American Bull Dog","American Cocker Spaniel","American Pit Bull Terrier","American Staffordshire Terrier",
+      "Boxer","Boston Terrier","Bull Arab","Bullmastiff","Bull Terrier","Brussels Griffon","Bulldog","French Bulldog",
+      "Cavalier King Charles Spaniel","Chihuahua","Chow Chow","Continental Bulldog","Dogue de Bordeaux","Dogo Argentino",
+      "English Mastiff","Japanese Chin","Lhasa Apso","Löwchen","Mastiff","Miniature Bull Terrier","Neapolitan Mastiff","Newfoundland",
+      "Pekingese","Presa Canario","Pug","Pyrenean Mastiff","Rottweiler","Shar Pei","Shih Tzu","Staffordshire Bull Terrier",
+      "Tibetan Spaniel","Tosa","Yorkshire Terrier"
+    ],
+    mdr1Breeds: [
+      "Australian Shepherd","Black Mouth Cur","Bearded Collie","Border Collie","Chinook","Collie","English Shepherd",
+      "Whippet","Old English Sheepdog","Shetland Sheepdog","Silken Windhound","Wäller","McNab","White Swiss Shepherd Dog"
+    ],
+    asaByCat: null
+  };
+
+  /************ Utilidades ************/
+  const fmtPct = v => (v==null||isNaN(v)) ? "—" : (Math.round(v*100)/100).toFixed(2)+"%";
+  const fmtP = v => (v==null) ? "—" : (v<0.001?"<0.001":v.toFixed(3));
+  const fmtRR = v => (v==null||isNaN(v)) ? "—" : v.toFixed(2);
+  const chipSig = p => p!=null && p<0.05 ? '<span class="sig p">p&lt;0.05</span>' : '<span class="sig ns">ns</span>';
+
+  // Wilson CI
+  function wilsonCI(k, n, z=1.96){
+    if(n===0) return [NaN,NaN];
+    const p = k/n;
+    const denom = 1 + (z*z)/n;
+    const centre = p + (z*z)/(2*n);
+    const pm = z*Math.sqrt((p*(1-p) + (z*z)/(4*n))/n);
+    return [ (centre - pm)/denom, (centre + pm)/denom ].map(x=>100*x);
+  }
+
+  // Persistencia filtros
+  function saveFilters(){
+    const st = {
+      breeds: Array.from(document.querySelectorAll('#breedChips .chip')).map(c=>c.dataset.value),
+      fciG: document.getElementById('fciGroup').value,
+      fciS: document.getElementById('fciSection').value,
+      brachy: document.getElementById('brachy').value,
+      mdr1: document.getElementById('mdr1').value,
+      asa: document.getElementById('asa').value,
+      adj: document.getElementById('adj').checked
+    };
+    localStorage.setItem('mort_filters', JSON.stringify(st));
+  }
+  function loadFilters(){
+    const s = localStorage.getItem('mort_filters');
+    if(!s) return;
+    try{
+      const st = JSON.parse(s);
+      document.getElementById('fciGroup').value = st.fciG ?? "";
+      document.getElementById('fciSection').value = st.fciS ?? "";
+      document.getElementById('brachy').value = st.brachy ?? "";
+      document.getElementById('mdr1').value = st.mdr1 ?? "";
+      document.getElementById('asa').value = st.asa ?? "";
+      document.getElementById('adj').checked = !!st.adj;
+      (st.breeds||[]).forEach(addBreedChip);
+    }catch(e){}
+  }
+
+  // Combos FCI
+  function initFciCombos(){
+    const gSel = document.getElementById('fciGroup');
+    const sSel = document.getElementById('fciSection');
+    const groups = DATA.groups.filter(g=>g.group!=="Mixed Breed").map(g=>g.group);
+    groups.forEach(g=>{
+      const o = document.createElement('option'); o.value = g; o.textContent = g; gSel.appendChild(o);
+    });
+    gSel.addEventListener('change', ()=>{
+      sSel.innerHTML = '<option value="">(Todas)</option>';
+      const has = !!gSel.value;
+      sSel.disabled = !has;
+      if(has){
+        DATA.sections.filter(s=>s.section!=="Mixed Breed").forEach(sec=>{
+          const o = document.createElement('option'); o.value = sec.section; o.textContent = sec.section; sSel.appendChild(o);
+        });
+      }
+      saveFilters(); renderAll();
+    });
+    sSel.addEventListener('change', ()=>{ saveFilters(); renderAll(); });
+  }
+
+  // Búsqueda multi de razas
+  const allBreeds = DATA.breeds.map(b=>b.breed);
+  function addBreedChip(name){
+    if(!name || document.querySelector(`#breedChips .chip[data-value="${name}"]`)) return;
+    const wrap = document.getElementById('breedChips');
+    const chip = document.createElement('span');
+    chip.className = 'chip'; chip.dataset.value = name; chip.innerHTML = `${name} <button class="close" aria-label="Quitar ${name}">×</button>`;
+    chip.querySelector('button').addEventListener('click', ()=>{ chip.remove(); saveFilters(); renderAll(); });
+    wrap.appendChild(chip);
+  }
+  document.getElementById('breedSearch').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      const q = e.target.value.trim();
+      if(!q) return;
+      const hit = allBreeds.find(b=>b.toLowerCase().includes(q.toLowerCase()));
+      addBreedChip(hit || q);
+      e.target.value = '';
+      saveFilters(); renderAll();
+    }
+  });
+
+  // Botones rápidos
+  const filterState = { onlySig:false };
+  document.getElementById('btnTop30').addEventListener('click', ()=>{
+    document.getElementById('fciGroup').value="";
+    document.getElementById('fciSection').value="";
+    document.getElementById('brachy').value="";
+    document.getElementById('mdr1').value="";
+    document.getElementById('asa').value="";
+    document.getElementById('adj').checked=false;
+    document.getElementById('breedChips').innerHTML="";
+    saveFilters(); renderAll();
+  });
+  document.getElementById('btnAll').addEventListener('click', ()=>{
+    document.getElementById('breedChips').innerHTML="";
+    document.getElementById('fciGroup').value="";
+    document.getElementById('fciSection').value="";
+    saveFilters(); renderAll();
+  });
+  document.getElementById('btnSig').addEventListener('click', ()=>{
+    filterState.onlySig = true; renderAll();
+  });
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    localStorage.removeItem('mort_filters');
+    location.reload();
+  });
+
+  // Colapsables
+  document.getElementById('collapseBtn').addEventListener('click', e=>{
+    const body = document.getElementById('filtersBody');
+    const exp = e.currentTarget.getAttribute('aria-expanded')==='true';
+    e.currentTarget.setAttribute('aria-expanded', String(!exp));
+    body.style.display = exp ? 'none' : 'block';
+  });
+  document.getElementById('pdfToggle').addEventListener('click', e=>{
+    const body = document.getElementById('pdfBody');
+    const exp = e.currentTarget.getAttribute('aria-expanded')==='true';
+    e.currentTarget.setAttribute('aria-expanded', String(!exp));
+    e.currentTarget.textContent = exp ? 'Mostrar' : 'Ocultar';
+    body.style.display = exp ? 'none' : 'block';
+  });
+
+  // PDF: cargar archivo local opcionalmente
+  document.getElementById('pdfPath').addEventListener('change', (e)=>{
+    const f = e.target.files?.[0]; if(!f) return;
+    const url = URL.createObjectURL(f);
+    document.getElementById('pdfObj').setAttribute('data', url);
+  });
+
+  /************ KPIs ************/
+  function renderKPIs(subsetN, subsetD){
+    const g = DATA.meta;
+    document.getElementById('kpiGlobal').textContent = `${fmtPct(g.mort_pct)} (${g.deaths}/${g.total_n})`;
+    document.getElementById('kpiGlobalCI').textContent = `IC95% ${g.mort_ci[0].toFixed(2)}–${g.mort_ci[1].toFixed(2)}`;
+
+    if(subsetN!=null && subsetD!=null && subsetN>0){
+      const ci = wilsonCI(subsetD, subsetN);
+      document.getElementById('kpiFilt').textContent = `${fmtPct(100*subsetD/subsetN)} (${subsetD}/${subsetN})`;
+      document.getElementById('kpiFiltCI').textContent = `IC95% ${ci[0].toFixed(2)}–${ci[1].toFixed(2)}`;
+    }else{
+      document.getElementById('kpiFilt').textContent = "—";
+      document.getElementById('kpiFiltCI').textContent = "IC95% —";
+    }
+
+    const adj = document.getElementById('adj').checked;
+    const mix = g.mixed_ref;
+    let rr=null, rrLo=null, rrHi=null, pval=null;
+
+    if(currentContext.kind==='breed' && currentContext.item){
+      const b = currentContext.item;
+      if(adj && b.rr!=null){ rr=b.rr; rrLo=b.rr_ci[0]; rrHi=b.rr_ci[1]; pval=b.p_adj; }
+      else{
+        const mortB = b.d/b.n; const mortM = mix.d/mix.n;
+        rr = mortM>0 ? mortB/mortM : null; pval = b.p;
+      }
+    }
+    document.getElementById('kpiRR').textContent = rr? rr.toFixed(2) : '—';
+    document.getElementById('kpiRRci').textContent = rr? `IC95% ${rrLo?.toFixed(2)??'—'}–${rrHi?.toFixed(2)??'—'} · p ${pval==null?'—':(pval<0.001?'<0.001':pval.toFixed(3))}` : 'IC95% — · p —';
+  }
+
+  let currentContext = {kind:null,item:null};
+
+  /************ Tablas ************/
+  function makeSortable(tableId){
+    const tbl = document.getElementById(tableId);
+    const thead = tbl.querySelector('thead');
+    let sortKey=null, sortAsc=true;
+    thead.addEventListener('click', e=>{
+      const th = e.target.closest('th'); if(!th) return;
+      sortKey = th.dataset.k; sortAsc = !sortAsc;
+      tbl.dataset.sortKey = sortKey; tbl.dataset.sortAsc = sortAsc?'1':'0';
+      renderTables();
+    });
+  }
+  makeSortable('tblBreeds'); makeSortable('tblGroups'); makeSortable('tblSections');
+
+  function fillTable(tableId, rows, cols){
+    const tb = document.querySelector(`#${tableId} tbody`); tb.innerHTML='';
+    rows.forEach(r=>{
+      const tr = document.createElement('tr'); tr.tabIndex=0;
+      tr.addEventListener('click', ()=>openDrawer(r));
+      tr.addEventListener('keydown', (e)=>{ if(e.key==='Enter') openDrawer(r); });
+      cols.forEach(c=>{
+        const td = document.createElement('td'); let val='';
+        switch(c){
+          case 'breed': val=r.breed; break;
+          case 'group': val=r.group; break;
+          case 'section': val=r.section; break;
+          case 'n': val=r.n?.toLocaleString('es-ES')??'—'; td.className='align-r'; break;
+          case 'd': val=r.d?.toLocaleString('es-ES')??'—'; td.className='align-r'; break;
+          case 'mort': val=(r.mort_pct!=null)? r.mort_pct.toFixed(2)+'%':'—'; td.className='align-r'; break;
+          case 'ci': val=r.ci? `${r.ci[0].toFixed(2)}–${r.ci[1].toFixed(2)}`:'—'; td.className='align-r'; break;
+          case 'p': val=fmtP(r.p); td.className='align-r'; break;
+          case 'rr': val=fmtRR(r.rr); td.className='align-r'; break;
+          case 'rrci': val=r.rr_ci? `${r.rr_ci[0].toFixed(2)}–${r.rr_ci[1].toFixed(2)}`:'—'; td.className='align-r'; break;
+          case 'padj': val=fmtP(r.p_adj); td.className='align-r'; break;
+        }
+        if(c==='p' || c==='padj'){
+          td.innerHTML = `${val} &nbsp; ${ (c==='p' ? (r.p!=null && r.p<0.05?'<span class="sig p">p&lt;0.05</span>':'<span class="sig ns">ns</span>') : (r.p_adj!=null && r.p_adj<0.05?'<span class="sig p">p&lt;0.05</span>':'<span class="sig ns">ns</span>')) }`;
+        }else{
+          td.textContent = val;
+        }
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderTables(){
+    const adj = document.getElementById('adj').checked;
+    const chips = Array.from(document.querySelectorAll('#breedChips .chip')).map(c=>c.dataset.value);
+    const gVal = document.getElementById('fciGroup').value;
+    const sVal = document.getElementById('fciSection').value;
+    const bra = document.getElementById('brachy').value;
+    const mdr = document.getElementById('mdr1').value;
+
+    let breeds = [...DATA.breeds];
+
+    // brachy/mdr1
+    if(bra){
+      breeds = breeds.filter(b=>{
+        const isB = DATA.brachyBreeds.includes(b.breed);
+        return bra==='yes' ? isB : !isB;
+      });
+    }
+    if(mdr){
+      breeds = breeds.filter(b=>{
+        const isM = DATA.mdr1Breeds.includes(b.breed);
+        return mdr==='yes' ? isM : !isM;
+      });
+    }
+    if(chips.length>0){
+      breeds = breeds.filter(b=>chips.includes(b.breed));
+    }
+    if(filterState.onlySig){
+      breeds = breeds.filter(b=> adj ? (b.p_adj!=null && b.p_adj<0.05) : (b.p!=null && b.p<0.05));
+    }
+
+    const tb1 = document.getElementById('tblBreeds');
+    const sk = tb1.dataset.sortKey, sa = tb1.dataset.sortAsc==='1';
+    if(sk){
+      breeds.sort((a,b)=>{
+        const va=a[sk]??'', vb=b[sk]??'';
+        if(typeof va==='number' && typeof vb==='number') return sa? va-vb : vb-va;
+        return sa? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+    }
+    fillTable('tblBreeds', breeds, ['breed','n','d','mort','ci','p','rr','rrci','padj']);
+
+    let groups = [...DATA.groups];
+    if(gVal) groups = groups.filter(g=>g.group===gVal);
+    if(filterState.onlySig){
+      groups = groups.filter(g=> adj ? (g.p_adj!=null && g.p_adj<0.05) : (g.p!=null && g.p<0.05));
+    }
+    const tb2 = document.getElementById('tblGroups');
+    const sk2 = tb2.dataset.sortKey, sa2 = tb2.dataset.sortAsc==='1';
+    if(sk2){
+      groups.sort((a,b)=>{
+        const va=a[sk2]??'', vb=b[sk2]??'';
+        if(typeof va==='number' && typeof vb==='number') return sa2? va-vb : vb-va;
+        return sa2? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+    }
+    fillTable('tblGroups', groups, ['group','n','d','mort','ci','p','rr','rrci','padj']);
+
+    let sections = [...DATA.sections];
+    if(sVal) sections = sections.filter(s=>s.section===sVal);
+    if(filterState.onlySig){
+      sections = sections.filter(s=> adj ? (s.p_adj!=null && s.p_adj<0.05) : (s.p!=null && s.p<0.05));
+    }
+    const tb3 = document.getElementById('tblSections');
+    const sk3 = tb3.dataset.sortKey, sa3 = tb3.dataset.sortAsc==='1';
+    if(sk3){
+      sections.sort((a,b)=>{
+        const va=a[sk3]??'', vb=b[sk3]??'';
+        if(typeof va==='number' && typeof vb==='number') return sa3? va-vb : vb-va;
+        return sa3? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+    }
+    fillTable('tblSections', sections, ['section','n','d','mort','ci','p','rr','rrci','padj']);
+  }
+
+  /************ Gráficos ************/
+  function renderVolcano(){
+    const svg = document.getElementById('svgVolcano'); svg.innerHTML='';
+    const w = svg.clientWidth, h = svg.clientHeight, pad = 40;
+    const mixMort = DATA.meta.mixed_ref.mort_pct;
+
+    const pts = DATA.breeds
+      .filter(b=>b.breed!=='Mixed Breed' && b.p!=null)
+      .map(b=>({label:b.breed, dx: b.mort_pct - mixMort, y: -Math.log10(b.p>0?b.p:1e-8), mort:b.mort_pct, p:b.p}));
+
+    const xMin = Math.min(-1, Math.min(...pts.map(p=>p.dx)));
+    const xMax = Math.max(1, Math.max(...pts.map(p=>p.dx)));
+    const yMin = 0, yMax = Math.max(3, Math.ceil(Math.max(...pts.map(p=>p.y))+0.5));
+    const x = v => pad + (v - xMin) * (w-2*pad) / (xMax - xMin);
+    const y = v => h - pad - (v - yMin) * (h-2*pad) / (yMax - yMin);
+
+    const ax = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ax.setAttribute('x1', pad); ax.setAttribute('x2', w-pad); ax.setAttribute('y1', y(0)); ax.setAttribute('y2', y(0));
+    ax.setAttribute('stroke', '#334155'); svg.appendChild(ax);
+    const ay = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ay.setAttribute('x1', x(0)); ay.setAttribute('x2', x(0)); ay.setAttribute('y1', pad); ay.setAttribute('y2', h-pad);
+    ay.setAttribute('stroke', '#334155'); svg.appendChild(ay);
+
+    const pthr = 1.30103;
+    const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1', pad); l.setAttribute('x2', w-pad); l.setAttribute('y1', y(pthr)); l.setAttribute('y2', y(pthr));
+    l.setAttribute('stroke-dasharray', '5,4'); l.setAttribute('stroke', '#64748b'); svg.appendChild(l);
+
+    const tt = document.getElementById('tt1');
+    pts.forEach(p=>{
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx', x(p.dx)); c.setAttribute('cy', y(p.y));
+      c.setAttribute('r', 5);
+      c.setAttribute('fill', p.p<0.05 ? '#ef4444' : '#7cc7ff');
+      c.addEventListener('mousemove', (e)=>{
+        tt.style.display='block'; tt.style.left=(e.offsetX+12)+'px'; tt.style.top=(e.offsetY+12)+'px';
+        tt.innerHTML = `<strong>${p.label}</strong><br>Δ riesgo: ${(p.dx).toFixed(2)} pts<br>Mort: ${p.mort.toFixed(2)}% · p=${fmtP(p.p)}`;
+      });
+      c.addEventListener('mouseleave', ()=>{ tt.style.display='none'; });
+      svg.appendChild(c);
+    });
+  }
+
+  function renderBubbles(){
+    const svg = document.getElementById('svgBubbles'); svg.innerHTML='';
+    const w = svg.clientWidth, h = svg.clientHeight, pad = 40;
+    const bySections = !!document.getElementById('fciSection').value;
+    const arr = bySections ? DATA.sections.filter(s=>s.section!=='Mixed Breed') : DATA.groups.filter(g=>g.group!=='Mixed Breed');
+
+    const xMin = 0, xMax = Math.max(1.5, Math.max(...arr.map(a=>a.mort_pct)));
+    const nMax = Math.max(...arr.map(a=>a.n));
+    const x = v => pad + (v - xMin) * (w-2*pad) / (xMax - xMin);
+    const y = n => pad + (h-2*pad) * (1 - (Math.log10(n) / Math.log10(nMax)));
+    const r = n => 4 + 22*(n/nMax);
+
+    const tt = document.getElementById('tt2');
+    const mixX = x(DATA.meta.mixed_ref.mort_pct);
+    const ref = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ref.setAttribute('x1', mixX); ref.setAttribute('x2', mixX); ref.setAttribute('y1', pad); ref.setAttribute('y2', h-pad);
+    ref.setAttribute('stroke-dasharray', '5,4'); ref.setAttribute('stroke', '#64748b'); svg.appendChild(ref);
+
+    arr.forEach(a=>{
+      const cx = x(a.mort_pct), cy = y(a.n), rr = r(a.n);
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', rr);
+      c.setAttribute('fill', (a.p!=null && a.p<0.05) ? '#ef4444' : '#7cc7ff');
+      g.appendChild(c);
+
+      g.addEventListener('mousemove', (e)=>{
+        tt.style.display='block'; tt.style.left=(e.offsetX+12)+'px'; tt.style.top=(e.offsetY+12)+'px';
+        tt.innerHTML = `<strong>${a.section||a.group}</strong><br>n=${a.n.toLocaleString('es-ES')} · Muertes=${a.d}<br>Mort=${a.mort_pct.toFixed(2)}% · p=${fmtP(a.p)}`;
+      });
+      g.addEventListener('mouseleave', ()=>{ tt.style.display='none'; });
+      svg.appendChild(g);
+    });
+  }
+
+  /************ Drawer ************/
+  function openDrawer(item){
+    currentContext = {kind: item.breed?'breed':(item.group?'group':'section'), item};
+    const d = document.getElementById('drawer');
+    const ct = document.getElementById('drawerCt');
+    const name = item.breed || item.group || item.section;
+    ct.innerHTML = `
+      <p style="margin:0 0 8px 0;color:var(--muted)">Resumen</p>
+      <h4 style="margin:0 0 8px 0">${name}</h4>
+      <div class="chips">
+        <span class="chip ${item.p!=null&&item.p<0.05?'bad':'ok'}">Crudo p=${fmtP(item.p)}</span>
+        <span class="chip ${item.p_adj!=null&&item.p_adj<0.05?'bad':'ns'}">Ajustado p=${fmtP(item.p_adj)}</span>
+        <span class="chip">n=${item.n?.toLocaleString('es-ES')??'—'}</span>
+      </div>
+      <div style="margin-top:10px">
+        <p><strong>Crudo:</strong> Muertes=${item.d??'—'} · Mortalidad=${item.mort_pct!=null?item.mort_pct.toFixed(2)+'%':'—'} · IC95%=${item.ci? (item.ci[0].toFixed(2)+'–'+item.ci[1].toFixed(2)):'—'}</p>
+        <p><strong>Ajustado por ASA:</strong> RR=${fmtRR(item.rr)} · IC95%=${item.rr_ci? (item.rr_ci[0].toFixed(2)+'–'+item.rr_ci[1].toFixed(2)):'—'} · p=${fmtP(item.p_adj)} <span style="color:var(--muted)">(usar cuando el artículo lo reporta)</span></p>
+        <p style="color:var(--muted);font-size:12px">Nota: señales exploratorias; p sin corrección por multiplicidad.</p>
+      </div>
+      <div style="margin-top:10px">
+        <p>Braquicéfalo: <strong>${DATA.brachyBreeds.includes(name)?'Sí':'—'}</strong> &nbsp; | &nbsp; MDR1: <strong>${DATA.mdr1Breeds.includes(name)?'Sí':'—'}</strong></p>
+      </div>
+      <div style="margin-top:10px">
+        <p style="color:var(--muted)">ASA (apilado): datos detallados no disponibles por categoría en el paper.</p>
+      </div>
+    `;
+    d.classList.add('open'); d.setAttribute('aria-hidden','false');
+    renderKPIs(item.n, item.d);
+  }
+  document.getElementById('closeDrawer').addEventListener('click', ()=>{
+    const d = document.getElementById('drawer'); d.classList.remove('open'); d.setAttribute('aria-hidden','true');
+    currentContext = {kind:null,item:null};
+    renderKPIs(null,null);
+  });
+
+  /************ Render global ************/
+  function summarizeSubset(){
+    const chips = Array.from(document.querySelectorAll('#breedChips .chip')).map(c=>c.dataset.value);
+    if(chips.length===0) return {n:null,d:null};
+    const use = DATA.breeds.filter(b=>chips.includes(b.breed));
+    const n = use.reduce((s,b)=>s+(b.n||0),0);
+    const d = use.reduce((s,b)=>s+(b.d||0),0);
+    return {n,d};
+  }
+
+  function renderAll(){
+    renderTables();
+    renderVolcano();
+    renderBubbles();
+    const ss = summarizeSubset();
+    renderKPIs(ss.n, ss.d);
+    document.getElementById('asaStack').textContent = "Desglose ASA no disponible para este subconjunto";
+  }
+
+  // Inicio
+  initFciCombos();
+  loadFilters();
+  renderAll();
+
+  </script>
+</body>
+</html>
