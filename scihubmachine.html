@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Buscador de PubMed y visor acoplado en Sci-Hub</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#121821; --ink:#eaf2ff; --muted:#9cb3d1;
+    --line:#1d2734; --accent:#66b2ff; --ok:#35c759; --warn:#ffcc00; --err:#ff453a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1150px;margin:auto;padding:24px}
+  header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(20px,4vw,28px)}
+  .tag{font-size:12px;color:var(--muted)}
+  .panel{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:16px 0;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  label{display:block;font-size:13px;color:var(--muted);margin:6px 0}
+  .row{display:grid;grid-template-columns:1fr auto;gap:10px}
+  input[type="text"], textarea{
+    width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+    background:#0f141c;color:var(--ink);outline:none;
+  }
+  textarea{min-height:70px;resize:vertical}
+  input::placeholder, textarea::placeholder{color:#7c93b1}
+  button{
+    padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--accent);
+    color:#00172a;font-weight:700;cursor:pointer;
+  }
+  button.secondary{background:#0f141c;color:var(--ink)}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .status{font-size:14px;margin-top:10px}
+  .status.ok{color:var(--ok)}
+  .status.warn{color:var(--warn)}
+  .status.err{color:var(--err)}
+  .results{display:grid;gap:12px}
+  .card{
+    border:1px solid var(--line);border-radius:14px;padding:12px;background:#101720;
+  }
+  .title{font-size:15px;font-weight:700;margin:0 0 6px}
+  .meta{font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+  .actions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+  a{color:#8cc6ff}
+  iframe.viewer{width:100%;height:75vh;border:1px solid var(--line);border-radius:16px;background:#0f141c}
+  .grid{display:grid;gap:16px;grid-template-columns:1fr}
+  @media (min-width:1100px){ .grid{grid-template-columns:1.1fr .9fr} }
+  .footer{margin-top:28px;padding:16px;border-top:1px solid var(--line);color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Buscador de PubMed y visor acoplado en Sci-Hub</h1>
+      <div class="tag">Busca en PubMed aquí mismo, copia el DOI y ábrelo como PDF de acceso abierto.</div>
+    </div>
+    <div>
+      <!-- H2 solicitado -->
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+  </header>
+
+  <!-- BUSCADOR PUBMED (API) -->
+  <div class="panel">
+    <label for="pmQuery">Búsqueda en PubMed:</label>
+    <div class="row">
+      <input id="pmQuery" type="text" placeholder="p. ej. a b c fisiología canina" />
+      <button id="btnPubmed">Buscar</button>
+    </div>
+    <div class="hint">
+      Se usa la API oficial de NCBI (esearch + esummary). Si no hay resultados, prueba con “cancer” o “dog heart”.
+    </div>
+    <div id="pmStatus" class="status"></div>
+  </div>
+
+  <div class="panel">
+    <strong>Resultados</strong>
+    <div id="results" class="results"></div>
+  </div>
+
+  <div class="grid">
+    <!-- CAMPO DOI: EXACTAMENTE TU TEXTAREA -->
+    <div class="panel">
+      <strong>DOI / URL</strong>
+      <label for="request" class="hint">Aquí se pegará el DOI desde los resultados:</label>
+      <textarea translate="en:enter" placeholder="enter URL  DOI" spellcheck="false" name="request" id="request"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="btnOpenPDF">Abrir PDF (OA)</button>
+        <button id="btnSciHub" class="secondary">Abrir en Sci-Hub*</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnClear" class="secondary">Limpiar</button>
+      </div>
+      <div class="hint">
+        *Se genera la URL de Sci-Hub con el DOI y se abre en otra pestaña. Úsalo bajo tu responsabilidad.
+      </div>
+      <div id="status" class="status"></div>
+      <div id="altLinks"></div>
+    </div>
+
+    <div class="panel">
+      <strong>Consejos rápidos</strong>
+      <ul class="hint" style="color:var(--muted)">
+        <li>En cada resultado: “Copiar DOI aquí” → baja el DOI directamente a la caja.</li>
+        <li>“Abrir PDF (OA)” usa <a href="https://unpaywall.org/" target="_blank" rel="noopener">Unpaywall</a> (legal) para buscar versiones abiertas.</li>
+        <li>Si sale PMCID, puedes abrir el PDF de PMC directamente.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- VISOR PDF OA -->
+  <div class="panel">
+    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+      <div><strong>Visor de PDF</strong> (si hay acceso abierto)</div>
+      <div><a id="openNewTab" href="#" target="_blank" rel="noopener" style="display:none">Abrir PDF en pestaña nueva ↗</a></div>
+    </div>
+    <iframe id="pdfFrame" class="viewer" title="PDF OA"></iframe>
+  </div>
+
+  <!-- FOOTER solicitado -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p>&nbsp;</p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+    <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+</div>
+
+<script>
+  // --- utilidades ---
+  const EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
+  function esc(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+
+  const pmQuery    = document.getElementById("pmQuery");
+  const btnPubmed  = document.getElementById("btnPubmed");
+  const pmStatus   = document.getElementById("pmStatus");
+  const resultsDiv = document.getElementById("results");
+
+  btnPubmed.addEventListener("click", doSearch);
+  pmQuery.addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
+
+  async function doSearch(){
+    const q = pmQuery.value.trim();
+    resultsDiv.innerHTML = "";
+    pmStatus.className = "status";
+    if(!q){
+      pmStatus.className = "status err";
+      pmStatus.textContent = "Escribe una consulta.";
+      return;
+    }
+
+    try{
+      pmStatus.textContent = "Buscando en PubMed…";
+      // ✅ aquí va el arreglo: NO convertir a + manualmente, codificar solo una vez
+      const esearchURL = `${EUTILS}/esearch.fcgi?db=pubmed&retmode=json&retmax=20&term=${encodeURIComponent(q)}`;
+      const esRes = await fetch(esearchURL);
+      if(!esRes.ok) throw new Error("Error en esearch");
+      const esJson = await esRes.json();
+      const ids = esJson.esearchresult?.idlist || [];
+      if(ids.length === 0){
+        pmStatus.className = "status warn";
+        pmStatus.textContent = "Sin resultados.";
+        return;
+      }
+
+      pmStatus.textContent = `Resultados: ${ids.length}`;
+      const esummaryURL = `${EUTILS}/esummary.fcgi?db=pubmed&retmode=json&id=${encodeURIComponent(ids.join(","))}`;
+      const sumRes = await fetch(esummaryURL);
+      if(!sumRes.ok) throw new Error("Error en esummary");
+      const sumJson = await sumRes.json();
+
+      const uids = sumJson.result?.uids || [];
+      const cards = [];
+      for(const uid of uids){
+        const it = sumJson.result[uid];
+        if(!it) continue;
+        const title   = it.title || "(Sin título)";
+        const journal = it.fulljournalname || it.source || "";
+        const pubdate = it.pubdate || it.epubdate || "";
+        const authors = (it.authors || []).slice(0,3).map(a=>a.name).join(", ") + ((it.authors||[]).length>3 ? " et al." : "");
+        const pmid    = it.uid || uid;
+
+        let doi="", pmcid="", pmcPdf="";
+        if(Array.isArray(it.articleids)){
+          for(const aid of it.articleids){
+            if(aid.idtype==="doi" && !doi) doi = aid.value;
+            if(aid.idtype==="pmcid" && !pmcid){
+              pmcid = aid.value;
+              pmcPdf = `https://www.ncbi.nlm.nih.gov/pmc/articles/${pmcid}/pdf`;
+            }
+          }
+        }
+        const pubmedURL = `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
+        const doiText   = doi ? esc(doi) : "<span style='color:#9cb3d1'>(sin DOI en resumen)</span>";
+        const pmcBadge  = pmcid ? ` · <a href="${pmcPdf}" target="_blank" rel="noopener">PMC PDF</a>` : "";
+        const copyBtn   = doi ? `<button data-doi="${esc(doi)}" class="copydoi">Copiar DOI aquí</button>` : "";
+        const oaBtn     = doi ? `<button data-doi="${esc(doi)}" class="openoa">Abrir PDF (OA)</button>` : "";
+        const sciBtn    = doi ? `<button data-doi="${esc(doi)}" class="opensci">Sci-Hub</button>` : "";
+
+        const card = `
+          <div class="card">
+            <p class="title">${esc(title)}</p>
+            <div class="meta">
+              <span>${esc(journal)}</span>
+              <span>${esc(pubdate)}</span>
+              <span>PMID: ${esc(pmid)}</span>
+            </div>
+            <div class="meta">Autores: ${esc(authors||"")}</div>
+            <div class="meta">DOI: ${doiText}${pmcBadge}</div>
+            <div class="actions">
+              <a href="${pubmedURL}" target="_blank" rel="noopener">Abrir en PubMed ↗</a>
+              ${copyBtn}
+              ${pmcid ? `<button data-url="${pmcPdf}" class="openpmc">Abrir PMC</button>` : ""}
+              ${oaBtn}
+              ${sciBtn}
+            </div>
+          </div>
+        `;
+        cards.push(card);
+      }
+      resultsDiv.innerHTML = cards.join("");
+
+      // Eventos en resultados
+      resultsDiv.querySelectorAll(".copydoi").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const doi = btn.getAttribute("data-doi") || "";
+          document.getElementById("request").value = doi;
+          const st = document.getElementById("status");
+          st.className = "status ok";
+          st.textContent = "DOI copiado al cuadro inferior.";
+        });
+      });
+
+      resultsDiv.querySelectorAll(".openpmc").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const url = btn.getAttribute("data-url");
+          const pdfFrame   = document.getElementById("pdfFrame");
+          const openNewTab = document.getElementById("openNewTab");
+          pdfFrame.src = url;
+          openNewTab.href = url;
+          openNewTab.style.display = "inline";
+        });
+      });
+
+      resultsDiv.querySelectorAll(".openoa").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const doi = btn.getAttribute("data-doi") || "";
+          document.getElementById("request").value = doi;
+          openOAFromInput();
+        });
+      });
+
+      resultsDiv.querySelectorAll(".opensci").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const doi = btn.getAttribute("data-doi") || "";
+          openSciHubFromDOI(doi);
+        });
+      });
+
+    }catch(err){
+      console.error(err);
+      pmStatus.className = "status err";
+      pmStatus.textContent = "Error al consultar PubMed (E-utilities).";
+    }
+  }
+
+  // --- VISOR OA (Unpaywall) ---
+  const statusEl    = document.getElementById("status");
+  const altLinksEl  = document.getElementById("altLinks");
+  const pdfFrame    = document.getElementById("pdfFrame");
+  const openNewTab  = document.getElementById("openNewTab");
+  const requestTA   = document.getElementById("request");
+  const btnOpenPDF  = document.getElementById("btnOpenPDF");
+  const btnClear    = document.getElementById("btnClear");
+  const btnSciHub   = document.getElementById("btnSciHub");
+
+  function normalizeDOIorURL(raw){
+    const s = raw.trim();
+    if(!s) return "";
+    const m = s.match(/doi\.org\/(.+)$/i);
+    if(m) return m[1];
+    if(/^10\.\d{4,9}\/\S+/i.test(s)) return s;
+    if(/^https?:\/\//i.test(s)) return s;
+    return s;
+  }
+
+  async function openOAFromInput(){
+    statusEl.className = "status";
+    statusEl.textContent = "";
+    altLinksEl.innerHTML = "";
+    pdfFrame.src = "about:blank";
+    openNewTab.style.display = "none";
+    openNewTab.removeAttribute("href");
+
+    const raw  = requestTA.value || "";
+    const norm = normalizeDOIorURL(raw);
+    if(!norm){
+      statusEl.className = "status err";
+      statusEl.textContent = "Introduce un DOI o URL válido.";
+      return;
+    }
+
+    // Si es URL directa (p. ej. PDF de PMC)
+    if(/^https?:\/\//i.test(norm) && !/^https?:\/\/(dx\.)?doi\.org\//i.test(norm)){
+      pdfFrame.src = norm;
+      openNewTab.href = norm;
+      openNewTab.style.display = "inline";
+      statusEl.className = "status ok";
+      statusEl.textContent = "Mostrando la URL indicada en el visor.";
+      return;
+    }
+
+    const doi = norm.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+    if(/^10\./.test(doi)){
+      statusEl.textContent = "Buscando versión de acceso abierto (Unpaywall)…";
+      try{
+        const email = "airsoto@gmail.com"; // puedes cambiarlo
+        const api   = `https://api.unpaywall.org/v2/${encodeURIComponent(doi)}?email=${encodeURIComponent(email)}`;
+        const res   = await fetch(api);
+        if(!res.ok) throw new Error("Error Unpaywall");
+        const data  = await res.json();
+
+        const list = [];
+        const doiURL = `https://doi.org/${encodeURIComponent(doi)}`;
+        list.push(`<li>Resolver DOI: <a href="${doiURL}" target="_blank" rel="noopener">${doiURL}</a></li>`);
+        if(data?.oa_locations?.length){
+          data.oa_locations.forEach((loc,i)=>{
+            if(loc?.url) list.push(`<li>OA fuente ${i+1}: <a href="${loc.url}" target="_blank" rel="noopener">${loc.url}</a></li>`);
+            if(loc?.url_for_pdf) list.push(`<li>PDF directo ${i+1}: <a href="${loc.url_for_pdf}" target="_blank" rel="noopener">${loc.url_for_pdf}</a></li>`);
+          });
+        }
+        if(list.length) altLinksEl.innerHTML = `<ul>${list.join("")}</ul>`;
+
+        const pdfURL = data?.best_oa_location?.url_for_pdf || data?.best_oa_location?.url || null;
+        if(pdfURL){
+          pdfFrame.src = pdfURL;
+          openNewTab.href = pdfURL;
+          openNewTab.style.display = "inline";
+          statusEl.className = "status ok";
+          statusEl.textContent = "Versión OA localizada. Si no se ve, abre en pestaña nueva.";
+        } else {
+          statusEl.className = "status warn";
+          statusEl.textContent = "No se encontró un PDF OA directo. Revisa los enlaces alternativos o busca el artículo en PMC.";
+        }
+      }catch(e){
+        console.error(e);
+        statusEl.className = "status err";
+        statusEl.textContent = "No se pudo consultar Unpaywall o procesar la respuesta.";
+      }
+    } else {
+      statusEl.className = "status warn";
+      statusEl.textContent = "No parece un DOI. Si es una URL de artículo/PMC, debería abrirse arriba.";
+    }
+  }
+
+  btnOpenPDF.addEventListener("click", openOAFromInput);
+  btnClear.addEventListener("click", ()=>{
+    requestTA.value = "";
+    statusEl.textContent = "";
+    statusEl.className = "status";
+    altLinksEl.innerHTML = "";
+    pdfFrame.src = "about:blank";
+    openNewTab.style.display = "none";
+    openNewTab.removeAttribute("href");
+  });
+  requestTA.addEventListener("keydown", e=>{
+    if(e.key==="Enter" && (e.ctrlKey || e.metaKey)) openOAFromInput();
+  });
+
+  // --- SCI-HUB: solo construir URL y abrir en nueva pestaña ---
+  function openSciHubFromDOI(doiRaw){
+    const norm = (doiRaw || requestTA.value || "").trim();
+    if(!norm){
+      alert("Pega primero un DOI.");
+      return;
+    }
+    // Puedes cambiar el dominio si sci-hub.st cambia.
+    const url = "https://sci-hub.st/" + encodeURIComponent(norm);
+    window.open(url, "_blank", "noopener");
+  }
+  btnSciHub.addEventListener("click", ()=>openSciHubFromDOI());
+</script>
+</body>
+</html>
