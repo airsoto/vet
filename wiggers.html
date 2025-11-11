@@ -1,0 +1,765 @@
+
+
+
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagrama de Wiggers — Simulador Didáctico</title>
+<meta name="description" content="Mini-web educativa e interactiva del diagrama de Wiggers. ECG, presiones, volumen, flujo y ruidos cardiacos sincronizados.">
+<style>
+  :root{
+    --bg:#0b0f14; --card:#121821; --ink:#eaf2ff; --muted:#9cb3d1; --line:#1d2734; --accent:#66b2ff;
+    --aorta:#ff914d; --vent:#4da6ff; --atri:#ffcc66; --vol:#ff4dde; --ecg:#38d66b; --flow:#3ee0e0; --phono:#c0c7d1;
+    --ok:#1db954; --bad:#f64f64;
+  }
+  [data-theme="light"]{
+    --bg:#f7fafc; --card:#ffffff; --ink:#0b121a; --muted:#4b5a6a; --line:#d9e2ec; --accent:#0a63ff;
+    --aorta:#d44d00; --vent:#0a63ff; --atri:#b67900; --vol:#c800a5; --ecg:#0c8c3f; --flow:#008f8f; --phono:#5b6774;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;
+  }
+  .wrap{max-width:1200px; margin:auto; padding:16px}
+  header{
+    display:flex; gap:16px; align-items:center; justify-content:space-between;
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:14px;
+  }
+  header h1{font-size:clamp(20px,3.6vw,28px); margin:0}
+  header p{margin:2px 0 0 0; color:var(--muted); font-size:clamp(12px,2.5vw,14px)}
+  .btn{
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .06s ease, background .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .btn:hover{background:color-mix(in oklab, var(--card), var(--ink) 5%)}
+  .btn:active{transform:scale(0.98)}
+  .pill{border-radius:999px; padding:6px 10px; font-size:12px; border:1px solid var(--line); background:var(--card)}
+  .layout{
+    display:grid; gap:14px;
+    grid-template-columns: 320px 1fr;
+  }
+  @media (max-width: 900px){
+    .layout{grid-template-columns: 1fr}
+  }
+  /* Panel controles */
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .row{display:flex; flex-wrap:wrap; gap:8px}
+  .speed .btn{padding:6px 10px; font-size:13px}
+  fieldset{border:1px dashed var(--line); border-radius:12px; padding:10px 12px}
+  legend{color:var(--muted); font-size:13px; padding:0 6px}
+  label.cb{display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer}
+  label.cb input{accent-color:var(--accent)}
+  .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; font-size:12px}
+  .dot{inline-size:12px; block-size:12px; border-radius:50%}
+  .muted{color:var(--muted)}
+  /* Visor */
+  .viewer{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px; position:relative;
+  }
+  .svgwrap{position:relative}
+  .overlay{position:absolute; inset:10px 10px 54px 48px; /* coincide con márgenes del grafico */}
+  .legend{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; user-select:none
+  }
+  .legend .chip{cursor:pointer}
+  .legend .off{opacity:.35; text-decoration:line-through}
+  .axes-labels{
+    position:absolute; inset:auto 10px 8px 10px; display:flex; justify-content:space-between; color:var(--muted); font-size:12px
+  }
+  .tooltip{
+    position:absolute; pointer-events:none; transform:translate(-50%,-120%);
+    background:var(--card); border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.25); min-width:120px
+  }
+  .tooltip.hidden{display:none}
+  /* Fases */
+  .phases{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:10px
+  }
+  .phasebtn{
+    background:transparent; border:1px solid var(--line); border-radius:12px; padding:8px 10px; cursor:pointer; font-size:13px
+  }
+  .phasebtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .phase-labels{position:absolute; left:48px; right:10px; top:10px; height:20px; font-size:11px; color:var(--muted)}
+  .phase-labels.hidden{display:none}
+  /* Panel eventos */
+  .events{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-top:14px;
+  }
+  .events h3{margin:0 0 8px 0; font-size:18px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media (max-width:700px){.grid2{grid-template-columns:1fr}}
+  .badge{display:inline-block; padding:.2rem .55rem; background:var(--line); border-radius:999px; font-size:12px; margin-right:6px}
+  .mini{font-size:12px; color:var(--muted)}
+  .note{color:var(--muted); font-size:12px}
+  /* Footer text */
+  .didac{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-top:14px;
+  }
+</style>
+</head>
+<body data-theme="dark">
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Diagrama de Wiggers — Simulador Didáctico</h1>
+      <p>Explora la sincronía entre ECG, presiones, volumen, flujo y ruidos cardiacos a lo largo de un ciclo.</p>
+    </div>
+
+
+
+      <!-- Bloque solicitado (h2 + home) -->
+  <div style="margin:10px 0 0 0;">
+    <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+    </h2>
+    <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+        🏠 <span>volver a página de inicio</span>
+      </a>
+    </p>
+  </div>
+      <!-- Bloque solicitado (h2 + home) -->
+
+
+
+
+
+    <button id="themeBtn" class="btn pill" aria-label="Cambiar modo claro/oscuro">Modo claro/oscuro</button>
+  </header>
+
+  <div class="layout">
+    <!-- PANEL CONTROLES -->
+    <section class="panel" aria-label="Controles">
+      <div class="row" role="group" aria-label="Reproducción">
+        <button id="playBtn" class="btn" aria-label="Reproducir o Pausar (Espacio)">▶ Reproducir</button>
+        <button id="resetBtn" class="btn" aria-label="Reiniciar (R)">⟲ Reiniciar</button>
+      </div>
+
+      <div class="speed" role="group" aria-label="Velocidad">
+        <span class="muted" style="margin-right:6px">Velocidad:</span>
+        <button class="btn spd" data-s="0.25">0.25×</button>
+        <button class="btn spd" data-s="0.5">0.5×</button>
+        <button class="btn spd active" data-s="1">1×</button>
+        <button class="btn spd" data-s="2">2×</button>
+      </div>
+
+      <fieldset>
+        <legend>Curvas</legend>
+        <label class="cb"><input id="chkBlood" type="checkbox" checked aria-label="Presión sanguínea marcar o desmarcar todas"> Presión sanguínea (todas)</label>
+        <hr style="border:none;border-top:1px solid var(--line); margin:6px 0">
+        <label class="cb"><input class="curve-toggle" data-key="aorta" type="checkbox" checked aria-label="Presión aórtica"> <span class="dot" style="background:var(--aorta)"></span> Presión aórtica</label>
+        <label class="cb"><input class="curve-toggle" data-key="vent"  type="checkbox" checked aria-label="Presión ventricular"> <span class="dot" style="background:var(--vent)"></span> Presión ventricular</label>
+        <label class="cb"><input class="curve-toggle" data-key="atri"  type="checkbox" checked aria-label="Presión auricular"> <span class="dot" style="background:var(--atri)"></span> Presión auricular</label>
+        <label class="cb"><input class="curve-toggle" data-key="vol"   type="checkbox" checked aria-label="Volumen ventricular"> <span class="dot" style="background:var(--vol)"></span> Volumen ventricular</label>
+        <label class="cb"><input class="curve-toggle" data-key="ecg"   type="checkbox" checked aria-label="Electrocardiograma"> <span class="dot" style="background:var(--ecg)"></span> Electrocardiograma (ECG)</label>
+        <label class="cb"><input class="curve-toggle" data-key="flow"  type="checkbox" checked aria-label="Flujo arterial"> <span class="dot" style="background:var(--flow)"></span> Flujo arterial</label>
+        <label class="cb"><input class="curve-toggle" data-key="phono" type="checkbox" checked aria-label="Ruidos cardiacos"> <span class="dot" style="background:var(--phono)"></span> Ruidos cardiacos (fonocardio)</label>
+      </fieldset>
+
+      <label class="cb"><input id="togglePhaseLabels" type="checkbox" checked aria-label="Mostrar etiquetas de fase"> Mostrar etiquetas de fases</label>
+
+      <div class="note mini">
+        Atajos: <span class="badge">Espacio</span> Play/Pausa · <span class="badge">R</span> Reiniciar ·
+        <span class="badge">←/→</span> mover · <span class="badge">Mayús+←/→</span> paso fino ·
+        <span class="badge">1–8</span> alternar curvas.
+      </div>
+    </section>
+
+    <!-- VISOR -->
+    <section class="viewer" aria-label="Gráfico interactivo">
+      <div class="svgwrap" style="position:relative">
+        <!-- Fase labels arriba -->
+        <div id="phaseLabels" class="phase-labels"></div>
+
+        <svg id="chart" viewBox="0 0 760 420" role="img" aria-label="Diagrama de Wiggers">
+          <!-- Márgenes para dibujar (match .overlay insets) -->
+          <defs>
+            <clipPath id="clipPlot"><rect x="48" y="10" width="702" height="356"/></clipPath>
+          </defs>
+
+          <!-- Ejes -->
+          <g id="axes" stroke="var(--line)" stroke-width="1">
+            <rect x="48" y="10" width="702" height="356" fill="none"/>
+            <!-- grid horizontales -->
+            <g id="gridY"></g>
+          </g>
+
+          <!-- Cinta de fases inferior -->
+          <g id="phaseRibbon"></g>
+
+          <!-- Curvas -->
+          <g id="paths" clip-path="url(#clipPlot)"></g>
+
+          <!-- Cursor -->
+          <g id="cursor">
+            <line id="cursorLine" x1="48" x2="48" y1="10" y2="366" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 4"/>
+            <rect id="grab" x="44" y="366" width="10" height="18" rx="4" ry="4" fill="var(--accent)"></rect>
+          </g>
+        </svg>
+
+        <!-- Labels ejes inferiores -->
+        <div class="axes-labels">
+          <div>Presión (mmHg) / ECG / Flujo / Ruidos</div>
+          <div>Volumen (mL)</div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tip" class="tooltip hidden" role="tooltip" aria-hidden="true"></div>
+      </div>
+
+      <!-- Leyenda clicable -->
+      <div id="legend" class="legend" aria-label="Leyenda, alterna visibilidad"></div>
+
+      <!-- Línea temporal de fases (clicable) -->
+      <div id="phaseBar" class="phases" aria-label="Línea temporal de fases"></div>
+    </section>
+  </div>
+
+  <!-- Panel de fase y eventos -->
+  <section class="events" aria-live="polite" aria-atomic="true">
+    <h3 id="phaseTitle">Fase</h3>
+    <div class="grid2">
+      <div>
+        <div><span class="badge">ECG</span> <span id="ecgText">–</span></div>
+        <div><span class="badge">Ruidos</span> <span id="soundText">–</span></div>
+      </div>
+      <div>
+        <div><span class="badge">Semilunares</span> <span id="semText">–</span></div>
+        <div><span class="badge">AV</span> <span id="avText">–</span></div>
+      </div>
+    </div>
+    <p id="phaseDesc" class="mini" style="margin-top:10px"></p>
+    <p class="note">Nota: <em>S3</em> y <em>S4</em> suelen asociarse a patologías y no se auscultan de rutina.</p>
+  </section>
+
+  <!-- Texto didáctico -->
+  <section class="didac">
+    <p>El diagrama de Wiggers ilustra cómo varían, de forma coordinada, las presiones, el volumen,
+       el ECG, el flujo y los ruidos cardiacos a lo largo del ciclo cardíaco, facilitando la comprensión
+       global de la mecánica cardiaca.</p>
+    <p>Recordatorio: durante <strong>contracción</strong> y <strong>relajación isovolumétricas</strong>
+       todas las válvulas están <strong>cerradas</strong>; nunca están todas <strong>abiertas</strong> a la vez.</p>
+  </section>
+</div>
+
+<script>
+/* ===================== Parámetros generales ===================== */
+const svg = document.getElementById('chart');
+const pathsG = document.getElementById('paths');
+const gridY = document.getElementById('gridY');
+const phaseRibbon = document.getElementById('phaseRibbon');
+const cursorLine = document.getElementById('cursorLine');
+const grab = document.getElementById('grab');
+const tip = document.getElementById('tip');
+const legend = document.getElementById('legend');
+const phaseLabelsEl = document.getElementById('phaseLabels');
+const phaseBar = document.getElementById('phaseBar');
+
+const W = 760, H = 420;
+const plot = {x:48, y:10, w:702, h:356}; // coincide con clip
+const fpsTarget = 60;
+
+let playing = true;
+let speed = 1;         // 0.25, 0.5, 1, 2
+let t = 0;             // 0..1
+let dragging = false;
+let showPhaseLabels = true;
+
+const scales = {
+  press: {min:0, max:130},  // mmHg
+  vol:   {min:40, max:140}, // mL
+  ecg:   {min:-1.2, max:1.2}, // mV (arbitrario para dibujo)
+  flow:  {min:0, max:1},    // AU
+  phono: {min:0, max:1}     // AU
+};
+const colors = {
+  aorta: getCss('--aorta'),
+  vent:  getCss('--vent'),
+  atri:  getCss('--atri'),
+  vol:   getCss('--vol'),
+  ecg:   getCss('--ecg'),
+  flow:  getCss('--flow'),
+  phono: getCss('--phono'),
+};
+
+function getCss(v){ return getComputedStyle(document.body).getPropertyValue(v).trim(); }
+
+/* ===================== Fases (rango en t) y textos ===================== */
+const phases = [
+  { key:"A",  from:0.00, to:0.12, name:"A. Sístole auricular", ecg:"P",  sounds:"S4*", sem:"cerradas", av:"abiertas",
+    desc:"Contracción auricular finaliza el llenado ventricular (onda a)."},
+  { key:"B",  from:0.12, to:0.20, name:"B. Sístole ventricular – Contracción isovolumétrica", ecg:"QRS", sounds:'S1 ("lub")', sem:"cerradas", av:"cerradas",
+    desc:"Aumenta bruscamente la presión ventricular con todas las válvulas cerradas."},
+  { key:"C1", from:0.20, to:0.45, name:"C1. Sístole ventricular – Eyección rápida", ecg:"ST", sounds:"–", sem:"abiertas", av:"cerradas",
+    desc:"Se abren las semilunares; flujo arterial y descenso rápido del volumen."},
+  { key:"C2", from:0.45, to:0.55, name:"C2. Sístole ventricular – Eyección reducida", ecg:"T", sounds:"–", sem:"abiertas", av:"cerradas",
+    desc:"El flujo disminuye mientras cae lentamente la presión ventricular."},
+  { key:"D",  from:0.55, to:0.65, name:"D. Diástole ventricular – Relajación isovolumétrica", ecg:"–", sounds:'S2 ("dub")', sem:"cerradas", av:"cerradas",
+    desc:"Cierre de semilunares; caída rápida de presión con válvulas cerradas."},
+  { key:"E1", from:0.65, to:0.85, name:"E1. Diástole ventricular – Llenado rápido", ecg:"–", sounds:"S3*", sem:"cerradas", av:"abiertas",
+    desc:"Apertura de AV; rápido aumento del volumen ventricular."},
+  { key:"E2", from:0.85, to:1.00, name:"E2. Diástole ventricular – Llenado lento (diástasis)", ecg:"–", sounds:"–", sem:"cerradas", av:"abiertas",
+    desc:"Flujo de llenado disminuye; se prepara la siguiente sístole auricular."},
+];
+
+/* ===================== Datos: generar 600 muestras ===================== */
+const N = 600;
+const T = Array.from({length:N}, (_,i)=> i/(N-1));
+
+function smoothstep(a,b,x){ const t = Math.max(0, Math.min(1, (x-a)/(b-a))); return t*t*(3-2*t); }
+function gauss(x, mu, sigma){ const d=(x-mu)/sigma; return Math.exp(-0.5*d*d); }
+function clamp(x,min,max){ return x<min?min:(x>max?max:x); }
+
+// Curvas fisiológicas estilizadas (no diagnósticas)
+function presionVentricular_t(t){
+  if (t<ph("B").from) return 5; // diástole previa
+  // subida isovolumétrica
+  let p=5;
+  p += 120*smoothstep(ph("B").from, ph("B").to, t); // sube a 120
+  // eyección: pico y caída
+  if (t>=ph("C1").from){
+    const peak = 120*gauss(t, 0.37, 0.10);
+    const base = 100*smoothstep(ph("C1").from, ph("C1").to, t);
+    p = Math.max(0, base + peak);
+  }
+  // caída brusca en D
+  if (t>=ph("D").from) p = 15 + 90*(1-smoothstep(ph("D").from, ph("D").to, t));
+  if (t>=ph("E1").from) p = 5 + 5*gauss(t, 0.9, 0.06);
+  return clamp(p, 0, 130);
+}
+function presionAortica_t(t){
+  // Base diastólica ~80-85
+  let p = 85 - 5*smoothstep(0, ph("B").to, t);
+  // Eyección eleva a ~120 con incisura al inicio de D
+  if (t>=ph("C1").from && t<ph("D").from){
+    const up = 35*smoothstep(ph("C1").from, ph("C1").from+0.10, t);
+    const plateau = 30*(1 - smoothstep(ph("C1").from+0.10, ph("C2").to, t));
+    p = 85 + up + plateau;
+  }
+  if (t>=ph("D").from){
+    // incisura dícrota y declive
+    p = 95 - 20*smoothstep(ph("D").from, ph("E2").to, t) - 3*gauss(t, ph("D").from+0.02, 0.01);
+  }
+  return clamp(p, 50, 130);
+}
+function presionAuricular_t(t){
+  // ondas a (~A), c (~inicio B) y v (~E2)
+  const a = 5 + 5*gauss(t, (ph("A").from+ph("A").to)/2, 0.035);
+  const c = 4 + 3*gauss(t, (ph("B").from+ph("B").to)/2, 0.02);
+  const v = 6 + 6*gauss(t, (ph("E2").from+ph("E2").to)/2, 0.05);
+  // nivel base 3-5
+  const base = 3;
+  let p = base + a*0.8 + c*0.7 + v*0.8;
+  return clamp(p, 0, 25);
+}
+function volumenVentricular_t(t){
+  // EDV~130 al inicio; cae hasta ~60 en eyección; sube en E1/E2
+  let v = 130;
+  if (t>=ph("C1").from && t<ph("C2").to){
+    v = 130 - 65*smoothstep(ph("C1").from, ph("C2").to, t);
+  }
+  if (t>=ph("D").from){
+    v = 65 + 65*smoothstep(ph("E1").from, ph("E2").to, t);
+  }
+  return clamp(v, 40, 140);
+}
+function ecg_t(t){
+  // P ~0.06–0.1; QRS ~0.12–0.2; T ~0.3–0.42 (formas estilizadas)
+  const p = 0.4*gauss(t, (ph("A").from+ph("A").to)/2, 0.02);
+  const qrs = -1.0*gauss(t, ph("B").from-0.015, 0.008) + 1.4*gauss(t, ph("B").from+0.01, 0.012) - 0.6*gauss(t, ph("B").from+0.04, 0.01);
+  const tW = 0.6*gauss(t, (ph("C2").from+ph("C2").to)/2, 0.04);
+  return p + qrs + tW;
+}
+function flujo_t(t){
+  // flujo arterial positivo durante eyección (C1 y C2)
+  if (t<ph("C1").from || t>ph("C2").to) return 0;
+  const center = (ph("C1").from+ph("C2").to)/2;
+  return Math.max(0, 1.2*gauss(t, center, 0.08));
+}
+function phono_t(t){
+  // S1 al inicio B; S2 al inicio D
+  const s1 = 1.0*gauss(t, ph("B").from, 0.006);
+  const s2 = 1.0*gauss(t, ph("D").from, 0.006);
+  // marcas opcionales S3/S4 (bajas)
+  const s3 = 0.35*gauss(t, ph("E1").from+0.03, 0.01);
+  const s4 = 0.35*gauss(t, ph("A").from+0.02, 0.01);
+  return s1 + s2 + s3 + s4;
+}
+
+function ph(key){ return phases.find(p=>p.key===key); }
+
+// Generar arrays
+const data = {
+  aorta: T.map(presionAortica_t),
+  vent:  T.map(presionVentricular_t),
+  atri:  T.map(presionAuricular_t),
+  vol:   T.map(volumenVentricular_t),
+  ecg:   T.map(ecg_t),
+  flow:  T.map(flujo_t),
+  phono: T.map(phono_t)
+};
+
+// Metadatos de curvas (orden define teclas 1–8)
+const curves = [
+  {key:'aorta', name:'Presión aórtica',     unit:'mmHg', scale:'press', color:colors.aorta,  on:true },
+  {key:'vent',  name:'Presión ventricular', unit:'mmHg', scale:'press', color:colors.vent,   on:true },
+  {key:'atri',  name:'Presión auricular',   unit:'mmHg', scale:'press', color:colors.atri,   on:true },
+  {key:'vol',   name:'Volumen ventricular', unit:'mL',   scale:'vol',   color:colors.vol,    on:true },
+  {key:'ecg',   name:'ECG',                  unit:'mV',   scale:'ecg',   color:colors.ecg,    on:true },
+  {key:'flow',  name:'Flujo arterial',      unit:'UA',   scale:'flow',  color:colors.flow,   on:true },
+  {key:'phono', name:'Ruidos (fonocardio)', unit:'UA',   scale:'phono', color:colors.phono,  on:true },
+];
+
+// Funciones de mapeo a coordenadas
+const X = s => plot.x + s*plot.w;
+function Y(value, scaleKey){
+  const {min,max} = scales[scaleKey];
+  const u = (value-min)/(max-min);
+  return plot.y + (1-u)*plot.h;
+}
+
+/* ===================== Render estático ===================== */
+drawGrid();
+drawPhaseRibbon();
+drawPhaseLabels();
+drawAllCurves();
+makeLegend();
+makePhaseButtons();
+updateEventsPanel();
+
+/* ===================== Reproducción ===================== */
+let last = performance.now();
+function loop(now){
+  const dt = (now-last)/1000; last = now;
+  if (playing){
+    const perCycle = 1.0; // 1 s por ciclo didáctico
+    t = (t + (dt*speed)/perCycle) % 1;
+    updateCursorFromT();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ===================== Interacción cursor ===================== */
+const overlay = document.createElement('div');
+overlay.className = 'overlay';
+overlay.setAttribute('role','application');
+overlay.title = 'Arrastra para mover el cursor';
+svg.parentElement.appendChild(overlay);
+
+overlay.addEventListener('pointerdown', e=>{
+  dragging = true; overlay.setPointerCapture(e.pointerId);
+  const tx = posToT(e);
+  setT(tx); pause();
+});
+overlay.addEventListener('pointermove', e=>{
+  const tx = posToT(e);
+  // tooltip cercano a una curva
+  showNearestTooltip(e, tx);
+  if (dragging){ setT(tx); }
+});
+overlay.addEventListener('pointerup', e=>{ dragging=false; overlay.releasePointerCapture(e.pointerId); hideTip(); });
+overlay.addEventListener('pointerleave', hideTip);
+
+grab.addEventListener('pointerdown', e=>{
+  e.preventDefault(); dragging=true;
+  const id = e.pointerId; svg.setPointerCapture(id);
+  const move = ev=>{ setT(posToT(ev)); showNearestTooltip(ev, t); };
+  const up = ev=>{ dragging=false; svg.releasePointerCapture(id); svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); hideTip(); };
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('pointerup', up);
+});
+
+/* ===================== Teclado ===================== */
+window.addEventListener('keydown', e=>{
+  if (['INPUT','TEXTAREA','SELECT','BUTTON'].includes(document.activeElement.tagName)) return;
+  if (e.code==='Space'){ e.preventDefault(); togglePlay(); }
+  if (e.key==='r' || e.key==='R'){ reset(); }
+  if (e.key==='ArrowRight'){
+    e.preventDefault();
+    const step = e.shiftKey ? 0.002 : 0.01;
+    pause(); setT((t+step)%1);
+  }
+  if (e.key==='ArrowLeft'){
+    e.preventDefault();
+    const step = e.shiftKey ? 0.002 : 0.01;
+    pause(); setT((t-step+1)%1);
+  }
+  // teclas 1..8 para alternar curvas
+  const n = parseInt(e.key,10);
+  if (n>=1 && n<=8){
+    const idx = n-1;
+    if (curves[idx]){
+      curves[idx].on = !curves[idx].on;
+      updateTogglesUI();
+      drawAllCurves();
+    }
+  }
+});
+
+/* ===================== Controles UI ===================== */
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+document.getElementById('resetBtn').addEventListener('click', reset);
+document.querySelectorAll('.spd').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.spd').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    speed = parseFloat(b.dataset.s);
+  });
+});
+document.getElementById('chkBlood').addEventListener('change', e=>{
+  const on = e.target.checked;
+  ['aorta','vent','atri'].forEach(k=>{ const c = curves.find(x=>x.key===k); c.on = on; });
+  updateTogglesUI(); drawAllCurves();
+});
+document.querySelectorAll('.curve-toggle').forEach(ch=>{
+  ch.addEventListener('change', ()=>{
+    const k = ch.dataset.key;
+    curves.find(c=>c.key===k).on = ch.checked;
+    // Si se tocan presiones, actualiza maestro
+    const allPress = ['aorta','vent','atri'].every(k=>curves.find(c=>c.key===k).on);
+    document.getElementById('chkBlood').checked = allPress;
+    drawAllCurves();
+    updateLegend();
+  });
+});
+document.getElementById('togglePhaseLabels').addEventListener('change', e=>{
+  showPhaseLabels = e.target.checked;
+  phaseLabelsEl.classList.toggle('hidden', !showPhaseLabels);
+});
+
+document.getElementById('themeBtn').addEventListener('click', ()=>{
+  const light = document.body.getAttribute('data-theme')==='light';
+  document.body.setAttribute('data-theme', light?'dark':'light');
+  // recolor dinámico
+  updateColors();
+  drawGrid(); drawPhaseRibbon(); drawPhaseLabels(); drawAllCurves(); updateLegend();
+});
+
+/* ===================== Funciones de dibujo ===================== */
+function drawGrid(){
+  gridY.innerHTML='';
+  const ticks = 6;
+  for (let i=0;i<=ticks;i++){
+    const y = plot.y + i*(plot.h/ticks);
+    const line = el('line',{x1:plot.x, x2:plot.x+plot.w, y1:y, y2:y, stroke:getCss('--line'), 'stroke-width':1, 'stroke-dasharray':'2 4'});
+    gridY.appendChild(line);
+  }
+}
+function drawPhaseRibbon(){
+  phaseRibbon.innerHTML='';
+  phases.forEach((p,i)=>{
+    const x = X(p.from), w = X(p.to)-X(p.from);
+    const r = el('rect',{x, y:plot.y+plot.h, width:w, height:24, fill:getCss('--line')});
+    phaseRibbon.appendChild(r);
+    // separadores
+    const s = el('line',{x1:X(p.to), x2:X(p.to), y1:plot.y+plot.h, y2:plot.y+plot.h+24, stroke:getCss('--bg')});
+    phaseRibbon.appendChild(s);
+  });
+}
+function drawPhaseLabels(){
+  phaseLabelsEl.innerHTML='';
+  phases.forEach(p=>{
+    const left = plot.x + p.from*plot.w;
+    const width = (p.to-p.from)*plot.w;
+    const lbl = document.createElement('div');
+    lbl.style.position='absolute';
+    lbl.style.left = left+'px';
+    lbl.style.width = width+'px';
+    lbl.style.textAlign='center';
+    lbl.style.whiteSpace='nowrap';
+    lbl.textContent = p.name.split('–')[1]?.trim() || p.name;
+    phaseLabelsEl.appendChild(lbl);
+  });
+  phaseLabelsEl.classList.toggle('hidden', !showPhaseLabels);
+}
+function drawAllCurves(){
+  pathsG.innerHTML='';
+  curves.forEach(c=>{
+    if (!c.on) return;
+    const arr = data[c.key];
+    const d = arr.map((v,i)=>{
+      const x = X(T[i]);
+      const y = Y(v, c.scale);
+      return (i===0?`M ${x} ${y}`:`L ${x} ${y}`);
+    }).join(' ');
+    const path = el('path',{d, fill:'none', stroke:c.color, 'stroke-width':2});
+    pathsG.appendChild(path);
+  });
+  updateLegend();
+}
+function updateLegend(){
+  legend.innerHTML='';
+  curves.forEach((c,i)=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip '+(c.on?'':'off');
+    chip.setAttribute('role','button');
+    chip.setAttribute('tabindex','0');
+    chip.title = `Alternar ${c.name} (tecla ${i+1})`;
+    chip.addEventListener('click', ()=>{ c.on=!c.on; updateTogglesUI(); drawAllCurves(); });
+    chip.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); c.on=!c.on; updateTogglesUI(); drawAllCurves(); }});
+    const dot = document.createElement('span'); dot.className='dot'; dot.style.background=c.color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(c.name));
+    legend.appendChild(chip);
+  });
+}
+function makeLegend(){ updateLegend(); }
+function makePhaseButtons(){
+  phaseBar.innerHTML='';
+  phases.forEach(p=>{
+    const b = document.createElement('button');
+    b.className='phasebtn';
+    b.textContent = p.name;
+    b.addEventListener('click', ()=>{ pause(); setT(p.from); });
+    phaseBar.appendChild(b);
+  });
+}
+function updateColors(){
+  colors.aorta=getCss('--aorta'); colors.vent=getCss('--vent'); colors.atri=getCss('--atri');
+  colors.vol=getCss('--vol'); colors.ecg=getCss('--ecg'); colors.flow=getCss('--flow'); colors.phono=getCss('--phono');
+  curves.forEach(c=>c.color=colors[c.key]);
+}
+
+/* ===================== Utilidades DOM/SVG ===================== */
+function el(type, attrs){
+  const e = document.createElementNS('http://www.w3.org/2000/svg', type);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function posToT(e){
+  const rect = overlay.getBoundingClientRect();
+  const x = clamp((e.clientX-rect.left)/rect.width, 0, 1);
+  return x;
+}
+function setT(v){ t = clamp(v,0,1); updateCursorFromT(); }
+function updateCursorFromT(){
+  const cx = X(t);
+  cursorLine.setAttribute('x1', cx);
+  cursorLine.setAttribute('x2', cx);
+  grab.setAttribute('x', cx-4);
+  updateEventsPanel();
+}
+function pause(){ playing=false; document.getElementById('playBtn').textContent='⏸ Pausa'; document.getElementById('playBtn').textContent='▶ Reproducir'; }
+function play(){ playing=true; document.getElementById('playBtn').textContent='⏸ Pausar'; }
+function togglePlay(){ playing?pause():play(); }
+function reset(){ t=0; updateCursorFromT(); pause(); }
+
+/* ===================== Tooltips (curva más cercana) ===================== */
+function showNearestTooltip(e, tx){
+  const rect = overlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const px = plot.x + tx*plot.w;
+  let best = null;
+  curves.forEach(c=>{
+    if (!c.on) return;
+    const arr = data[c.key];
+    const idx = Math.floor(tx*(N-1));
+    const v = arr[idx];
+    const y = Y(v, c.scale) - plot.y; // relativo al svg
+    const dy = Math.abs((my*(plot.h/rect.height)) - y);
+    if (best===null || dy<best.dy){ best = {c,v,dy}; }
+  });
+  if (!best || best.dy>12){ hideTip(); return; }
+
+  const unit = best.c.unit;
+  tip.innerHTML = `<div class="mini muted">${best.c.name}</div><strong>${best.v.toFixed(1)} ${unit}</strong>`;
+  tip.style.left = (e.clientX)+'px';
+  tip.style.top = (e.clientY-16)+'px';
+  tip.classList.remove('hidden');
+  tip.setAttribute('aria-hidden','false');
+}
+function hideTip(){ tip.classList.add('hidden'); tip.setAttribute('aria-hidden','true'); }
+
+/* ===================== Panel de eventos (debajo) ===================== */
+function phaseAt(t){
+  return phases.find(p=> t>=p.from && t<p.to) || phases[phases.length-1];
+}
+function updateEventsPanel(){
+  const p = phaseAt(t);
+  document.getElementById('phaseTitle').textContent = p.name;
+  document.getElementById('ecgText').textContent = p.ecg;
+  document.getElementById('soundText').textContent = p.sounds;
+  document.getElementById('semText').textContent = p.sem;
+  document.getElementById('avText').textContent = p.av;
+  document.getElementById('phaseDesc').textContent = p.desc;
+}
+
+/* ===================== UI helpers ===================== */
+function updateTogglesUI(){
+  document.querySelectorAll('.curve-toggle').forEach(ch=>{
+    const k = ch.dataset.key;
+    ch.checked = curves.find(c=>c.key===k).on;
+  });
+  const allPress = ['aorta','vent','atri'].every(k=>curves.find(c=>c.key===k).on);
+  document.getElementById('chkBlood').checked = allPress;
+  updateLegend();
+}
+
+/* ===================== Dibujar por primera vez cursor y play ===================== */
+updateCursorFromT();
+play();
+
+/* ===================== Sombreado de fases y etiquetas dinámicas ===================== */
+(function drawPhaseOverlay(){
+  // fase ribbon ya está; agregamos rect resaltado para fase activa
+  const activeRect = el('rect',{x:plot.x, y:plot.y+plot.h, width:0, height:24, fill:getCss('--accent'), opacity:0.15});
+  phaseRibbon.appendChild(activeRect);
+  function step(){
+    const p = phaseAt(t);
+    activeRect.setAttribute('x', X(p.from));
+    activeRect.setAttribute('width', X(p.to)-X(p.from));
+    requestAnimationFrame(step);
+  }
+  step();
+})();
+
+/* ===================== Accesibilidad: focus visibles en chips leyenda ===================== */
+legend.addEventListener('keydown', e=>{
+  if ((e.key==='Enter'||e.key===' ') && e.target.classList.contains('chip')){
+    e.preventDefault(); e.target.click();
+  }
+});
+
+/* ===================== FIN ===================== */
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+  <!-- FOOTER solicitado -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p>&nbsp;</p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+    <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+</div>
