@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Unflip – Mini juego de lógica</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #2a2a2a;
+      --panel: #3a3a3a;
+      --accent: #f2d15f;
+      --accent-soft: rgba(242, 209, 95, 0.15);
+      --grid-line: #bfb8ac;
+      --cell-on: #222222;
+      --cell-off: #f7f7f7;
+      --cell-hover: #e0e0e0;
+      --text-main: #f5f5f5;
+      --text-sub: #cccccc;
+      --danger: #ff6b6b;
+      --success: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #3b3b3b 0, #1b1b1b 60%);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .page-wrapper {
+      width: 100%;
+      max-width: 880px;
+    }
+
+    .app {
+      background: var(--bg);
+      border-radius: 16px;
+      padding: 20px 24px 26px;
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.03);
+      max-width: 540px;
+      width: 100%;
+      margin: 0 auto 18px auto;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .title-block h1 {
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+    }
+
+    .title-block span {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .level-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    .ai-button {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      border: none;
+      cursor: pointer;
+      background: #4b4b4b;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+    }
+
+    .ai-button span.icon {
+      font-size: 1.1rem;
+    }
+
+    .ai-button:not(:disabled):active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+
+    .status-row span strong {
+      color: var(--text-main);
+    }
+
+    .status-row .right {
+      display: flex;
+      gap: 14px;
+    }
+
+    .status-row .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #595959;
+      margin-right: 6px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    /* Selector de niveles */
+    .levels-section {
+      margin-bottom: 10px;
+    }
+
+    .levels-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    .levels-title {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .levels-bar {
+      background: #d6d0c4;
+      padding: 6px;
+      border-radius: 8px;
+      box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+        0 4px 10px rgba(0, 0, 0, 0.4);
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+      gap: 6px;
+      max-height: 210px;
+      overflow-y: auto;
+    }
+
+    .level-thumb {
+      background: #f8f5ee;
+      border-radius: 6px;
+      padding: 3px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+        0 2px 4px rgba(0, 0, 0, 0.4);
+      transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+    }
+
+    .level-thumb:hover {
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+        0 3px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    .level-thumb.active {
+      border-color: var(--accent);
+      box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+        0 0 0 2px rgba(242, 209, 95, 0.7),
+        0 3px 8px rgba(0, 0, 0, 0.6);
+    }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 1px;
+      background: #d3ccc0;
+      padding: 2px;
+    }
+
+    .level-cell {
+      width: 6px;
+      aspect-ratio: 1 / 1;
+      border-radius: 1px;
+      background: #fdfdfd;
+    }
+
+    .level-cell[data-on="1"] {
+      background: #111111;
+    }
+
+    .board-wrapper {
+      margin-top: 4px;
+      padding: 16px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #444, #323232);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+        0 16px 26px rgba(0, 0, 0, 0.6);
+    }
+
+    #board {
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      width: min(360px, 80vw);
+      aspect-ratio: 1 / 1;
+      background: #d3ccc0;
+      padding: 4px;
+      gap: 2px;
+      border-radius: 6px;
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    .cell {
+      position: relative;
+      border-radius: 2px;
+      background: var(--cell-off);
+      box-shadow:
+        inset 0 0 0 1px var(--grid-line),
+        inset 0 0 0 0 rgba(0, 0, 0, 0.7);
+      transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    }
+
+    .cell[data-on="1"] {
+      background: var(--cell-on);
+      box-shadow:
+        inset 0 0 0 1px #000000,
+        inset 0 0 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .cell-selection {
+      box-shadow:
+        inset 0 0 0 2px var(--accent),
+        inset 0 0 0 999px rgba(242, 209, 95, 0.12);
+    }
+
+    .cell:not([data-on="1"]):hover {
+      background: var(--cell-hover);
+      transform: translateY(-1px);
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 14px;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border: none;
+      cursor: pointer;
+      background: #4c4c4c;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+    }
+
+    button span.icon {
+      font-size: 0.95em;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #f7e39a);
+      color: #332a04;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #555555;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button:not(:disabled):active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .hint-text {
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      max-width: 260px;
+      line-height: 1.4;
+    }
+
+    .hint-text strong {
+      color: var(--accent);
+    }
+
+    .toast {
+      margin-top: 10px;
+      font-size: 0.86rem;
+      display: none;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.visible {
+      display: inline-flex;
+    }
+
+    .toast.success {
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .toast.info {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .toast .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .toast.success .dot {
+      background: var(--success);
+    }
+
+    .toast.info .dot {
+      background: var(--accent);
+    }
+
+    /* Modal de ayuda AI */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: #2f2f2f;
+      border-radius: 14px;
+      padding: 18px 20px 16px;
+      max-width: 420px;
+      width: calc(100% - 40px);
+      box-shadow:
+        0 22px 40px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      position: relative;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .modal-header h3 span.icon {
+      font-size: 1.2rem;
+    }
+
+    .modal-close {
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .modal-body p {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 6px;
+      color: var(--text-sub);
+    }
+
+    .modal-body ul {
+      padding-left: 18px;
+      margin: 6px 0 4px;
+      font-size: 0.84rem;
+      color: var(--text-sub);
+    }
+
+    .modal-body li {
+      margin-bottom: 4px;
+    }
+
+    /* Footer */
+    .footer {
+      color: #e8e8e8;
+      font-size: 0.8rem;
+      background: #1f1f1f;
+      border-radius: 12px;
+      padding: 14px 16px 16px;
+      box-shadow:
+        0 16px 28px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .footer a {
+      color: var(--accent);
+    }
+
+    .home a {
+      color: #ffd27a;
+      text-decoration: none;
+    }
+
+    .home a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 16px;
+      }
+      .app {
+        padding: 16px 15px 20px;
+      }
+      #board {
+        width: 100%;
+      }
+      .controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .buttons {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .hint-text {
+        max-width: none;
+      }
+      .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .header-right {
+        align-items: flex-start;
+      }
+      .levels-bar {
+        max-height: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <div class="app">
+    <header class="app-header">
+      <div class="title-block">
+        <h1>Unflip</h1>
+        <span>Piensa al revés y deja el tablero en blanco</span>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div id="levelBadge" class="level-badge">Nivel 4 · 6×6</div>
+        <button id="aiHelpBtn" class="ai-button" type="button"
+                aria-label="Ver instrucciones con ayuda de IA">
+          <span class="icon">🤖</span><span>Ayuda AI</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="status-row">
+      <div class="status-item">
+        <div class="dot"></div>
+        <span>Movimientos: <strong id="moves">0</strong></span>
+      </div>
+      <div class="right">
+        <div class="status-item">
+          <span>Par: <strong id="par">2</strong></span>
+        </div>
+        <div class="status-item">
+          <span>Mejor: <strong id="best">–</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selector de niveles -->
+    <section class="levels-section">
+      <div class="levels-header">
+        <span class="levels-title">Todos los niveles</span>
+        <span style="font-size:0.75rem;">Haz clic en un mosaico para cambiar</span>
+      </div>
+      <div id="levelsBar" class="levels-bar"></div>
+    </section>
+
+    <div class="board-wrapper">
+      <div id="board"></div>
+    </div>
+
+    <div class="controls">
+      <div class="buttons">
+        <button id="undoBtn" class="secondary" disabled>
+          <span class="icon">↶</span> Deshacer
+        </button>
+        <button id="resetBtn" class="primary">
+          <span class="icon">⟲</span> Reiniciar
+        </button>
+      </div>
+      <p class="hint-text">
+        Arrastra para seleccionar un bloque de <strong>2×2</strong> o mayor.
+        Todas las casillas de esa zona invertirán su color.
+        Ganas cuando todo queda en blanco.
+      </p>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+</div>
+
+<!-- MODAL AYUDA AI -->
+<div id="helpModal" class="modal-overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-header">
+      <h3 id="helpTitle"><span class="icon">🤖</span>Ayuda AI · Cómo jugar</h3>
+      <button class="modal-close" id="closeHelpBtn" type="button" aria-label="Cerrar ayuda">✕</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>Objetivo:</strong> dejar todas las casillas del tablero en blanco.</p>
+      <ul>
+        <li>Haz clic y arrastra sobre el tablero para seleccionar un bloque rectangular.</li>
+        <li>El bloque debe ser de <strong>2×2</strong> o mayor.</li>
+        <li>Al soltar, todas las casillas del bloque invierten su color
+          (blanco ⇄ negro).</li>
+      </ul>
+      <p>
+        Usa <strong>Deshacer</strong> para retroceder un movimiento
+        y <strong>Reiniciar</strong> para volver al patrón inicial.
+      </p>
+      <p>
+        El valor <strong>Par</strong> indica el número mínimo de movimientos
+        en el que se puede resolver el tablero; tu mejor marca se guarda
+        en este navegador.
+      </p>
+      <p style="margin-top:6px;">
+        Consejo “AI”: empieza imaginando el tablero al revés
+        (todo blanco) e intenta reconstruir mentalmente el patrón
+        inicial: eso te ayudará a encontrar soluciones más cortas.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- Definición de niveles (6×6) ---
+  const SIZE = 6;
+
+  // Cada nivel: id único, etiqueta, par y patrón 6×6 (1 = negro, 0 = blanco)
+  const LEVELS = [
+    {
+      id: "L1",
+      label: "Nivel 1",
+      par: 1,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,1,0],
+        [0,1,1,1,1,0],
+        [0,1,1,1,1,0],
+        [0,1,1,1,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L2",
+      label: "Nivel 2",
+      par: 2,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,0,0,1,1],
+        [1,1,0,0,1,1],
+        [0,0,0,0,0,0],
+        [1,1,0,0,1,1],
+        [1,1,0,0,1,1]
+      ]
+    },
+    {
+      id: "L3",
+      label: "Nivel 3",
+      par: 2,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L4",
+      label: "Nivel 4",
+      par: 2,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,1,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L5",
+      label: "Nivel 5",
+      par: 3,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,0,0,0,1,0],
+        [1,1,1,1,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L6",
+      label: "Nivel 6",
+      par: 3,
+      pattern: [
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [1,0,0,0,0,1],
+        [1,0,0,0,0,1],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0]
+      ]
+    },
+    {
+      id: "L7",
+      label: "Nivel 7",
+      par: 3,
+      pattern: [
+        [1,0,0,0,0,1],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [1,0,0,0,0,1]
+      ]
+    },
+    {
+      id: "L8",
+      label: "Nivel 8",
+      par: 4,
+      pattern: [
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,0,0,1,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L9",
+      label: "Nivel 9",
+      par: 4,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L10",
+      label: "Nivel 10",
+      par: 4,
+      pattern: [
+        [0,1,1,1,1,0],
+        [1,0,0,0,0,1],
+        [1,0,1,1,0,1],
+        [1,0,1,1,0,1],
+        [1,0,0,0,0,1],
+        [0,1,1,1,1,0]
+      ]
+    },
+    {
+      id: "L11",
+      label: "Nivel 11",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L12",
+      label: "Nivel 12",
+      par: 5,
+      pattern: [
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [1,0,0,0,0,1],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+        {
+      id: "L13",
+      label: "Nivel 13",
+      par: 5,
+      pattern: [
+        [0,0,1,0,0,0],
+        [0,1,0,1,1,0],
+        [1,0,0,0,0,1],
+        [1,0,0,0,0,1],
+        [0,1,1,0,1,0],
+        [0,0,0,1,0,0]
+      ]
+    },
+    {
+      id: "L14",
+      label: "Nivel 14",
+      par: 5,
+      pattern: [
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,1,1,1,1,0],
+        [0,1,1,1,1,0],
+        [0,1,1,1,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L15",
+      label: "Nivel 15",
+      par: 5,
+      pattern: [
+        [0,1,0,1,0,0],
+        [0,0,1,0,1,0],
+        [0,1,0,1,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,0,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L16",
+      label: "Nivel 16",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L17",
+      label: "Nivel 17",
+      par: 5,
+      pattern: [
+        [0,1,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L18",
+      label: "Nivel 18",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,0,0,0,0],
+        [1,1,1,0,0,0],
+        [1,1,1,0,0,0],
+        [1,1,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L19",
+      label: "Nivel 19",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L20",
+      label: "Nivel 20",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L21",
+      label: "Nivel 21",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L22",
+      label: "Nivel 22",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,1,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,1,0],
+        [1,0,1,0,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L23",
+      label: "Nivel 23",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,1,1,0,0],
+        [0,1,1,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L24",
+      label: "Nivel 24",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L25",
+      label: "Nivel 25",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0]
+      ]
+    },
+    {
+      id: "L26",
+      label: "Nivel 26",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,0,0,0,0],
+        [1,1,1,1,0,0],
+        [1,0,0,0,0,0],
+        [1,0,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L27",
+      label: "Nivel 27",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,0,1,0,0],
+        [0,1,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L28",
+      label: "Nivel 28",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,0,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0]
+      ]
+    },
+    {
+      id: "L29",
+      label: "Nivel 29",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,1,0,0]
+      ]
+    },
+    {
+      id: "L30",
+      label: "Nivel 30",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,0,0,0,0],
+        [1,0,0,0,1,0],
+        [1,0,0,0,1,0],
+        [1,1,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L31",
+      label: "Nivel 31",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,1,1,0,0],
+        [1,0,0,1,0,0],
+        [1,1,1,1,0,0],
+        [1,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L32",
+      label: "Nivel 32",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0]
+      ]
+    },
+    {
+      id: "L33",
+      label: "Nivel 33",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L34",
+      label: "Nivel 34",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,0,0,0,1,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L35",
+      label: "Nivel 35",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,0,1,0]
+      ]
+    },
+    {
+      id: "L36",
+      label: "Nivel 36",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,0,0,0],
+        [1,0,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L37",
+      label: "Nivel 37",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L38",
+      label: "Nivel 38",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,0,0,0,0],
+        [1,0,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L39",
+      label: "Nivel 39",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [1,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [1,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L40",
+      label: "Nivel 40",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L41",
+      label: "Nivel 41",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L42",
+      label: "Nivel 42",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,0,0,0,0],
+        [1,1,0,0,0,0],
+        [1,0,1,0,0,0],
+        [1,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L43",
+      label: "Nivel 43",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,0,0,1,0,0],
+        [1,1,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L44",
+      label: "Nivel 44",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L45",
+      label: "Nivel 45",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L46",
+      label: "Nivel 46",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L47",
+      label: "Nivel 47",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L48",
+      label: "Nivel 48",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,0,1],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L49",
+      label: "Nivel 49",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,1,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L50",
+      label: "Nivel 50",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L51",
+      label: "Nivel 51",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L52",
+      label: "Nivel 52",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L53",
+      label: "Nivel 53",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L54",
+      label: "Nivel 54",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,1,1,0,0,0],
+        [1,0,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L55",
+      label: "Nivel 55",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L56",
+      label: "Nivel 56",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L57",
+      label: "Nivel 57",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L58",
+      label: "Nivel 58",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,1,1,0,0,0],
+        [1,0,0,1,0,0],
+        [1,0,0,1,0,0],
+        [1,1,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L59",
+      label: "Nivel 59",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L60",
+      label: "Nivel 60",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L61",
+      label: "Nivel 61",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L62",
+      label: "Nivel 62",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L63",
+      label: "Nivel 63",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L64",
+      label: "Nivel 64",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L65",
+      label: "Nivel 65",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,0,0,0,0],
+        [0,1,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L66",
+      label: "Nivel 66",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L67",
+      label: "Nivel 67",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L68",
+      label: "Nivel 68",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L69",
+      label: "Nivel 69",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L70",
+      label: "Nivel 70",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L71",
+      label: "Nivel 71",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L72",
+      label: "Nivel 72",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L73",
+      label: "Nivel 73",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L74",
+      label: "Nivel 74",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L75",
+      label: "Nivel 75",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L76",
+      label: "Nivel 76",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L77",
+      label: "Nivel 77",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L78",
+      label: "Nivel 78",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L79",
+      label: "Nivel 79",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L80",
+      label: "Nivel 80",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,1,1,1,0,0],
+        [0,1,0,0,1,0],
+        [0,1,0,0,1,0],
+        [0,1,1,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L81",
+      label: "Nivel 81",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L82",
+      label: "Nivel 82",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [0,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,1,0,0,0],
+        [0,0,1,0,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L83",
+      label: "Nivel 83",
+      par: 5,
+      pattern: [
+        [0,0,0,0,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [1,0,1,0,0,0],
+        [0,1,0,1,0,0],
+        [0,0,0,0,0,0]
+      ]
+    },
+    {
+      id: "L84",
+      label: "Nivel 84",
+      par: 5,
+      pattern: [
+        [0,1,0,0,1,0],
+        [1,0,1,1,0,1],
+        [1,0,0,0,0,1],
+        [1,0,0,0,0,1],
+        [0,1,0,0,1,0],
+        [0,0,1,1,0,0]
+      ]
+    }
+  ];
+
+  // --- Estado general ---
+  let currentLevelIndex = 3; // Por defecto el "Nivel 4" del ejemplo
+  let board = [];
+  let moves = 0;
+  let history = [];
+
+  // Variables de arrastre/selección
+  let isDragging = false;
+  let startRow = null;
+  let startCol = null;
+  let currentRow = null;
+  let currentCol = null;
+
+  const boardEl = document.getElementById("board");
+  const movesEl = document.getElementById("moves");
+  const parEl   = document.getElementById("par");
+  const bestEl  = document.getElementById("best");
+  const undoBtn = document.getElementById("undoBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const toastEl = document.getElementById("toast");
+  const aiHelpBtn = document.getElementById("aiHelpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const closeHelpBtn = document.getElementById("closeHelpBtn");
+  const levelsBarEl = document.getElementById("levelsBar");
+  const levelBadgeEl = document.getElementById("levelBadge");
+
+  // --- Utilidades ---
+  function cloneBoard(src) {
+    return src.map(row => row.slice());
+  }
+
+  function getCurrentLevel() {
+    return LEVELS[currentLevelIndex];
+  }
+
+  function storageKeyForLevel(level) {
+    return "unflip-" + level.id + "-best";
+  }
+
+  function loadBest() {
+    const level = getCurrentLevel();
+    parEl.textContent = level.par;
+    const key = storageKeyForLevel(level);
+    const best = window.localStorage.getItem(key);
+    if (best !== null) {
+      bestEl.textContent = best;
+    } else {
+      bestEl.textContent = "–";
+    }
+  }
+
+  function saveBestIfNeeded() {
+    const level = getCurrentLevel();
+    const key = storageKeyForLevel(level);
+    const best = window.localStorage.getItem(key);
+    if (best === null || moves < Number(best)) {
+      window.localStorage.setItem(key, String(moves));
+      bestEl.textContent = moves;
+    }
+  }
+
+  function showToast(type, message) {
+    toastEl.className = "toast " + type + " visible";
+    toastEl.innerHTML = `
+      <span class="dot"></span>
+      <span>${message}</span>
+    `;
+    clearTimeout(showToast._timeoutId);
+    showToast._timeoutId = setTimeout(() => {
+      toastEl.classList.remove("visible");
+    }, 2600);
+  }
+
+  function allWhite() {
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === 1) return false;
+      }
+    }
+    return true;
+  }
+
+  // --- Render del tablero principal ---
+  function renderBoard() {
+    const cells = boardEl.children;
+    let i = 0;
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const cell = cells[i++];
+        cell.setAttribute("data-on", board[r][c]);
+        cell.classList.remove("cell-selection");
+      }
+    }
+  }
+
+  function clearSelectionVisual() {
+    const cells = boardEl.querySelectorAll(".cell");
+    cells.forEach(cell => cell.classList.remove("cell-selection"));
+  }
+
+  function updateSelectionVisual() {
+    clearSelectionVisual();
+    if (!isDragging || startRow === null || currentRow === null) return;
+
+    const minRow = Math.min(startRow, currentRow);
+    const maxRow = Math.max(startRow, currentRow);
+    const minCol = Math.min(startCol, currentCol);
+    const maxCol = Math.max(startCol, currentCol);
+
+    const height = maxRow - minRow + 1;
+    const width  = maxCol - minCol + 1;
+    if (height < 2 || width < 2) return;
+
+    const cells = boardEl.children;
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const idx = r * SIZE + c;
+        cells[idx].classList.add("cell-selection");
+      }
+    }
+  }
+
+  function flipRectangle(r1, c1, r2, c2) {
+    const minRow = Math.min(r1, r2);
+    const maxRow = Math.max(r1, r2);
+    const minCol = Math.min(c1, c2);
+    const maxCol = Math.max(c1, c2);
+
+    const height = maxRow - minRow + 1;
+    const width  = maxCol - minCol + 1;
+    if (height < 2 || width < 2) {
+      showToast("info", "El bloque debe ser de al menos 2×2.");
+      return false;
+    }
+
+    history.push(cloneBoard(board));
+    undoBtn.disabled = history.length === 0;
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        board[r][c] = board[r][c] ? 0 : 1;
+      }
+    }
+    moves++;
+    movesEl.textContent = moves;
+    renderBoard();
+    return true;
+  }
+
+  function handleWin() {
+    if (allWhite()) {
+      saveBestIfNeeded();
+      const level = getCurrentLevel();
+      const msg = moves <= level.par
+        ? `¡Perfecto! Lo has resuelto en ${moves} movimientos.`
+        : `¡Completado en ${moves} movimientos! (Par: ${level.par})`;
+      showToast("success", msg);
+    }
+  }
+
+  // --- Selector de niveles ---
+  function buildLevelsBar() {
+    levelsBarEl.innerHTML = "";
+    LEVELS.forEach((level, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "level-thumb";
+      btn.type = "button";
+      btn.dataset.index = idx;
+
+      const grid = document.createElement("div");
+      grid.className = "level-grid";
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const smallCell = document.createElement("div");
+          smallCell.className = "level-cell";
+          smallCell.dataset.on = level.pattern[r][c];
+          grid.appendChild(smallCell);
+        }
+      }
+
+      btn.appendChild(grid);
+      levelsBarEl.appendChild(btn);
+    });
+  }
+
+  function updateActiveLevelThumb() {
+    const thumbs = levelsBarEl.querySelectorAll(".level-thumb");
+    thumbs.forEach((btn, idx) => {
+      btn.classList.toggle("active", idx === currentLevelIndex);
+    });
+  }
+
+  function setCurrentLevel(index) {
+    currentLevelIndex = index;
+    const level = getCurrentLevel();
+    board = cloneBoard(level.pattern);
+    history = [];
+    moves = 0;
+    movesEl.textContent = moves;
+    undoBtn.disabled = true;
+    levelBadgeEl.textContent = `${level.label} · 6×6`;
+    loadBest();
+    renderBoard();
+    updateActiveLevelThumb();
+    showToast("info", `Has cambiado a ${level.label}.`);
+  }
+
+  levelsBarEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".level-thumb");
+    if (!btn) return;
+    const index = Number(btn.dataset.index);
+    if (!Number.isNaN(index)) {
+      setCurrentLevel(index);
+    }
+  });
+
+  // --- Eventos de ratón sobre el tablero ---
+  function getCellPositionFromEvent(e) {
+    const target = e.target.closest(".cell");
+    if (!target) return null;
+    const row = Number(target.dataset.row);
+    const col = Number(target.dataset.col);
+    return { row, col };
+  }
+
+  boardEl.addEventListener("mousedown", (e) => {
+    const pos = getCellPositionFromEvent(e);
+    if (!pos) return;
+    isDragging = true;
+    startRow = pos.row;
+    startCol = pos.col;
+    currentRow = pos.row;
+    currentCol = pos.col;
+    updateSelectionVisual();
+  });
+
+  boardEl.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const pos = getCellPositionFromEvent(e);
+    if (!pos) return;
+    currentRow = pos.row;
+    currentCol = pos.col;
+    updateSelectionVisual();
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    const r1 = startRow;
+    const c1 = startCol;
+    const r2 = currentRow;
+    const c2 = currentCol;
+    startRow = startCol = currentRow = currentCol = null;
+    clearSelectionVisual();
+    if (r1 === null || r2 === null) return;
+
+    const moved = flipRectangle(r1, c1, r2, c2);
+    if (moved) handleWin();
+  });
+
+  // --- Botones principales ---
+  undoBtn.addEventListener("click", () => {
+    if (history.length === 0) return;
+    board = history.pop();
+    undoBtn.disabled = history.length === 0;
+    moves--;
+    if (moves < 0) moves = 0;
+    movesEl.textContent = moves;
+    renderBoard();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    const level = getCurrentLevel();
+    board = cloneBoard(level.pattern);
+    history = [];
+    moves = 0;
+    movesEl.textContent = moves;
+    undoBtn.disabled = true;
+    renderBoard();
+    showToast("info", "Tablero reiniciado.");
+  });
+
+  // --- Modal ayuda AI ---
+  function openHelp() {
+    helpModal.classList.add("visible");
+    helpModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeHelp() {
+    helpModal.classList.remove("visible");
+    helpModal.setAttribute("aria-hidden", "true");
+  }
+
+  aiHelpBtn.addEventListener("click", openHelp);
+  closeHelpBtn.addEventListener("click", closeHelp);
+
+  helpModal.addEventListener("click", (e) => {
+    if (e.target === helpModal) {
+      closeHelp();
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && helpModal.classList.contains("visible")) {
+      closeHelp();
+    }
+  });
+
+  // --- Inicialización ---
+  function init() {
+    // Crear celdas del tablero principal
+    boardEl.innerHTML = "";
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        boardEl.appendChild(cell);
+      }
+    }
+
+    buildLevelsBar();
+    setCurrentLevel(currentLevelIndex);
+  }
+
+  init();
+</script>
+
+</body>
+</html>
