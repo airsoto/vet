@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Espirógrafo interactivo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #0b0b10;
+      --panel: #171722;
+      --accent: #f5c84c;
+      --accent-soft: rgba(245, 200, 76, 0.18);
+      --text-main: #f5f5f5;
+      --text-sub: #a3a3b8;
+      --border-soft: #2a2a3a;
+      --danger: #ff6b6b;
+      --success: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top left, #1b1b2f 0, #060712 55%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .app {
+      background: rgba(6, 7, 18, 0.95);
+      border-radius: 1.25rem;
+      border: 1px solid rgba(245, 200, 76, 0.12);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+      padding: 1.5rem;
+      width: min(1100px, 100%);
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h1 span.badge {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid rgba(245, 200, 76, 0.4);
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 1rem;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--border-soft);
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-sub);
+      margin-bottom: 0.6rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+      max-height: 70vh;
+      overflow-y: auto;
+      padding-right: 0.2rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding: 0.35rem 0.5rem 0.55rem;
+      border-radius: 0.75rem;
+      background: rgba(10, 10, 20, 0.65);
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .control-label {
+      font-weight: 500;
+    }
+
+    .control-value {
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="color"] {
+      width: 100%;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-soft);
+      background: #05050a;
+      padding: 0.1rem;
+      height: 2rem;
+      cursor: pointer;
+    }
+
+    select {
+      width: 100%;
+      background: #05050a;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      padding: 0.4rem 0.5rem;
+      font-size: 0.8rem;
+      outline: none;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .controls-row > * {
+      flex: 1;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    button {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #101018;
+      color: var(--text-main);
+      transition: transform 0.08s ease, box-shadow 0.08s ease,
+        background 0.1s ease, border-color 0.1s ease;
+    }
+
+    button span.icon {
+      font-size: 0.9em;
+    }
+
+    button.primary {
+      background: linear-gradient(120deg, #f7d977, #f1b546);
+      color: #201408;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 10px 25px rgba(0, 0, 0, 0.7);
+    }
+
+    button.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.85);
+    }
+
+    button.secondary {
+      border-color: var(--border-soft);
+      background: #101018;
+    }
+
+    button.secondary:hover {
+      border-color: rgba(245, 200, 76, 0.6);
+      background: #14141f;
+    }
+
+    button.danger {
+      border-color: rgba(255, 107, 107, 0.8);
+      color: #ffd6d6;
+    }
+
+    button.danger:hover {
+      background: rgba(255, 107, 107, 0.12);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      border-radius: 1rem;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #101020, #050509);
+      border: 1px solid var(--border-soft);
+    }
+
+    #spiroCanvas {
+      width: 100%;
+      display: block;
+      max-height: 70vh;
+      margin: 0 auto;
+      background: #05050a;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at top left, rgba(245, 200, 76, 0.08), transparent 55%);
+      mix-blend-mode: screen;
+    }
+
+    .status-bar {
+      position: absolute;
+      inset-inline: 0.8rem;
+      bottom: 0.7rem;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    }
+
+    .status-bar span.highlight {
+      color: var(--accent);
+    }
+
+    .status-bar span.ok {
+      color: var(--success);
+    }
+
+    .status-bar span.stop {
+      color: var(--danger);
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      width: min(1100px, 100%);
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .home a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .home a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div>
+      <h1>
+        Espirógrafo interactivo
+        <span class="badge">HTML · CSS · JS</span>
+      </h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Ajusta los parámetros, elige el modo de color y deja que la figura se
+        dibuje poco a poco. Guarda tu diseño como imagen cuando te guste.
+      </p>
+
+      <div class="panel">
+        <div class="panel-title">Parámetros</div>
+        <div class="controls-grid">
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Tipo de traza</span>
+            </div>
+            <select id="typeSelect">
+              <option value="hypo">Hipotrocoide (rueda dentro)</option>
+              <option value="epi">Epitrocoide (rueda fuera)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Radio fijo R</span>
+              <span class="control-value" id="RValue"></span>
+            </div>
+            <input type="range" id="RRange" min="30" max="200" value="120" />
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Radio móvil r</span>
+              <span class="control-value" id="rValue"></span>
+            </div>
+            <input type="range" id="rRange" min="5" max="120" value="45" />
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Distancia punta d</span>
+              <span class="control-value" id="dValue"></span>
+            </div>
+            <input type="range" id="dRange" min="5" max="150" value="70" />
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Vueltas (complejidad)</span>
+              <span class="control-value" id="turnsValue"></span>
+            </div>
+            <input
+              type="range"
+              id="turnsRange"
+              min="1"
+              max="40"
+              value="15"
+            />
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Velocidad de trazado</span>
+              <span class="control-value" id="speedValue"></span>
+            </div>
+            <input
+              type="range"
+              id="speedRange"
+              min="1"
+              max="10"
+              value="5"
+            />
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Grosor del trazo</span>
+              <span class="control-value" id="widthValue"></span>
+            </div>
+            <input
+              type="range"
+              id="widthRange"
+              min="1"
+              max="8"
+              value="2"
+            />
+          </div>
+
+          <div class="controls-row">
+            <div class="control-group">
+              <div class="control-header">
+                <span class="control-label">Modo de color</span>
+              </div>
+              <select id="colorMode">
+                <option value="single">Color único</option>
+                <option value="rainbow">Arcoíris continuo</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <div class="control-header">
+                <span class="control-label">Color del bolígrafo</span>
+              </div>
+              <input type="color" id="penColor" value="#ffcc33" />
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Color de fondo</span>
+            </div>
+            <input type="color" id="bgColor" value="#05050a" />
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="startPauseBtn" class="primary">
+            <span class="icon">▶️</span>
+            <span>Iniciar</span>
+          </button>
+          <button id="resetBtn" class="secondary">
+            <span class="icon">♻️</span>
+            <span>Reset</span>
+          </button>
+          <button id="saveBtn" class="secondary">
+            <span class="icon">💾</span>
+            <span>Guardar imagen</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="spiroCanvas"></canvas>
+      <div class="canvas-overlay"></div>
+      <div class="status-bar">
+        <span>t = <span id="tValue" class="highlight">0</span></span>
+        <span>Estado: <span id="statusText" class="stop">En pausa</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById("spiroCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // UI elements
+    const RRange = document.getElementById("RRange");
+    const rRange = document.getElementById("rRange");
+    const dRange = document.getElementById("dRange");
+    const turnsRange = document.getElementById("turnsRange");
+    const speedRange = document.getElementById("speedRange");
+    const widthRange = document.getElementById("widthRange");
+
+    const RValue = document.getElementById("RValue");
+    const rValue = document.getElementById("rValue");
+    const dValue = document.getElementById("dValue");
+    const turnsValue = document.getElementById("turnsValue");
+    const speedValue = document.getElementById("speedValue");
+    const widthValue = document.getElementById("widthValue");
+
+    const typeSelect = document.getElementById("typeSelect");
+    const colorModeSelect = document.getElementById("colorMode");
+    const penColorInput = document.getElementById("penColor");
+    const bgColorInput = document.getElementById("bgColor");
+
+    const startPauseBtn = document.getElementById("startPauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const saveBtn = document.getElementById("saveBtn");
+
+    const tValue = document.getElementById("tValue");
+    const statusText = document.getElementById("statusText");
+
+    // Canvas sizing
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      canvas.width = size * window.devicePixelRatio;
+      canvas.height = size * window.devicePixelRatio;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      fillBackground();
+    }
+
+    window.addEventListener("resize", () => {
+      const runningBefore = running;
+      resizeCanvas();
+      if (runningBefore) {
+        resetDrawing();
+        startDrawing();
+      }
+    });
+
+    // State
+    let t = 0;
+    let maxT = 0;
+    let running = false;
+    let animationId = null;
+
+    function updateLabels() {
+      RValue.textContent = `${RRange.value}`;
+      rValue.textContent = `${rRange.value}`;
+      dValue.textContent = `${dRange.value}`;
+      turnsValue.textContent = `${turnsRange.value} vueltas`;
+      speedValue.textContent = `${speedRange.value}/10`;
+      widthValue.textContent = `${widthRange.value}px`;
+    }
+
+    [RRange, rRange, dRange, turnsRange, speedRange, widthRange].forEach(
+      (el) => el.addEventListener("input", updateLabels)
+    );
+
+    updateLabels();
+
+    function fillBackground() {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = bgColorInput.value;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+
+    bgColorInput.addEventListener("input", () => {
+      const wasRunning = running;
+      resizeCanvas();
+      if (wasRunning) {
+        resetDrawing();
+        startDrawing();
+      }
+    });
+
+    function resetDrawing() {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+      running = false;
+      startPauseBtn.innerHTML = '<span class="icon">▶️</span><span>Iniciar</span>';
+      statusText.textContent = "En pausa";
+      statusText.classList.remove("ok");
+      statusText.classList.add("stop");
+      t = 0;
+      fillBackground();
+      tValue.textContent = "0";
+    }
+
+    resetBtn.addEventListener("click", () => {
+      resetDrawing();
+    });
+
+    function getParams() {
+      const R = parseFloat(RRange.value);
+      const r = parseFloat(rRange.value);
+      const d = parseFloat(dRange.value);
+      const turns = parseFloat(turnsRange.value);
+      const lineWidth = parseFloat(widthRange.value);
+      const speed = parseFloat(speedRange.value);
+
+      maxT = turns * Math.PI * 2;
+
+      return { R, r, d, turns, lineWidth, speed };
+    }
+
+    function getPosition(t, params) {
+      const { R, r, d } = params;
+      const type = typeSelect.value;
+
+      let big, small, k;
+      let x, y;
+      if (type === "hypo") {
+        big = R;
+        small = r;
+        k = (big - small) / small;
+        x = (big - small) * Math.cos(t) + d * Math.cos(k * t);
+        y = (big - small) * Math.sin(t) - d * Math.sin(k * t);
+      } else {
+        big = R;
+        small = r;
+        k = (big + small) / small;
+        x = (big + small) * Math.cos(t) - d * Math.cos(k * t);
+        y = (big + small) * Math.sin(t) - d * Math.sin(k * t);
+      }
+
+      const maxRadius = (type === "hypo" ? big : big + small) + d + 5;
+      const scale =
+        (Math.min(canvas.width, canvas.height) / window.devicePixelRatio /
+          2.2) /
+        maxRadius;
+
+      const cx =
+        (canvas.width / window.devicePixelRatio / 2) +
+        x * scale;
+      const cy =
+        (canvas.height / window.devicePixelRatio / 2) +
+        y * scale;
+
+      return { x: cx, y: cy };
+    }
+
+    function getColor(tLocal) {
+      const mode = colorModeSelect.value;
+      const baseColor = penColorInput.value;
+
+      if (mode === "single") {
+        return baseColor;
+      }
+
+      const ratio = maxT > 0 ? tLocal / maxT : 0;
+      const hue = (ratio * 360) % 360;
+      return `hsl(${hue}, 90%, 55%)`;
+    }
+
+    function drawStep() {
+      if (!running) return;
+
+      const params = getParams();
+      const stepsPerFrame = 5 + (params.speed - 1) * 5; // 5–50
+      const dt = 0.0045;
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      for (let i = 0; i < stepsPerFrame; i++) {
+        const tPrev = t;
+        const tNext = t + dt;
+        if (tNext > maxT) {
+          running = false;
+          startPauseBtn.innerHTML =
+            '<span class="icon">▶️</span><span>Repetir</span>';
+          statusText.textContent = "Figura completa";
+          statusText.classList.remove("stop");
+          statusText.classList.add("ok");
+          tValue.textContent = maxT.toFixed(2);
+          return;
+        }
+
+        const p1 = getPosition(tPrev, params);
+        const p2 = getPosition(tNext, params);
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineWidth = params.lineWidth;
+        ctx.strokeStyle = getColor(tPrev);
+        ctx.stroke();
+
+        t = tNext;
+      }
+
+      tValue.textContent = t.toFixed(2);
+      animationId = requestAnimationFrame(drawStep);
+    }
+
+    function startDrawing() {
+      fillBackground();
+      t = 0;
+      running = true;
+      statusText.textContent = "Dibujando…";
+      statusText.classList.remove("stop");
+      statusText.classList.add("ok");
+      startPauseBtn.innerHTML =
+        '<span class="icon">⏸️</span><span>Pausar</span>';
+      drawStep();
+    }
+
+    function toggleStartPause() {
+      if (!running && t === 0) {
+        startDrawing();
+      } else if (running) {
+        running = false;
+        cancelAnimationFrame(animationId);
+        animationId = null;
+        statusText.textContent = "En pausa";
+        statusText.classList.remove("ok");
+        statusText.classList.add("stop");
+        startPauseBtn.innerHTML =
+          '<span class="icon">▶️</span><span>Continuar</span>';
+      } else {
+        running = true;
+        statusText.textContent = "Dibujando…";
+        statusText.classList.remove("stop");
+        statusText.classList.add("ok");
+        startPauseBtn.innerHTML =
+          '<span class="icon">⏸️</span><span>Pausar</span>';
+        drawStep();
+      }
+    }
+
+    startPauseBtn.addEventListener("click", toggleStartPause);
+
+    saveBtn.addEventListener("click", () => {
+      try {
+        const dataURL = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = dataURL;
+        link.download = "espirografo.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (e) {
+        alert("No se ha podido guardar la imagen en este navegador.");
+      }
+    });
+
+    // Inicialización
+    resizeCanvas();
+    resetDrawing();
+  </script>
+</body>
+</html>
