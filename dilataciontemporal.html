@@ -949,13 +949,17 @@
   function syncStarOptions() {
     if (!starSelect) return;
     starSelect.innerHTML = "";
+
     if (stars.length === 0) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "No se han podido cargar las estrellas";
+      opt.textContent = "Error cargando json/stars_distance.json";
       starSelect.appendChild(opt);
+      starDistanceEl.textContent =
+        "Distancia al destino: no disponible (revisa json/stars_distance.json y la ruta).";
       return;
     }
+
     stars.forEach((s, index) => {
       const opt = document.createElement("option");
       opt.value = s.id;
@@ -976,16 +980,36 @@
       `Distancia al destino: ${star.distanceLy.toFixed(3)} años-luz`;
   }
 
+  // Carga robusta del JSON de estrellas (similar a tu loadData)
   async function loadStars() {
+    const url = "json/stars_distance.json";
+    let data = [];
     try {
-      const response = await fetch("json/stars_distance.json");
-      if (!response.ok) {
-        throw new Error("HTTP " + response.status);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error("No se pudo cargar el JSON (" + res.status + ")");
       }
-      const data = await response.json();
-      stars = (data || []).map((obj, index) => {
-        const name = obj.Name || `Estrella ${index + 1}`;
-        const distStr = obj["Distance (ly)"] ?? obj.Distance ?? "0";
+      data = await res.json();
+
+      // Admitimos varios formatos posibles
+      if (!Array.isArray(data)) {
+        if (Array.isArray(data.data)) {
+          data = data.data;
+        } else if (Array.isArray(data.stars)) {
+          data = data.stars;
+        } else {
+          throw new Error("El JSON no es un array ni tiene 'data' o 'stars' como array.");
+        }
+      }
+
+      stars = data.map((obj, index) => {
+        const name = obj.Name || obj.name || `Estrella ${index + 1}`;
+        const distStr =
+          obj["Distance (ly)"] ??
+          obj.distance_ly ??
+          obj.Distance ??
+          obj.distance ??
+          "0";
         const distanceLy = parseFloat(distStr);
         return {
           id: `star-${index}`,
@@ -994,9 +1018,14 @@
         };
       });
     } catch (err) {
-      console.error("Error cargando stars_distance.json:", err);
+      console.error("Error cargando json/stars_distance.json:", err);
       stars = [];
+      if (starDistanceEl) {
+        starDistanceEl.textContent =
+          "Error cargando json/stars_distance.json: " + err.message;
+      }
     }
+
     syncStarOptions();
     updateStarDistance();
   }
@@ -1065,7 +1094,7 @@
   // Inicio
   // ==========================
   updateSpeedLabels();
-  loadStars();
+  loadStars();   // cargamos el JSON de estrellas
 
   requestAnimationFrame((t) => {
     lastRealTime = t;
