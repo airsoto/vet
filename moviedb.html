@@ -1096,68 +1096,88 @@ IMDB Finder (TODO EN UNO) — VERSION CORREGIDA
         state.bounds.runtimeMax = Math.max(60, Math.min(600, Math.ceil(rMax / 10) * 10));
       }
     }
-
-/* ========= Carga (robusta) ========= */
+/* ========= Carga (diagnóstico + robusto) ========= */
 async function loadData(){
-  const url = 'json/imdb.json';
-  let data = [];
+  // URL robusta para GitHub Pages / subcarpetas / querystring
+  const url = new URL('json/imdb.json', document.baseURI).toString();
 
   try{
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) throw new Error('No se pudo cargar el JSON (' + res.status + ')');
+    console.log('[IMDB] Fetch:', url);
 
-    // Leemos como texto para detectar JSON inválido con error más claro
+    const res = await fetch(url, { cache: 'no-store' });
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    console.log('[IMDB] HTTP:', res.status, 'CT:', ct);
+
+    if(!res.ok) throw new Error(`No se pudo cargar el JSON (${res.status})`);
+
+    // Leer como texto para detectar “me devolvió HTML”
     const rawText = await res.text();
-    const cleanText = rawText.replace(/^\uFEFF/, ''); // quita BOM si existe
+    const text = rawText.replace(/^\uFEFF/, ''); // por si hay BOM
+
+    // Si te devuelve HTML (404/redirect), lo detectamos aquí
+    if (ct.includes('text/html') || /^\s*</.test(text)) {
+      const head = text.slice(0, 200).replace(/\s+/g, ' ');
+      throw new Error(`El fetch devolvió HTML (no JSON). Inicio: ${head}`);
+    }
 
     let parsed;
     try{
-      parsed = JSON.parse(cleanText);
+      parsed = JSON.parse(text);
     }catch(e){
-      // Muestra un trocito del inicio por si hay comillas mal escapadas, etc.
-      const head = cleanText.slice(0, 200).replace(/\s+/g, ' ');
-      throw new Error('JSON inválido: ' + e.message + ' | Inicio: ' + head);
+      const head = text.slice(0, 200).replace(/\s+/g, ' ');
+      throw new Error(`JSON inválido: ${e.message} | Inicio: ${head}`);
     }
 
-    // Acepta: array directo o wrappers típicos
+    // Acepta array directo o wrappers típicos
+    let data = [];
     if(Array.isArray(parsed)){
       data = parsed;
-    }else if(parsed && typeof parsed === 'object'){
-      const candidates = ['data', 'movies', 'items', 'results'];
-      for(const k of candidates){
-        if(Array.isArray(parsed[k])){
-          data = parsed[k];
-          break;
-        }
+    } else if(parsed && typeof parsed === 'object'){
+      for(const k of ['data','movies','items','results']){
+        if(Array.isArray(parsed[k])) { data = parsed[k]; break; }
       }
-      if(!Array.isArray(data)) throw new Error('El JSON no es un array (ni data/movies/items/results).');
-    }else{
-      throw new Error('El JSON no es un objeto/array válido.');
     }
 
-  }catch(err){
-    console.error(err);
+    if(!Array.isArray(data)) throw new Error('El JSON no es un array (ni data/movies/items/results).');
+    if(data.length === 0) throw new Error('El JSON está vacío.');
 
-    // Si tienes tu UI de error, aquí pintas el mensaje
-    // (ajusta el selector según tu HTML)
+    // Diagnóstico útil
+    console.log('[IMDB] items:', data.length);
+    console.log('[IMDB] first item:', data[0]);
+    console.log('[IMDB] keys:', Object.keys(data[0] || {}));
+
+    // Verificación de claves esperadas
+    const required = [
+      'Poster_Link','Series_Title','Released_Year','Certificate','Runtime','Genre','IMDB_Rating','Overview',
+      'Meta_score','Director','Star1','Star2','Star3','Star4','No_of_Votes','Gross'
+    ];
+    const missing = required.filter(k => !(k in (data[0] || {})));
+    if(missing.length){
+      console.warn('[IMDB] Faltan claves en el primer objeto:', missing);
+    }
+
+    return data;
+
+  }catch(err){
+    console.error('[IMDB] loadData error:', err);
+
+    // Pinta error en tu UI si quieres (ajusta el id si no es "grid")
     const grid = document.getElementById('grid');
     if(grid){
       grid.innerHTML = `
         <div class="card" style="min-height:200px">
           <div class="card-body">
-            <h2 class="title">Error cargando ${escapeHTML(url)}</h2>
-            <p class="lines">Asegúrate de que el archivo existe y es JSON válido (array).</p>
+            <h2 class="title">Error cargando json/imdb.json</h2>
             <p class="lines"><b>Mensaje:</b> ${escapeHTML(err.message)}</p>
+            <p class="lines">Abre DevTools → Console / Network para ver la URL exacta y la respuesta.</p>
           </div>
         </div>
       `;
     }
-
     return [];
   }
-
-  return data;
 }
+
 
 
     /* ------------------------- Filtros, búsqueda y orden ------------------------- */
