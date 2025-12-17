@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Frecuencia respiratoria (tap)</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1622;
+      --panel2:#121b2a;
+      --text:#e9eef6;
+      --muted:#a9b3c3;
+      --line:#233044;
+      --accent:#ff9900;
+      --good:#31d07f;
+      --warn:#ffd166;
+      --bad:#ff5c5c;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+      --btn:#1a2638;
+      --btnHover:#22334d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 20% -10%, rgba(255,153,0,.10), transparent 60%),
+                  radial-gradient(900px 700px at 110% 0%, rgba(49,208,127,.08), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .page{
+      max-width: 900px;
+      margin: 18px auto 28px;
+      padding: 0 14px;
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHeader{
+      padding: 18px 18px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      background: linear-gradient(180deg, rgba(255,153,0,.08), transparent 60%);
+    }
+    .title{
+      margin:0;
+      font-size: clamp(18px, 3.6vw, 24px);
+      letter-spacing: .2px;
+    }
+    .subtitle{
+      margin:6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .cardBody{ padding: 16px 18px 18px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+    @media (max-width: 760px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .panel{
+      background: rgba(18,27,42,.65);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .btnRow{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+
+    button{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.12);
+      background: var(--btn);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 650;
+      letter-spacing:.2px;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+    }
+    button:hover{ background: var(--btnHover); border-color: rgba(255,255,255,.18); }
+    button:active{ transform: translateY(1px) scale(.99); }
+    button:focus{ outline: 2px solid rgba(255,153,0,.35); outline-offset: 2px; }
+
+    .tapBtn{
+      flex: 1 1 260px;
+      padding: 16px 16px;
+      font-size: 16px;
+      border: 1px solid rgba(255,153,0,.30);
+      background: linear-gradient(180deg, rgba(255,153,0,.18), rgba(26,38,56,.95));
+    }
+    .resetBtn{
+      flex: 0 0 auto;
+      background: rgba(255,255,255,.06);
+    }
+
+    .hint{
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .kbd{
+      display:inline-block;
+      padding: 2px 8px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-bottom-color: rgba(255,255,255,.26);
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      margin: 0 2px;
+      white-space: nowrap;
+    }
+
+    .metric{
+      display:flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 10px 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.07);
+      margin-top: 10px;
+    }
+    .metric .label{ color: var(--muted); font-size: 12.5px; }
+    .metric .value{ font-size: 16px; font-weight: 750; letter-spacing:.2px; }
+    .bigResult{
+      margin-top: 10px;
+      padding: 14px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(49,208,127,.25);
+      background: linear-gradient(180deg, rgba(49,208,127,.10), rgba(0,0,0,.18));
+    }
+    .bigResult .rr{
+      font-size: clamp(26px, 5.5vw, 40px);
+      font-weight: 900;
+      line-height: 1.0;
+      letter-spacing: .2px;
+    }
+    .bigResult .unit{
+      color: var(--muted);
+      font-weight: 650;
+      margin-left: 6px;
+      font-size: 14px;
+    }
+    .status{
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .status strong{ color: var(--text); }
+
+    .note{
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: var(--muted);
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.04);
+      border: 1px dashed rgba(255,255,255,.12);
+    }
+
+    .footer{
+      margin-top: 18px;
+      padding: 14px 14px;
+      background: rgba(15,22,34,.55);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .footer a{ color: var(--text); text-decoration: none; }
+    .footer a:hover{ text-decoration: underline; }
+    .home a{ color: var(--text); text-decoration: none; }
+    .home a:hover{ text-decoration: underline; }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <div class="card">
+      <div class="cardHeader">
+        <h1 class="title">Calculadora de frecuencia respiratoria (por pulsaciones)</h1>
+        <p class="subtitle">
+          Pulsa el botón una vez por cada respiración (idealmente en cada inspiración). Tras varias pulsaciones,
+          se calcula la media de los intervalos y se estima la FR.
+        </p>
+      </div>
+
+      <div class="cardBody">
+        <div class="grid">
+          <div class="panel">
+            <div class="btnRow">
+              <button id="tapBtn" class="tapBtn" type="button">🫁 Pulsación / Respiración</button>
+              <button id="resetBtn" class="resetBtn" type="button">↺ Reset</button>
+            </div>
+
+            <div class="hint">
+              Atajos: <span class="kbd">Espacio</span> o <span class="kbd">Enter</span> para pulsar · <span class="kbd">R</span> para reset.
+              <br/>Si pasan &gt; <span class="kbd">10 s</span> entre pulsaciones, se reinicia automáticamente la serie.
+            </div>
+
+            <div class="metric">
+              <div class="label">Pulsaciones registradas</div>
+              <div class="value" id="tapCount">0</div>
+            </div>
+
+            <div class="metric">
+              <div class="label">Intervalos usados (s)</div>
+              <div class="value" id="intervalCount">0</div>
+            </div>
+
+            <div class="metric">
+              <div class="label">Intervalo medio (s)</div>
+              <div class="value" id="avgInterval">—</div>
+            </div>
+
+            <div class="note">
+              Para mostrar el primer cálculo se requieren <strong>4 pulsaciones</strong> (3 intervalos).
+              Después, se actualiza con cada pulsación adicional.
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="bigResult" aria-live="polite">
+              <div>
+                <span class="rr" id="rrValue">—</span><span class="unit">resp/min</span>
+              </div>
+              <div class="status" id="statusText">
+                Pulsa el botón siguiendo el ritmo respiratorio.
+              </div>
+            </div>
+
+            <div class="note" style="margin-top:12px;">
+              Consejo: intenta mantener pulsaciones regulares. Si te equivocas, usa <strong>Reset</strong>.
+            </div>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.08); margin:16px 0;">
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+          <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+          <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+          <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+          <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+          <p><strong>_______________________________________________</strong></p>
+          <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+          <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+          Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+          <p>_______________________________________________</p>
+        </footer>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    (function(){
+      const tapBtn = document.getElementById('tapBtn');
+      const resetBtn = document.getElementById('resetBtn');
+
+      const tapCountEl = document.getElementById('tapCount');
+      const intervalCountEl = document.getElementById('intervalCount');
+      const avgIntervalEl = document.getElementById('avgInterval');
+      const rrValueEl = document.getElementById('rrValue');
+      const statusTextEl = document.getElementById('statusText');
+
+      let lastTs = null;            // ms (performance.now)
+      let tapCount = 0;             // number of taps
+      let intervals = [];           // seconds between taps
+      const AUTO_RESET_SEC = 10;    // if pause > 10s, restart
+
+      function format(n, digits=2){
+        if (!Number.isFinite(n)) return '—';
+        return n.toFixed(digits);
+      }
+
+      function mean(arr){
+        if (!arr.length) return NaN;
+        return arr.reduce((a,b)=>a+b,0) / arr.length;
+      }
+
+      function resetAll(msg){
+        lastTs = null;
+        tapCount = 0;
+        intervals = [];
+        tapCountEl.textContent = '0';
+        intervalCountEl.textContent = '0';
+        avgIntervalEl.textContent = '—';
+        rrValueEl.textContent = '—';
+        statusTextEl.textContent = msg || 'Pulsa el botón siguiendo el ritmo respiratorio.';
+      }
+
+      function updateUI(){
+        tapCountEl.textContent = String(tapCount);
+        intervalCountEl.textContent = String(intervals.length);
+
+        if (intervals.length > 0){
+          const avg = mean(intervals);
+          avgIntervalEl.textContent = format(avg, 2);
+
+          if (intervals.length >= 3){ // 4 taps -> 3 intervals
+            const rr = 60 / avg;
+            rrValueEl.textContent = format(rr, 1);
+
+            statusTextEl.innerHTML =
+              'Estimación basada en <strong>' + intervals.length + '</strong> intervalos. ' +
+              'Si pulsas <strong>1 vez por respiración</strong>, esta es la FR.';
+          } else {
+            rrValueEl.textContent = '—';
+            statusTextEl.textContent = 'Sigue pulsando… faltan ' + (3 - intervals.length) + ' intervalos para estimar.';
+          }
+        } else {
+          avgIntervalEl.textContent = '—';
+          rrValueEl.textContent = '—';
+          statusTextEl.textContent = 'Pulsa el botón siguiendo el ritmo respiratorio.';
+        }
+      }
+
+      function handleTap(){
+        const now = performance.now();
+
+        // First tap
+        if (lastTs === null){
+          lastTs = now;
+          tapCount = 1;
+          intervals = [];
+          statusTextEl.textContent = 'Primera pulsación registrada. Continúa…';
+          updateUI();
+          return;
+        }
+
+        const dtSec = (now - lastTs) / 1000;
+
+        // Auto-reset if user paused too long
+        if (dtSec > AUTO_RESET_SEC){
+          resetAll('Pausa > ' + AUTO_RESET_SEC + ' s: serie reiniciada. Pulsa de nuevo siguiendo la respiración.');
+          // Count this tap as the new first tap
+          lastTs = performance.now();
+          tapCount = 1;
+          updateUI();
+          return;
+        }
+
+        // Register interval
+        intervals.push(dtSec);
+        tapCount += 1;
+        lastTs = now;
+
+        updateUI();
+      }
+
+      tapBtn.addEventListener('click', handleTap);
+      resetBtn.addEventListener('click', () => resetAll('Reiniciado. Pulsa el botón siguiendo el ritmo respiratorio.'));
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        const key = (e.key || '').toLowerCase();
+        if (key === 'r'){
+          e.preventDefault();
+          resetAll('Reiniciado. Pulsa el botón siguiendo el ritmo respiratorio.');
+          return;
+        }
+        if (e.key === ' ' || e.key === 'Enter'){
+          // avoid scrolling with space
+          e.preventDefault();
+          handleTap();
+        }
+      });
+
+      resetAll();
+    })();
+  </script>
+</body>
+</html>
