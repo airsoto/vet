@@ -1,0 +1,966 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sucesiones alícuotas — Calculadora interactiva</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1622;
+      --panel2:#121b2a;
+      --text:#e9eef6;
+      --muted:#a9b3c3;
+      --line:#233044;
+      --accent:#ff9900;
+      --good:#31d07f;
+      --warn:#ffd166;
+      --bad:#ff5c5c;
+      --shadow: 0 14px 40px rgba(0,0,0,.45);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(255,153,0,.10), transparent 60%),
+                  radial-gradient(1000px 700px at 90% 10%, rgba(49,208,127,.08), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 14px 28px;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 12px;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18,27,42,.92), rgba(15,22,34,.86));
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 10px;
+      backdrop-filter: blur(10px);
+      z-index: 5;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:2px;
+      min-width: 0;
+    }
+    .title h1{
+      margin:0;
+      font-size: clamp(18px, 3vw, 24px);
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .title p{
+      margin:0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+    .actions{display:flex; align-items:center; gap:10px}
+    .iconBtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      cursor:pointer;
+      user-select:none;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .iconBtn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.55);
+      background: rgba(255,153,0,.06);
+    }
+    .iconBtn:active{transform: translateY(0)}
+    .iBadge{
+      font-weight:800;
+      font-size: 18px;
+      color: var(--accent);
+      font-family: ui-sans-serif, system-ui;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr}
+      header{position: static}
+    }
+    .card{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18,27,42,.88), rgba(15,22,34,.86));
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .card h2{
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin: 0 0 12px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:end;
+    }
+    label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 1 1 180px;
+      min-width: 160px;
+    }
+    input{
+      width:100%;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      padding: 11px 12px;
+      font-size: 15px;
+      outline:none;
+    }
+    input:focus{
+      border-color: rgba(255,153,0,.65);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.12);
+    }
+    .btn{
+      border-radius: 12px;
+      border: 1px solid rgba(255,153,0,.55);
+      background: linear-gradient(180deg, rgba(255,153,0,.18), rgba(255,153,0,.08));
+      color: var(--text);
+      padding: 11px 12px;
+      font-weight: 700;
+      cursor:pointer;
+      transition: transform .12s ease, filter .12s ease;
+      min-width: 140px;
+    }
+    .btn:hover{filter: brightness(1.08); transform: translateY(-1px)}
+    .btn:active{transform: translateY(0)}
+    .btn.secondary{
+      border-color: var(--line);
+      background: rgba(255,255,255,.03);
+      font-weight: 650;
+      min-width: 120px;
+    }
+    .btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    .status{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 12px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{width:10px;height:10px;border-radius:999px;background: var(--muted)}
+    .dot.good{background: var(--good)}
+    .dot.warn{background: var(--warn)}
+    .dot.bad{background: var(--bad)}
+    .dot.accent{background: var(--accent)}
+
+    .seq{
+      margin-top: 12px;
+      border:1px dashed rgba(255,255,255,.14);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: rgba(0,0,0,.18);
+      min-height: 62px;
+    }
+    .seqLine{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+    }
+    .term{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size: 13px;
+      cursor: pointer;
+      user-select:none;
+      transition: transform .12s ease, border-color .12s ease;
+    }
+    .term:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.55);
+    }
+    .arrow{
+      color: rgba(233,238,246,.35);
+      font-size: 14px;
+      user-select:none;
+    }
+    .mutedNote{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .kpiGrid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+      margin-top: 10px;
+    }
+    .kpi{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .kpi .k{color: var(--muted); font-size: 12px}
+    .kpi .v{font-weight: 800; font-size: 14px; margin-top: 6px}
+    .mini{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.45;
+    }
+    .lehmerList{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap:10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 720px){
+      .lehmerList{grid-template-columns: repeat(2, minmax(0,1fr))}
+    }
+    .lehmer{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 14px;
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .lehmer b{font-size: 16px}
+    .lehmer small{color: var(--muted)}
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.62);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(920px, 100%);
+      max-height: min(86vh, 900px);
+      overflow:auto;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(18,27,42,.98), rgba(12,16,22,.96));
+      box-shadow: 0 20px 70px rgba(0,0,0,.6);
+      padding: 14px;
+      position:relative;
+    }
+    .modal header{
+      position: static;
+      box-shadow: none;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+    .closeBtn{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight: 700;
+    }
+    .modalContent{
+      padding: 6px 2px 2px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .modalContent h3{
+      margin: 14px 0 8px;
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+    .modalContent p, .modalContent li{
+      color: rgba(233,238,246,.88);
+      font-size: 13px;
+    }
+    .modalContent code{
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .callout{
+      border-left: 3px solid rgba(255,153,0,.8);
+      background: rgba(255,153,0,.06);
+      padding: 10px 12px;
+      border-radius: 14px;
+      margin: 10px 0;
+    }
+    .spinner{
+      width:14px;height:14px;
+      border-radius:999px;
+      border:2px solid rgba(255,255,255,.18);
+      border-top-color: rgba(255,153,0,.85);
+      animation: spin .8s linear infinite;
+      display:none;
+    }
+    @keyframes spin{to{transform: rotate(360deg)}}
+
+    /* Footer provided */
+    .footer{
+      margin-top: 18px;
+      border-top:1px solid rgba(255,255,255,.10);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .footer a{color: var(--accent)}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header>
+      <div class="title">
+        <h1>Sucesiones alícuotas</h1>
+        <p>Calcula la sucesión alícuota de un entero positivo y detecta ciclos (perfectos, amigables, sociables) o terminación.</p>
+      </div>
+          <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+      <div class="actions">
+        <button class="iconBtn" id="infoBtn" title="¿Qué es una sucesión alícuota?">
+          <span class="iBadge">i</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Calculator -->
+      <section class="card">
+        <h2>Calculadora</h2>
+        <p class="sub">
+          Introduce un entero positivo <b>k</b>. La sucesión alícuota se define por:
+          <code>s₀ = k</code> y <code>sₙ = σ(sₙ₋₁) − sₙ₋₁</code>, donde <code>σ(n)</code> es la suma de todos los divisores positivos.
+          (Equivale a “suma de divisores propios”.)
+        </p>
+
+        <div class="row">
+          <label>
+            Número inicial (k)
+            <input id="kInput" inputmode="numeric" autocomplete="off" placeholder="Ej.: 10, 220, 1264460..." value="10"/>
+          </label>
+          <label>
+            Máx. términos
+            <input id="maxTerms" inputmode="numeric" autocomplete="off" value="50"/>
+          </label>
+          <button class="btn" id="calcBtn">
+            <span class="spinner" id="spin"></span>
+            <span id="calcBtnText">Calcular</span>
+          </button>
+          <button class="btn secondary" id="resetBtn">Reset</button>
+          <button class="btn secondary" id="demoBtn">Probar 220</button>
+        </div>
+
+        <div class="status" style="margin-top:12px;">
+          <span class="pill"><span class="dot accent"></span><span id="classif">Listo.</span></span>
+          <span class="pill"><span class="dot"></span><span id="note">Cálculo exacto con BigInt (factorización por prueba). Para números gigantes puede tardar.</span></span>
+        </div>
+
+        <div class="seq" id="seqBox" aria-live="polite">
+          <div class="seqLine" id="seqLine"></div>
+          <div class="mutedNote" id="seqMeta"></div>
+        </div>
+
+        <div class="kpiGrid">
+          <div class="kpi">
+            <div class="k">Longitud generada</div>
+            <div class="v" id="kpiLen">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Estado / parada</div>
+            <div class="v" id="kpiStop">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Primer ciclo detectado</div>
+            <div class="v" id="kpiCycle">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Último término</div>
+            <div class="v" id="kpiLast">—</div>
+          </div>
+        </div>
+
+        <p class="mini">
+          Tip: haz clic en un término para ver (abajo) su suma de divisores propios y una factorización rápida (si es posible).
+        </p>
+
+        <div class="card" style="margin-top:12px; padding:12px; background: rgba(0,0,0,.16);">
+          <h2 style="margin-bottom:6px;">Detalle del término seleccionado</h2>
+          <div class="sub" id="termDetail">Selecciona un término de la sucesión.</div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Explanation + Lehmer -->
+      <aside class="card">
+        <h2>¿Qué puede pasar con una sucesión alícuota?</h2>
+        <p class="sub">
+          Muchas terminan en <b>0</b> (típicamente: primo → 1 → 0). Otras entran en ciclos:
+          período 1 (número perfecto), período 2 (números amigables) o período ≥ 3 (números sociables).
+          También existen los <b>números aspirantes</b>: no son perfectos, pero su sucesión acaba entrando en un ciclo de período 1.
+        </p>
+
+        <div class="callout">
+          <b>Los cinco de Lehmer</b><br/>
+          <span style="color: var(--muted); font-size: 13px;">
+            Son cinco números clásicos cuyas sucesiones fueron (históricamente) candidatas a no estar completamente determinadas:
+            <b>276, 552, 564, 660 y 966</b>. Se usan como “casos emblemáticos” al hablar del esfuerzo computacional en estas sucesiones.
+          </span>
+        </div>
+
+        <div class="lehmerList" id="lehmerList"></div>
+
+        <p class="mini">
+          Conjetura de Catalan (forma informal): toda sucesión alícuota termina en un primo (→ 1 → 0),
+          en un número perfecto (ciclo de 1), o en un ciclo amigable/sociable. La alternativa sería una sucesión infinita aperiódica.
+        </p>
+
+        <p class="mini">
+          Enlaces útiles: <a href="https://es.wikipedia.org/wiki/Sucesi%C3%B3n_al%C3%ADcuota" target="_blank" rel="noopener">Wikipedia</a> ·
+          <a href="https://mathworld.wolfram.com/AliquotSequence.html" target="_blank" rel="noopener">MathWorld</a> ·
+          <a href="https://oeis.org/" target="_blank" rel="noopener">OEIS</a>
+        </p>
+      </aside>
+    </div>
+
+    <!-- INFO MODAL -->
+    <div class="modalOverlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <header>
+          <div class="title">
+            <h1 id="modalTitle">¿Qué es una sucesión alícuota?</h1>
+            <p>Definición, ejemplos y comportamientos típicos.</p>
+          </div>
+          <div class="actions">
+            <button class="closeBtn" id="closeModal">Cerrar</button>
+          </div>
+        </header>
+
+        <div class="modalContent">
+          <p>
+            En Matemática, una <b>sucesión alícuota</b> es una sucesión recursiva donde cada término es la
+            <b>suma de los divisores propios</b> del término anterior (es decir, todos los divisores positivos
+            excepto el propio número).
+          </p>
+
+          <div class="callout">
+            <b>Definición formal</b><br/>
+            <p style="margin:8px 0 0;">
+              Si <code>σ(n)</code> denota la suma de todos los divisores positivos de <code>n</code>, entonces:
+              <br/><code>s₀ = k</code> y <code>sₙ = σ(sₙ₋₁) − sₙ₋₁</code>.
+            </p>
+          </div>
+
+          <h3>Ejemplo (k = 10)</h3>
+          <p>
+            La sucesión alícuota de 10 es: <code>10, 8, 7, 1, 0</code>, porque:
+            <br/>divisores propios de 10: 1, 2, 5 → suma 8
+            <br/>divisores propios de 8: 1, 2, 4 → suma 7
+            <br/>divisores propios de 7: 1 → suma 1
+            <br/>divisores propios de 1: (ninguno) → suma 0
+          </p>
+
+          <h3>Formas típicas de terminar o ciclar</h3>
+          <ul>
+            <li><b>Termina en 0</b>: necesariamente pasa por <b>un primo → 1 → 0</b>.</li>
+            <li><b>Número perfecto</b>: ciclo de período 1 (p.ej. 6 → 6 → 6…).</li>
+            <li><b>Números amigables</b>: ciclo de período 2 (p.ej. 220 ↔ 284).</li>
+            <li><b>Números sociables</b>: ciclo de período ≥ 3 (p.ej. ciclos más largos).</li>
+            <li><b>Números aspirantes</b>: no son perfectos, pero su sucesión entra en un ciclo de período 1 (p.ej. 95 → 25 → 6 → 6…).</li>
+          </ul>
+
+          <h3>Conjetura de Catalan y los “cinco de Lehmer”</h3>
+          <p>
+            Una conjetura importante atribuida a Catalan sugiere que toda sucesión alícuota acaba en una de las formas anteriores
+            (primo→1→0, perfecto, o ciclo amigable/sociable). Como posible alternativa, podría existir una sucesión infinita aperiódica.
+          </p>
+          <p>
+            Históricamente se citan como candidatos famosos los <b>cinco de Lehmer</b>:
+            <code>276</code>, <code>552</code>, <code>564</code>, <code>660</code> y <code>966</code>.
+          </p>
+
+          <p class="mini">
+            Nota: Esta web calcula la suma de divisores propios mediante factorización por prueba (exacta, con BigInt). Para números enormes,
+            el cálculo puede volverse lento.
+          </p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    // ---------- Helpers (BigInt safe) ----------
+    const $ = (id) => document.getElementById(id);
+
+    function cleanIntString(s){
+      // allow spaces/underscores and leading +
+      return String(s).trim().replace(/[_\s]/g,'').replace(/^\+/,'');
+    }
+
+    function toBigIntStrict(s){
+      const t = cleanIntString(s);
+      if(!/^\d+$/.test(t)) throw new Error("Introduce un entero positivo (solo dígitos).");
+      // avoid empty or leading zeros? allow "0" but we will reject as start
+      return BigInt(t);
+    }
+
+    function bigintAbs(n){ return n < 0n ? -n : n; }
+
+    // Trial division factorization (exact). Returns Map(prime -> exponent).
+    // Includes a time guard to avoid freezing on huge inputs.
+    function factorizeBigInt(n, timeLimitMs = 800){
+      const start = performance.now();
+      const factors = new Map();
+      if(n < 2n) return factors;
+
+      let x = n;
+      let count = 0;
+
+      // factor 2
+      while((x % 2n) === 0n){
+        count++;
+        x /= 2n;
+        if(performance.now() - start > timeLimitMs) throw new Error("Factorización demasiado lenta (límite de tiempo).");
+      }
+      if(count>0) factors.set(2n, count);
+
+      // odd factors
+      let d = 3n;
+      while(d*d <= x){
+        if(performance.now() - start > timeLimitMs) throw new Error("Factorización demasiado lenta (límite de tiempo).");
+        let e = 0;
+        while((x % d) === 0n){
+          e++;
+          x /= d;
+          if(performance.now() - start > timeLimitMs) throw new Error("Factorización demasiado lenta (límite de tiempo).");
+        }
+        if(e>0) factors.set(d, e);
+        d += 2n;
+      }
+      if(x > 1n) factors.set(x, (factors.get(x) || 0) + 1);
+      return factors;
+    }
+
+    function powBigInt(a, e){
+      // fast exp
+      let res = 1n;
+      let base = a;
+      let exp = BigInt(e);
+      while(exp > 0n){
+        if(exp & 1n) res *= base;
+        base *= base;
+        exp >>= 1n;
+      }
+      return res;
+    }
+
+    function sigmaFromFactors(factors){
+      // sigma(n) = Π (p^(a+1)-1)/(p-1)
+      let prod = 1n;
+      for(const [p, a] of factors.entries()){
+        const num = powBigInt(p, a+1) - 1n;
+        const den = p - 1n;
+        prod *= (num / den);
+      }
+      return prod;
+    }
+
+    async function properDivisorSum(n){
+      // returns {sum, factors, sigma}
+      if(n <= 1n) return {sum: 0n, factors: new Map(), sigma: n};
+      const factors = factorizeBigInt(n);
+      const sigma = sigmaFromFactors(factors);
+      return {sum: sigma - n, factors, sigma};
+    }
+
+    function formatBigInt(n){
+      // group with thin spaces
+      const s = n.toString();
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+
+    function factorsToString(factors){
+      if(!factors || factors.size === 0) return "—";
+      // sort by prime
+      const arr = [...factors.entries()].sort((a,b)=> (a[0] < b[0] ? -1 : 1));
+      return arr.map(([p,e]) => e === 1 ? `${p}` : `${p}^${e}`).join(" · ");
+    }
+
+    function classifySequence(seq, stopInfo){
+      // stopInfo = {type, cycleStart, cycleLen, cycle}
+      const last = seq[seq.length-1];
+      const type = stopInfo.type;
+
+      if(type === "zero") return "Termina en 0 (típicamente primo → 1 → 0).";
+      if(type === "maxTerms") return "Parada por límite de términos (puede ser larga o no resuelta).";
+      if(type === "timeout") return "Cálculo interrumpido: el número es demasiado grande para factorizar rápido.";
+      if(type === "cycle"){
+        const len = stopInfo.cycleLen;
+        if(len === 1) return "Ciclo de período 1 (número perfecto o aspirante que entra en perfecto).";
+        if(len === 2) return "Ciclo de período 2 (números amigables).";
+        return `Ciclo de período ${len} (números sociables).`;
+      }
+      if(type === "neg") return "Aparece un término negativo (no debería con entrada positiva; revisa el número).";
+      return "Estado desconocido.";
+    }
+
+    function stopLabel(stopInfo){
+      if(stopInfo.type === "zero") return "llega a 0";
+      if(stopInfo.type === "cycle") return `ciclo (período ${stopInfo.cycleLen})`;
+      if(stopInfo.type === "maxTerms") return "límite alcanzado";
+      if(stopInfo.type === "timeout") return "interrumpido por tiempo";
+      return stopInfo.type;
+    }
+
+    // ---------- UI ----------
+    const modalOverlay = $("modalOverlay");
+    const infoBtn = $("infoBtn");
+    const closeModal = $("closeModal");
+    const seqLine = $("seqLine");
+    const seqMeta = $("seqMeta");
+    const termDetail = $("termDetail");
+
+    const calcBtn = $("calcBtn");
+    const spin = $("spin");
+    const calcBtnText = $("calcBtnText");
+
+    const classif = $("classif");
+    const note = $("note");
+
+    const kpiLen = $("kpiLen");
+    const kpiStop = $("kpiStop");
+    const kpiCycle = $("kpiCycle");
+    const kpiLast = $("kpiLast");
+
+    const lehmerList = $("lehmerList");
+
+    const LEHMER = [276, 552, 564, 660, 966];
+
+    function renderLehmer(){
+      lehmerList.innerHTML = "";
+      for(const n of LEHMER){
+        const el = document.createElement("div");
+        el.className = "lehmer";
+        el.innerHTML = `<b>${n}</b><small>Click para calcular</small>`;
+        el.addEventListener("click", ()=>{
+          $("kInput").value = String(n);
+          run();
+        });
+        lehmerList.appendChild(el);
+      }
+    }
+
+    function setBusy(b){
+      calcBtn.disabled = b;
+      spin.style.display = b ? "inline-block" : "none";
+      calcBtnText.textContent = b ? "Calculando..." : "Calcular";
+    }
+
+    function renderSequence(seq, stopInfo){
+      seqLine.innerHTML = "";
+      termDetail.textContent = "Selecciona un término de la sucesión.";
+
+      seq.forEach((v, i) => {
+        if(i > 0){
+          const arrow = document.createElement("span");
+          arrow.className = "arrow";
+          arrow.textContent = "→";
+          seqLine.appendChild(arrow);
+        }
+        const chip = document.createElement("span");
+        chip.className = "term";
+        chip.title = "Click para ver detalles (divisores propios / factorización)";
+        chip.dataset.value = v.toString();
+        chip.innerHTML = `<span style="opacity:.9; font-weight:750;">${formatBigInt(v)}</span>`;
+        chip.addEventListener("click", async () => {
+          const n = BigInt(chip.dataset.value);
+          termDetail.innerHTML = `<span style="color: var(--muted);">Calculando detalles de</span> <b>${formatBigInt(n)}</b>…`;
+          try{
+            if(n <= 1n){
+              termDetail.innerHTML =
+                `<b>${formatBigInt(n)}</b><br/>` +
+                `<span style="color: var(--muted);">Suma de divisores propios:</span> <b>0</b><br/>` +
+                `<span style="color: var(--muted);">Factorización:</span> —`;
+              return;
+            }
+            const {sum, factors, sigma} = await new Promise((res, rej)=>{
+              // yield to UI
+              setTimeout(async ()=>{
+                try{ res(await properDivisorSum(n)); }
+                catch(e){ rej(e); }
+              }, 0);
+            });
+
+            const primeLike = (sum === 1n) ? " (primo)" : "";
+            termDetail.innerHTML =
+              `<b>${formatBigInt(n)}</b>${primeLike}<br/>` +
+              `<span style="color: var(--muted);">Factorización:</span> <b>${factorsToString(factors)}</b><br/>` +
+              `<span style="color: var(--muted);">σ(n):</span> <b>${formatBigInt(sigma)}</b><br/>` +
+              `<span style="color: var(--muted);">Suma de divisores propios σ(n)−n:</span> <b>${formatBigInt(sum)}</b>`;
+          }catch(e){
+            termDetail.innerHTML =
+              `<b>${formatBigInt(n)}</b><br/>` +
+              `<span style="color: var(--bad); font-weight:700;">No se pudo obtener el detalle:</span> ` +
+              `<span style="color: var(--muted);">${e.message || String(e)}</span>`;
+          }
+        });
+        seqLine.appendChild(chip);
+      });
+
+      const last = seq[seq.length-1];
+      seqMeta.textContent = `Parada: ${stopLabel(stopInfo)}.`;
+
+      kpiLen.textContent = String(seq.length);
+      kpiStop.textContent = stopLabel(stopInfo);
+      kpiLast.textContent = formatBigInt(last);
+
+      if(stopInfo.type === "cycle"){
+        kpiCycle.textContent = stopInfo.cycle.map(x => formatBigInt(x)).join(" → ");
+      }else{
+        kpiCycle.textContent = "—";
+      }
+
+      classif.textContent = classifySequence(seq, stopInfo);
+
+      // dot color
+      const dot = classif.parentElement.querySelector(".dot");
+      dot.classList.remove("good","warn","bad","accent");
+      if(stopInfo.type === "zero") dot.classList.add("good");
+      else if(stopInfo.type === "cycle") dot.classList.add("accent");
+      else if(stopInfo.type === "timeout") dot.classList.add("warn");
+      else dot.classList.add("warn");
+    }
+
+    async function computeAliquotSequence(k, maxTerms){
+      // returns {seq, stopInfo}
+      if(k <= 0n) throw new Error("k debe ser un entero positivo (> 0).");
+
+      const seq = [k];
+      const seen = new Map(); // value -> index
+      seen.set(k.toString(), 0);
+
+      for(let i=1; i<maxTerms; i++){
+        const prev = seq[seq.length-1];
+        if(prev === 0n) return {seq, stopInfo: {type:"zero"}};
+        if(prev < 0n) return {seq, stopInfo: {type:"neg"}};
+
+        let next;
+        try{
+          const res = await new Promise((resolve, reject)=>{
+            setTimeout(async ()=>{
+              try{ resolve(await properDivisorSum(prev)); }
+              catch(e){ reject(e); }
+            }, 0);
+          });
+          next = res.sum;
+        }catch(e){
+          // likely timeout
+          return {seq, stopInfo: {type:"timeout", error: e.message || String(e)}};
+        }
+
+        seq.push(next);
+
+        if(next === 0n){
+          return {seq, stopInfo: {type:"zero"}};
+        }
+
+        const key = next.toString();
+        if(seen.has(key)){
+          const start = seen.get(key);
+          const cycle = seq.slice(start, seq.length-1); // cycle terms before repeating next
+          // If next equals earlier term, actual cycle is from start to end-1 inclusive
+          // For example: ... 220, 284, 220 -> seq includes last 220; start points to first 220
+          // cycle should be 220, 284
+          const cycle2 = seq.slice(start, seq.length-1); // excludes repeated term at end
+          const cycleLen = cycle2.length;
+          return {seq, stopInfo: {type:"cycle", cycleStart: start, cycleLen, cycle: cycle2}};
+        }
+        seen.set(key, seq.length-1);
+      }
+      return {seq, stopInfo: {type:"maxTerms"}};
+    }
+
+    async function run(){
+      termDetail.textContent = "Selecciona un término de la sucesión.";
+      note.textContent = "Cálculo exacto con BigInt (factorización por prueba). Para números gigantes puede tardar.";
+      classif.textContent = "Calculando…";
+
+      const rawK = $("kInput").value;
+      const rawMax = $("maxTerms").value;
+
+      let k, maxTerms;
+      try{
+        k = toBigIntStrict(rawK);
+        maxTerms = Number(cleanIntString(rawMax));
+        if(!Number.isFinite(maxTerms) || maxTerms < 2 || maxTerms > 5000){
+          throw new Error("Máx. términos debe estar entre 2 y 5000.");
+        }
+      }catch(e){
+        classif.textContent = "Entrada inválida.";
+        seqLine.innerHTML = "";
+        seqMeta.textContent = e.message || String(e);
+        kpiLen.textContent = "—";
+        kpiStop.textContent = "—";
+        kpiCycle.textContent = "—";
+        kpiLast.textContent = "—";
+        return;
+      }
+
+      setBusy(true);
+      try{
+        const {seq, stopInfo} = await computeAliquotSequence(k, maxTerms);
+        renderSequence(seq, stopInfo);
+        if(stopInfo.type === "timeout"){
+          note.textContent = "Consejo: prueba con un número más pequeño o reduce el tamaño del cálculo. La factorización por prueba se vuelve lenta en enteros grandes.";
+        }else if(stopInfo.type === "maxTerms"){
+          note.textContent = "Se alcanzó el límite de términos. Si quieres, aumenta “Máx. términos” (con cuidado: puede crecer mucho).";
+        }else{
+          note.textContent = "Hecho. Puedes hacer clic en términos para ver detalles.";
+        }
+      }finally{
+        setBusy(false);
+      }
+    }
+
+    // ---------- Modal ----------
+    function openModal(){
+      modalOverlay.style.display = "flex";
+      document.body.style.overflow = "hidden";
+    }
+    function hideModal(){
+      modalOverlay.style.display = "none";
+      document.body.style.overflow = "";
+    }
+
+    infoBtn.addEventListener("click", openModal);
+    closeModal.addEventListener("click", hideModal);
+    modalOverlay.addEventListener("click", (e)=>{
+      if(e.target === modalOverlay) hideModal();
+    });
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape" && modalOverlay.style.display === "flex") hideModal();
+    });
+
+    // ---------- Buttons ----------
+    $("calcBtn").addEventListener("click", run);
+    $("resetBtn").addEventListener("click", ()=>{
+      $("kInput").value = "10";
+      $("maxTerms").value = "50";
+      seqLine.innerHTML = "";
+      seqMeta.textContent = "";
+      classif.textContent = "Listo.";
+      note.textContent = "Cálculo exacto con BigInt (factorización por prueba). Para números gigantes puede tardar.";
+      kpiLen.textContent = "—";
+      kpiStop.textContent = "—";
+      kpiCycle.textContent = "—";
+      kpiLast.textContent = "—";
+      termDetail.textContent = "Selecciona un término de la sucesión.";
+    });
+    $("demoBtn").addEventListener("click", ()=>{
+      $("kInput").value = "220";
+      run();
+    });
+
+    // Enter to run
+    $("kInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter") run(); });
+    $("maxTerms").addEventListener("keydown", (e)=>{ if(e.key === "Enter") run(); });
+
+    // Init
+    renderLehmer();
+    run();
+  </script>
+</body>
+</html>
