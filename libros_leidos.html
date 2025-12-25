@@ -1,0 +1,1858 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mis libros leídos — Buscador</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1622;
+      --panel2:#121b2a;
+      --text:#e9eef6;
+      --muted:#a9b3c3;
+      --line:#233044;
+      --accent:#ff9900;
+      --good:#31d07f;
+      --warn:#ffd166;
+      --bad:#ff5c5c;
+      --shadow: 0 14px 40px rgba(0,0,0,.45);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(255,153,0,.10), transparent 60%),
+                  radial-gradient(1000px 700px at 90% 10%, rgba(49,208,127,.08), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 14px 28px;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 12px;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18,27,42,.92), rgba(15,22,34,.86));
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 10px;
+      backdrop-filter: blur(10px);
+      z-index: 5;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:2px;
+      min-width: 0;
+    }
+    .title h1{
+      margin:0;
+      font-size: clamp(18px, 3vw, 24px);
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .title p{
+      margin:0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+    .actions{display:flex; align-items:center; gap:10px}
+    .iconBtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      cursor:pointer;
+      user-select:none;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .iconBtn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.55);
+      background: rgba(255,153,0,.06);
+    }
+    .iconBtn:active{transform: translateY(0)}
+    .iBadge{
+      font-weight:800;
+      font-size: 18px;
+      color: var(--accent);
+      font-family: ui-sans-serif, system-ui;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr}
+      header{position: static}
+    }
+    .card{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(18,27,42,.88), rgba(15,22,34,.86));
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .card h2{
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin: 0 0 12px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:end;
+    }
+    label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 1 1 180px;
+      min-width: 160px;
+    }
+    input, select{
+      width:100%;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      padding: 11px 12px;
+      font-size: 15px;
+      outline:none;
+      appearance:none;
+    }
+    input:focus, select:focus{
+      border-color: rgba(255,153,0,.65);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.12);
+    }
+    .btn{
+      border-radius: 12px;
+      border: 1px solid rgba(255,153,0,.55);
+      background: linear-gradient(180deg, rgba(255,153,0,.18), rgba(255,153,0,.08));
+      color: var(--text);
+      padding: 11px 12px;
+      font-weight: 700;
+      cursor:pointer;
+      transition: transform .12s ease, filter .12s ease;
+      min-width: 140px;
+    }
+    .btn:hover{filter: brightness(1.08); transform: translateY(-1px)}
+    .btn:active{transform: translateY(0)}
+    .btn.secondary{
+      border-color: var(--line);
+      background: rgba(255,255,255,.03);
+      font-weight: 650;
+      min-width: 120px;
+    }
+
+    .status{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 12px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{width:10px;height:10px;border-radius:999px;background: var(--muted)}
+    .dot.good{background: var(--good)}
+    .dot.warn{background: var(--warn)}
+    .dot.bad{background: var(--bad)}
+    .dot.accent{background: var(--accent)}
+
+    .kpiGrid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+      margin-top: 10px;
+    }
+    .kpi{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .kpi .k{color: var(--muted); font-size: 12px}
+    .kpi .v{font-weight: 800; font-size: 14px; margin-top: 6px}
+    .mini{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.45;
+    }
+
+    /* Results list */
+    .results{
+      margin-top: 12px;
+      display:grid;
+      gap:10px;
+    }
+    .bookRow{
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.18);
+      border-radius: 16px;
+      padding: 10px;
+      display:grid;
+      grid-template-columns: 56px 1fr;
+      gap: 10px;
+      cursor:pointer;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .bookRow:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.55);
+      background: rgba(255,153,0,.06);
+    }
+    .bookRow.active{
+      border-color: rgba(255,153,0,.8);
+      background: rgba(255,153,0,.08);
+    }
+    .thumb{
+      width:56px; height:78px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color: rgba(233,238,246,.45);
+      font-size: 12px;
+      user-select:none;
+    }
+    .thumb img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+    .bookMeta{
+      min-width: 0;
+      display:flex;
+      flex-direction:column;
+      gap: 4px;
+    }
+    .bookTitle{
+      margin:0;
+      font-weight: 850;
+      font-size: 14px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bookAuthor{
+      margin:0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .metaLine{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+      margin-top: 4px;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      color: var(--muted);
+      user-select:none;
+    }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      color: rgba(233,238,246,.88);
+      user-select:none;
+    }
+
+    /* Selected book */
+    .bookHero{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap: 12px;
+      align-items:start;
+    }
+    @media (max-width: 520px){
+      .bookHero{grid-template-columns: 1fr}
+    }
+    .coverBig{
+      width:120px; height:170px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.14);
+      overflow:hidden;
+      background: rgba(255,255,255,.04);
+      display:flex; align-items:center; justify-content:center;
+      color: rgba(233,238,246,.5);
+      user-select:none;
+    }
+    .coverBig img{width:100%;height:100%;object-fit:cover;display:block}
+    .bookHero h3{
+      margin:0 0 6px 0;
+      font-size: 16px;
+      letter-spacing:.2px;
+    }
+    .bookHero .by{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .detailsBox{
+      margin-top: 12px;
+      border:1px dashed rgba(255,255,255,.14);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: rgba(0,0,0,.18);
+    }
+    .detailsBox p{
+      margin:0;
+      color: rgba(233,238,246,.88);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    /* Reading speed control */
+    .speedWrap{
+      margin-top: 12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .speedTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .speedTop b{font-size: 13px}
+    .speedTop span{color: var(--muted); font-size: 12px}
+    .seg{
+      margin-top: 10px;
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+    }
+    .seg button{
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight: 750;
+      font-size: 12px;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .seg button:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.55);
+      background: rgba(255,153,0,.06);
+    }
+    .seg button.active{
+      border-color: rgba(255,153,0,.85);
+      background: rgba(255,153,0,.10);
+    }
+    .timeBox{
+      margin-top: 10px;
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+    .timeBig{
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing:.2px;
+    }
+    .smallNote{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.62);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(920px, 100%);
+      max-height: min(86vh, 900px);
+      overflow:auto;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(18,27,42,.98), rgba(12,16,22,.96));
+      box-shadow: 0 20px 70px rgba(0,0,0,.6);
+      padding: 14px;
+      position:relative;
+    }
+    .modal header{
+      position: static;
+      box-shadow: none;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+    .closeBtn{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight: 700;
+    }
+    .modalContent{
+      padding: 6px 2px 2px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .modalContent h3{
+      margin: 14px 0 8px;
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+    .modalContent p, .modalContent li{
+      color: rgba(233,238,246,.88);
+      font-size: 13px;
+    }
+    .modalContent code{
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .callout{
+      border-left: 3px solid rgba(255,153,0,.8);
+      background: rgba(255,153,0,.06);
+      padding: 10px 12px;
+      border-radius: 14px;
+      margin: 10px 0;
+    }
+
+    /* Footer provided */
+    .footer{
+      margin-top: 18px;
+      border-top:1px solid rgba(255,255,255,.10);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .footer a{color: var(--accent)}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header>
+      <div class="title">
+        <h1>Mis libros leídos</h1>
+        <p>Buscador por <b>título</b>, <b>autor</b> y <b>género</b>. Selecciona un libro para ver detalles y estimar tiempo de lectura.</p>
+      </div>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <div class="actions">
+        <button class="iconBtn" id="infoBtn" title="Cómo usar / cálculo del tiempo de lectura">
+          <span class="iBadge">i</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Search + Results -->
+      <section class="card">
+        <h2>Buscador</h2>
+        <p class="sub">
+          Filtra tu biblioteca. El campo <b>Género</b> acepta un género (p.ej. <code>Fantasy</code>) y el desplegable muestra todos los géneros detectados en el JSON.
+        </p>
+
+        <div class="row">
+          <label>
+            Título
+            <input id="qTitle" autocomplete="off" placeholder="Ej.: Harry Potter, Dune..." />
+          </label>
+          <label>
+            Autor
+            <input id="qAuthor" autocomplete="off" placeholder="Ej.: Rowling, Asimov..." />
+          </label>
+          <label>
+            Género (texto)
+            <input id="qGenre" list="genreDatalist" autocomplete="off" placeholder="Ej.: Fantasy, Thriller..." />
+            <datalist id="genreDatalist"></datalist>
+          </label>
+          <label>
+            Género (desplegable)
+            <select id="genreSelect">
+              <option value="">— Todos —</option>
+            </select>
+          </label>
+          <label>
+            Ordenar por
+            <select id="sortBy">
+              <option value="score_desc">Puntuación (desc)</option>
+              <option value="score_asc">Puntuación (asc)</option>
+              <option value="pages_desc">Páginas (desc)</option>
+              <option value="pages_asc">Páginas (asc)</option>
+              <option value="title_asc">Título (A→Z)</option>
+              <option value="title_desc">Título (Z→A)</option>
+              <option value="author_asc">Autor (A→Z)</option>
+              <option value="author_desc">Autor (Z→A)</option>
+            </select>
+          </label>
+          <button class="btn secondary" id="clearBtn">Limpiar</button>
+        </div>
+
+        <div class="status">
+          <span class="pill"><span class="dot accent"></span><span id="statusText">Listo.</span></span>
+          <span class="pill"><span class="dot good"></span><span id="countText">—</span></span>
+        </div>
+
+        <div class="kpiGrid">
+          <div class="kpi">
+            <div class="k">Libros (mostrados)</div>
+            <div class="v" id="kpiShown">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Libros (total)</div>
+            <div class="v" id="kpiTotal">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Páginas (mostradas)</div>
+            <div class="v" id="kpiPages">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Puntuación media (mostrados)</div>
+            <div class="v" id="kpiAvg">—</div>
+          </div>
+        </div>
+
+        <div class="mini">
+          Tip: si un libro no tiene imagen, se mostrará un marcador. Haz clic en un resultado para seleccionarlo.
+        </div>
+
+        <div class="results" id="results"></div>
+      </section>
+
+      <!-- RIGHT: Selected Book -->
+      <aside class="card">
+        <h2>Libro seleccionado</h2>
+        <p class="sub">Aquí verás portada, géneros, ficha y una estimación del <b>tiempo de lectura</b>.</p>
+
+        <div id="selectedEmpty" class="callout" style="margin-top:0;">
+          Selecciona un libro en la lista de la izquierda.
+        </div>
+
+        <div id="selectedBox" style="display:none;">
+          <div class="bookHero">
+            <div class="coverBig" id="coverBig">Sin<br/>portada</div>
+            <div>
+              <h3 id="selTitle">—</h3>
+              <p class="by" id="selAuthor">—</p>
+
+              <div class="metaLine" style="margin-top:10px;">
+                <span class="chip">📄 <span id="selPages">—</span> páginas</span>
+                <span class="chip">⭐ <span id="selScore">—</span></span>
+              </div>
+
+              <div class="metaLine" id="selGenres" style="margin-top:10px;"></div>
+            </div>
+          </div>
+
+          <div class="detailsBox" style="margin-top:12px;">
+            <p id="selDetails">—</p>
+          </div>
+
+          <div class="speedWrap">
+            <div class="speedTop">
+              <b>Velocidad de lectura</b>
+              <span><span id="speedLabel">300</span> palabras/min (WPM)</span>
+            </div>
+
+            <div class="seg" id="speedSeg">
+              <button data-wpm="200">200</button>
+              <button data-wpm="250">250</button>
+              <button data-wpm="300">300</button>
+              <button data-wpm="350">350</button>
+            </div>
+
+            <div class="timeBox">
+              <div class="timeBig" id="timeOut">—</div>
+              <div class="smallNote">
+                Estimación con <b id="wppOut">300</b> palabras/página (aprox.). Ajusta si quieres en el código.
+              </div>
+            </div>
+          </div>
+
+          <div class="mini" id="selHint">
+            Consejo: usa los filtros para comparar libros similares por género/autor.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- INFO MODAL -->
+    <div class="modalOverlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <header>
+          <div class="title">
+            <h1 id="modalTitle">Cómo funciona este buscador</h1>
+            <p>Filtros, ordenación y cálculo del tiempo de lectura.</p>
+          </div>
+          <div class="actions">
+            <button class="closeBtn" id="closeModal">Cerrar</button>
+          </div>
+        </header>
+
+        <div class="modalContent">
+          <p>
+            Esta web carga una lista de libros desde un JSON embebido (variable <code>BOOKS</code>).
+            Puedes filtrar por <b>título</b>, <b>autor</b> y <b>género</b>, y ordenar los resultados.
+          </p>
+
+          <div class="callout">
+            <b>Formato del JSON</b>
+            <p style="margin:8px 0 0;">
+              Cada libro usa campos como:
+              <code>titulo</code>, <code>autor</code>, <code>detalles</code>, <code>cover_image_url</code>, <code>num_pag</code>,
+              <code>puntuación que le he dado</code> y <code>genero</code> (array).
+            </p>
+          </div>
+
+          <h3>Tiempo de lectura</h3>
+          <p>
+            Se estima con una velocidad en <b>palabras por minuto (WPM)</b> (200/250/300/350) y una aproximación de
+            <b>300 palabras por página</b> (configurable en el código).
+          </p>
+          <p>
+            Fórmula usada: <code>minutos = (páginas × palabrasPorPágina) / WPM</code>.
+          </p>
+
+          <h3>Personalización rápida</h3>
+          <ul>
+            <li>Para añadir libros: agrega objetos al array <code>BOOKS</code>.</li>
+            <li>Para cambiar la aproximación: modifica <code>WORDS_PER_PAGE</code>.</li>
+            <li>La velocidad elegida se guarda en <code>localStorage</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    // =========================
+    //   DATOS (JSON embebido)
+    // =========================
+    // Añade aquí todos tus libros siguiendo el mismo formato.
+    const BOOKS = [
+  {
+    "titulo": "El resplandor",
+    "autor": "Stephen King",
+    "detalles": "Jack Torrance acepta cuidar el aislado hotel Overlook durante el invierno para rehacer su vida y escribir. Pero la presencia del hotel y sus fuerzas oscuras empiezan a corromperlo, mientras su hijo Danny percibe el horror que se avecina.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/The%20Shining%20(1977)%20front%20cover%2C%20first%20edition.jpg",
+    "num_pag": 447,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Gothic fiction"]
+  },
+  {
+    "titulo": "Apocalipsis (The Stand)",
+    "autor": "Stephen King",
+    "detalles": "Una epidemia devastadora aniquila a la mayor parte de la humanidad. Los supervivientes se agrupan en torno a dos fuerzas opuestas —el bien y el mal— en una lucha épica por el futuro del mundo.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/The_Stand_(1978)_front_cover,_first_edition.png",
+    "num_pag": 1153,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Post-apocalyptic", "Dark fantasy", "Horror"]
+  },
+  {
+    "titulo": "La zona muerta",
+    "autor": "Stephen King",
+    "detalles": "Tras despertar de un largo coma, Johnny Smith descubre que puede ver el pasado y el futuro al tocar a las personas. Cuando su don lo conecta con un político en ascenso, se enfrenta a una decisión moral imposible.",
+    "cover_image_url": "https://cloud10.todocoleccion.online/libros-segunda-mano-terror-misterio-policiaco/tc/2015/11/14/15/52746685.jpg",
+    "num_pag": 426,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Horror", "Supernatural"]
+  },
+  {
+    "titulo": "Ojos de fuego",
+    "autor": "Stephen King",
+    "detalles": "Charlie posee piroquinesis: puede provocar fuego con la mente. Una organización clandestina intenta capturarla para explotarla como arma, mientras ella y su padre huyen desesperadamente.",
+    "cover_image_url": "https://imagessl9.casadellibro.com/a/l/s5/79/9788497593779.webp",
+    "num_pag": 428,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Science fiction", "Thriller", "Horror"]
+  },
+  {
+    "titulo": "Cementerio de animales",
+    "autor": "Stephen King",
+    "detalles": "Una familia se muda cerca de un antiguo cementerio con un poder inquietante: lo que se entierra allí puede volver. La tragedia empuja a Louis Creed a traspasar límites que la naturaleza —y algo más— no perdonan.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Pet_Sematary_(1983)_front_cover,_first_edition.jpg",
+    "num_pag": 374,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Supernatural", "Thriller"]
+  },
+  {
+    "titulo": "It",
+    "autor": "Stephen King",
+    "detalles": "En Derry, un mal antiguo despierta cíclicamente y adopta la forma de los peores miedos. Un grupo de amigos lo enfrenta de niños y, décadas después, debe regresar para terminar lo que empezaron.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/It%20(1986)%20front%20cover%2C%20first%20edition.jpg",
+    "num_pag": 1138,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Dark fantasy", "Thriller"]
+  },
+  {
+    "titulo": "Misery",
+    "autor": "Stephen King",
+    "detalles": "Un escritor sufre un accidente y despierta al cuidado de su ‘fan número uno’. Pronto descubre que su salvadora es también su carcelera, capaz de todo para obligarlo a escribir la novela que ella exige.",
+    "cover_image_url": "https://upload.wikimedia.org/wikipedia/commons/1/14/Misery_%281987%29_front_cover%2C_first_edition.jpg",
+    "num_pag": 320,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Psychological thriller", "Horror"]
+  },
+  {
+    "titulo": "La mitad oscura",
+    "autor": "Stephen King",
+    "detalles": "Un escritor intenta ‘matar’ públicamente a su seudónimo literario. Pero la identidad ficticia parece cobrar vida, y una ola de crímenes sugiere que lo imaginado puede volverse real.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Darkhalf.jpg",
+    "num_pag": 431,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Thriller", "Mystery"]
+  },
+  {
+    "titulo": "La tienda (Needful Things)",
+    "autor": "Stephen King",
+    "detalles": "En Castle Rock abre una tienda donde cada vecino encuentra justo lo que desea… a un precio muy especial. Pequeñas ‘bromas’ entre habitantes escalan hasta un caos violento alimentado por la codicia.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/NeedfulThingsBookCover.JPG",
+    "num_pag": 690,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Thriller", "Dark fantasy"]
+  },
+  {
+    "titulo": "El juego de Gerald",
+    "autor": "Stephen King",
+    "detalles": "Durante una escapada, Jessie queda esposada a la cama cuando su marido muere repentinamente. Atrapada, lucha contra el dolor, el miedo y los fantasmas de su pasado… mientras algo acecha en la oscuridad.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/GeraldsGame.jpg",
+    "num_pag": 332,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Psychological horror", "Thriller"]
+  },
+  {
+    "titulo": "Dolores Claiborne",
+    "autor": "Stephen King",
+    "detalles": "Dolores, ama de llaves en una isla costera, es acusada de asesinato. Su relato, crudo e íntimo, revela décadas de abuso, secretos y decisiones extremas para sobrevivir.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/DoloresClaiborneNovel.jpg",
+    "num_pag": 305,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Psychological thriller", "Crime fiction"]
+  },
+  {
+    "titulo": "Insomnia",
+    "autor": "Stephen King",
+    "detalles": "Ralph Roberts sufre un insomnio creciente y empieza a ver auras y figuras extrañas que parecen gobernar la vida y la muerte. Su don lo arrastra a un conflicto cósmico con consecuencias para toda la ciudad.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/81a9450DfSL._AC_UF894,1000_QL80_.jpg",
+    "num_pag": 787,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Dark fantasy"]
+  },
+  {
+    "titulo": "Rose Madder",
+    "autor": "Stephen King",
+    "detalles": "Rose huye de un marido brutal e intenta reconstruir su vida. Pero él la persigue sin descanso, y una misteriosa pintura abre una puerta a una realidad tan peligrosa como liberadora.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/RoseMadder.jpg",
+    "num_pag": 420,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Thriller"]
+  },
+  {
+    "titulo": "Desesperación",
+    "autor": "Stephen King",
+    "detalles": "Varios viajeros son detenidos en un pueblo minero desolado por un sheriff inquietante. Pronto descubren que en Desperation habita una fuerza antigua que posee cuerpos y exige sacrificios.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Desperationbook.jpg",
+    "num_pag": 690,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Dark fantasy"]
+  },
+  {
+    "titulo": "El saco de huesos",
+    "autor": "Stephen King",
+    "detalles": "Un escritor viudo se refugia en una casa junto al lago para superar el duelo. Allí descubre secretos del pasado, un fantasma persistente y una conspiración local que amenaza a una joven madre y su hija.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Bagofbones.gif",
+    "num_pag": 529,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Mystery", "Thriller"]
+  },
+  {
+    "titulo": "El cazador de sueños",
+    "autor": "Stephen King",
+    "detalles": "Cuatro amigos marcados por un hecho de infancia se reencuentran en una cabaña… justo cuando una amenaza extraterrestre irrumpe en el bosque. La amistad y la culpa se mezclan con una invasión aterradora.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Dreamcatchernovel.jpg",
+    "num_pag": 620,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Science fiction", "Thriller"]
+  },
+  {
+    "titulo": "La cúpula",
+    "autor": "Stephen King",
+    "detalles": "Un pequeño pueblo queda aislado por una barrera invisible e impenetrable. Sin salida y con recursos limitados, afloran el miedo, la violencia y el autoritarismo mientras la verdad sobre la cúpula se aproxima.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Under%20the%20Dome%20Final.jpg",
+    "num_pag": 1074,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Science fiction", "Thriller", "Horror"]
+  },
+  {
+    "titulo": "11/22/63",
+    "autor": "Stephen King",
+    "detalles": "Un profesor descubre un portal al pasado y recibe una misión: impedir el asesinato de JFK. Pero cambiar la historia tiene un coste enorme, y el pasado se defiende con una resistencia inquietante.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/11-22-63.jpg",
+    "num_pag": 849,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Science fiction", "Historical fiction", "Thriller"]
+  },
+  {
+    "titulo": "El visitante",
+    "autor": "Stephen King",
+    "detalles": "Un crimen atroz parece tener un culpable perfecto… pero las pruebas también lo exculpan. La investigación se transforma en una caza de algo que no encaja con las reglas humanas.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/A139a4XqFFL._AC_UF894,1000_QL80_.jpg",
+    "num_pag": 576,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Crime fiction", "Horror"]
+  },
+  {
+    "titulo": "Billy Summers",
+    "autor": "Stephen King",
+    "detalles": "Billy es un sicario con un ‘código’: solo mata a gente realmente mala. Cuando acepta su último trabajo, una cadena de traiciones y una relación inesperada lo empujan a replantearse quién es… y cuánto puede resistir.",
+    "cover_image_url": "https://ss365.liverpool.com.mx/xl/1112298441.jpg",
+    "num_pag": 528,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Crime fiction", "Thriller"]
+  },
+  {
+    "titulo": "Holly (2023)",
+    "autor": "Stephen King",
+    "detalles": "Holly Gibney investiga una desaparición aparentemente normal en un pueblo tranquilo. Tras una fachada amable, encuentra una trama oscura que combina obsesión, violencia y secretos cuidadosamente escondidos.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Holly_(novel)_first_edition_cover.jpg",
+    "num_pag": 449,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Crime fiction", "Thriller"]
+  },
+  {
+    "titulo": "El cuerpo (Las cuatro estaciones)",
+    "autor": "Stephen King",
+    "detalles": "Cuatro chicos emprenden un viaje para encontrar el cadáver de un niño desaparecido, creyendo que así serán ‘alguien’. En el camino, descubren la amistad, el miedo y el final inevitable de la infancia.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/The%20Body%202009%20Edition.JPG",
+    "num_pag": 192,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Coming-of-age", "Novella", "Drama"]
+  },
+  {
+    "titulo": "El método de la respiración (Las cuatro estaciones)",
+    "autor": "Stephen King",
+    "detalles": "En un club exclusivo, un médico cuenta una historia extraordinaria sobre una mujer y una determinación casi sobrenatural. Un relato corto de tensión creciente, con un final tan extraño como memorable.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Everythings%20Eventual.jpg",
+    "num_pag": 64,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Novella", "Mystery"]
+  },
+  {
+    "titulo": "Los Langoliers (Cuatro después de medianoche)",
+    "autor": "Stephen King",
+    "detalles": "Un grupo de pasajeros despierta tras un vuelo y descubre que el mundo parece vacío y ‘apagado’. Pronto entienden que han quedado fuera del tiempo… y que algo devora lo que queda atrás.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/FourPastMidnight.jpg",
+    "num_pag": 288,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Science fiction", "Horror", "Novella"]
+  },
+  {
+    "titulo": "Los ojos del dragón",
+    "autor": "Stephen King",
+    "detalles": "En un reino de fantasía, el joven príncipe debe demostrar su inocencia tras una conspiración que lo acusa del asesinato de su padre. Un mago oscuro mueve los hilos mientras la verdad se abre paso.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Eyesdragontitle.jpg",
+    "num_pag": 380,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Adventure"]
+  },
+  {
+    "titulo": "La caja de botones de Gwendy",
+    "autor": "Stephen King",
+    "detalles": "Una niña recibe una misteriosa caja con botones de colores, premios tentadores y consecuencias terribles. El regalo se convierte en una prueba sobre la responsabilidad, la ambición y el precio del poder.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Gwendys-button-box-cover-high-res.jpg",
+    "num_pag": 176,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Horror", "Thriller"]
+  },
+
+  {
+    "titulo": "Sortilegio (Weaveworld)",
+    "autor": "Clive Barker",
+    "detalles": "Un mundo mágico ha sido ocultado dentro de una alfombra para protegerlo de enemigos sobrenaturales. Cuando el secreto se rompe, dos personas corrientes se ven arrastradas a una guerra entre lo cotidiano y lo imposible.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/81VSTC4691L._AC_UF1000,1000_QL80_.jpg",
+    "num_pag": 715,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Dark fantasy", "Horror", "Fantasy"]
+  },
+  {
+    "titulo": "Hellraiser (The Hellbound Heart)",
+    "autor": "Clive Barker",
+    "detalles": "Un hombre adquiere una caja-puzle capaz de abrir la puerta a los Cenobitas, seres que confunden placer y dolor. La obsesión, la transgresión y la violencia desatan una cadena de horrores difíciles de detener.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/61Yev2y5c2L._AC_UF894,1000_QL80_.jpg",
+    "num_pag": 186,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Horror", "Gothic fiction"]
+  },
+  {
+    "titulo": "El ladrón de días (The Thief of Always)",
+    "autor": "Clive Barker",
+    "detalles": "Un niño es seducido por un lugar donde cada día trae una diversión perfecta… pero la alegría esconde una trampa. La historia explora el deseo de crecer rápido y el coste real de ‘tenerlo todo’.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/51fzEeZxhcL._AC_UF350,350_QL50_.jpg",
+    "num_pag": 224,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Dark fantasy", "Young Adult", "Fantasy"]
+  },
+
+  {
+    "titulo": "Harry Potter y la piedra filosofal",
+    "autor": "J.K. Rowling",
+    "detalles": "Harry descubre que es un mago y entra en Hogwarts, donde hace amigos y enemigos. Un misterio alrededor de una piedra capaz de dar vida eterna lo empuja a enfrentarse a una sombra del pasado.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Harry_Potter_and_the_Philosopher%27s_Stone_Book_Cover.jpg",
+    "num_pag": 223,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Young Adult"]
+  },
+  {
+    "titulo": "Harry Potter y la cámara secreta",
+    "autor": "J.K. Rowling",
+    "detalles": "Una fuerza misteriosa ataca a estudiantes en Hogwarts y deja mensajes inquietantes. Harry investiga el origen de la Cámara Secreta y se enfrenta a un enemigo ligado a los orígenes más oscuros del colegio.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Harry_Potter_and_the_Chamber_of_Secrets.jpg",
+    "num_pag": 251,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Young Adult"]
+  },
+  {
+    "titulo": "Harry Potter y el prisionero de Azkaban",
+    "autor": "J.K. Rowling",
+    "detalles": "La fuga de Sirius Black conmociona al mundo mágico y parece estar relacionada con Harry. Entre Dementores y secretos familiares, Harry descubre verdades inesperadas sobre su pasado y su destino.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Harry_Potter_and_the_Prisoner_of_Azkaban.jpg",
+    "num_pag": 317,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Young Adult"]
+  },
+  {
+    "titulo": "Harry Potter y el cáliz de fuego",
+    "autor": "J.K. Rowling",
+    "detalles": "Hogwarts acoge el Torneo de los Tres Magos, pero Harry es inscrito misteriosamente. Las pruebas lo empujan a un enfrentamiento que marca el regreso del terror y cambia para siempre el mundo mágico.",
+    "cover_image_url": "https://static.wikia.nocookie.net/esharrypotter/images/7/7d/Harry_Potter_y_el_C%C3%A1liz_de_Fuego_Portada_Espa%C3%B1ol.PNG/revision/latest?cb=20151020170423",
+    "num_pag": 734,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Young Adult"]
+  },
+  {
+    "titulo": "Harry Potter y la Orden del Fénix",
+    "autor": "J.K. Rowling",
+    "detalles": "El Ministerio niega la amenaza y Hogwarts cae bajo un control autoritario. Harry y sus amigos forman un grupo clandestino para aprender a defenderse mientras la guerra se vuelve inevitable.",
+    "cover_image_url": "https://en.wikipedia.org/wiki/Special:FilePath/Harry_Potter_and_the_Order_of_the_Phoenix.jpg",
+    "num_pag": 766,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasy", "Young Adult"]
+  },
+   {
+    "titulo": "SOBRE HORMIGAS Y DINOSAURIOS",
+    "autor": "Cixin Liu",
+    "detalles": "Colección de relatos de ciencia ficción que imagina mundos donde las hormigas desarrollan una inteligencia colectiva capaz de rivalizar con civilizaciones y depredadores prehistóricos, explorando guerra, evolución y escala cósmica desde lo diminuto.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/98/9788418037498.webp",
+    "num_pag": 224,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Relatos"]
+  },
+  {
+    "titulo": "2001: Una odisea espacial",
+    "autor": "Arthur C. Clarke",
+    "detalles": "Un misterioso monolito aparece en la prehistoria y, siglos después, impulsa una misión hacia los gigantes gaseosos. A bordo, HAL 9000 desencadena una crisis que cambia para siempre la relación humana con lo desconocido.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/77/9788497933377.webp",
+    "num_pag": 240,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Clásico", "Espacio"]
+  },
+  {
+    "titulo": "2010: Odisea dos",
+    "autor": "Arthur C. Clarke",
+    "detalles": "Una nueva expedición parte para investigar qué ocurrió con Discovery y HAL. A medida que se aproximan a Júpiter, un plan extraterrestre de escala gigantesca comienza a revelarse.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/12/9788497933612.webp",
+    "num_pag": 368,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Secuela"]
+  },
+  {
+    "titulo": "2061: Odisea tres",
+    "autor": "Arthur C. Clarke",
+    "detalles": "Una misión a bordo del Universe se ve desviada por un accidente y acaba aproximándose a Europa, la luna prohibida de Júpiter. La tripulación descubre que el sistema joviano sigue cambiando bajo una inteligencia ajena.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/36/9788497933636.webp",
+    "num_pag": 272,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Aventura"]
+  },
+  {
+    "titulo": "3001: Odisea final",
+    "autor": "Arthur C. Clarke",
+    "detalles": "Frank Poole es rescatado mil años después. En un futuro radicalmente distinto, se enfrenta a la evolución humana y al enigma del monolito, mientras una amenaza cósmica se cierne sobre el sistema solar.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/50/9788497933650.webp",
+    "num_pag": 304,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Futuro lejano"]
+  },
+  {
+    "titulo": "Cita con Rama",
+    "autor": "Arthur C. Clarke",
+    "detalles": "Una nave cilíndrica gigantesca y aparentemente desierta entra en el sistema solar. Un equipo humano explora su interior y descubre una ingeniería imposible… pero el tiempo para comprenderla es limitado.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/24/9788413146324.webp",
+    "num_pag": 400,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Primer contacto", "Misterio"]
+  },
+  {
+    "titulo": "Rama II",
+    "autor": "Arthur C. Clarke; Gentry Lee",
+    "detalles": "Tras el primer encuentro, la humanidad intenta repetir la hazaña. Una nueva misión llega a Rama y, entre tensiones políticas y personales, se topa con enigmas aún más inquietantes dentro de la nave.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/31/9788413146331.webp",
+    "num_pag": 768,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Secuela"]
+  },
+  {
+    "titulo": "El jardín de Rama",
+    "autor": "Arthur C. Clarke; Gentry Lee",
+    "detalles": "Los supervivientes del contacto con Rama siguen su vida dentro de un entorno artificial que guarda secretos. La historia profundiza en la civilización de Rama y en el precio humano de comprenderla.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/79/9788498723779.webp",
+    "num_pag": 704,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Secuela"]
+  },
+  {
+    "titulo": "Rama revelada",
+    "autor": "Arthur C. Clarke; Gentry Lee",
+    "detalles": "Cierre de la saga: por fin se desvela el propósito de Rama y el sentido de los acontecimientos iniciados con el primer encuentro. Conclusión del misterio de la nave.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/94/9788498729894.webp",
+    "num_pag": 800,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Espacio", "Final de saga"]
+  },
+  {
+    "titulo": "Odisea",
+    "autor": "Homero",
+    "detalles": "El viaje de regreso de Ulises (Odiseo) a Ítaca tras la guerra de Troya: monstruos, dioses, tentaciones y naufragios en una epopeya sobre astucia, identidad y hogar.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/35/9788424926335.webp",
+    "num_pag": 472,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Clásico", "Epopeya", "Mitología"]
+  },
+  {
+    "titulo": "Los pilares de la Tierra",
+    "autor": "Ken Follett",
+    "detalles": "En la Inglaterra del siglo XII, ambición, fe y poder se entrelazan alrededor de la construcción de una catedral, mientras guerras y conspiraciones marcan el destino de varias familias.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/10/9788401328510.webp",
+    "num_pag": 1040,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Histórica", "Drama", "Novela épica"]
+  },
+  {
+    "titulo": "El tercer gemelo",
+    "autor": "Ken Follett",
+    "detalles": "Una genetista investiga un estudio de gemelos que esconde manipulación y crímenes. Un thriller de conspiración científica donde nada es lo que parece.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/77/9788497595377.webp",
+    "num_pag": 464,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Misterio", "Tecnothriller"]
+  },
+  {
+    "titulo": "Nunca",
+    "autor": "Ken Follett",
+    "detalles": "Thriller contemporáneo sobre cómo una cadena de crisis geopolíticas puede empujar al mundo hacia un conflicto global. Espionaje, política internacional y decisiones al límite.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/55/9788401027055.webp",
+    "num_pag": 840,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Política", "Suspense"]
+  },
+  {
+    "titulo": "TRISTÁN E ISEO. VERSIÓN DE ALICIA YLLERA.",
+    "autor": "Alicia Yllera (adaptación)",
+    "detalles": "Versión moderna de la leyenda medieval de Tristán e Iseo: amor, lealtad y tragedia entre deber y deseo, con el trasfondo de la épica caballeresca.",
+    "cover_image_url": "https://llibreriatecnica.com/upfiles/productes_img/tristan-e-iseo1_3847832889.png",
+    "num_pag": 240,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Clásico", "Leyenda", "Romance trágico"]
+  },
+  {
+    "titulo": "Agujeros negros y tiempo curvo",
+    "autor": "Kip S. Thorne",
+    "detalles": "Recorrido divulgativo por la relatividad, los agujeros negros, las ondas gravitacionales y las consecuencias más extrañas de Einstein, con historia científica y anécdotas de primera mano.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/57/9788498921557.webp",
+    "num_pag": 576,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Divulgación científica", "Física", "Astrofísica"]
+  },
+  {
+    "titulo": "La Comunidad del Anillo",
+    "autor": "J. R. R. Tolkien",
+    "detalles": "Comienza la aventura del Anillo Único: Frodo y la Comunidad emprenden un viaje desesperado para impedir que Sauron recupere el poder absoluto.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/63/9788445000663.webp",
+    "num_pag": 576,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Fantasía", "Épica", "Aventura"]
+  },
+  {
+    "titulo": "Víctimas",
+    "autor": "Dean R. Koontz",
+    "detalles": "Una serie de asesinatos conecta a personajes que parecen no tener nada en común. Un thriller de suspense con giros, paranoia y una amenaza que se aproxima desde las sombras.",
+    "cover_image_url": "https://covers.openlibrary.org/b/isbn/9788401495410-L.jpg",
+    "num_pag": 496,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Suspense", "Terror"]
+  },
+  {
+    "titulo": "La novia gitana",
+    "autor": "Carmen Mola",
+    "detalles": "Un crimen ritual en Madrid pone a prueba a la inspectora Elena Blanco. Investigación oscura con secretos familiares y violencia extrema.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/69/9788420434469.webp",
+    "num_pag": 408,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Novela negra", "Misterio"]
+  },
+  {
+    "titulo": "La red púrpura",
+    "autor": "Carmen Mola",
+    "detalles": "Una red clandestina obliga a la brigada a adentrarse en lo peor del crimen digital para detener una cadena de atrocidades.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/08/9788420435008.webp",
+    "num_pag": 456,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Novela negra", "Misterio"]
+  },
+  {
+    "titulo": "La nena",
+    "autor": "Carmen Mola",
+    "detalles": "La desaparición de una niña destapa un caso que golpea de forma personal a la brigada. Tensión y giros hasta el final.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/73/9788420436173.webp",
+    "num_pag": 392,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Novela negra", "Misterio"]
+  },
+  {
+    "titulo": "Esfera",
+    "autor": "Michael Crichton",
+    "detalles": "Un objeto misterioso yace en el fondo del océano. Un equipo científico lo estudia, pero el verdadero peligro puede estar en la mente de los investigadores.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/37/9788497930437.webp",
+    "num_pag": 512,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Thriller", "Tecnothriller"]
+  },
+  {
+    "titulo": "Parque Jurásico",
+    "autor": "Michael Crichton",
+    "detalles": "La clonación devuelve a la vida a los dinosaurios en un parque temático. Cuando la seguridad falla, la visita se convierte en una lucha por sobrevivir.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/97/9788497932097.webp",
+    "num_pag": 464,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Thriller", "Aventura"]
+  },
+  {
+    "titulo": "El mundo perdido",
+    "autor": "Michael Crichton",
+    "detalles": "Una nueva expedición llega a un lugar remoto donde los dinosaurios sobreviven. La supervivencia depende de ciencia, suerte y decisiones rápidas.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/63/9788497931663.webp",
+    "num_pag": 432,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Ciencia ficción", "Thriller", "Aventura"]
+  },
+  {
+    "titulo": "Rescate en el tiempo",
+    "autor": "Michael Crichton",
+    "detalles": "Un proyecto de viajes temporales envía a un equipo a la Francia medieval. La misión de rescate se transforma en una carrera contrarreloj entre guerras y traiciones.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/38/9788497932738.webp",
+    "num_pag": 576,
+    "puntuación que le he dado": 4.9,
+    "genero": ["Ciencia ficción", "Thriller", "Aventura"]
+  },
+  {
+    "titulo": "Estado de miedo",
+    "autor": "Michael Crichton",
+    "detalles": "Thriller que mezcla ecoterrorismo, financiación oscura y ciencia/política. Una investigación destapa una conspiración con alcance global.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/19/9788497933919.webp",
+    "num_pag": 672,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Thriller", "Tecnothriller", "Política"]
+  },
+  {
+    "titulo": "Gravedad cuántica de lazos para todos",
+    "autor": "Rodolfo Gambini; Jorge Pullin",
+    "detalles": "Introducción accesible a la gravedad cuántica de lazos: cómo podría ser el espacio-tiempo a escalas diminutas y qué implicaciones tendría para el universo y los agujeros negros.",
+    "cover_image_url": "https://m.media-amazon.com/images/I/81GOVrCVyxS._SY466_.jpg",
+    "num_pag": 240,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Divulgación científica", "Física", "Cosmología"]
+  },
+  {
+    "titulo": "El colgajo",
+    "autor": "Philippe Lançon",
+    "detalles": "Memorias sobre el atentado contra Charlie Hebdo y la reconstrucción física y psicológica del autor. Testimonio sobre trauma, lenguaje y supervivencia.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/10/9788433980410.webp",
+    "num_pag": 448,
+    "puntuación que le he dado": 4.2,
+    "genero": ["Memorias", "No ficción", "Testimonio"]
+  },
+  {
+    "titulo": "Sortilegio",
+    "autor": "Clive Barker",
+    "detalles": "Fantasía oscura y terror: secretos familiares y fuerzas sobrenaturales se mezclan en una historia de descubrimiento y horror creciente.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/16/9788401465116.webp",
+    "num_pag": 814,
+    "puntuación que le he dado": 5.0,
+    "genero": ["Terror", "Fantasía oscura"]
+  },
+  {
+    "titulo": "Hellraiser: El corazón condenado",
+    "autor": "Clive Barker",
+    "detalles": "Novela corta que inspira Hellraiser: una caja-puzle abre la puerta a los cenobitas, seres de placer y dolor. Horror corporal y mito infernal.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/62/9788494664762.webp",
+    "num_pag": 172,
+    "puntuación que le he dado": 4.7,
+    "genero": ["Terror", "Horror corporal", "Novela corta"]
+  },
+  {
+    "titulo": "El ladrón de días",
+    "autor": "Clive Barker",
+    "detalles": "Fábula fantástica sobre un niño que descubre un lugar donde se guardan días robados. Aventura imaginativa sobre el valor del tiempo.",
+    "cover_image_url": "https://covers.openlibrary.org/b/isbn/9788425322266-L.jpg",
+    "num_pag": 232,
+    "puntuación que le he dado": 4.8,
+    "genero": ["Fantasía", "Juvenil", "Aventura"]
+  },
+  {
+    "titulo": "La realidad oculta",
+    "autor": "Brian Greene",
+    "detalles": "Explora la idea de universos paralelos desde la cosmología, la teoría de cuerdas y la física cuántica, y qué significaría para nuestra comprensión de la realidad.",
+    "cover_image_url": "https://imagessl8.casadellibro.com/a/l/s7/26/9788498929126.webp",
+    "num_pag": 512,
+    "puntuación que le he dado": 4.5,
+    "genero": ["Divulgación científica", "Física", "Cosmología"]
+  },
+  {
+    "titulo": "Universos paralelos",
+    "autor": "Michio Kaku",
+    "detalles": "Recorrido divulgativo por hipótesis modernas sobre multiversos, cosmología y teoría M, explicadas con analogías para entender escenarios alternativos del cosmos.",
+    "cover_image_url": "https://covers.openlibrary.org/b/isbn/9788493576332-L.jpg",
+    "num_pag": 464,
+    "puntuación que le he dado": 4.0,
+    "genero": ["Divulgación científica", "Física", "Cosmología"]
+  }
+
+]
+;
+
+    // =========================
+    //   CONFIG
+    // =========================
+    const WORDS_PER_PAGE = 300; // Ajusta si quieres (p.ej. 250-350)
+    const SPEEDS = [200, 250, 300, 350];
+
+    // =========================
+    //   Helpers
+    // =========================
+    const $ = (id) => document.getElementById(id);
+
+    function safeNum(x, fallback=0){
+      const n = Number(x);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function normalizeText(s){
+      return String(s ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function getScore(book){
+      return safeNum(book["puntuación que le he dado"], 0);
+    }
+
+    function getGenres(book){
+      const g = book.genero;
+      if(Array.isArray(g)) return g.filter(Boolean).map(String);
+      return [];
+    }
+
+    function formatScore(n){
+      if(!Number.isFinite(n)) return "—";
+      return n.toFixed(2);
+    }
+
+    function formatInt(n){
+      const x = safeNum(n, 0);
+      return String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+
+    function estimateReadingTime(pages, wpm){
+      // minutes = (pages * wordsPerPage) / wpm
+      const p = safeNum(pages, 0);
+      const speed = safeNum(wpm, 300);
+      const mins = (p * WORDS_PER_PAGE) / Math.max(1, speed);
+      const totalMins = Math.max(0, Math.round(mins));
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
+      return { totalMins, h, m };
+    }
+
+    function compare(a, b){
+      return a < b ? -1 : a > b ? 1 : 0;
+    }
+
+    // =========================
+    //   Estado
+    // =========================
+    const state = {
+      qTitle: "",
+      qAuthor: "",
+      qGenreText: "",
+      qGenreSelect: "",
+      sortBy: "score_desc",
+      selectedId: null,
+      wpm: 300
+    };
+
+    // Restore from localStorage
+    try{
+      const savedWpm = Number(localStorage.getItem("books_wpm") || "300");
+      if(SPEEDS.includes(savedWpm)) state.wpm = savedWpm;
+
+      const savedFilters = JSON.parse(localStorage.getItem("books_filters") || "{}");
+      if(savedFilters && typeof savedFilters === "object"){
+        state.qTitle = String(savedFilters.qTitle || "");
+        state.qAuthor = String(savedFilters.qAuthor || "");
+        state.qGenreText = String(savedFilters.qGenreText || "");
+        state.qGenreSelect = String(savedFilters.qGenreSelect || "");
+        state.sortBy = String(savedFilters.sortBy || "score_desc");
+      }
+
+      const savedSelected = localStorage.getItem("books_selectedId");
+      if(savedSelected) state.selectedId = savedSelected;
+    }catch(_e){}
+
+    // =========================
+    //   DOM refs
+    // =========================
+    const resultsEl = $("results");
+    const statusText = $("statusText");
+    const countText = $("countText");
+
+    const kpiShown = $("kpiShown");
+    const kpiTotal = $("kpiTotal");
+    const kpiPages = $("kpiPages");
+    const kpiAvg = $("kpiAvg");
+
+    const qTitle = $("qTitle");
+    const qAuthor = $("qAuthor");
+    const qGenre = $("qGenre");
+    const genreSelect = $("genreSelect");
+    const sortBy = $("sortBy");
+    const genreDatalist = $("genreDatalist");
+
+    const selectedEmpty = $("selectedEmpty");
+    const selectedBox = $("selectedBox");
+    const coverBig = $("coverBig");
+    const selTitle = $("selTitle");
+    const selAuthor = $("selAuthor");
+    const selPages = $("selPages");
+    const selScore = $("selScore");
+    const selGenres = $("selGenres");
+    const selDetails = $("selDetails");
+
+    const speedLabel = $("speedLabel");
+    const speedSeg = $("speedSeg");
+    const timeOut = $("timeOut");
+    const wppOut = $("wppOut");
+
+    wppOut.textContent = String(WORDS_PER_PAGE);
+
+    // =========================
+    //   Géneros (datalist + select)
+    // =========================
+    function buildGenres(){
+      const set = new Set();
+      for(const b of BOOKS){
+        for(const g of getGenres(b)){
+          set.add(g);
+        }
+      }
+      const genres = [...set].sort((a,b)=> compare(normalizeText(a), normalizeText(b)));
+
+      // datalist
+      genreDatalist.innerHTML = genres.map(g => `<option value="${escapeHtml(g)}"></option>`).join("");
+
+      // select
+      const current = state.qGenreSelect;
+      genreSelect.innerHTML = `<option value="">— Todos —</option>` + genres.map(g => {
+        const sel = (g === current) ? "selected" : "";
+        return `<option value="${escapeHtml(g)}" ${sel}>${escapeHtml(g)}</option>`;
+      }).join("");
+    }
+
+    function escapeHtml(s){
+      return String(s)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
+    // =========================
+    //   Filtrado + ordenación
+    // =========================
+    function getFiltered(){
+      const nt = normalizeText(state.qTitle);
+      const na = normalizeText(state.qAuthor);
+
+      const gText = normalizeText(state.qGenreText);
+      const gSel = normalizeText(state.qGenreSelect);
+
+      const out = BOOKS
+        .map((b, idx)=> ({...b, __id: String(idx)}))
+        .filter(b => {
+          const t = normalizeText(b.titulo);
+          const a = normalizeText(b.autor);
+          const genres = getGenres(b).map(normalizeText);
+
+          const okTitle = !nt || t.includes(nt);
+          const okAuthor = !na || a.includes(na);
+
+          const okGenreText = !gText || genres.some(x => x.includes(gText));
+          const okGenreSel = !gSel || genres.some(x => x === gSel);
+
+          return okTitle && okAuthor && okGenreText && okGenreSel;
+        });
+
+      // sort
+      const sort = state.sortBy;
+      out.sort((A,B)=>{
+        const aTitle = normalizeText(A.titulo);
+        const bTitle = normalizeText(B.titulo);
+        const aAuthor = normalizeText(A.autor);
+        const bAuthor = normalizeText(B.autor);
+
+        const aScore = getScore(A);
+        const bScore = getScore(B);
+
+        const aPages = safeNum(A.num_pag, 0);
+        const bPages = safeNum(B.num_pag, 0);
+
+        switch(sort){
+          case "score_asc":  return aScore - bScore || compare(aTitle,bTitle);
+          case "score_desc": return bScore - aScore || compare(aTitle,bTitle);
+          case "pages_asc":  return aPages - bPages || compare(aTitle,bTitle);
+          case "pages_desc": return bPages - aPages || compare(aTitle,bTitle);
+          case "title_desc": return compare(bTitle, aTitle);
+          case "title_asc":  return compare(aTitle, bTitle);
+          case "author_desc":return compare(bAuthor, aAuthor) || compare(aTitle,bTitle);
+          case "author_asc":
+          default:           return compare(aAuthor, bAuthor) || compare(aTitle,bTitle);
+        }
+      });
+
+      return out;
+    }
+
+    // =========================
+    //   Render resultados
+    // =========================
+    function renderKPIs(filtered){
+      const total = BOOKS.length;
+      const shown = filtered.length;
+
+      const pagesShown = filtered.reduce((acc,b)=> acc + safeNum(b.num_pag,0), 0);
+      const avgScore = shown
+        ? filtered.reduce((acc,b)=> acc + getScore(b), 0) / shown
+        : 0;
+
+      kpiTotal.textContent = formatInt(total);
+      kpiShown.textContent = formatInt(shown);
+      kpiPages.textContent = formatInt(pagesShown);
+      kpiAvg.textContent = shown ? formatScore(avgScore) : "—";
+
+      countText.textContent = `${formatInt(shown)} mostrados / ${formatInt(total)} total`;
+    }
+
+    function renderResults(filtered){
+      resultsEl.innerHTML = "";
+
+      if(filtered.length === 0){
+        resultsEl.innerHTML = `
+          <div class="callout" style="margin:0;">
+            No hay coincidencias con los filtros actuales.
+          </div>`;
+        statusText.textContent = "Sin resultados.";
+        return;
+      }
+
+      statusText.textContent = "Resultados actualizados.";
+
+      for(const b of filtered){
+        const id = b.__id;
+        const active = (state.selectedId === id);
+
+        const genres = getGenres(b).slice(0, 3);
+        const extra = Math.max(0, getGenres(b).length - genres.length);
+
+        const row = document.createElement("div");
+        row.className = "bookRow" + (active ? " active" : "");
+        row.setAttribute("role","button");
+        row.setAttribute("tabindex","0");
+        row.setAttribute("aria-label", `Seleccionar ${b.titulo}`);
+
+        const cover = b.cover_image_url ? `
+          <div class="thumb"><img src="${escapeHtml(b.cover_image_url)}" alt="Portada: ${escapeHtml(b.titulo)}" loading="lazy"></div>
+        ` : `
+          <div class="thumb">Sin<br/>portada</div>
+        `;
+
+        row.innerHTML = `
+          ${cover}
+          <div class="bookMeta">
+            <p class="bookTitle">${escapeHtml(b.titulo || "—")}</p>
+            <p class="bookAuthor">${escapeHtml(b.autor || "—")}</p>
+            <div class="metaLine">
+              <span class="chip">⭐ ${escapeHtml(formatScore(getScore(b)))}</span>
+              <span class="chip">📄 ${escapeHtml(String(safeNum(b.num_pag,0)))} pág.</span>
+              ${genres.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join("")}
+              ${extra ? `<span class="chip">+${extra}</span>` : ``}
+            </div>
+          </div>
+        `;
+
+        const pick = ()=> selectBookById(id);
+
+        row.addEventListener("click", pick);
+        row.addEventListener("keydown", (e)=>{
+          if(e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            pick();
+          }
+        });
+
+        resultsEl.appendChild(row);
+      }
+    }
+
+    // =========================
+    //   Selección + panel derecho
+    // =========================
+    function renderSpeedButtons(){
+      const btns = [...speedSeg.querySelectorAll("button")];
+      for(const b of btns){
+        const w = Number(b.dataset.wpm);
+        b.classList.toggle("active", w === state.wpm);
+      }
+      speedLabel.textContent = String(state.wpm);
+      localStorage.setItem("books_wpm", String(state.wpm));
+    }
+
+    function selectBookById(id){
+      state.selectedId = id;
+      localStorage.setItem("books_selectedId", String(id));
+      rerender();
+    }
+
+    function renderSelected(book){
+      if(!book){
+        selectedEmpty.style.display = "";
+        selectedBox.style.display = "none";
+        return;
+      }
+
+      selectedEmpty.style.display = "none";
+      selectedBox.style.display = "";
+
+      // cover
+      if(book.cover_image_url){
+        coverBig.innerHTML = `<img src="${escapeHtml(book.cover_image_url)}" alt="Portada: ${escapeHtml(book.titulo)}" loading="lazy">`;
+      }else{
+        coverBig.textContent = "Sin\nportada";
+      }
+
+      selTitle.textContent = book.titulo || "—";
+      selAuthor.textContent = book.autor || "—";
+      selPages.textContent = String(safeNum(book.num_pag, 0));
+      selScore.textContent = formatScore(getScore(book));
+
+      // genres chips
+      selGenres.innerHTML = "";
+      const gs = getGenres(book);
+      if(gs.length){
+        for(const g of gs){
+          const span = document.createElement("span");
+          span.className = "tag";
+          span.textContent = g;
+          span.title = "Click para filtrar por este género";
+          span.style.cursor = "pointer";
+          span.addEventListener("click", ()=>{
+            state.qGenreSelect = g;
+            genreSelect.value = g;
+            localStorage.setItem("books_filters", JSON.stringify({
+              qTitle: state.qTitle,
+              qAuthor: state.qAuthor,
+              qGenreText: state.qGenreText,
+              qGenreSelect: state.qGenreSelect,
+              sortBy: state.sortBy
+            }));
+            rerender();
+          });
+          selGenres.appendChild(span);
+        }
+      }else{
+        const span = document.createElement("span");
+        span.className = "chip";
+        span.textContent = "Sin género";
+        selGenres.appendChild(span);
+      }
+
+      selDetails.textContent = book.detalles || "—";
+
+      // time
+      const {h, m} = estimateReadingTime(book.num_pag, state.wpm);
+      timeOut.textContent = `${h} h ${String(m).padStart(2,"0")} min`;
+    }
+
+    // =========================
+    //   Render principal
+    // =========================
+    function persistFilters(){
+      localStorage.setItem("books_filters", JSON.stringify({
+        qTitle: state.qTitle,
+        qAuthor: state.qAuthor,
+        qGenreText: state.qGenreText,
+        qGenreSelect: state.qGenreSelect,
+        sortBy: state.sortBy
+      }));
+    }
+
+    function rerender(){
+      const filtered = getFiltered();
+      renderKPIs(filtered);
+      renderResults(filtered);
+
+      // keep selected if still exists; else pick first
+      let selectedBook = null;
+      if(state.selectedId != null){
+        selectedBook = filtered.find(b => b.__id === state.selectedId)
+          || BOOKS.map((b,idx)=> ({...b,__id:String(idx)})).find(b => b.__id === state.selectedId)
+          || null;
+      }
+      if(!selectedBook && filtered.length){
+        // auto-select first visible if nothing selected
+        state.selectedId = filtered[0].__id;
+        localStorage.setItem("books_selectedId", String(state.selectedId));
+        selectedBook = filtered[0];
+      }
+
+      renderSpeedButtons();
+      renderSelected(selectedBook);
+
+      // mark active rows
+      [...resultsEl.querySelectorAll(".bookRow")].forEach(el=>{
+        const title = el.querySelector(".bookTitle")?.textContent || "";
+        // re-apply class by comparing with filtered list index is messy; simpler: rerender already does active
+        // so nothing else needed here.
+      });
+    }
+
+    // =========================
+    //   Wire inputs
+    // =========================
+    qTitle.value = state.qTitle;
+    qAuthor.value = state.qAuthor;
+    qGenre.value = state.qGenreText;
+    sortBy.value = state.sortBy;
+
+    // set genre select (will be built after buildGenres)
+    function wire(){
+      qTitle.addEventListener("input", ()=>{
+        state.qTitle = qTitle.value;
+        persistFilters();
+        rerender();
+      });
+      qAuthor.addEventListener("input", ()=>{
+        state.qAuthor = qAuthor.value;
+        persistFilters();
+        rerender();
+      });
+      qGenre.addEventListener("input", ()=>{
+        state.qGenreText = qGenre.value;
+        persistFilters();
+        rerender();
+      });
+
+      genreSelect.addEventListener("change", ()=>{
+        state.qGenreSelect = genreSelect.value;
+        persistFilters();
+        rerender();
+      });
+
+      sortBy.addEventListener("change", ()=>{
+        state.sortBy = sortBy.value;
+        persistFilters();
+        rerender();
+      });
+
+      $("clearBtn").addEventListener("click", ()=>{
+        state.qTitle = "";
+        state.qAuthor = "";
+        state.qGenreText = "";
+        state.qGenreSelect = "";
+        state.sortBy = "score_desc";
+
+        qTitle.value = "";
+        qAuthor.value = "";
+        qGenre.value = "";
+        sortBy.value = "score_desc";
+        genreSelect.value = "";
+
+        persistFilters();
+        rerender();
+      });
+
+      // speed segmented
+      speedSeg.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-wpm]");
+        if(!btn) return;
+        const w = Number(btn.dataset.wpm);
+        if(SPEEDS.includes(w)){
+          state.wpm = w;
+          renderSpeedButtons();
+          // update time for current selected
+          rerender();
+        }
+      });
+    }
+
+    // =========================
+    //   Modal
+    // =========================
+    const modalOverlay = $("modalOverlay");
+    const infoBtn = $("infoBtn");
+    const closeModal = $("closeModal");
+
+    function openModal(){
+      modalOverlay.style.display = "flex";
+      document.body.style.overflow = "hidden";
+    }
+    function hideModal(){
+      modalOverlay.style.display = "none";
+      document.body.style.overflow = "";
+    }
+
+    infoBtn.addEventListener("click", openModal);
+    closeModal.addEventListener("click", hideModal);
+    modalOverlay.addEventListener("click", (e)=>{
+      if(e.target === modalOverlay) hideModal();
+    });
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape" && modalOverlay.style.display === "flex") hideModal();
+    });
+
+    // =========================
+    //   Init
+    // =========================
+    buildGenres();
+    // apply saved select (after build)
+    genreSelect.value = state.qGenreSelect || "";
+    wire();
+    rerender();
+  </script>
+</body>
+</html>
