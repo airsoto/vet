@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mapa balizas V16 — España</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#0f1622; --panel2:#121b2a;
+      --text:#e9eef6; --muted:#a9b3c3; --line:#233044; --accent:#7dd3fc;
+      --good:#31d07f; --bad:#ff5c5c; --brand:#ff9900;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    #map{height:100vh; width:100vw}
+    #topbar{
+      position:fixed; inset:12px 12px auto 12px; z-index:1000;
+      display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      background:rgba(15,22,34,.92);
+      backdrop-filter: blur(6px);
+      border-radius:14px;
+      max-width: calc(100vw - 24px);
+    }
+    .pill{
+      padding:6px 10px; border:1px solid var(--line); border-radius:999px;
+      background:rgba(18,27,42,.8); display:flex; align-items:center; gap:8px; white-space:nowrap;
+    }
+    .dot{display:inline-block; width:8px; height:8px; border-radius:999px; background:var(--good)}
+    button,input{
+      appearance:none; border:1px solid var(--line); background:var(--panel2); color:var(--text);
+      padding:8px 10px; border-radius:10px; font:inherit;
+    }
+    button{cursor:pointer}
+    button:hover{border-color:#35506e}
+    .small{font-size:12px; color:var(--muted)}
+    #modalBackdrop{
+      position:fixed; inset:0; z-index:2000;
+      background:rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center; padding:18px;
+    }
+    #modal{
+      width:min(760px, 100%);
+      background:rgba(15,22,34,.98);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px 14px 10px;
+      box-shadow:0 20px 80px rgba(0,0,0,.5);
+    }
+    #modal h3{margin:0 0 8px 0; font-size:16px}
+    #modal p{margin:0 0 10px 0; line-height:1.4}
+    #modal .actions{display:flex; justify-content:flex-end; gap:10px; margin-top:10px}
+
+    .footer{
+      background:#0a0f18;
+      border-top:1px solid var(--line);
+      padding:18px 14px;
+      color:var(--muted);
+    }
+    .footer p, .footer h4{margin:8px 0}
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div class="pill"><span class="dot"></span>Marcadores: <b id="count">0</b></div>
+      <div class="pill">Última: <b id="last">—</b></div>
+      <div class="pill">Estado: <b id="status">iniciando…</b></div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <input id="pollSec" type="number" min="10" max="600" value="30" style="width:90px" title="Segundos entre refrescos del mapa (lee v16.json del repo)" />
+      <button id="btnRefresh">⟳ Forzar</button>
+      <button id="btnInfo">ℹ️ Info</button>
+      <a class="small" href="./v16.json" target="_blank" rel="noopener">ver v16.json</a>
+    </div>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <!-- INFO MODAL -->
+  <div id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="modal">
+      <h3>Información del mapa</h3>
+      <p>
+        La información utilizada por el mapa procede enteramente de datos públicos y fuentes oficiales
+        (<a href="https://cmobility30.es/bandejadesalida/v1/events" target="_blank" rel="noopener">https://cmobility30.es/bandejadesalida/v1/events</a>) ,
+        lo que permite ofrecer una visualización informativa y actualizada del estado de las balizas V16 en las carreteras españolas.
+      </p>
+      <p class="small">
+        Este sitio (GitHub Pages) lee <b>v16.json</b> del propio repositorio. Ese archivo debe actualizarse con GitHub Actions.
+      </p>
+      <div class="actions">
+        <button id="btnCloseModal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const SPAIN_BBOX = { minLat: 27.0, maxLat: 44.8, minLon: -19.5, maxLon: 5.5 };
+    const TTL_MS = 20 * 60 * 1000;
+
+    const $count = document.getElementById("count");
+    const $last = document.getElementById("last");
+    const $status = document.getElementById("status");
+    const $pollSec = document.getElementById("pollSec");
+    const $btnRefresh = document.getElementById("btnRefresh");
+
+    const $btnInfo = document.getElementById("btnInfo");
+    const $modalBackdrop = document.getElementById("modalBackdrop");
+    const $btnCloseModal = document.getElementById("btnCloseModal");
+
+    let pollTimer = null;
+
+    function fmtTime(d){
+      const pad = n => String(n).padStart(2,"0");
+      return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    }
+    function setStatus(ok, msg){
+      $status.textContent = msg;
+      $status.style.color = ok ? "var(--good)" : "var(--bad)";
+    }
+    function inSpain(lat, lon){
+      return lat >= SPAIN_BBOX.minLat && lat <= SPAIN_BBOX.maxLat && lon >= SPAIN_BBOX.minLon && lon <= SPAIN_BBOX.maxLon;
+    }
+
+    function openModal(){ $modalBackdrop.style.display="flex"; $modalBackdrop.setAttribute("aria-hidden","false"); }
+    function closeModal(){ $modalBackdrop.style.display="none"; $modalBackdrop.setAttribute("aria-hidden","true"); }
+    $btnInfo.addEventListener("click", openModal);
+    $btnCloseModal.addEventListener("click", closeModal);
+    $modalBackdrop.addEventListener("click", (e)=>{ if(e.target===$modalBackdrop) closeModal(); });
+    window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    // MAPA
+    const map = L.map("map").setView([40.4168, -3.7038], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom:19, attribution:"&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const layer = L.layerGroup().addTo(map);
+    const markers = new Map(); // key -> { marker, lastSeen }
+
+    function pick(obj, keys){
+      for (const k of keys){
+        if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+      }
+      return undefined;
+    }
+    function toDegIfMicro(n, isLat){
+      const abs = Math.abs(n);
+      const limit = isLat ? 90 : 180;
+      if (abs <= limit) return n;
+      if (abs <= limit * 1e6 + 1e5) return n / 1e6;
+      if (abs <= limit * 1e7 + 1e6) return n / 1e7;
+      return n;
+    }
+    function asNumber(x, isLat){
+      if (typeof x === "number" && Number.isFinite(x)) return toDegIfMicro(x, isLat);
+      if (typeof x === "string"){
+        const n = Number(x.replace(",", "."));
+        return Number.isFinite(n) ? toDegIfMicro(n, isLat) : undefined;
+      }
+      return undefined;
+    }
+    function extractLatLon(node){
+      if (!node || typeof node !== "object") return null;
+
+      const lat1 = asNumber(pick(node, ["lat","latitude","y","Lat","Latitude"]), true);
+      const lon1 = asNumber(pick(node, ["lon","lng","longitude","x","Lon","Lng","Longitude"]), false);
+      if (lat1 !== undefined && lon1 !== undefined) return { lat: lat1, lon: lon1 };
+
+      const geom = node.geometry || node.geom;
+      if (geom && Array.isArray(geom.coordinates) && geom.coordinates.length >= 2){
+        const lon2 = asNumber(geom.coordinates[0], false);
+        const lat2 = asNumber(geom.coordinates[1], true);
+        if (lat2 !== undefined && lon2 !== undefined) return { lat: lat2, lon: lon2 };
+      }
+
+      const pos = node.position || node.location || node.point || node.geo || node.geolocation;
+      if (pos && typeof pos === "object"){
+        const r = extractLatLon(pos);
+        if (r) return r;
+      }
+      return null;
+    }
+
+    function collectPoints(payload){
+      const out = [];
+      const seen = new Set();
+
+      function pushPoint(node, ll){
+        const id = pick(node, ["id","eventId","uuid","identifier","_id"]);
+        const ts = pick(node, ["timestamp","time","dateTime","createdAt","startDate","publicationTime"]);
+        const key = String(id ?? (ll.lat.toFixed(6)+","+ll.lon.toFixed(6)+":"+(ts ?? "")));
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ key, lat: ll.lat, lon: ll.lon, raw: node });
+      }
+
+      function visit(node, depth){
+        if (!node || depth > 16) return;
+        if (Array.isArray(node)){ for (const it of node) visit(it, depth+1); return; }
+        if (typeof node !== "object") return;
+
+        const ll = extractLatLon(node);
+        if (ll && Number.isFinite(ll.lat) && Number.isFinite(ll.lon) && inSpain(ll.lat, ll.lon)) pushPoint(node, ll);
+
+        for (const k of Object.keys(node)){
+          const v = node[k];
+          if (v && typeof v === "object") visit(v, depth+1);
+        }
+      }
+      visit(payload, 0);
+      return out;
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+    }
+    function buildPopup(p){
+      const raw = p.raw || {};
+      const id = pick(raw, ["id","eventId","uuid","identifier","_id"]) ?? p.key;
+      const t  = pick(raw, ["timestamp","time","dateTime","createdAt","startDate","publicationTime"]);
+      const gmaps = "https://www.google.com/maps?q=" + p.lat + "," + p.lon;
+      return `
+        <div style="min-width:220px">
+          <div><b>Evento:</b> ${escapeHtml(id)}</div>
+          <div><b>Lat/Lon:</b> ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
+          ${t ? `<div><b>Hora:</b> ${escapeHtml(t)}</div>` : ""}
+          <div style="margin-top:8px"><a href="${gmaps}" target="_blank" rel="noopener">Abrir en Google Maps</a></div>
+        </div>`;
+    }
+
+    function upsert(points){
+      const now = Date.now();
+      const seenNow = new Set(points.map(p => p.key));
+
+      for (const p of points){
+        const ex = markers.get(p.key);
+        if (!ex){
+          const m = L.circleMarker([p.lat, p.lon], { radius: 7, weight: 2, opacity: 1, fillOpacity: 0.25 })
+            .addTo(layer)
+            .bindPopup(buildPopup(p));
+          markers.set(p.key, { marker: m, lastSeen: now });
+        } else {
+          ex.marker.setLatLng([p.lat, p.lon]);
+          ex.marker.setPopupContent(buildPopup(p));
+          ex.lastSeen = now;
+        }
+      }
+
+      for (const [key, obj] of markers.entries()){
+        if ((now - obj.lastSeen) > TTL_MS && !seenNow.has(key)){
+          layer.removeLayer(obj.marker);
+          markers.delete(key);
+        }
+      }
+
+      $count.textContent = String(markers.size);
+    }
+
+    async function loadOnce(){
+      try{
+        // cache-buster
+        const url = "./v16.json?ts=" + Date.now();
+        const res = await fetch(url, { cache:"no-store" });
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+
+        const points = collectPoints(json);
+        upsert(points);
+
+        $last.textContent = fmtTime(new Date());
+        setStatus(true, points.length ? ("ok · puntos " + points.length) : "ok · 0 puntos (posible 0 activaciones)");
+      }catch(e){
+        setStatus(false, "no se pudo leer v16.json");
+      }
+    }
+
+    function startPolling(){
+      if (pollTimer) clearInterval(pollTimer);
+      const sec = Math.max(10, Math.min(600, Number($pollSec.value) || 30));
+      $pollSec.value = sec;
+      pollTimer = setInterval(loadOnce, sec * 1000);
+    }
+
+    $btnRefresh.addEventListener("click", loadOnce);
+    $pollSec.addEventListener("change", startPolling);
+
+    loadOnce();
+    startPolling();
+  </script>
+</body>
+</html>
