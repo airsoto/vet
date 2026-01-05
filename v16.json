@@ -1,0 +1,35 @@
+name: Update v16.json
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"   # cada 5 min (lo más práctico en GitHub)
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch upstream JSON
+        run: |
+          curl -sS -H "Accept: application/json" -H "Accept-Encoding: identity" \
+            "https://cmobility30.es/bandejadesalida/v1/events" \
+            -o v16.json
+          test -s v16.json
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add v16.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Update v16.json"
+            git push
+          fi
