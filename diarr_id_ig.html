@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="es">
+          <script defer src="goat.js"></script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Vet CALC — Clasificador de diarrea (perro/gato)</title>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(255,255,255,0.09);
+      --border: rgba(255,255,255,0.12);
+      --text:#e9eef7;
+      --muted:#aeb7c6;
+      --accent:#ff9900;
+      --ok:#2ecc71;
+      --warn:#f1c40f;
+      --bad:#ff5c5c;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --radius2: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 500px at 15% -10%, rgba(255,153,0,0.13), transparent 60%),
+        radial-gradient(1000px 600px at 85% 0%, rgba(0,180,255,0.10), transparent 55%),
+        radial-gradient(900px 600px at 50% 110%, rgba(170,0,255,0.08), transparent 60%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+
+    a{color:var(--accent); text-decoration:none}
+    a:hover{opacity:.92; text-decoration:underline}
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
+    }
+
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(11,15,20,0.85), rgba(11,15,20,0.55));
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .topbar{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 14px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 240px;
+    }
+    .logo{
+      width:40px; height:40px;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,153,0,0.35), transparent 60%),
+        radial-gradient(circle at 70% 65%, rgba(0,180,255,0.25), transparent 55%),
+        rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: var(--shadow);
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      color: var(--accent);
+      user-select:none;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: 15px;
+      letter-spacing: .3px;
+      font-weight: 800;
+      line-height: 1.05;
+    }
+    .brand .sub{
+      margin:0;
+      margin-top:2px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      font-weight:700;
+      font-size: 13px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.16); }
+    .btn:active{ transform: scale(0.99); }
+
+    .chip{
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .dot{
+      width:10px; height:10px;
+      border-radius:999px;
+      display:inline-block;
+      background: rgba(255,255,255,0.18);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
+    }
+    .dot.ok{ background: var(--ok); }
+    .dot.warn{ background: var(--warn); }
+    .dot.bad{ background: var(--bad); }
+
+    main{ padding-top: 18px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 14px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      align-items:flex-start;
+    }
+    .card .hd h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.2px;
+      font-weight: 900;
+      line-height: 1.15;
+    }
+    .card .hd p{
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      max-width: 58ch;
+    }
+    .card .bd{ padding: 12px 14px 14px; }
+
+    .form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 12px;
+    }
+    @media (max-width: 640px){
+      .form{ grid-template-columns: 1fr; }
+    }
+
+    .field{
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--radius2);
+      padding: 10px 10px 9px;
+    }
+    .field label{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing:.2px;
+      margin-bottom: 7px;
+    }
+    .field small{
+      color: rgba(255,255,255,0.35);
+      font-weight: 700;
+    }
+    select, input[type="number"]{
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(10,14,20,0.55);
+      color: var(--text);
+      outline:none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    select:focus, input[type="number"]:focus{ border-color: rgba(255,153,0,0.55); box-shadow: 0 0 0 3px rgba(255,153,0,0.10); }
+
+    .checks{
+      grid-column: 1 / -1;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+    @media (max-width: 900px){
+      .checks{ grid-template-columns: 1fr; }
+    }
+    .ck{
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.03);
+      border-radius: var(--radius2);
+      padding: 10px 10px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .ck input{ margin-top: 2px; transform: scale(1.05); }
+    .ck b{ display:block; font-size: 13px; }
+    .ck span{ display:block; font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+
+    .resultBox{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+
+    .badge{
+      display:inline-flex;
+      gap: 8px;
+      align-items:center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .badge .k{ font-size:12px; color:var(--muted); font-weight:800; }
+    .badge .v{ font-size:13px; }
+
+    .pillRow{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+    }
+    .pill strong{ color: var(--text); }
+
+    .alert{
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      line-height: 1.35;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .alert.ok{ border-color: rgba(46,204,113,0.35); background: rgba(46,204,113,0.10); }
+    .alert.warn{ border-color: rgba(241,196,15,0.35); background: rgba(241,196,15,0.10); }
+    .alert.bad{ border-color: rgba(255,92,92,0.40); background: rgba(255,92,92,0.10); }
+
+    .lists{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    details{
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      overflow:hidden;
+    }
+    summary{
+      cursor:pointer;
+      list-style:none;
+      padding: 12px 12px;
+      font-weight: 900;
+      font-size: 13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    .sumRight{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+    }
+    .caret{
+      width: 10px; height: 10px;
+      border-right: 2px solid rgba(255,255,255,0.55);
+      border-bottom: 2px solid rgba(255,255,255,0.55);
+      transform: rotate(-45deg);
+      opacity: .8;
+      transition: transform .15s ease;
+    }
+    details[open] .caret{ transform: rotate(45deg); }
+
+    .detailsBody{
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 12px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      margin-right: 6px;
+      margin-top: 6px;
+      white-space:nowrap;
+    }
+    .tag .miniDot{ width:9px; height:9px; border-radius:999px; background: rgba(255,255,255,0.18); }
+    .tag.sb .miniDot{ background: rgba(0,180,255,0.75); }
+    .tag.lb .miniDot{ background: rgba(255,153,0,0.85); }
+    .tag.sys .miniDot{ background: rgba(170,0,255,0.70); }
+    .tag.spec .miniDot{ background: rgba(46,204,113,0.85); }
+
+    .copyBox{
+      border: 1px dashed rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.15);
+      border-radius: 16px;
+      padding: 10px 10px;
+      font-family: var(--mono);
+      color: rgba(233,238,247,0.85);
+      font-size: 12px;
+      white-space: pre-wrap;
+      line-height: 1.35;
+    }
+
+    /* Footer del usuario */
+    .footer{
+      margin-top: 18px;
+      padding: 18px 10px 10px;
+      color: var(--muted);
+      border-top: 1px solid rgba(255,255,255,0.10);
+      font-size: 13px;
+    }
+    .footer p{ margin: 6px 0; }
+    .muted{ color: var(--muted); }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">VC</div>
+        <div>
+          <h1>Vet CALC</h1>
+          <p class="sub">Clasificador orientativo de diarrea (perro / gato): intestino delgado vs grueso vs mixto</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="statusChip"><span class="dot warn" id="statusDot"></span><span id="statusText">Rellena hallazgos</span></span>
+        <button class="btn" id="btnCopy" type="button">📋 Copiar resumen</button>
+        <button class="btn" id="btnReset" type="button">↺ Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <main class="grid">
+
+      <!-- FORM -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Hallazgos y contexto</h2>
+            <p>Selecciona lo que describe mejor el patrón. La app puntúa rasgos típicos de <b>intestino delgado</b> vs <b>intestino grueso</b> y sugiere causas frecuentes según <b>aguda</b> o <b>crónica</b>.</p>
+          </div>
+          <div class="pill"><strong>Tip:</strong> rectal siempre ayuda</div>
+        </div>
+
+        <div class="bd">
+          <div class="form">
+
+            <div class="field">
+              <label>Especie <small>para etiquetas</small></label>
+              <select id="species">
+                <option value="perro">Perro</option>
+                <option value="gato">Gato</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Curso <small>aguda vs crónica</small></label>
+              <select id="course">
+                <option value="aguda">Aguda</option>
+                <option value="cronica">Crónica</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Cantidad por deposición <small>volumen</small></label>
+              <select id="amount">
+                <option value="mucho">Aumentada / abundante</option>
+                <option value="normal">Normal o variable</option>
+                <option value="poco">Pequeñas cantidades</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Frecuencia <small>patrón</small></label>
+              <select id="frequency">
+                <option value="normal">Normal o ligeramente ↑</option>
+                <option value="alta">Muy frecuente</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Tenesmo <small>esfuerzo al defecar</small></label>
+              <select id="tenesmus">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Moco <small>en heces</small></label>
+              <select id="mucus">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Sangre <small>tipo</small></label>
+              <select id="blood">
+                <option value="no">No</option>
+                <option value="fresca">Sí, fresca (roja)</option>
+                <option value="melena">Sí, digerida (melenas / negra)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Color <small>orientativo</small></label>
+              <select id="color">
+                <option value="nsnc">No relevante / no sé</option>
+                <option value="gris">Gris (p.ej. grasa no digerida)</option>
+                <option value="amarillo_verde">Amarillo-verde</option>
+              </select>
+            </div>
+
+            <div class="checks">
+              <div class="ck">
+                <input type="checkbox" id="weightloss">
+                <div>
+                  <b>Pérdida de peso</b>
+                  <span>Más típica en diarrea crónica de intestino delgado (pero no obligatoria).</span>
+                </div>
+              </div>
+
+              <div class="ck">
+                <input type="checkbox" id="vomiting">
+                <div>
+                  <b>Vómitos</b>
+                  <span>Cuando existen en intestino delgado, suelen relacionarse con la ingesta.</span>
+                </div>
+              </div>
+
+              <div class="ck">
+                <input type="checkbox" id="borborygmus">
+                <div>
+                  <b>Borborygmos / flatulencia</b>
+                  <span>Frecuente si hay malabsorción de carbohidratos y fermentación colónica.</span>
+                </div>
+              </div>
+
+              <div class="ck">
+                <input type="checkbox" id="dehydration">
+                <div>
+                  <b>Deshidratación / polidipsia</b>
+                  <span>Si es muy acuosa y/o severa.</span>
+                </div>
+              </div>
+
+              <div class="ck">
+                <input type="checkbox" id="systemic">
+                <div>
+                  <b>Signos sistémicos (letargia, PU/PD marcada, etc.)</b>
+                  <span>Puede sugerir causas secundarias (hepáticas, pancreáticas, endocrinas…).</span>
+                </div>
+              </div>
+
+              <div class="ck">
+                <input type="checkbox" id="projectile">
+                <div>
+                  <b>“Proyectil” / sin tenesmo</b>
+                  <span>Patrón descrito en diarrea de intestino delgado.</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTS -->
+      <aside class="card">
+        <div class="hd">
+          <div>
+            <h2>Clasificación y orientación</h2>
+            <p>Resultado orientativo (no sustituye historia clínica completa, exploración y pruebas complementarias).</p>
+          </div>
+          <div class="pillRow">
+            <span class="pill" id="scorePillSB">ID: <strong>0</strong></span>
+            <span class="pill" id="scorePillLB">IG: <strong>0</strong></span>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="resultBox">
+
+            <div class="badge" id="mainBadge">
+              <span class="k">Tipo:</span>
+              <span class="v" id="mainType">—</span>
+            </div>
+
+            <div class="badge">
+              <span class="k">Curso:</span>
+              <span class="v" id="mainCourse">—</span>
+            </div>
+
+            <div class="alert warn" id="urgencyBox">
+              Completa el formulario para ver alertas clínicas.
+            </div>
+
+            <div class="lists">
+              <details open>
+                <summary>
+                  Posibles causas frecuentes
+                  <span class="sumRight"><span id="causeCount">0</span> ítems <i class="caret"></i></span>
+                </summary>
+                <div class="detailsBody" id="causes">
+                  <span class="muted">Aquí aparecerán causas sugeridas según la clasificación.</span>
+                </div>
+              </details>
+
+              <details>
+                <summary>
+                  Resumen para historia / derivación
+                  <span class="sumRight">texto <i class="caret"></i></span>
+                </summary>
+                <div class="detailsBody">
+                  <div class="copyBox" id="summaryBox">—</div>
+                </div>
+              </details>
+
+              <details>
+                <summary>
+                  Nota rápida: causas secundarias a enfermedad sistémica
+                  <span class="sumRight">recordatorio <i class="caret"></i></span>
+                </summary>
+                <div class="detailsBody" id="secondaryNote">
+                  Considera que la diarrea puede ser secundaria a trastornos sistémicos (p. ej., enfermedad hepática, insuficiencia pancreática exocrina, pancreatitis, hipertiroidismo o hipoadrenocorticismo), y que suele mostrar rasgos de intestino delgado.
+                </div>
+              </details>
+            </div>
+
+          </div>
+        </div>
+      </aside>
+
+    </main>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;">
+        <a href="https://www.buymeacoffee.com/airsoto" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+      </p>
+<p class="muted" style="text-align:center; margin-top:10px;">
+  Herramienta educativa basada en un enfoque lógico de diarrea (WSAVA 2009).
+</p>
+
+<p class="muted" style="text-align:center; margin-top:8px; line-height:1.35;">
+  <b>Referencia:</b> <i>Logical Approach to Diarrhoea</i><br>
+  World Small Animal Veterinary Association World Congress Proceedings, 2009<br>
+  Jill Maddison, BVSc, DipVetClinStud, PhD, FACVSc, MRCVS<br>
+  The Royal Veterinary College, North Mymms, UK
+</p>
+
+    </footer>
+
+  </div>
+
+  <script>
+    // -------------------------
+    // Datos (tablas del documento)
+    // -------------------------
+    const data = {
+      sb_acute: [
+        {t:"Dieta", items:["Sobreingesta (especialmente cachorros)", "Cambio de dieta", "Comida en mal estado", "Ingesta de basura"]},
+        {t:"Parásitos", items:["Ascaris (ascaridios) / Ancylostoma (anquilostomas)", "Giardia spp.", "Coccidios (Cystoisospora spp.)", "Cryptosporidium"]},
+        {t:"Infeccioso (viral)", items:["Parvovirus", "Coronavirus", "Moquillo (distemper)"]},
+        {t:"Infeccioso (bacteriano)", items:["Salmonella", "E. coli", "Campylobacter", "Clostridios"]},
+        {t:"Tóxicos", items:["Plomo", "Organofosforados", "Plantas tóxicas / ingestiones"]},
+      ],
+      sb_chronic: [
+        {t:"Dieta", items:["Intolerancia a lactosa", "Hipersensibilidad alimentaria", "Intolerancia al gluten"]},
+        {t:"Parásitos", items:["Parásitos intestinales (como en aguda)", "Giardia spp."]},
+        {t:"“Infección” / respuesta a antibióticos", items:["Enteropatía respondedora a antibióticos", "Campylobacter / Salmonella", "FIV/FeLV (gato)"]},
+        {t:"Infiltrativa / inflamatoria", items:["Enteritis eosinofílica", "Enteritis linfoplasmocitaria", "Linfosarcoma difuso", "Adenocarcinoma", "Mastocitoma (felino)"]},
+        {t:"Miscelánea / secundaria GI", items:["Linfangiectasia (primaria o secundaria)", "Defectos bioquímicos de enzimas del borde en cepillo",
+          "Trastornos de motilidad (p. ej., hipertiroidismo, toxicidad por plomo, disautonomía)", "Hipoadrenocorticismo", "Insuficiencia pancreática exocrina (IPE)"]},
+      ],
+      lb_all: [
+        {t:"Parásitos", items:["Trichuris vulpis (perro)", "Ancylostoma caninum (perro)", "Giardia spp. (más típica de intestino delgado)", "Entamoeba spp."]},
+        {t:"Infeccioso", items:["Campylobacter", "Clostridios", "Salmonella", "Yersinia enterocolitica", "FIP (gato)"]},
+        {t:"Dieta / contenido", items:["“Déficit” de fibra", "Hipersensibilidad alimentaria", "Paso de material extraño"]},
+        {t:"Inflamatorio", items:["Ulcerativa idiopática (plasmocítica-linfocítica)", "Eosinofílica", "Histiocítica (Boxer)", "Granulomatosa", "Pseudomembranosa (asociada a antibióticos)"]},
+        {t:"Neoplasia", items:["Masa difusa o discreta (p. ej., linfosarcoma)"]},
+        {t:"Estrés / funcional", items:["Estrés"]},
+        {t:"Estenosis", items:["Cicatricial o neoplásica (p. ej., adenocarcinoma)"]},
+        {t:"Miscelánea (secundaria GI)", items:["Uremia", "Toxemia (la diarrea no suele ser el signo principal)"]},
+      ],
+      secondary: [
+        "Enfermedad hepática",
+        "Insuficiencia pancreática exocrina (IPE)",
+        "Pancreatitis",
+        "Hipertiroidismo (gato)",
+        "Hipoadrenocorticismo",
+      ]
+    };
+
+    // -------------------------
+    // Utilidades
+    // -------------------------
+    const $ = (id)=>document.getElementById(id);
+    const esc = (s)=>String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+    function setChip(kind, text){
+      const dot = $("statusDot");
+      const st = $("statusText");
+      dot.classList.remove("ok","warn","bad");
+      dot.classList.add(kind);
+      st.textContent = text;
+    }
+
+    function score(){
+      let sb = 0, lb = 0;
+
+      const amount = $("amount").value;
+      const freq = $("frequency").value;
+      const tenes = $("tenesmus").value;
+      const mucus = $("mucus").value;
+      const blood = $("blood").value;
+      const color = $("color").value;
+
+      const weightloss = $("weightloss").checked;
+      const vomiting = $("vomiting").checked;
+      const borb = $("borborygmus").checked;
+      const dehydr = $("dehydration").checked;
+      const systemic = $("systemic").checked;
+      const projectile = $("projectile").checked;
+
+      // Cantidad
+      if(amount === "mucho") sb += 2;
+      if(amount === "poco") lb += 2;
+
+      // Frecuencia
+      if(freq === "alta") lb += 1;
+
+      // Tenesmo
+      if(tenes === "si") lb += 3;
+      else sb += 1;
+
+      // Moco
+      if(mucus === "si") lb += 3;
+
+      // Sangre
+      if(blood === "fresca") lb += 3;
+      if(blood === "melena") sb += 3;
+
+      // Color
+      if(color === "gris") sb += 1;
+      if(color === "amarillo_verde") sb += 1;
+
+      // Asociados
+      if(weightloss) sb += 2;
+      else lb += 1; // “suele no haber pérdida” en grandes, orientativo
+
+      if(vomiting) sb += 2;
+      else lb += 1; // vómito infrecuente en grandes, orientativo
+
+      if(borb) sb += 2;
+      if(dehydr) sb += 1;
+      if(projectile) sb += 2;
+
+      // Si hay signos sistémicos, no suma a SB/LB, pero influye en sugerencias
+      // (lo tratamos más abajo)
+
+      return {sb, lb, systemic, dehydr, blood, mucus, tenes, weightloss, vomiting, borb, amount, freq, projectile};
+    }
+
+    function classify(sb, lb){
+      const diff = Math.abs(sb - lb);
+      if(diff <= 2) return "Mixta (delgado + grueso)";
+      return (sb > lb) ? "Intestino delgado (Small bowel)" : "Intestino grueso (Large bowel)";
+    }
+
+    function buildCauses(type, course, species, flags){
+      const blocks = [];
+      const tags = [];
+
+      const isSB = type.startsWith("Intestino delgado");
+      const isLB = type.startsWith("Intestino grueso");
+      const isMixed = type.startsWith("Mixta");
+
+      if(isSB || isMixed){
+        const sbData = (course === "aguda") ? data.sb_acute : data.sb_chronic;
+        sbData.forEach(b => blocks.push({zone:"sb", title:b.t, items:b.items}));
+        tags.push({zone:"sb", text:"Rasgos delgado"});
+      }
+
+      if(isLB || isMixed){
+        data.lb_all.forEach(b => blocks.push({zone:"lb", title:b.t, items:b.items}));
+        tags.push({zone:"lb", text:"Rasgos grueso"});
+      }
+
+      // Sugerencia de secundario si el usuario marca sistémico
+      if(flags.systemic){
+        blocks.unshift({
+          zone:"sys",
+          title:"Considera causas sistémicas / secundarias",
+          items: data.secondary
+        });
+        tags.push({zone:"sys", text:"Posible secundario"});
+      }
+
+      // Etiquetas especie
+      tags.push({zone:"spec", text: species === "gato" ? "Gato" : "Perro"});
+
+      return {blocks, tags};
+    }
+
+    function renderCauses(blocks, tags){
+      const out = [];
+      const tagHtml = tags.map(t => `<span class="tag ${t.zone}"><span class="miniDot"></span>${esc(t.text)}</span>`).join("");
+
+      out.push(`<div style="margin-bottom:10px;">${tagHtml}</div>`);
+
+      blocks.forEach(b=>{
+        out.push(`<div style="margin:8px 0 0;">
+          <div style="font-weight:900; color: rgba(233,238,247,0.92); margin-bottom:6px;">
+            ${b.zone==="sys" ? "🟣 " : (b.zone==="sb" ? "🔵 " : "🟠 ")}${esc(b.title)}
+          </div>
+          <ul style="margin:0 0 0 18px; padding:0;">
+            ${b.items.map(x=>`<li style="margin:4px 0;">${esc(x)}</li>`).join("")}
+          </ul>
+        </div>`);
+      });
+
+      $("causeCount").textContent = String(blocks.reduce((n,b)=>n + b.items.length, 0));
+      $("causes").innerHTML = out.join("");
+    }
+
+    function urgency(flags){
+      // Alertas clínicas sencillas (educativas)
+      // - Sangre fresca o melena + deshidratación o signos sistémicos => probable urgencia
+      // - Tenesmo/moco sin sistémico: menos urgente por defecto (depende del caso)
+      const red = [];
+      const yellow = [];
+      const green = [];
+
+      if(flags.dehydr) red.push("Deshidratación/polidipsia: valorar estado general y fluidoterapia según necesidad.");
+      if(flags.blood === "melena") red.push("Melenas (sangre digerida): sugiere afectación proximal o sangrado significativo.");
+      if(flags.blood === "fresca") yellow.push("Sangre fresca: típico de intestino grueso, pero vigilar severidad y evolución.");
+      if(flags.systemic) red.push("Signos sistémicos: considerar enfermedad sistémica y priorizar evaluación.");
+
+      if(flags.tenes === "si") yellow.push("Tenesmo: frecuente en intestino grueso (recto/colon distal).");
+      if(flags.mucus === "si") yellow.push("Moco: sugiere colon/recto (según distribución).");
+
+      if(!flags.dehydr && !flags.systemic && flags.blood === "no"){
+        green.push("Sin señales mayores marcadas aquí: seguimiento, historia completa y examen físico guían el siguiente paso.");
+      }
+
+      let level = "warn";
+      let title = "Aviso clínico";
+      let lines = [];
+
+      const isUrgent = (red.length >= 1) || (flags.blood !== "no" && flags.dehydr);
+      if(isUrgent){
+        level = "bad";
+        title = "Prioridad alta";
+        lines = red.concat(yellow);
+      }else if(yellow.length){
+        level = "warn";
+        title = "Vigilar / orientar";
+        lines = yellow.concat(green);
+      }else{
+        level = "ok";
+        title = "Sin alertas marcadas";
+        lines = green;
+      }
+
+      const html = `<b>${esc(title)}</b><br>${lines.map(x=>"• "+esc(x)).join("<br>")}`;
+      const box = $("urgencyBox");
+      box.classList.remove("ok","warn","bad");
+      box.classList.add(level);
+      box.innerHTML = html;
+
+      // chip
+      if(level==="bad") setChip("bad","Revisar prioridad");
+      else if(level==="warn") setChip("warn","Orientación lista");
+      else setChip("ok","Orientación lista");
+    }
+
+    function buildSummary(type, course, species, flags, sb, lb){
+      const pick = [];
+      pick.push(`Especie: ${species}`);
+      pick.push(`Curso: ${course}`);
+      pick.push(`Clasificación orientativa: ${type}`);
+      pick.push(`Puntuación: SB=${sb} / LB=${lb}`);
+      pick.push("");
+      pick.push("Hallazgos seleccionados:");
+      pick.push(`- Cantidad: ${flags.amount}`);
+      pick.push(`- Frecuencia: ${flags.freq}`);
+      pick.push(`- Tenesmo: ${flags.tenes === "si" ? "sí" : "no"}`);
+      pick.push(`- Moco: ${flags.mucus === "si" ? "sí" : "no"}`);
+      pick.push(`- Sangre: ${flags.blood === "no" ? "no" : (flags.blood === "fresca" ? "fresca" : "melenas")}`);
+      pick.push(`- Color: ${$("color").value}`);
+      pick.push(`- Pérdida peso: ${flags.weightloss ? "sí" : "no"}`);
+      pick.push(`- Vómitos: ${flags.vomiting ? "sí" : "no"}`);
+      pick.push(`- Borborygmos/flatulencia: ${flags.borb ? "sí" : "no"}`);
+      pick.push(`- Deshidratación/polidipsia: ${flags.dehydr ? "sí" : "no"}`);
+      pick.push(`- Signos sistémicos: ${flags.systemic ? "sí" : "no"}`);
+      pick.push(`- Proyectil/sin tenesmo: ${flags.projectile ? "sí" : "no"}`);
+      pick.push("");
+      pick.push("Nota: orientativo; historia clínica completa + exploración (incluida rectal) y pruebas guían el diagnóstico.");
+      return pick.join("\n");
+    }
+
+    function update(){
+      const species = $("species").value;
+      const course = $("course").value;
+
+      const flags = score();
+      $("scorePillSB").innerHTML = `ID: <strong>${flags.sb}</strong>`;
+      $("scorePillLB").innerHTML = `IG: <strong>${flags.lb}</strong>`;
+
+      const type = classify(flags.sb, flags.lb);
+
+      $("mainType").textContent = type;
+      $("mainCourse").textContent = (course === "aguda") ? "Aguda" : "Crónica";
+
+      const {blocks, tags} = buildCauses(type, course, species, flags);
+      renderCauses(blocks, tags);
+
+      urgency(flags);
+
+      $("summaryBox").textContent = buildSummary(type, (course === "aguda" ? "Aguda" : "Crónica"), (species === "gato" ? "Gato" : "Perro"), flags, flags.sb, flags.lb);
+    }
+
+    // -------------------------
+    // Eventos
+    // -------------------------
+    const inputs = ["species","course","amount","frequency","tenesmus","mucus","blood","color",
+      "weightloss","vomiting","borborygmus","dehydration","systemic","projectile"
+    ];
+    inputs.forEach(id=>{
+      const el = $(id);
+      el.addEventListener("change", update);
+      el.addEventListener("input", update);
+    });
+
+    $("btnReset").addEventListener("click", ()=>{
+      $("species").value = "perro";
+      $("course").value = "aguda";
+      $("amount").value = "mucho";
+      $("frequency").value = "normal";
+      $("tenesmus").value = "no";
+      $("mucus").value = "no";
+      $("blood").value = "no";
+      $("color").value = "nsnc";
+      ["weightloss","vomiting","borborygmus","dehydration","systemic","projectile"].forEach(id=>$(id).checked=false);
+      setChip("warn","Rellena hallazgos");
+      $("urgencyBox").className = "alert warn";
+      $("urgencyBox").textContent = "Completa el formulario para ver alertas clínicas.";
+      $("causes").innerHTML = `<span class="muted">Aquí aparecerán causas sugeridas según la clasificación.</span>`;
+      $("causeCount").textContent = "0";
+      $("mainType").textContent = "—";
+      $("mainCourse").textContent = "—";
+      $("scorePillSB").innerHTML = `SB: <strong>0</strong>`;
+      $("scorePillLB").innerHTML = `LB: <strong>0</strong>`;
+      $("summaryBox").textContent = "—";
+    });
+
+    $("btnCopy").addEventListener("click", async ()=>{
+      const txt = $("summaryBox").textContent || "";
+      if(!txt || txt.trim()==="—"){
+        setChip("warn","Nada que copiar");
+        return;
+      }
+      try{
+        await navigator.clipboard.writeText(txt);
+        setChip("ok","Resumen copiado");
+        setTimeout(()=>update(), 700);
+      }catch(e){
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        setChip("ok","Resumen copiado");
+        setTimeout(()=>update(), 700);
+      }
+    });
+
+    // init
+    update();
+  </script>
+</body>
+</html>
