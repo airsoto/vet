@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Vet CALC — Calculadora de Superficie Corporal (BSA)</title>
+
+  <!-- (Opcional) tu analítica -->
+  <script defer src="goat.js"></script>
+
+  <!-- Fuente (estilo tus webs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1622;
+      --panel2:#121b2a;
+      --text:#e9eef6;
+      --muted:#a9b3c3;
+      --line:#233044;
+      --accent:#ff9900;
+      --good:#31d07f;
+      --warn:#ffd166;
+      --bad:#ff5c5c;
+      --shadow: 0 18px 50px rgba(0,0,0,.55);
+      --radius: 16px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 20% -10%, rgba(255,153,0,.14), transparent 55%),
+        radial-gradient(900px 600px at 90% 10%, rgba(49,208,127,.10), transparent 55%),
+        var(--bg);
+    }
+    a{ color:inherit; }
+
+    .wrap{
+      max-width: 980px;
+      margin: 22px auto;
+      padding: 0 14px 28px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom: 14px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 260px;
+    }
+    .title{
+      margin:0;
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size: clamp(18px, 2.5vw, 26px);
+      line-height:1.1;
+    }
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    /* Tu bloque “Desarrollado por + Home” */
+    .devblock{
+      margin-top:2px;
+    }
+    .devblock .home a{
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      border-radius: 999px;
+      transition: .15s ease;
+    }
+    .devblock .home a:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.35);
+      box-shadow: 0 10px 22px rgba(0,0,0,.35);
+    }
+
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      padding: 6px 10px;
+      border-radius: 999px;
+      white-space:nowrap;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 14px;
+    }
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+      .topbar{ flex-direction:column; }
+      .brand{ min-width: unset; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHeader{
+      padding: 14px 14px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(255,255,255,.03);
+    }
+    .cardHeader h2{
+      margin:0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .cardBody{ padding: 14px; }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+
+    .field{
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      padding: 10px 10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .field:focus-within{
+      border-color: rgba(255,153,0,.55);
+      box-shadow: 0 0 0 4px rgba(255,153,0,.14);
+    }
+    input[type="number"], input[type="text"]{
+      width:100%;
+      background: transparent;
+      border:0;
+      outline:none;
+      color: var(--text);
+      font-size: 14px;
+      padding: 0;
+      min-width: 0;
+    }
+    .unit{
+      color: var(--muted);
+      font-size: 12px;
+      border-left: 1px solid rgba(255,255,255,.10);
+      padding-left: 10px;
+      white-space:nowrap;
+    }
+
+    .toggleRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 14px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(255,255,255,.12);
+    }
+    .radio{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      user-select:none;
+    }
+    .radio input{ accent-color: var(--accent); }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top: 12px;
+    }
+    .btn{
+      width:100%;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,153,0,.14);
+      color: var(--text);
+      font-weight: 800;
+      letter-spacing:.2px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: .15s ease;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.45);
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
+    }
+    .btn.secondary{
+      background: rgba(255,255,255,.05);
+      font-weight: 700;
+    }
+
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      margin-bottom: 10px;
+    }
+    .kv .k{
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .kv .v{
+      font-weight: 800;
+      font-size: 16px;
+      text-align:right;
+      white-space:nowrap;
+      color: var(--good);
+    }
+
+    .note{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .formula{
+      margin-top: 10px;
+      border: 1px dashed rgba(255,255,255,.16);
+      background: rgba(0,0,0,.18);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .formula code{
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .footer{
+      margin-top: 18px;
+      padding: 14px 14px 18px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+    .footer a{ color: var(--text); }
+    .footer h4 a{
+      color: var(--accent);
+      text-decoration:none;
+    }
+    .footer h4 a:hover{ text-decoration:underline; }
+  </style>
+
+  <script>
+    // BSA = (BW(grams)^(2/3))/10000 * C
+    // C (Canino) = 10.1 | C (Felino) = 10.0
+    function calcBSA(){
+      const f = document.forms.formx;
+      const w = Number(f.weight.value);
+      const isDog = f.species.value === "dog";
+      const C = isDog ? 10.1 : 10.0;
+
+      if (!Number.isFinite(w) || w <= 0){
+        f.area.value = "";
+        document.getElementById("uiBsa").textContent = "— m²";
+        document.getElementById("uiC").textContent = `C = ${C.toFixed(1)}`;
+        return;
+      }
+
+      const grams = w * 1000;
+      const bsa = (Math.pow(grams, 2/3) / 10000) * C;
+
+      f.area.value = bsa.toFixed(3);
+      document.getElementById("uiBsa").textContent = `${bsa.toFixed(3)} m²`;
+      document.getElementById("uiC").textContent = `C = ${C.toFixed(1)}`;
+    }
+
+    function resetAll(){
+      const f = document.forms.formx;
+      f.reset();
+      f.area.value = "";
+      document.getElementById("uiBsa").textContent = "— m²";
+      document.getElementById("uiC").textContent = "C = —";
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const f = document.forms.formx;
+      f.weight.addEventListener("input", calcBSA);
+      [...f.species].forEach(r => r.addEventListener("change", calcBSA));
+      resetAll();
+    });
+  </script>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="topbar">
+      <div class="brand">
+        <h1 class="title">Vet CALC — Superficie Corporal (BSA)</h1>
+        <p class="subtitle">Calculadora veterinaria (perro/gato) para estimar el área de superficie corporal en m².</p>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME (tal cual lo pediste) -->
+        <div class="devblock" style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <div class="pill" id="uiC">C = —</div>
+    </div>
+
+    <div class="grid">
+      <!-- ENTRADAS -->
+      <div class="card">
+        <div class="cardHeader">
+          <h2>📥 Datos</h2>
+          <span class="pill">Cálculo automático</span>
+        </div>
+        <div class="cardBody">
+          <form name="formx" autocomplete="off">
+            <label for="weight">Peso del paciente</label>
+            <div class="field">
+              <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="0" placeholder="Ej: 12.5">
+              <span class="unit">kg</span>
+            </div>
+
+            <div class="toggleRow" aria-label="Especie">
+              <label class="radio">
+                <input type="radio" name="species" value="dog" checked>
+                <span>Perro</span>
+              </label>
+              <label class="radio">
+                <input type="radio" name="species" value="cat">
+                <span>Gato</span>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="btn" type="button" onclick="calcBSA()">Calcular</button>
+              <button class="btn secondary" type="button" onclick="resetAll()">Reiniciar</button>
+            </div>
+
+            <!-- Campo original (editable si quieres) -->
+            <div style="margin-top:12px;">
+              <label for="area">Superficie corporal (salida)</label>
+              <div class="field">
+                <input id="area" type="text" name="area" readonly>
+                <span class="unit">m²</span>
+              </div>
+            </div>
+
+            <div class="note">
+              Consejo: para evitar errores, introduce el peso en kg con punto decimal (por ejemplo, 4.2).
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- RESULTADO + FÓRMULA -->
+      <div class="card">
+        <div class="cardHeader">
+          <h2>✅ Resultado</h2>
+          <span class="pill">m²</span>
+        </div>
+        <div class="cardBody">
+          <div class="kv">
+            <div>
+              <div class="k">Superficie corporal estimada</div>
+              <div class="k" style="margin-top:4px;">(BSA — Body Surface Area)</div>
+            </div>
+            <div class="v" id="uiBsa">— m²</div>
+          </div>
+
+          <div class="formula">
+            <div style="margin-bottom:6px; font-weight:800; color:var(--text);">Fórmula usada</div>
+            <code>
+              BSA = (BW(gramos)^(2/3)) / 10000 * C
+            </code>
+            <div style="margin-top:8px;">
+              <span style="color:var(--text); font-weight:700;">Constantes:</span>
+              C (canino) = 10.1 &nbsp;&nbsp;|&nbsp;&nbsp; C (felino) = 10.0
+            </div>
+          </div>
+
+          <div class="note">
+            *Esta calculadora implementa exactamente la ecuación y constantes del código original.*
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER (tal cual lo pediste) -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+
+  </div>
+</body>
+</html>
