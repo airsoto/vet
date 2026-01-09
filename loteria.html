@@ -1,0 +1,757 @@
+
+
+  <!doctype html>
+<html lang="es">
+    <script defer src="goat.js"></script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sorteo simulado — El Gordo de Navidad (100.000 números)</title>
+  <meta name="description" content="Simulador del sorteo de El Gordo: elige un número (00000–99999) y se sortean ganadores año a año desde 2025 hasta acertar." />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:rgba(255,255,255,.06);
+      --panel2:rgba(255,255,255,.09);
+      --border:rgba(255,255,255,.12);
+      --text:#e6edf3;
+      --muted:#93a4b7;
+      --accent:#7cc7ff;
+      --accent2:#a78bfa;
+      --ok:#5bffb2;
+      --warn:#ffb020;
+      --danger:#ff4d4d;
+
+      --radius:16px;
+      --shadow: 0 14px 40px rgba(0,0,0,.40);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 700px at 18% -10%, rgba(124,199,255,.12), transparent 60%),
+        radial-gradient(900px 600px at 92% 12%, rgba(167,139,250,.12), transparent 58%),
+        var(--bg);
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px 14px 36px;
+    }
+
+    .top{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom: 14px;
+    }
+
+    .title{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      min-width: 260px;
+    }
+    .logo{
+      width:46px; height:46px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(124,199,255,.25), rgba(167,139,250,.25));
+      box-shadow: var(--shadow);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900;
+      letter-spacing:.5px;
+      user-select:none;
+    }
+    h1{
+      margin:0;
+      font-size: clamp(18px, 3vw, 26px);
+      line-height:1.1;
+    }
+    .sub{
+      margin:6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 760px;
+    }
+
+    .panel{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 0;
+    }
+
+    .left, .right{
+      padding: 14px;
+    }
+    .right{
+      border-left: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+    }
+
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+      .right{ border-left:none; border-top:1px solid var(--border); }
+    }
+
+    .card{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      flex-wrap:wrap;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 200px;
+      flex: 1 1 240px;
+    }
+    .label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .input, .select{
+      width:100%;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.16);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+      font-size: 14px;
+      font-family: var(--mono);
+    }
+    .input:focus, .select:focus{
+      border-color: rgba(124,199,255,.45);
+      box-shadow: 0 0 0 4px rgba(124,199,255,.12);
+    }
+    .hint{
+      margin:0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .btns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-start;
+      margin-top: 10px;
+    }
+    .btn{
+      cursor:pointer;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight:700;
+      font-size: 13px;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.accent{ border-color: rgba(124,199,255,.35); background: rgba(124,199,255,.10); }
+    .btn.danger{ border-color: rgba(255,77,77,.35); background: rgba(255,77,77,.10); }
+    .btn.secondary{ color: var(--muted); }
+
+    .stats{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width:520px){
+      .stats{ grid-template-columns: 1fr; }
+    }
+
+    .stat{
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.14);
+      border-radius: 16px;
+      padding: 10px 12px;
+      min-height: 68px;
+    }
+    .stat .k{ color: var(--muted); font-size: 12px; }
+    .stat .v{ font-size: 18px; font-weight: 900; margin-top: 4px; font-family: var(--mono); }
+    .stat .s{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .ticker{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width:520px){
+      .ticker{ grid-template-columns: 1fr; }
+    }
+
+    .big{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .big .k{ color: var(--muted); font-size: 12px; }
+    .big .v{
+      font-size: 26px;
+      font-weight: 950;
+      margin-top: 6px;
+      letter-spacing: .6px;
+      font-family: var(--mono);
+    }
+
+    .log{
+      margin-top: 12px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+      border-radius: 16px;
+      overflow:hidden;
+    }
+    .logHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+    }
+    .logTitle{
+      margin:0;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .logMeta{
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    .tableWrap{
+      max-height: 310px;
+      overflow:auto;
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    th, td{
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      text-align:left;
+      white-space: nowrap;
+    }
+    th{
+      position: sticky;
+      top: 0;
+      background: rgba(16,22,31,.92);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 800;
+      z-index: 1;
+    }
+    tr:last-child td{ border-bottom:none; }
+    .winRow td{
+      background: rgba(91,255,178,.10);
+      border-bottom-color: rgba(91,255,178,.25);
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .msg{
+      margin-top: 12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .msg.ok{
+      border-color: rgba(91,255,178,.35);
+      background: rgba(91,255,178,.08);
+    }
+    .msg.warn{
+      border-color: rgba(255,176,32,.35);
+      background: rgba(255,176,32,.08);
+    }
+    .msg .title{
+      font-weight: 950;
+      margin: 0 0 6px;
+      font-size: 14px;
+    }
+    .msg p{ margin:0; color: var(--muted); font-size: 12px; }
+
+    /* mini confetti (CSS) */
+    .confetti{
+      position: relative;
+      overflow: hidden;
+    }
+    .confetti::before,
+    .confetti::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(124,199,255,.7) 0 2px, transparent 3px),
+        radial-gradient(circle at 30% 70%, rgba(167,139,250,.7) 0 2px, transparent 3px),
+        radial-gradient(circle at 60% 35%, rgba(91,255,178,.7) 0 2px, transparent 3px),
+        radial-gradient(circle at 80% 65%, rgba(255,176,32,.7) 0 2px, transparent 3px),
+        radial-gradient(circle at 45% 55%, rgba(255,77,77,.65) 0 2px, transparent 3px);
+      opacity: 0;
+      transform: rotate(0deg);
+      pointer-events:none;
+    }
+    .confetti.active::before{
+      opacity:.55;
+      animation: spin 1.4s linear infinite;
+    }
+    .confetti.active::after{
+      opacity:.45;
+      animation: spin 1.8s linear infinite reverse;
+    }
+    @keyframes spin{
+      from{ transform: rotate(0deg); }
+      to{ transform: rotate(360deg); }
+    }
+
+    /* Footer styling hook (yours) */
+    .footer{
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .footer a{ color: var(--accent); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        <div class="logo">€</div>
+        <div>
+          <h1>Sorteo simulado — El Gordo (100.000 números)</h1>
+          <p class="sub">
+            Elige tu número (00000–99999). El simulador sortea <b>un Gordo por año</b> empezando en <b>2025</b>
+            hasta que tu número coincida. Premio simulado: <b>400.000 €</b>.
+          </p>
+        </div>
+      </div>
+      <div class="pill" title="Nota">
+        🎲 Simulación aleatoria · 1/100.000 por año
+      </div>
+    </div>
+
+    <div class="panel confetti" id="panel">
+      <div class="grid">
+        <section class="left">
+          <div class="card">
+            <div class="row">
+              <div class="field">
+                <div class="label">Tu número (5 dígitos)</div>
+                <input id="pick" class="input" inputmode="numeric" maxlength="5" placeholder="Ej: 12345" />
+                <p class="hint">Se normaliza a 5 dígitos (p.ej. <span style="font-family:var(--mono);">42 → 00042</span>).</p>
+              </div>
+
+              <div class="field" style="min-width:220px;">
+                <div class="label">Velocidad (sorteos/seg)</div>
+                <select id="speed" class="select">
+                  <option value="10">10</option>
+                  <option value="50">50</option>
+                  <option value="200">200</option>
+                  <option value="1000" selected>1000</option>
+                  <option value="5000">5000</option>
+                  <option value="20000">20000</option>
+                </select>
+                <p class="hint">Más velocidad = menos “años” tardas en llegar (simulado).</p>
+              </div>
+            </div>
+
+            <div class="btns">
+              <button class="btn accent" id="start">▶ Iniciar</button>
+              <button class="btn secondary" id="pause" disabled>⏸ Pausar</button>
+              <button class="btn danger" id="reset" disabled>↺ Reiniciar</button>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="k">Años simulados</div>
+                <div class="v" id="yearsSim">0</div>
+                <div class="s">Desde 2025</div>
+              </div>
+              <div class="stat">
+                <div class="k">Probabilidad anual</div>
+                <div class="v">1/100000</div>
+                <div class="s">≈ 0,001%</div>
+              </div>
+            </div>
+
+            <div class="ticker">
+              <div class="big">
+                <div class="k">Año actual</div>
+                <div class="v" id="yearNow">—</div>
+              </div>
+              <div class="big">
+                <div class="k">Gordo ganador (año actual)</div>
+                <div class="v" id="winNow">—</div>
+              </div>
+            </div>
+
+            <div class="msg warn" id="msg">
+              <div class="title">Listo para empezar</div>
+              <p>Introduce un número y pulsa <b>Iniciar</b>. El simulador seguirá año a año hasta acertar.</p>
+            </div>
+          </div>
+
+          <div class="log">
+            <div class="logHead">
+              <p class="logTitle">Últimos años sorteados</p>
+              <div class="logMeta">Mostrando últimos <span id="cap">120</span></div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:110px;">Año</th>
+                    <th>Gordo</th>
+                    <th style="width:170px;">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody">
+                  <!-- rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <aside class="right">
+          <div class="card">
+            <h3 style="margin:0 0 8px; font-size:14px;">Cómo funciona</h3>
+            <p class="hint" style="margin:0 0 10px;">
+              Cada “año” se elige aleatoriamente un número entre <b>00000</b> y <b>99999</b> (100.000 números).
+              Cuando coincide con tu número, el simulador se detiene y muestra el año ganador.
+            </p>
+
+            <div class="stat" style="margin-top:10px;">
+              <div class="k">Premio simulado</div>
+              <div class="v">400000 €</div>
+              <div class="s">Cuando tu número coincide</div>
+            </div>
+
+            <div class="stat" style="margin-top:10px;">
+              <div class="k">Nota</div>
+              <div class="s">
+                Esto es una simulación. No representa resultados reales ni garantiza nada.
+              </div>
+            </div>
+
+            <div class="stat" style="margin-top:10px;">
+              <div class="k">Atajos</div>
+              <div class="s">
+                <span style="font-family:var(--mono); border:1px solid var(--border); padding:2px 6px; border-radius:8px;">Enter</span>
+                para iniciar/pausar ·
+                <span style="font-family:var(--mono); border:1px solid var(--border); padding:2px 6px; border-radius:8px;">Esc</span>
+                para reiniciar
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    // --- Utilidades ---
+    const pad5 = (n) => String(n).padStart(5, "0");
+    const clampInt = (x, a, b) => Math.max(a, Math.min(b, x|0));
+    const rand100k = () => Math.floor(Math.random() * 100000);
+
+    // --- DOM ---
+    const $pick = document.getElementById("pick");
+    const $speed = document.getElementById("speed");
+    const $start = document.getElementById("start");
+    const $pause = document.getElementById("pause");
+    const $reset = document.getElementById("reset");
+
+    const $yearsSim = document.getElementById("yearsSim");
+    const $yearNow = document.getElementById("yearNow");
+    const $winNow = document.getElementById("winNow");
+    const $tbody = document.getElementById("tbody");
+    const $msg = document.getElementById("msg");
+    const $panel = document.getElementById("panel");
+
+    const LOG_CAP = 120;
+    document.getElementById("cap").textContent = LOG_CAP;
+
+    // --- Estado ---
+    let running = false;
+    let chosen = null;          // número (0..99999)
+    let year = 2025;            // año actual del sorteo
+    let yearsSimulated = 0;     // cantidad de sorteos/años
+    let lastWin = null;
+    let rafId = null;
+    let lastT = 0;
+
+    function setMessage(kind, title, text){
+      $msg.classList.remove("ok", "warn");
+      $msg.classList.add(kind);
+      $msg.querySelector(".title").textContent = title;
+      $msg.querySelector("p").innerHTML = text;
+    }
+
+    function resetAll(){
+      running = false;
+      chosen = null;
+      year = 2025;
+      yearsSimulated = 0;
+      lastWin = null;
+      lastT = 0;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      $yearsSim.textContent = "0";
+      $yearNow.textContent = "—";
+      $winNow.textContent = "—";
+      $tbody.innerHTML = "";
+
+      $start.disabled = false;
+      $pause.disabled = true;
+      $reset.disabled = true;
+      $pick.disabled = false;
+      $speed.disabled = false;
+
+      $panel.classList.remove("active");
+      setMessage("warn", "Listo para empezar", "Introduce un número y pulsa <b>Iniciar</b>. El simulador seguirá año a año hasta acertar.");
+    }
+
+    function normalizePick(){
+      const raw = ($pick.value || "").trim();
+      if (!raw) return null;
+      if (!/^\d{1,5}$/.test(raw)) return "ERR";
+      const n = clampInt(parseInt(raw, 10), 0, 99999);
+      $pick.value = pad5(n);
+      return n;
+    }
+
+    function appendLogRow(y, win, isHit){
+      const tr = document.createElement("tr");
+      if (isHit) tr.classList.add("winRow");
+      tr.innerHTML = `
+        <td>${y}</td>
+        <td>${pad5(win)}</td>
+        <td>${isHit ? "✅ ACERTASTE" : "—"}</td>
+      `;
+
+      $tbody.prepend(tr);
+
+      // recorta a LOG_CAP
+      while ($tbody.children.length > LOG_CAP){
+        $tbody.removeChild($tbody.lastElementChild);
+      }
+    }
+
+    function doOneDraw(){
+      const win = rand100k();
+      lastWin = win;
+
+      // Actualiza ticker (año y ganador de ese año)
+      $yearNow.textContent = String(year);
+      $winNow.textContent = pad5(win);
+
+      const hit = (win === chosen);
+      appendLogRow(year, win, hit);
+
+      yearsSimulated++;
+      $yearsSim.textContent = String(yearsSimulated);
+
+      if (hit){
+        running = false;
+        $panel.classList.add("active");
+        $pause.disabled = true;
+        $start.disabled = false;
+        $pick.disabled = false;
+        $speed.disabled = false;
+
+        setMessage(
+          "ok",
+          "¡Ha salido tu número!",
+          `En el año <b>${year}</b> tu número <b>${pad5(chosen)}</b> ha sido el Gordo ganador. <br>
+           Premio simulado: <b>400.000 €</b>.`
+        );
+        return true;
+      }
+
+      year++;
+      return false;
+    }
+
+    // Loop con requestAnimationFrame para poder hacer "muchos sorteos por segundo"
+    function loop(t){
+      if (!running) return;
+
+      if (!lastT) lastT = t;
+      const dt = Math.min(0.25, (t - lastT) / 1000); // cap para evitar saltos enormes
+      lastT = t;
+
+      const drawsPerSec = parseInt($speed.value, 10) || 1000;
+      // cuántos sorteos este frame
+      let draws = Math.floor(drawsPerSec * dt);
+      if (draws < 1) draws = 1; // mínimo 1 por frame para que avance siempre
+
+      // Para no congelar la pestaña si el usuario pone 20000, limitamos por frame
+      const MAX_DRAWS_PER_FRAME = 5000;
+      draws = Math.min(draws, MAX_DRAWS_PER_FRAME);
+
+      for (let i = 0; i < draws; i++){
+        const hit = doOneDraw();
+        if (hit) break;
+      }
+
+      if (running) rafId = requestAnimationFrame(loop);
+    }
+
+    function startOrResume(){
+      const n = normalizePick();
+      if (n === "ERR"){
+        setMessage("warn", "Número inválido", "Introduce solo dígitos (1 a 5) entre <b>00000</b> y <b>99999</b>.");
+        return;
+      }
+      if (n === null){
+        setMessage("warn", "Falta tu número", "Escribe un número (por ejemplo <b>042</b> o <b>12345</b>) y pulsa <b>Iniciar</b>.");
+        $pick.focus();
+        return;
+      }
+
+      chosen = n;
+
+      // si es el primer arranque
+      if (yearsSimulated === 0){
+        year = 2025;
+        $tbody.innerHTML = "";
+      }
+
+      running = true;
+      $panel.classList.remove("active");
+
+      $start.disabled = true;
+      $pause.disabled = false;
+      $reset.disabled = false;
+      $pick.disabled = true;
+      $speed.disabled = true;
+
+      setMessage("warn", "Sorteando…", `Buscando el año en que salga tu número <b>${pad5(chosen)}</b>.`);
+
+      lastT = 0;
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function pause(){
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      $start.disabled = false;
+      $pause.disabled = true;
+      $pick.disabled = false;
+      $speed.disabled = false;
+
+      setMessage("warn", "Pausado", `Has simulado <b>${yearsSimulated}</b> año(s). Pulsa <b>Iniciar</b> para continuar.`);
+    }
+
+    // --- Eventos ---
+    $start.addEventListener("click", startOrResume);
+    $pause.addEventListener("click", pause);
+    $reset.addEventListener("click", resetAll);
+
+    $pick.addEventListener("blur", () => {
+      const n = normalizePick();
+      if (n === "ERR") return;
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter"){
+        if (!running && !$start.disabled) startOrResume();
+        else if (running && !$pause.disabled) pause();
+      }
+      if (e.key === "Escape"){
+        if (!$reset.disabled) resetAll();
+      }
+    });
+
+    // Inicial
+    resetAll();
+  </script>
+</body>
+</html>
