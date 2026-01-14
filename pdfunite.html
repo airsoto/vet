@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unir PDFs + Imágenes a PDF (Angel Soto)</title>
+
+  <!-- PDF-LIB (merge PDFs + embed images) -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1621;
+      --panel2:#0c121b;
+      --text:#e7eef7;
+      --muted:#a7b6c8;
+      --border:#233247;
+      --accent:#90caf9;
+      --accent2:#ff9900;
+      --good:#4ade80;
+      --bad:#f87171;
+      --shadow: 0 10px 28px rgba(0,0,0,.38);
+      --radius: 14px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(144,202,249,.22), transparent 55%),
+                  radial-gradient(900px 500px at 120% 10%, rgba(255,153,0,.18), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width: 980px;
+      margin: 18px auto 60px auto;
+      padding: 0 14px;
+    }
+
+    .topbar{
+      background: rgba(15,22,33,.72);
+      border:1px solid rgba(35,50,71,.6);
+      backdrop-filter: blur(8px);
+      border-radius: var(--radius);
+      padding: 14px 14px 12px 14px;
+      box-shadow: var(--shadow);
+    }
+
+    h1{
+      margin:0 0 6px 0;
+      font-size: clamp(18px, 3.2vw, 26px);
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin:0;
+      color:var(--muted);
+      font-size: clamp(12.5px,2.6vw,14px);
+      line-height: 1.35;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(15,22,33,.9), rgba(12,18,27,.88));
+      border:1px solid rgba(35,50,71,.75);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .label{
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 6px 0;
+    }
+
+    input[type="text"]{
+      width: 100%;
+      background: rgba(7,10,15,.65);
+      border:1px solid rgba(35,50,71,.9);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline:none;
+    }
+    input[type="text"]:focus{
+      border-color: rgba(144,202,249,.9);
+      box-shadow: 0 0 0 3px rgba(144,202,249,.18);
+    }
+
+    .btn{
+      border:1px solid rgba(35,50,71,.9);
+      background: rgba(7,10,15,.55);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+      user-select:none;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+    .btn:hover{
+      border-color: rgba(144,202,249,.8);
+      background: rgba(7,10,15,.75);
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(144,202,249,.22), rgba(144,202,249,.08));
+      border-color: rgba(144,202,249,.75);
+    }
+    .btn.danger{
+      border-color: rgba(248,113,113,.7);
+      background: rgba(248,113,113,.10);
+    }
+    .btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .drop{
+      margin-top: 10px;
+      background: rgba(7,10,15,.35);
+      border: 1.5px dashed rgba(35,50,71,.95);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align:center;
+      color: var(--muted);
+    }
+    .drop.dragover{
+      border-color: rgba(144,202,249,.95);
+      background: rgba(144,202,249,.08);
+      color: var(--text);
+    }
+
+    .files{
+      margin-top: 12px;
+      border-top: 1px solid rgba(35,50,71,.6);
+      padding-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height: 420px;
+      overflow:auto;
+    }
+
+    .file{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border:1px solid rgba(35,50,71,.72);
+      border-radius: 12px;
+      background: rgba(7,10,15,.35);
+    }
+    .file .left{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 0;
+    }
+    .file .name{
+      font-weight: 650;
+      font-size: 13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 520px;
+    }
+    .file .meta{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(35,50,71,.75);
+      background: rgba(12,18,27,.55);
+      font-size: 11.5px;
+      color: var(--muted);
+      width: fit-content;
+    }
+
+    .status{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(35,50,71,.7);
+      background: rgba(7,10,15,.35);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      min-height: 42px;
+      white-space: pre-wrap;
+    }
+    .status.good{ border-color: rgba(74,222,128,.55); color: rgba(232,255,241,.92); }
+    .status.bad{ border-color: rgba(248,113,113,.6); color: rgba(255,235,235,.95); }
+
+    .hint{
+      margin: 10px 0 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height:1.35;
+    }
+
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    .home a{
+      color: var(--accent);
+    }
+
+    /* Footer (keep user's provided HTML untouched visually) */
+    .footer{
+      margin-top: 18px;
+      padding: 16px 14px;
+      border:1px solid rgba(35,50,71,.65);
+      border-radius: var(--radius);
+      background: rgba(15,22,33,.55);
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+    .footer p, .footer h4{
+      margin: 8px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="topbar">
+      <h1>Unir PDFs + Imágenes → PDF único</h1>
+      <p class="sub">
+        Adjunta PDFs y/o imágenes (PNG/JPG/JPEG). Las imágenes se convierten a PDF (A4) y todo se une en un solo archivo.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: input + list -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div style="flex:1; min-width:240px;">
+            <div class="label">Nombre del archivo final (sin .pdf)</div>
+            <input id="outName" type="text" placeholder="pdf_unificado" value="pdf_unificado" />
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <label class="btn" for="fileInput" title="Adjuntar PDFs e imágenes">
+              📎 Adjuntar
+            </label>
+            <input id="fileInput" type="file" multiple
+                   accept="application/pdf,image/png,image/jpeg,image/jpg"
+                   style="display:none;" />
+
+            <button id="mergeBtn" class="btn primary" disabled>
+              🧩 Unir y descargar
+            </button>
+
+            <button id="clearBtn" class="btn danger" disabled title="Vaciar lista">
+              🧹 Limpiar
+            </button>
+          </div>
+        </div>
+
+        <div id="dropZone" class="drop" style="margin-top:12px;">
+          Arrastra aquí tus PDFs / imágenes<br/>
+          <span style="font-size:12px;">(o usa el botón “Adjuntar”)</span>
+        </div>
+
+        <p class="hint">
+          Nota: todo se procesa en tu navegador. No se suben archivos a ningún servidor.
+        </p>
+
+        <div class="files" id="fileList"></div>
+      </div>
+
+      <!-- RIGHT: status + download -->
+      <div class="card">
+        <div class="label">Estado</div>
+        <div id="status" class="status">Añade archivos para empezar.</div>
+
+        <div style="margin-top:12px;">
+          <div class="label">Descarga</div>
+          <div class="status" id="downloadBox">
+            Aún no hay archivo generado.
+          </div>
+        </div>
+
+        <p class="hint">
+          Soporta: PDF, PNG, JPG/JPEG. Si una imagen es muy grande, se ajusta a A4 manteniendo proporción.
+        </p>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+    </div>
+
+  <script>
+    // ===== Helpers =====
+    const $ = (id) => document.getElementById(id);
+
+    const fileInput = $("fileInput");
+    const fileListEl = $("fileList");
+    const statusEl = $("status");
+    const downloadBox = $("downloadBox");
+    const mergeBtn = $("mergeBtn");
+    const clearBtn = $("clearBtn");
+    const outNameEl = $("outName");
+    const dropZone = $("dropZone");
+
+    /** @type {{id:string, file:File, kind:'pdf'|'img'}[]} */
+    let items = [];
+    let lastDownloadUrl = null;
+
+    function setStatus(msg, type="") {
+      statusEl.classList.remove("good","bad");
+      if (type === "good") statusEl.classList.add("good");
+      if (type === "bad") statusEl.classList.add("bad");
+      statusEl.textContent = msg;
+    }
+
+    function humanSize(bytes) {
+      const units = ["B","KB","MB","GB"];
+      let b = bytes, i = 0;
+      while (b >= 1024 && i < units.length-1) { b /= 1024; i++; }
+      return `${b.toFixed(b>=10 || i===0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function isPdf(file){ return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"); }
+    function isImg(file){
+      const t = file.type;
+      return t === "image/png" || t === "image/jpeg" || file.name.toLowerCase().match(/\.(png|jpe?g)$/);
+    }
+
+    function addFiles(fileList) {
+      const incoming = Array.from(fileList || []);
+      let added = 0, rejected = 0;
+
+      for (const f of incoming) {
+        if (isPdf(f)) {
+          items.push({ id: crypto.randomUUID(), file: f, kind: "pdf" });
+          added++;
+        } else if (isImg(f)) {
+          items.push({ id: crypto.randomUUID(), file: f, kind: "img" });
+          added++;
+        } else {
+          rejected++;
+        }
+      }
+
+      renderList();
+      updateButtons();
+
+      if (added && !rejected) setStatus(`Añadidos ${added} archivo(s).`, "good");
+      else if (added && rejected) setStatus(`Añadidos ${added} archivo(s). Rechazados ${rejected} (formato no soportado).`, "");
+      else setStatus(`No se añadió nada. Rechazados ${rejected} (formato no soportado).`, "bad");
+    }
+
+    function updateButtons() {
+      const has = items.length > 0;
+      mergeBtn.disabled = !has;
+      clearBtn.disabled = !has;
+    }
+
+    function renderList() {
+      fileListEl.innerHTML = "";
+
+      if (items.length === 0) {
+        fileListEl.innerHTML = `<div class="status" style="margin-top:10px;">Sin archivos. Añade PDFs o imágenes.</div>`;
+        return;
+      }
+
+      items.forEach((it, idx) => {
+        const f = it.file;
+        const kindLabel = it.kind === "pdf" ? "PDF" : "IMG → PDF";
+        const pill = `<span class="pill">${kindLabel}</span>`;
+        const meta = `${humanSize(f.size)} • ${f.type || "tipo desconocido"}`;
+
+        const row = document.createElement("div");
+        row.className = "file";
+        row.innerHTML = `
+          <div class="left" style="min-width:0;">
+            <div class="name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+            <div class="meta">${pill} <span style="margin-left:6px;">${escapeHtml(meta)}</span></div>
+          </div>
+          <div class="row" style="justify-content:flex-end; gap:8px;">
+            <button class="btn" data-act="up" title="Subir" ${idx===0 ? "disabled":""}>⬆️</button>
+            <button class="btn" data-act="down" title="Bajar" ${idx===items.length-1 ? "disabled":""}>⬇️</button>
+            <button class="btn danger" data-act="del" title="Quitar">🗑️</button>
+          </div>
+        `;
+
+        row.querySelectorAll("button").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const act = btn.getAttribute("data-act");
+            if (act === "del") {
+              items = items.filter(x => x.id !== it.id);
+              renderList(); updateButtons();
+              setStatus("Archivo eliminado de la lista.", "");
+              return;
+            }
+            if (act === "up" && idx>0) {
+              [items[idx-1], items[idx]] = [items[idx], items[idx-1]];
+              renderList();
+              return;
+            }
+            if (act === "down" && idx<items.length-1) {
+              [items[idx+1], items[idx]] = [items[idx], items[idx+1]];
+              renderList();
+              return;
+            }
+          });
+        });
+
+        fileListEl.appendChild(row);
+      });
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function safeFilename(name){
+      const base = (name || "").trim() || "pdf_unificado";
+      // remove forbidden file chars
+      return base.replace(/[\\\/:*?"<>|]+/g, "_").slice(0, 120);
+    }
+
+    // ===== PDF logic =====
+    async function mergeAll() {
+      if (!items.length) return;
+
+      setStatus("Procesando…", "");
+      mergeBtn.disabled = true;
+
+      try {
+        const { PDFDocument } = PDFLib;
+        const outPdf = await PDFDocument.create();
+
+        // A4 size in points (pdf units)
+        const A4_P = { w: 595.28, h: 841.89 };
+        const margin = 22;
+
+        for (let i=0; i<items.length; i++) {
+          const it = items[i];
+          const f = it.file;
+
+          setStatus(`Procesando (${i+1}/${items.length}): ${f.name}`, "");
+
+          const buf = await f.arrayBuffer();
+
+          if (it.kind === "pdf") {
+            const src = await PDFDocument.load(buf, { ignoreEncryption: true });
+            const pages = await outPdf.copyPages(src, src.getPageIndices());
+            pages.forEach(p => outPdf.addPage(p));
+          } else {
+            // image -> single/multi pages (1 image = 1 page)
+            const bytes = new Uint8Array(buf);
+            const lower = f.name.toLowerCase();
+
+            let img, dims;
+            if (f.type === "image/png" || lower.endsWith(".png")) {
+              img = await outPdf.embedPng(bytes);
+              dims = img.scale(1);
+            } else {
+              // jpg/jpeg
+              img = await outPdf.embedJpg(bytes);
+              dims = img.scale(1);
+            }
+
+            // choose orientation closest to image aspect
+            const imgLandscape = dims.width >= dims.height;
+            const pageW = imgLandscape ? A4_P.h : A4_P.w;
+            const pageH = imgLandscape ? A4_P.w : A4_P.h;
+
+            const page = outPdf.addPage([pageW, pageH]);
+
+            const maxW = pageW - margin*2;
+            const maxH = pageH - margin*2;
+
+            const scale = Math.min(maxW / dims.width, maxH / dims.height);
+            const drawW = dims.width * scale;
+            const drawH = dims.height * scale;
+
+            const x = (pageW - drawW) / 2;
+            const y = (pageH - drawH) / 2;
+
+            page.drawImage(img, { x, y, width: drawW, height: drawH });
+          }
+        }
+
+        const outBytes = await outPdf.save();
+        const blob = new Blob([outBytes], { type: "application/pdf" });
+
+        if (lastDownloadUrl) URL.revokeObjectURL(lastDownloadUrl);
+        lastDownloadUrl = URL.createObjectURL(blob);
+
+        const outName = safeFilename(outNameEl.value) + ".pdf";
+
+        downloadBox.innerHTML = `
+          ✅ Archivo generado: <strong>${escapeHtml(outName)}</strong><br/>
+          <a class="btn primary" href="${lastDownloadUrl}" download="${escapeHtml(outName)}">⬇️ Descargar PDF</a>
+          <div style="margin-top:10px; color: var(--muted); font-size: 12.5px;">
+            Tamaño: ${humanSize(blob.size)} • Páginas unidas según el orden de la lista.
+          </div>
+        `;
+
+        setStatus("Listo. Ya puedes descargar el PDF unificado.", "good");
+      } catch (err) {
+        console.error(err);
+        setStatus("Error al generar el PDF. Algunos PDFs pueden estar cifrados/dañados, o el navegador se quedó sin memoria.\n\nDetalle: " + (err?.message || err), "bad");
+      } finally {
+        mergeBtn.disabled = items.length === 0;
+      }
+    }
+
+    function clearAll() {
+      items = [];
+      renderList();
+      updateButtons();
+      setStatus("Lista vacía.", "");
+      downloadBox.textContent = "Aún no hay archivo generado.";
+      if (lastDownloadUrl) { URL.revokeObjectURL(lastDownloadUrl); lastDownloadUrl = null; }
+    }
+
+    // ===== Events =====
+    fileInput.addEventListener("change", (e) => {
+      addFiles(e.target.files);
+      fileInput.value = ""; // allow re-adding same file
+    });
+
+    mergeBtn.addEventListener("click", mergeAll);
+    clearBtn.addEventListener("click", clearAll);
+
+    // Drag & drop
+    ["dragenter","dragover"].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add("dragover");
+      });
+    });
+    ["dragleave","drop"].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove("dragover");
+      });
+    });
+    dropZone.addEventListener("drop", (e) => {
+      const dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length) addFiles(dt.files);
+    });
+
+    // init
+    renderList();
+    updateButtons();
+  </script>
+</body>
+</html>
