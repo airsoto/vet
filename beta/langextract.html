@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LangExtract demo (Angel Soto)</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 16px;}
+    textarea{width:100%; min-height:180px; padding:12px; font-size:14px;}
+    button{padding:10px 14px; font-size:14px; margin:10px 0; cursor:pointer;}
+    pre{background:#0b1220; color:#eaf0ff; padding:12px; border-radius:10px; overflow:auto;}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    input{padding:10px; width:420px; max-width:100%;}
+    .muted{opacity:.75; font-size:13px;}
+  </style>
+</head>
+<body>
+  <h1>LangExtract: texto → JSON</h1>
+  <p class="muted">Pega un texto, pulsa “Procesar”, y verás el JSON estructurado devuelto por tu backend.</p>
+
+  <div class="row">
+    <input id="api" placeholder="https://TU-BACKEND.onrender.com/extract" />
+    <button id="save">Guardar URL API</button>
+  </div>
+
+  <h3>Texto</h3>
+  <textarea id="input" placeholder="Pega aquí tu informe / nota / etc."></textarea>
+  <div class="row">
+    <button id="go">Procesar</button>
+    <span id="status" class="muted"></span>
+  </div>
+
+  <h3>Salida (JSON)</h3>
+  <pre id="out">{}</pre>
+
+<script>
+  const apiInput = document.getElementById("api");
+  const saved = localStorage.getItem("LANGEXTRACT_API_URL");
+  if (saved) apiInput.value = saved;
+
+  document.getElementById("save").onclick = () => {
+    localStorage.setItem("LANGEXTRACT_API_URL", apiInput.value.trim());
+    alert("Guardado");
+  };
+
+  document.getElementById("go").onclick = async () => {
+    const url = apiInput.value.trim();
+    const text = document.getElementById("input").value;
+
+    const status = document.getElementById("status");
+    const out = document.getElementById("out");
+    out.textContent = "";
+    status.textContent = "Procesando…";
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ text })
+      });
+
+      if (!res.ok) {
+        const errTxt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errTxt}`);
+      }
+
+      const data = await res.json();
+      out.textContent = JSON.stringify(data, null, 2);
+      status.textContent = "OK";
+    } catch (e) {
+      status.textContent = "Error";
+      out.textContent = String(e);
+    }
+  };
+</script>
+</body>
+</html>
