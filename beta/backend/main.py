@@ -1,9 +1,7 @@
-import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-# LangExtract
 import langextract as lx
 
 app = FastAPI(title="LangExtract API")
@@ -11,7 +9,7 @@ app = FastAPI(title="LangExtract API")
 # CORS: permite llamadas desde GitHub Pages (o desde cualquier sitio)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # abierto (ya que no te preocupa privacidad)
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,6 +17,10 @@ app.add_middleware(
 
 class ExtractRequest(BaseModel):
     text: str
+
+@app.get("/")
+def root():
+    return {"service": "LangExtract API", "ok": True}
 
 @app.get("/health")
 def health():
@@ -30,8 +32,6 @@ def extract(req: ExtractRequest):
     if not text:
         raise HTTPException(status_code=400, detail="text vacío")
 
-    # Ejemplo de "esquema" simple: ajusta a lo que quieras extraer
-    # (hallazgos, anatomía, diagnóstico, etc.)
     prompt = """
     Extrae elementos clínicos relevantes del texto.
     Devuelve una lista de items con:
@@ -41,17 +41,13 @@ def extract(req: ExtractRequest):
     """
 
     try:
-        # Cliente Gemini (requiere env var GOOGLE_API_KEY)
-        # Si prefieres OpenAI, luego te indico el cambio.
-        model = lx.models.Gemini(model_id="gemini-1.5-flash")  # rápido/barato
-
+        model = lx.models.Gemini(model_id="gemini-1.5-flash")
         result = lx.extract(
             text_or_docs=text,
             prompt_description=prompt,
             model=model,
         )
 
-        # result suele ser un objeto; lo convertimos a dict serializable
         return {
             "extractions": [e.model_dump() for e in result.extractions],
             "meta": {
