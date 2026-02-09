@@ -40,7 +40,7 @@ def extract(req: ExtractRequest):
 
     try:
         result = lx.extract(
-            text_or_docs=text,
+            text_or_documents=text,
             prompt_description=prompt,
         )
 
