@@ -5,6 +5,7 @@ import langextract as lx
 
 app = FastAPI(title="LangExtract API")
 
+# CORS abierto (GitHub Pages, pruebas, etc.)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,6 +40,8 @@ def extract(req: ExtractRequest):
     """
 
     try:
+        # LangExtract detecta Gemini automáticamente
+        # si existe la variable de entorno GOOGLE_API_KEY
         result = lx.extract(
             text_or_documents=text,
             prompt_description=prompt,
