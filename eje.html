@@ -1,278 +1,597 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
+<!-- requerido: goat.js encima del <head> -->
 <script defer src="goat.js"></script>
 
 <head>
-
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EJE ELÉCTRICO MEDIO (EEM)</title>
-  <script>
-  function Go() {
-    document.form.mea.value = "";
-    if (document.form.L1.value != document.form.mea.value)
-      Calculate3Lead();
-  }
-
-  function ZeroDP(n) {
-    var t = "" + Math.round(n * 10) / 10;
-    var i = t.indexOf('.');
-    if (i < 0) return t;
-    var s = t.substring(0, i);
-    return s;
-  }
-
-  function Calculate3Lead() {
-    var L1 = document.form.L1.value * 1;
-
-    var L2 = document.form.L2.value;
-    var L2y = L2 * Math.cos(60/180 * Math.PI);
-    var L2x = L2 * Math.sin(60/180 * Math.PI);
-
-    var L3 = document.form.L3.value;
-    var L3y = -(L3 * Math.cos(60/180 * Math.PI));
-    var L3x = L3 * Math.sin(60/180 * Math.PI);
-
-    var x = L2x + L3x;
-    var y = L2y + L3y + L1;
-
-    var angle = Math.atan(x/y)*180/Math.PI;
-
-    if (x < 0 && y < 0) angle -= 180;
-    if (x >= 0 && y < 0) angle += 180;
-
-    document.form.mea.value = ZeroDP(angle);
-  }
-
-  function MM_callJS(jsStr) { 
-    return eval(jsStr);
-  }
-  </script>
 
   <style>
-    body {
-      margin: 0; 
-      padding: 0; 
-      background-color: #FFFFFF; 
-      font-family: Arial, sans-serif;
+    :root{
+      --bg: #0b0f17;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.08);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --border: rgba(255,255,255,.14);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --accent: #7dd3fc;
+      --accent2: #a78bfa;
+      --warn: #fbbf24;
+      --ok: #34d399;
+      --bad: #fb7185;
+      --btn: linear-gradient(135deg, rgba(125,211,252,.95), rgba(167,139,250,.95));
+      --radius: 18px;
     }
 
-    /* --- Estilos para el bloque de título/meta --- */
+    /* Si el navegador está en modo claro, sigue viéndose bien */
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg: #f6f7fb;
+        --panel: rgba(10,15,23,.05);
+        --panel2: rgba(10,15,23,.07);
+        --text: rgba(10,15,23,.92);
+        --muted: rgba(10,15,23,.62);
+        --border: rgba(10,15,23,.12);
+        --shadow: 0 10px 26px rgba(10,15,23,.12);
+      }
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:
+        radial-gradient(900px 500px at 20% -10%, rgba(125,211,252,.25), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(167,139,250,.25), transparent 55%),
+        radial-gradient(900px 600px at 40% 120%, rgba(52,211,153,.18), transparent 55%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration: underline; }
+
     .wrap{
       max-width: 1100px;
-      margin: 16px auto 0;
+      margin: 18px auto 0;
       padding: 0 16px;
-    }
-    .wrap h1{
-      margin: 0 0 8px 0;
-      font-size: 28px;
-      line-height: 1.2;
-    }
-    .meta{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin: 6px 0 18px 0;
-    }
-    .meta a{
-      color: #90caf9; 
-      text-decoration: none; 
-      display: flex; 
-      align-items: center; 
-      gap: 4px;
     }
 
-    .contenedor {
+    header{
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px 16px 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    h1{
+      margin: 0 0 8px 0;
+      font-size: clamp(22px, 3.4vw, 30px);
+      line-height: 1.15;
+      letter-spacing: .2px;
+    }
+
+    /* el bloque que pediste, tal cual, debajo del título */
+    .home a{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+    .home a:hover{ background: var(--panel2); }
+
+    .sub{
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    main{
       max-width: 1100px;
-      margin: 0 auto 1.5em;
+      margin: 14px auto 22px;
       padding: 0 16px;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    @media (min-width: 880px){
+      main{
+        grid-template-columns: 1.05fr .95fr;
+        align-items: start;
+      }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2{
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pill{
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 5px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 520px){
+      .grid2{ grid-template-columns: 1fr 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: .2px;
+    }
+
+    .input{
+      width: 100%;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+
+    input[type="number"]{
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+    }
+    input[type="number"]::placeholder{ color: rgba(255,255,255,.35); }
+
+    .hint{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .actions{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
       flex-wrap: wrap;
-      justify-content: space-around;
+      align-items:center;
     }
-    .formulario {
-      width: 45%;
-      min-width: 280px;
-      margin-bottom: 1em;
+
+    .btn{
+      border: 0;
+      cursor: pointer;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: var(--btn);
+      color: rgba(0,0,0,.88);
+      font-weight: 700;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      transition: transform .12s ease, filter .12s ease;
+      user-select: none;
     }
-    .ilustrativo {
-      width: 45%;
-      min-width: 280px;
-      background-color: #f9f9f9;
-      padding: 1em;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
+    .btn:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+    .btn:active{ transform: translateY(0px); filter: brightness(.98); }
+
+    .btn2{
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background .12s ease;
+      user-select:none;
     }
-    table {
+    .btn2:hover{ background: var(--panel2); }
+
+    .result{
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .mea{
+      display:flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 180px;
+    }
+    .mea small{ color: var(--muted); font-size: 12px; }
+    .mea strong{
+      font-size: 30px;
+      letter-spacing: .4px;
+      line-height: 1;
+    }
+
+    .badge{
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      text-align: center;
+    }
+    .badge.ok{ border-color: rgba(52,211,153,.55); }
+    .badge.bad{ border-color: rgba(251,113,133,.55); }
+    .badge.warn{ border-color: rgba(251,191,36,.55); }
+
+    table{
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 1em;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--panel);
     }
-    td, th {
-      padding: 0.4em;
+    th, td{
+      padding: 10px 10px;
       text-align: center;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
     }
-    input[type="text"] {
-      width: 50px;
-      text-align: center;
+    th{
+      font-weight: 800;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
     }
-    .titulo {
-      text-align: center;
-      margin: 0.5em 0;
+    tr:last-child td{ border-bottom: 0; }
+    td:first-child{ font-weight: 800; }
+
+    .section h3{
+      margin: 0 0 6px 0;
+      font-size: 14px;
     }
-    .boton-calcular {
-      background-color: #007BFF;
-      color: #fff;
-      border: none;
-      padding: 0.5em 1em;
-      cursor: pointer;
+    .section p{
+      margin: 0 0 8px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
     }
-    .boton-calcular:hover {
-      background-color: #0056b3;
+    ul{
+      margin: 0 0 14px 18px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
     }
-    h3 {
-      margin-top: 0;
+
+    .footer{
+      max-width: 1100px;
+      margin: 10px auto 28px;
+      padding: 0 16px;
+      color: var(--muted);
     }
-    ul {
-      text-align: left;
-      margin-left: 1.2em;
+    .footer footer{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      backdrop-filter: blur(10px);
     }
+    .footer a{ color: var(--accent); }
+    .footer h4{ margin: 8px 0 10px; }
   </style>
+
+  <script>
+    function deg(n){ return n * 180 / Math.PI; }
+
+    function parseNum(v){
+      const x = parseFloat(String(v).replace(",", "."));
+      return Number.isFinite(x) ? x : NaN;
+    }
+
+    function classifyAxis(angle, species){
+      // criterios que tú usas en tu tabla
+      if (species === "perro"){
+        if (angle < 40) return {txt:"Desviación izquierda (Perro)", cls:"bad"};
+        if (angle > 100) return {txt:"Desviación derecha (Perro)", cls:"bad"};
+        return {txt:"EEM normal (Perro)", cls:"ok"};
+      }
+      if (species === "gato"){
+        if (angle < 0) return {txt:"Desviación izquierda (Gato)", cls:"bad"};
+        if (angle > 160) return {txt:"Desviación derecha (Gato)", cls:"bad"};
+        return {txt:"EEM normal (Gato)", cls:"ok"};
+      }
+      return {txt:"", cls:"warn"};
+    }
+
+    function Calculate3Lead(){
+      const L1 = parseNum(document.form.L1.value);
+      const L2 = parseNum(document.form.L2.value);
+      const L3 = parseNum(document.form.L3.value);
+
+      const meaOut = document.form.mea;
+      const big = document.getElementById("meaBig");
+      const badge = document.getElementById("badge");
+      const badge2 = document.getElementById("badge2");
+
+      // si están vacíos o hay NaN, limpiar
+      if (!Number.isFinite(L1) || !Number.isFinite(L2) || !Number.isFinite(L3)){
+        meaOut.value = "";
+        big.textContent = "—";
+        badge.textContent = "Introduce I, II y III";
+        badge.className = "badge warn";
+        badge2.textContent = "";
+        badge2.className = "badge";
+        return;
+      }
+
+      const rad60 = 60/180 * Math.PI;
+
+      const L2y = L2 * Math.cos(rad60);
+      const L2x = L2 * Math.sin(rad60);
+
+      const L3y = -(L3 * Math.cos(rad60));
+      const L3x =  (L3 * Math.sin(rad60));
+
+      const x = L2x + L3x;
+      const y = L2y + L3y + L1;
+
+      // más robusto que atan(x/y) + correcciones
+      let angle = deg(Math.atan2(x, y));
+
+      // Redondeo a entero para el MEA (como tu ZeroDP/truncado original, pero más limpio)
+      angle = Math.round(angle);
+
+      meaOut.value = angle;
+      big.textContent = angle + "°";
+
+      const dog = classifyAxis(angle, "perro");
+      const cat = classifyAxis(angle, "gato");
+
+      badge.textContent = dog.txt;
+      badge.className = "badge " + dog.cls;
+
+      badge2.textContent = cat.txt;
+      badge2.className = "badge " + cat.cls;
+    }
+
+    function Go(){
+      Calculate3Lead();
+    }
+
+    function ClearAll(){
+      document.form.L1.value = "";
+      document.form.L2.value = "";
+      document.form.L3.value = "";
+      document.form.mea.value = "";
+      document.getElementById("meaBig").textContent = "—";
+      const badge = document.getElementById("badge");
+      const badge2 = document.getElementById("badge2");
+      badge.textContent = "Introduce I, II y III";
+      badge.className = "badge warn";
+      badge2.textContent = "";
+      badge2.className = "badge";
+      document.getElementById("L1").focus();
+    }
+
+    // legado (por si lo usas en iOS antiguos / wrappers)
+    function MM_callJS(jsStr){ return eval(jsStr); }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      // cálculo en vivo
+      ["L1","L2","L3"].forEach(id=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener("input", () => {
+          // solo recalcular si hay algo escrito
+          if (el.value.trim() !== "") Calculate3Lead();
+        });
+      });
+    });
+  </script>
 </head>
 
 <body>
-
-  <!-- Bloque de título y créditos solicitado -->
   <div class="wrap">
-    <h1>Calculadora de EJE ELÉCTRICO MEDIO  — Perro &amp; Gato</h1>
+    <header>
+      <h1>Calculadora de EJE ELÉCTRICO MEDIO — Perro &amp; Gato</h1>
 
-    <!-- Créditos / enlace -->
-    <div class="meta" aria-label="Créditos y navegación">
-      <div>
-        <h2 style="margin:0;">
-          <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+      <!-- bloque solicitado debajo del título -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
         </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
       </div>
-      <p style="margin:0; font-size:0.9em; text-align:right;">
-        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
-          🏠 <span style="font-size:0.9em;">volver a página de inicio</span>
-        </a>
+
+      <p class="sub">
+        Introduce los valores netos por derivación (p. ej. R − S) y calcula el MEA/EEM.
       </p>
-    </div>
+    </header>
   </div>
 
-  <div class="contenedor">
-    <!-- SECCIÓN DEL FORMULARIO PARA CÁLCULO DE EJE ELÉCTRICO -->
-    <div class="formulario">
-      <h2 class="titulo" style="color:#FF0000">EJE ELÉCTRICO MEDIO (EEM)</h2>
-      <form name="form">
-        <table border="1" cellspacing="0" cellpadding="1">
-          <tr>
-            <td>
-              <b>
-                <label for="L1">DERIVACIÓN I</label>&nbsp;&nbsp;
-                <input type="text" name="L1" size="3" id="L1">
-                <br><br>
-                <label for="L2">DERIVACIÓN II</label>&nbsp;
-                <input type="text" name="L2" size="3" id="L2">
-                <br><br>
-                <label for="L3">DERIVACIÓN III</label>&nbsp;
-                <input type="text" name="L3" size="3" id="L3">
-              </b>
-            </td>
-          </tr>
-        </table>
+  <main>
+    <!-- CÁLCULO -->
+    <section class="card">
+      <h2>
+        <span>📐 Cálculo del EEM</span>
+        <span class="pill">Entrada rápida + cálculo en vivo</span>
+      </h2>
 
-        <table border="0" cellspacing="0" cellpadding="0">
-          <tr bgcolor="#CCCCCC">
-            <td style="padding:0.5em;">
-              <b>MEA</b> 
-              <input type="text" name="mea" size="3">
-            </td>
-            <td style="padding:0.5em;">
-              <input type="button" class="boton-calcular" name="MEA" onclick="Go()" value="Calcular">
-            </td>
-          </tr>
-        </table>
+      <form name="form" onsubmit="return false;">
+        <div class="grid2">
+          <div>
+            <label for="L1">DERIVACIÓN I</label>
+            <div class="input">
+              <input id="L1" name="L1" type="number" step="any" placeholder="ej: 0.8" inputmode="decimal" />
+            </div>
+          </div>
+
+          <div>
+            <label for="L2">DERIVACIÓN II</label>
+            <div class="input">
+              <input id="L2" name="L2" type="number" step="any" placeholder="ej: 1.2" inputmode="decimal" />
+            </div>
+          </div>
+
+          <div>
+            <label for="L3">DERIVACIÓN III</label>
+            <div class="input">
+              <input id="L3" name="L3" type="number" step="any" placeholder="ej: 0.4" inputmode="decimal" />
+            </div>
+          </div>
+
+          <div>
+            <label for="mea">MEA (resultado)</label>
+            <div class="input">
+              <input id="mea" name="mea" type="number" step="1" readonly />
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" type="button" onclick="Go()">Calcular</button>
+          <button class="btn2" type="button" onclick="ClearAll()">Limpiar</button>
+        </div>
+
+        <div class="result" aria-live="polite">
+          <div class="mea">
+            <small>Resultado MEA/EEM</small>
+            <strong id="meaBig">—</strong>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+            <span id="badge" class="badge warn">Introduce I, II y III</span>
+            <span id="badge2" class="badge" style="opacity:.95;"></span>
+          </div>
+        </div>
+
+        <p class="hint">
+          Consejo: usa decimales con punto o coma. El resultado se redondea a grados enteros.
+        </p>
       </form>
-    </div>
 
+      <div style="height:12px"></div>
 
-        <table border="1" cellspacing="0" cellpadding="0">
-          <tr bgcolor="#CCCCCC">
-            <th></th>
-            <th><b>EEM Normal</b></th>
-            <th><b>Desviación Derecha</b></th>
-            <th><b>Desviación Izquierda</b></th>
-          </tr>
-          <tr>
-            <td><b>Perro</b></td>
-            <td>40 - 100</td>
-            <td>&gt; 100</td>
-            <td>&lt; 40</td>
-          </tr>
-          <tr>
-            <td><b>Gato</b></td>
-            <td>0 - 160</td>
-            <td>&gt; 160</td>
-            <td>&lt; 0</td>
-          </tr>
-        </table>
-      </form>
-    </div>
+      <h2 style="margin-top:0;">
+        <span>📊 Rangos orientativos</span>
+        <span class="pill">según tu tabla</span>
+      </h2>
 
-    <!-- SECCIÓN ILUSTRATIVA CON LA INFORMACIÓN TRADUCIDA -->
-    <div class="ilustrativo">
-      <h3>Bloqueo de Rama Izquierda</h3>
-      <p><b>Características en el ECG:</b></p>
-      <ul>
-        <li>El QRS está prolongado (> 0.08 seg en perros, > 0.06 seg en gatos).</li>
-        <li>El QRS es ancho y positivo en las derivaciones I, II, III y aVF.</li>
-        <li>Debido a que la rama izquierda es gruesa y extensa, se requiere una lesión grande.</li>
-        <li>La lesión que causa el bloqueo podría progresar, provocando arritmias más graves o un bloqueo auriculoventricular completo.</li>
-        <li>El bloqueo puede ser intermitente o constante.</li>
-      </ul>
+      <table>
+        <tr>
+          <th></th>
+          <th>EEM Normal</th>
+          <th>Desviación Derecha</th>
+          <th>Desviación Izquierda</th>
+        </tr>
+        <tr>
+          <td>Perro</td>
+          <td>40 – 100</td>
+          <td>&gt; 100</td>
+          <td>&lt; 40</td>
+        </tr>
+        <tr>
+          <td>Gato</td>
+          <td>0 – 160</td>
+          <td>&gt; 160</td>
+          <td>&lt; 0</td>
+        </tr>
+      </table>
+    </section>
 
-      <h3>Bloqueo de Rama Derecha</h3>
-      <p><b>Características en el ECG:</b></p>
-      <ul>
-        <li>Se observa una desviación del eje a la derecha y un QRS ancho (&gt; 0.08 seg en perros; &gt; 0.06 seg en gatos).</li>
-        <li>Grandes ondas S anchas en las derivaciones I, II, III y aVF.</li>
-      </ul>
+    <!-- TEXTO ILUSTRATIVO -->
+    <section class="card">
+      <h2>
+        <span>🩺 Interpretación (recordatorio rápido)</span>
+        <span class="pill">ECG</span>
+      </h2>
 
-      <h3>Bloqueo del fascículo Anterior Izquierda</h3>
-      <p><b>Características en el ECG:</b></p>
-      <ul>
-        <li>La duración del QRS es normal.</li>
-        <li>Existe desviación del eje hacia la izquierda (en perros, &lt;+40º; en gatos, &lt;0º).</li>
-        <li>Pequeñas ondas q y ondas R altas en las derivaciones I y aVL (la onda q pequeña no es esencial).</li>
-        <li>Ondas S profundas (superiores a las ondas R) en las derivaciones II, III y aVF.</li>
-      </ul>
-    </div>
+      <div class="section">
+        <h3>Bloqueo de Rama Izquierda</h3>
+        <p><b>Características en el ECG:</b></p>
+        <ul>
+          <li>El QRS está prolongado (&gt; 0.08 s en perros, &gt; 0.06 s en gatos).</li>
+          <li>El QRS es ancho y positivo en las derivaciones I, II, III y aVF.</li>
+          <li>Debido a que la rama izquierda es gruesa y extensa, se requiere una lesión grande.</li>
+          <li>La lesión que causa el bloqueo podría progresar, provocando arritmias más graves o un bloqueo AV completo.</li>
+          <li>Puede ser intermitente o constante.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>Bloqueo de Rama Derecha</h3>
+        <p><b>Características en el ECG:</b></p>
+        <ul>
+          <li>Desviación del eje a la derecha y QRS ancho (&gt; 0.08 s en perros; &gt; 0.06 s en gatos).</li>
+          <li>Grandes ondas S anchas en I, II, III y aVF.</li>
+        </ul>
+      </div>
+
+      <div class="section" style="margin-bottom:0;">
+        <h3>Bloqueo del Fascículo Anterior Izquierdo</h3>
+        <p><b>Características en el ECG:</b></p>
+        <ul>
+          <li>Duración del QRS normal.</li>
+          <li>Desviación del eje hacia la izquierda (perros &lt;+40º; gatos &lt;0º).</li>
+          <li>Pequeñas ondas q y ondas R altas en I y aVL (la q pequeña no es esencial).</li>
+          <li>Ondas S profundas (mayores que R) en II, III y aVF.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER solicitado -->
+  <div class="footer">
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
   </div>
 </body>
 </html>
-
-
-
-
-</html>
-<h2>Creado por:</h2>
-<p>Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
-<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;, puedes hacerlo aqu&iacute;:</strong></p>
-<p style="text-align: center;"><strong><a href="https://buymeacoffee.com/airsoto">BUY ME A COFFEE</a></strong></p>
-<p style="text-align: center;">&nbsp;</p>
-</html>
-
-<h2>Proyecto con licencia WTFPL</h2>
-<p>Este proyecto est&aacute; bajo la licencia <strong>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE</strong>.</p>
-<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) [2025] [Angel Soto]</p>
-<p>&nbsp;</p>
-<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document, and changing it is allowed as long as the name is changed.</p>
-<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION</p>
-<p>&nbsp;</p>
-<p>0. You just DO WHAT THE FUCK YOU WANT TO.</p>
-<p>&nbsp;</p>
-<p>
-
-  
