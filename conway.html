@@ -1,0 +1,1441 @@
+<!doctype html>
+<html lang="es">
+<script defer src="goat.js"></script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Juego de la Vida (Conway) — Modo Dark</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1620;
+      --card:#111b27;
+      --card2:#0d1520;
+      --text:#e8eef6;
+      --muted:#9fb0c3;
+      --line:rgba(255,255,255,.08);
+      --shadow:0 18px 50px rgba(0,0,0,.55);
+      --accent:#ff9900;
+      --accent2:#ffd08a;
+      --good:#64d08a;
+      --bad:#ff5a6a;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(255,153,0,.10), transparent 60%),
+        radial-gradient(900px 500px at 85% 15%, rgba(255,208,138,.08), transparent 60%),
+        radial-gradient(900px 700px at 55% 95%, rgba(120,160,255,.08), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      overflow-x:hidden;
+    }
+
+    a{color:inherit}
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px 14px 28px;
+    }
+
+    .titlebar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      margin:4px 0 12px;
+    }
+
+    h1{
+      margin:0 0 6px 0;
+      font-size:clamp(20px, 4.6vw, 34px);
+      letter-spacing:.3px;
+      line-height:1.1;
+    }
+
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:clamp(12px, 2.8vw, 14px);
+      line-height:1.35;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius:14px;
+      box-shadow: var(--shadow);
+      user-select:none;
+      white-space:nowrap;
+      height:fit-content;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--accent);
+      box-shadow:0 0 0 6px rgba(255,153,0,.12);
+    }
+    .badge b{font-weight:700}
+    .badge small{color:var(--muted)}
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap:14px;
+      align-items:start;
+    }
+
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      .badge{width:100%; justify-content:space-between}
+    }
+
+    .card{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .card .head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    }
+
+    .statrow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.22);
+      color:var(--muted);
+      font-size:12px;
+      line-height:1;
+      user-select:none;
+    }
+    .pill .k{color:var(--accent2)}
+    .pill .v{color:var(--text); font-weight:700}
+
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      justify-content:flex-end;
+    }
+
+    button, input, select{
+      font:inherit;
+      color:inherit;
+    }
+
+    .btn{
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.25);
+      padding:10px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn:hover{transform:translateY(-1px); border-color:rgba(255,255,255,.18); background:rgba(0,0,0,.32)}
+    .btn:active{transform:translateY(0px) scale(.99)}
+    .btn.primary{
+      border-color: rgba(255,153,0,.35);
+      background: linear-gradient(180deg, rgba(255,153,0,.22), rgba(255,153,0,.12));
+    }
+    .btn.primary:hover{border-color: rgba(255,153,0,.55)}
+    .btn.danger{
+      border-color: rgba(255,90,106,.35);
+      background: linear-gradient(180deg, rgba(255,90,106,.20), rgba(255,90,106,.10));
+    }
+    .btn.good{
+      border-color: rgba(100,208,138,.35);
+      background: linear-gradient(180deg, rgba(100,208,138,.18), rgba(100,208,138,.10));
+    }
+
+    .btn .ic{opacity:.95}
+    .btn[disabled]{opacity:.45; cursor:not-allowed}
+    .btn[disabled]:hover{transform:none}
+
+    .boardWrap{
+      position:relative;
+      height:min(62vh, 560px);
+      min-height:340px;
+      padding:12px;
+    }
+    @media (max-width: 600px){
+      .boardWrap{height:52vh; min-height:300px; padding:10px}
+    }
+
+    .canvasShell{
+      position:absolute;
+      inset:12px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.10);
+      background:
+        radial-gradient(900px 600px at 30% 20%, rgba(255,153,0,.08), transparent 60%),
+        radial-gradient(700px 500px at 75% 35%, rgba(120,160,255,.07), transparent 55%),
+        rgba(0,0,0,.28);
+      overflow:hidden;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      touch-action:none; /* para dibujar en iPhone */
+    }
+
+    .hint{
+      position:absolute;
+      left:14px;
+      bottom:12px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.35);
+      color:var(--muted);
+      font-size:12px;
+      backdrop-filter: blur(6px);
+      max-width:min(520px, calc(100% - 28px));
+    }
+    .hint b{color:var(--accent2)}
+    .hint code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      color:#cfe2ff;
+    }
+
+    .panel{
+      padding:12px 14px;
+    }
+
+    .sectionTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin:0 0 10px 0;
+    }
+    .sectionTitle h3{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+      color:var(--accent2);
+    }
+    .sectionTitle small{color:var(--muted)}
+
+    .controls{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:center;
+      padding:10px 10px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.20);
+    }
+
+    .row .label{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .row .label b{
+      font-size:13px;
+      letter-spacing:.2px;
+    }
+    .row .label span{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.2;
+    }
+
+    .val{
+      min-width:86px;
+      text-align:right;
+      font-variant-numeric: tabular-nums;
+      color:var(--text);
+      font-weight:700;
+    }
+
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+
+    .row.full{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .inline{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .field, select{
+      width:100%;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.25);
+      border-radius:12px;
+      padding:10px 10px;
+      outline:none;
+      transition:border-color .12s ease, background .12s ease;
+    }
+    .field:focus, select:focus{
+      border-color: rgba(255,153,0,.45);
+      background:rgba(0,0,0,.33);
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+    @media (max-width: 420px){
+      .split{grid-template-columns:1fr}
+    }
+
+    .toggles{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+    @media (max-width: 520px){
+      .toggles{grid-template-columns:1fr}
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 10px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.20);
+      user-select:none;
+    }
+
+    .toggle .txt{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+    }
+    .toggle b{font-size:13px}
+    .toggle span{font-size:12px; color:var(--muted)}
+    .switch{
+      width:46px;height:26px;
+      border-radius:999px;
+      background:rgba(255,255,255,.10);
+      border:1px solid var(--line);
+      position:relative;
+      flex:0 0 auto;
+      transition: background .12s ease, border-color .12s ease;
+    }
+    .knob{
+      width:22px;height:22px;border-radius:50%;
+      position:absolute; top:1px; left:1px;
+      background:rgba(255,255,255,.85);
+      transition: transform .14s ease, background .12s ease;
+      box-shadow:0 8px 16px rgba(0,0,0,.35);
+    }
+    .toggle[data-on="true"] .switch{
+      background:rgba(255,153,0,.22);
+      border-color:rgba(255,153,0,.35);
+    }
+    .toggle[data-on="true"] .knob{
+      transform: translateX(20px);
+      background:rgba(255,208,138,.95);
+    }
+
+    .toolRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      justify-content:flex-start;
+    }
+    .chip{
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.25);
+      padding:9px 10px;
+      border-radius:999px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      font-size:12px;
+    }
+    .chip:hover{transform:translateY(-1px); border-color:rgba(255,255,255,.18); background:rgba(0,0,0,.32)}
+    .chip[data-active="true"]{
+      border-color: rgba(255,153,0,.45);
+      background: rgba(255,153,0,.14);
+    }
+
+    /* FOOTER */
+    .footer{
+      margin-top:14px;
+      padding:14px 16px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.22);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      color:var(--muted);
+      line-height:1.35;
+      font-size:13px;
+    }
+    .footer a{color:var(--accent2)}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="titlebar">
+      <div>
+        <h1>Juego de la Vida (Conway)</h1>
+        <p class="subtitle">Dibuja, pausa, acelera, cambia reglas y prueba patrones. Optimizado para ordenador y iPhone.</p>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <div class="badge" title="Estado del simulador">
+        <span class="dot" id="statusDot"></span>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <b id="statusText">Pausado</b>
+          <small id="statusSub">toca/clic para dibujar</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- TABLERO -->
+      <section class="card">
+        <div class="head">
+          <div class="statrow">
+            <div class="pill"><span class="k">Gen</span> <span class="v" id="gen">0</span></div>
+            <div class="pill"><span class="k">Vivas</span> <span class="v" id="live">0</span></div>
+            <div class="pill"><span class="k">Regla</span> <span class="v" id="ruleView">B3/S23</span></div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="playBtn" title="Play/Pause (Espacio)">
+              <span class="ic">▶️</span><span id="playLbl">Play</span>
+            </button>
+            <button class="btn" id="stepBtn" title="Avanzar 1 generación (S)">⏭️ Paso</button>
+            <button class="btn danger" id="clearBtn" title="Vaciar tablero (C)">🧹 Limpiar</button>
+            <button class="btn good" id="randBtn" title="Relleno aleatorio (R)">🎲 Random</button>
+          </div>
+        </div>
+
+        <div class="boardWrap">
+          <div class="canvasShell">
+            <canvas id="cv"></canvas>
+            <div class="hint">
+              <b>Dibujo:</b> mantén pulsado para pintar. <b>Herramienta</b> abajo. Atajos: <code>Espacio</code> play/pause, <code>R</code> random, <code>C</code> limpiar, <code>S</code> paso.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONTROLES -->
+      <aside class="card">
+        <div class="head">
+          <div class="sectionTitle" style="margin:0;">
+            <h3>Controles</h3>
+            <small id="boardInfo">—</small>
+          </div>
+          <button class="btn" id="resetBtn" title="Volver a valores por defecto">🔁 Reset</button>
+        </div>
+
+        <div class="panel">
+          <div class="controls">
+
+            <div class="row full">
+              <div class="label">
+                <b>Herramienta</b>
+                <span>Pinta, borra, alterna o “estampa” un patrón.</span>
+              </div>
+              <div class="toolRow" id="toolRow">
+                <div class="chip" data-tool="draw" data-active="true">🖊️ Pintar</div>
+                <div class="chip" data-tool="erase">🧽 Borrar</div>
+                <div class="chip" data-tool="toggle">🌓 Alternar</div>
+                <div class="chip" data-tool="stamp">📌 Estampar</div>
+              </div>
+            </div>
+
+            <div class="row full">
+              <div class="label">
+                <b>Patrón (para “Estampar”)</b>
+                <span>Selecciona un patrón y toca/clic para colocarlo.</span>
+              </div>
+              <select id="patternSel" class="field">
+                <option value="glider">Glider</option>
+                <option value="lwss">LWSS (nave ligera)</option>
+                <option value="pulsar">Pulsar</option>
+                <option value="gosper">Gosper Glider Gun</option>
+              </select>
+            </div>
+
+            <div class="row">
+              <div class="label">
+                <b>Velocidad</b>
+                <span>Milisegundos por generación.</span>
+              </div>
+              <div class="val"><span id="speedVal">90</span> ms</div>
+              <input type="range" id="speed" min="20" max="400" value="90" />
+            </div>
+
+            <div class="row">
+              <div class="label">
+                <b>Tamaño de célula</b>
+                <span>Ajusta el “zoom” del tablero.</span>
+              </div>
+              <div class="val"><span id="cellVal">10</span> px</div>
+              <input type="range" id="cell" min="4" max="22" value="10" />
+            </div>
+
+            <div class="row">
+              <div class="label">
+                <b>Densidad (Random)</b>
+                <span>% de células vivas al azar.</span>
+              </div>
+              <div class="val"><span id="densVal">22</span>%</div>
+              <input type="range" id="dens" min="1" max="65" value="22" />
+            </div>
+
+            <div class="row full">
+              <div class="label">
+                <b>Regla</b>
+                <span>Formato <code>B…/S…</code> (por defecto <code>B3/S23</code>).</span>
+              </div>
+              <div class="split">
+                <input id="rule" class="field" value="B3/S23" />
+                <button class="btn primary" id="applyRuleBtn" title="Aplicar regla">✅ Aplicar</button>
+              </div>
+            </div>
+
+            <div class="toggles">
+              <div class="toggle" id="wrapToggle" data-on="true">
+                <div class="txt">
+                  <b>Wrap</b>
+                  <span>Bordes conectados (toro).</span>
+                </div>
+                <div class="switch"><div class="knob"></div></div>
+              </div>
+
+              <div class="toggle" id="gridToggle" data-on="false">
+                <div class="txt">
+                  <b>Cuadrícula</b>
+                  <span>Mostrar líneas suaves.</span>
+                </div>
+                <div class="switch"><div class="knob"></div></div>
+              </div>
+
+              <div class="toggle" id="autoToggle" data-on="true">
+                <div class="txt">
+                  <b>Auto-ajustar</b>
+                  <span>Se adapta al tamaño de pantalla.</span>
+                </div>
+                <div class="switch"><div class="knob"></div></div>
+              </div>
+
+              <div class="toggle" id="paintRunToggle" data-on="true">
+                <div class="txt">
+                  <b>Dibujar en marcha</b>
+                  <span>Permite pintar mientras corre.</span>
+                </div>
+                <div class="switch"><div class="knob"></div></div>
+              </div>
+            </div>
+
+            <div class="row full" id="manualSizeRow" style="display:none;">
+              <div class="label">
+                <b>Tamaño manual (cuando Auto-ajustar está OFF)</b>
+                <span>Filas y columnas del tablero.</span>
+              </div>
+              <div class="split">
+                <input id="cols" class="field" type="number" min="20" max="260" step="1" value="90" />
+                <input id="rows" class="field" type="number" min="20" max="180" step="1" value="55" />
+              </div>
+              <div class="inline" style="margin-top:8px;">
+                <button class="btn" id="applySizeBtn">📐 Aplicar tamaño</button>
+                <small style="color:var(--muted);">Consejo: en iPhone, 60–120 cols suele ir bien.</small>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+        Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    // =========================
+    // Conway's Game of Life
+    // =========================
+    const cv = document.getElementById('cv');
+    const ctx = cv.getContext('2d', { alpha: false });
+
+    // UI
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const statusSub = document.getElementById('statusSub');
+
+    const genEl = document.getElementById('gen');
+    const liveEl = document.getElementById('live');
+    const ruleViewEl = document.getElementById('ruleView');
+    const boardInfoEl = document.getElementById('boardInfo');
+
+    const playBtn = document.getElementById('playBtn');
+    const playLbl = document.getElementById('playLbl');
+    const stepBtn = document.getElementById('stepBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const randBtn = document.getElementById('randBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const speed = document.getElementById('speed');
+    const speedVal = document.getElementById('speedVal');
+    const cell = document.getElementById('cell');
+    const cellVal = document.getElementById('cellVal');
+    const dens = document.getElementById('dens');
+    const densVal = document.getElementById('densVal');
+
+    const ruleInp = document.getElementById('rule');
+    const applyRuleBtn = document.getElementById('applyRuleBtn');
+
+    const wrapToggle = document.getElementById('wrapToggle');
+    const gridToggle = document.getElementById('gridToggle');
+    const autoToggle = document.getElementById('autoToggle');
+    const paintRunToggle = document.getElementById('paintRunToggle');
+
+    const manualSizeRow = document.getElementById('manualSizeRow');
+    const colsInp = document.getElementById('cols');
+    const rowsInp = document.getElementById('rows');
+    const applySizeBtn = document.getElementById('applySizeBtn');
+
+    const toolRow = document.getElementById('toolRow');
+    const patternSel = document.getElementById('patternSel');
+
+    // Defaults
+    const DEFAULTS = {
+      running: false,
+      speedMs: 90,
+      cellSize: 10,
+      density: 22,
+      wrap: true,
+      showGrid: false,
+      autoFit: true,
+      paintWhileRunning: true,
+      rule: 'B3/S23',
+      tool: 'draw',
+      pattern: 'glider',
+      manualCols: 90,
+      manualRows: 55,
+    };
+
+    // State
+    const state = { ...DEFAULTS };
+
+    // Rule sets
+    let births = new Set([3]);
+    let survives = new Set([2,3]);
+
+    // Grid
+    let cols = 0, rows = 0;
+    let gridA = new Uint8Array(1);
+    let gridB = new Uint8Array(1);
+    let generation = 0;
+    let liveCount = 0;
+
+    // Pointer
+    let pointerDown = false;
+    let lastPaintIndex = -1;
+    let hover = { on:false, c:0, r:0 };
+
+    // Patterns (coordinates relative to 0,0)
+    const PATTERNS = {
+      glider: {
+        name: 'Glider',
+        cells: [
+          [1,0],[2,1],[0,2],[1,2],[2,2]
+        ]
+      },
+      lwss: {
+        name: 'LWSS',
+        cells: [
+          [1,0],[2,0],[3,0],[4,0],
+          [0,1],[4,1],
+          [4,2],
+          [0,3],[3,3]
+        ]
+      },
+      pulsar: {
+        name: 'Pulsar',
+        cells: (function(){
+          // clásico pulsar 13x13, centrado luego al estampar
+          const pts = [];
+          const add = (x,y)=>pts.push([x,y]);
+          // segmentos (tomado de la definición clásica)
+          const seg = [ [2,0],[3,0],[4,0], [0,2],[0,3],[0,4], [5,2],[5,3],[5,4],
+                        [2,5],[3,5],[4,5] ];
+          // replicar en cuadrantes alrededor del centro 6,6 (pero aquí base 0..12)
+          const base = [];
+          // arriba-izq
+          seg.forEach(([x,y])=>base.push([x+1,y+1]));
+          // arriba-der
+          seg.forEach(([x,y])=>base.push([12-(x+1),y+1]));
+          // abajo-izq
+          seg.forEach(([x,y])=>base.push([x+1,12-(y+1)]));
+          // abajo-der
+          seg.forEach(([x,y])=>base.push([12-(x+1),12-(y+1)]));
+          // limpiar duplicados
+          const set = new Set();
+          base.forEach(([x,y])=>{
+            const k=x+','+y; if(!set.has(k)){set.add(k); add(x,y);}
+          });
+          return pts;
+        })()
+      },
+      gosper: {
+        name: 'Gosper Glider Gun',
+        cells: (function(){
+          // Coordenadas conocidas (36x9 aprox)
+          const pts = [];
+          const add=(x,y)=>pts.push([x,y]);
+          [
+            [24,0],
+            [22,1],[24,1],
+            [12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+            [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],
+            [0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+            [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],
+            [10,6],[16,6],[24,6],
+            [11,7],[15,7],
+            [12,8],[13,8]
+          ].forEach(p=>add(p[0],p[1]));
+          return pts;
+        })()
+      }
+    };
+
+    // ===== Helpers
+    const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+
+    function setToggle(el, on){
+      el.dataset.on = on ? "true" : "false";
+    }
+    function getToggle(el){
+      return el.dataset.on === "true";
+    }
+
+    function parseRule(str){
+      const s = (str || '').trim().toUpperCase();
+      // Accept formats: B3/S23, b3s23, 3/23, etc.
+      let b = null, su = null;
+
+      const m1 = s.match(/B([0-8]+)\s*\/\s*S([0-8]+)/);
+      if (m1){
+        b = m1[1].split('').map(Number);
+        su = m1[2].split('').map(Number);
+      } else {
+        // try "3/23"
+        const m2 = s.match(/^([0-8]+)\s*\/\s*([0-8]+)$/);
+        if (m2){
+          b = m2[1].split('').map(Number);
+          su = m2[2].split('').map(Number);
+        } else {
+          // try "B3S23"
+          const m3 = s.match(/B([0-8]+)\s*S([0-8]+)/);
+          if (m3){
+            b = m3[1].split('').map(Number);
+            su = m3[2].split('').map(Number);
+          }
+        }
+      }
+
+      if (!b || !su) return null;
+
+      const bSet = new Set(b.filter(x=>x>=0 && x<=8));
+      const sSet = new Set(su.filter(x=>x>=0 && x<=8));
+      if (bSet.size === 0 && sSet.size === 0) return null;
+
+      return { bSet, sSet, pretty: `B${[...bSet].sort().join('')}/S${[...sSet].sort().join('')}` };
+    }
+
+    function idx(r,c){ return r*cols + c; }
+
+    function countAlive(){
+      let n = 0;
+      for (let i=0;i<gridA.length;i++) n += gridA[i];
+      return n;
+    }
+
+    // ===== Canvas + Grid sizing
+    function computeAutoSize(){
+      const shell = cv.parentElement;
+      const rect = shell.getBoundingClientRect();
+      const cs = state.cellSize;
+      const c = clamp(Math.floor(rect.width / cs), 20, 320);
+      const r = clamp(Math.floor(rect.height / cs), 20, 220);
+      return { c, r };
+    }
+
+    function resizeCanvas(){
+      const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+      const rect = cv.getBoundingClientRect();
+      cv.width = Math.floor(rect.width * dpr);
+      cv.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+
+    function initGrid(newCols, newRows, preserve=true){
+      newCols = Math.floor(newCols);
+      newRows = Math.floor(newRows);
+      if (newCols < 5 || newRows < 5) return;
+
+      const oldCols = cols, oldRows = rows;
+      const old = gridA;
+
+      cols = newCols;
+      rows = newRows;
+
+      gridA = new Uint8Array(cols * rows);
+      gridB = new Uint8Array(cols * rows);
+
+      if (preserve && old && old.length > 1){
+        // map old into new (top-left)
+        const minR = Math.min(oldRows, rows);
+        const minC = Math.min(oldCols, cols);
+        for (let r=0; r<minR; r++){
+          const oOff = r*oldCols;
+          const nOff = r*cols;
+          for (let c=0; c<minC; c++){
+            gridA[nOff + c] = old[oOff + c];
+          }
+        }
+      } else {
+        generation = 0;
+      }
+
+      liveCount = countAlive();
+      updateHUD();
+    }
+
+    function fitBoardIfNeeded(){
+      if (!state.autoFit) return;
+      const { c, r } = computeAutoSize();
+      if (c !== cols || r !== rows) initGrid(c, r, true);
+      updateBoardInfo();
+    }
+
+    // ===== Simulation
+    function step(){
+      const wrap = state.wrap;
+      const bSet = births;
+      const sSet = survives;
+
+      const A = gridA;
+      const B = gridB;
+
+      // neighbors
+      for (let r=0; r<rows; r++){
+        const rUp = (r-1+rows)%rows;
+        const rDn = (r+1)%rows;
+
+        for (let c=0; c<cols; c++){
+          const cLf = (c-1+cols)%cols;
+          const cRt = (c+1)%cols;
+
+          let n = 0;
+
+          if (wrap){
+            n += A[idx(rUp,cLf)] + A[idx(rUp,c)] + A[idx(rUp,cRt)];
+            n += A[idx(r,  cLf)]               + A[idx(r,  cRt)];
+            n += A[idx(rDn,cLf)] + A[idx(rDn,c)] + A[idx(rDn,cRt)];
+          } else {
+            // boundaries
+            const r0 = r-1, r1 = r, r2 = r+1;
+            const c0 = c-1, c1 = c, c2 = c+1;
+
+            if (r0 >= 0){
+              if (c0 >= 0) n += A[r0*cols + c0];
+              n += A[r0*cols + c1];
+              if (c2 < cols) n += A[r0*cols + c2];
+            }
+
+            if (c0 >= 0) n += A[r1*cols + c0];
+            if (c2 < cols) n += A[r1*cols + c2];
+
+            if (r2 < rows){
+              if (c0 >= 0) n += A[r2*cols + c0];
+              n += A[r2*cols + c1];
+              if (c2 < cols) n += A[r2*cols + c2];
+            }
+          }
+
+          const me = A[idx(r,c)];
+          const alive = me ? sSet.has(n) : bSet.has(n);
+          B[idx(r,c)] = alive ? 1 : 0;
+        }
+      }
+
+      // swap
+      gridA = B;
+      gridB = A;
+
+      generation++;
+      liveCount = countAlive();
+    }
+
+    // ===== Drawing
+    function draw(){
+      resizeCanvas(); // mantiene nítido si cambia el layout
+
+      const rect = cv.getBoundingClientRect();
+      const w = rect.width, h = rect.height;
+
+      // background
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = '#070a0f';
+      ctx.fillRect(0,0,w,h);
+
+      const cs = state.cellSize;
+
+      // compute board pixel dims inside canvas
+      const boardW = cols * cs;
+      const boardH = rows * cs;
+
+      // center board
+      const ox = Math.floor((w - boardW) / 2);
+      const oy = Math.floor((h - boardH) / 2);
+
+      // subtle vignette
+      const grad = ctx.createRadialGradient(w*0.5,h*0.4, 30, w*0.5,h*0.5, Math.max(w,h)*0.7);
+      grad.addColorStop(0,'rgba(255,153,0,.05)');
+      grad.addColorStop(1,'rgba(0,0,0,.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,0,w,h);
+
+      // alive cells
+      // glow pass
+      ctx.save();
+      ctx.translate(ox, oy);
+
+      // glow
+      ctx.shadowColor = 'rgba(255,153,0,.22)';
+      ctx.shadowBlur = 12;
+
+      for (let r=0;r<rows;r++){
+        const y = r*cs;
+        const off = r*cols;
+        for (let c=0;c<cols;c++){
+          if (!gridA[off+c]) continue;
+          const x = c*cs;
+
+          // cell fill
+          ctx.fillStyle = 'rgba(255,153,0,.92)';
+          ctx.fillRect(x+1, y+1, cs-2, cs-2);
+
+          // inner highlight
+          ctx.fillStyle = 'rgba(255,208,138,.30)';
+          ctx.fillRect(x+2, y+2, Math.max(1, cs-5), Math.max(1, cs-5));
+        }
+      }
+
+      // grid lines
+      if (state.showGrid && cs >= 7){
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,.06)';
+        ctx.lineWidth = 1;
+
+        // vertical
+        for (let c=0;c<=cols;c++){
+          const x = c*cs + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, boardH);
+          ctx.stroke();
+        }
+        // horizontal
+        for (let r=0;r<=rows;r++){
+          const y = r*cs + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(boardW, y);
+          ctx.stroke();
+        }
+      }
+
+      // hover indicator
+      if (hover.on){
+        const x = hover.c*cs;
+        const y = hover.r*cs;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,208,138,.55)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x+1, y+1, cs-2, cs-2);
+
+        if (state.tool === 'stamp'){
+          const pat = PATTERNS[state.pattern];
+          if (pat){
+            ctx.strokeStyle = 'rgba(255,153,0,.35)';
+            ctx.lineWidth = 2;
+            pat.cells.forEach(([dx,dy])=>{
+              const px = (hover.c + dx)*cs;
+              const py = (hover.r + dy)*cs;
+              if (px < 0 || py < 0 || px >= boardW || py >= boardH) return;
+              ctx.strokeRect(px+2, py+2, cs-4, cs-4);
+            });
+          }
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // ===== HUD
+    function updateHUD(){
+      genEl.textContent = String(generation);
+      liveEl.textContent = String(liveCount);
+      ruleViewEl.textContent = state.rule;
+
+      if (state.running){
+        statusText.textContent = 'En marcha';
+        statusSub.textContent = 'dibuja para alterar el patrón';
+        statusDot.style.background = 'var(--good)';
+        statusDot.style.boxShadow = '0 0 0 6px rgba(100,208,138,.14)';
+      } else {
+        statusText.textContent = 'Pausado';
+        statusSub.textContent = 'toca/clic para dibujar';
+        statusDot.style.background = 'var(--accent)';
+        statusDot.style.boxShadow = '0 0 0 6px rgba(255,153,0,.12)';
+      }
+    }
+
+    function updateBoardInfo(){
+      boardInfoEl.textContent = `${cols}×${rows} • ${state.cellSize}px`;
+    }
+
+    // ===== Actions
+    function setRunning(on){
+      state.running = !!on;
+      playLbl.textContent = state.running ? 'Pause' : 'Play';
+      playBtn.querySelector('.ic').textContent = state.running ? '⏸️' : '▶️';
+      updateHUD();
+    }
+
+    function clearGrid(){
+      gridA.fill(0);
+      gridB.fill(0);
+      generation = 0;
+      liveCount = 0;
+      updateHUD();
+    }
+
+    function randomFill(){
+      const p = clamp(state.density/100, 0, 1);
+      for (let i=0;i<gridA.length;i++){
+        gridA[i] = (Math.random() < p) ? 1 : 0;
+      }
+      generation = 0;
+      liveCount = countAlive();
+      updateHUD();
+    }
+
+    function applyRule(){
+      const parsed = parseRule(ruleInp.value);
+      if (!parsed){
+        // mini feedback visual
+        ruleInp.style.borderColor = 'rgba(255,90,106,.55)';
+        setTimeout(()=>ruleInp.style.borderColor = '', 600);
+        return;
+      }
+      births = parsed.bSet;
+      survives = parsed.sSet;
+      state.rule = parsed.pretty;
+      ruleInp.value = parsed.pretty;
+      updateHUD();
+    }
+
+    function applyManualSize(){
+      const c = clamp(Number(colsInp.value || DEFAULTS.manualCols), 20, 320);
+      const r = clamp(Number(rowsInp.value || DEFAULTS.manualRows), 20, 220);
+      initGrid(c, r, true);
+      updateBoardInfo();
+    }
+
+    function resetAll(){
+      const wasRunning = state.running;
+      Object.assign(state, DEFAULTS);
+
+      speed.value = state.speedMs;
+      speedVal.textContent = state.speedMs;
+
+      cell.value = state.cellSize;
+      cellVal.textContent = state.cellSize;
+
+      dens.value = state.density;
+      densVal.textContent = state.density;
+
+      ruleInp.value = state.rule;
+
+      setToggle(wrapToggle, state.wrap);
+      setToggle(gridToggle, state.showGrid);
+      setToggle(autoToggle, state.autoFit);
+      setToggle(paintRunToggle, state.paintWhileRunning);
+
+      colsInp.value = state.manualCols;
+      rowsInp.value = state.manualRows;
+
+      state.pattern = patternSel.value = DEFAULTS.pattern;
+
+      // tool
+      setTool(DEFAULTS.tool);
+
+      applyRule();
+
+      manualSizeRow.style.display = state.autoFit ? 'none' : 'block';
+
+      if (state.autoFit){
+        fitBoardIfNeeded();
+      } else {
+        initGrid(state.manualCols, state.manualRows, false);
+      }
+
+      clearGrid();
+      setRunning(wasRunning ? false : false);
+      updateBoardInfo();
+    }
+
+    // ===== Tools / paint
+    function setTool(tool){
+      state.tool = tool;
+      [...toolRow.querySelectorAll('.chip')].forEach(ch=>{
+        ch.dataset.active = (ch.dataset.tool === tool) ? "true" : "false";
+      });
+    }
+
+    function canvasToCell(clientX, clientY){
+      const rect = cv.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const cs = state.cellSize;
+
+      // board centered
+      const boardW = cols * cs;
+      const boardH = rows * cs;
+      const ox = Math.floor((rect.width - boardW) / 2);
+      const oy = Math.floor((rect.height - boardH) / 2);
+
+      const gx = x - ox;
+      const gy = y - oy;
+
+      if (gx < 0 || gy < 0 || gx >= boardW || gy >= boardH) return null;
+
+      const c = Math.floor(gx / cs);
+      const r = Math.floor(gy / cs);
+
+      return { c, r };
+    }
+
+    function paintAtCell(c, r, fromDrag=false){
+      if (c<0||r<0||c>=cols||r>=rows) return;
+      const i = idx(r,c);
+
+      if (fromDrag && i === lastPaintIndex) return;
+      lastPaintIndex = i;
+
+      if (state.tool === 'draw'){
+        gridA[i] = 1;
+      } else if (state.tool === 'erase'){
+        gridA[i] = 0;
+      } else if (state.tool === 'toggle'){
+        gridA[i] = gridA[i] ? 0 : 1;
+      } else if (state.tool === 'stamp'){
+        const pat = PATTERNS[state.pattern];
+        if (!pat) return;
+        pat.cells.forEach(([dx,dy])=>{
+          const cc = c + dx;
+          const rr = r + dy;
+          if (cc>=0 && rr>=0 && cc<cols && rr<rows){
+            gridA[idx(rr,cc)] = 1;
+          }
+        });
+      }
+
+      liveCount = countAlive();
+      updateHUD();
+    }
+
+    // ===== Animation loop
+    let lastT = 0;
+    let acc = 0;
+
+    function frame(t){
+      if (!lastT) lastT = t;
+      const dt = t - lastT;
+      lastT = t;
+
+      fitBoardIfNeeded();
+
+      if (state.running){
+        acc += dt;
+        const stepMs = Number(state.speedMs);
+        // cap to avoid spirals
+        const maxSteps = 8;
+        let steps = 0;
+        while (acc >= stepMs && steps < maxSteps){
+          step();
+          acc -= stepMs;
+          steps++;
+        }
+        updateHUD();
+      } else {
+        acc = 0;
+      }
+
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    // ===== Events
+    playBtn.addEventListener('click', ()=> setRunning(!state.running));
+    stepBtn.addEventListener('click', ()=>{
+      if (state.running) return;
+      step();
+      updateHUD();
+    });
+    clearBtn.addEventListener('click', clearGrid);
+    randBtn.addEventListener('click', randomFill);
+    resetBtn.addEventListener('click', resetAll);
+
+    speed.addEventListener('input', ()=>{
+      state.speedMs = Number(speed.value);
+      speedVal.textContent = state.speedMs;
+    });
+
+    cell.addEventListener('input', ()=>{
+      state.cellSize = Number(cell.value);
+      cellVal.textContent = state.cellSize;
+      // refit / reinit
+      if (state.autoFit){
+        fitBoardIfNeeded();
+      } else {
+        initGrid(cols, rows, true);
+      }
+      updateBoardInfo();
+    });
+
+    dens.addEventListener('input', ()=>{
+      state.density = Number(dens.value);
+      densVal.textContent = state.density;
+    });
+
+    applyRuleBtn.addEventListener('click', applyRule);
+    ruleInp.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter') applyRule();
+    });
+
+    function bindToggle(el, onChange){
+      el.addEventListener('click', ()=>{
+        const on = !getToggle(el);
+        setToggle(el, on);
+        onChange(on);
+      });
+    }
+
+    bindToggle(wrapToggle, (on)=>{ state.wrap = on; });
+    bindToggle(gridToggle, (on)=>{ state.showGrid = on; });
+    bindToggle(autoToggle, (on)=>{
+      state.autoFit = on;
+      manualSizeRow.style.display = on ? 'none' : 'block';
+      if (on){
+        fitBoardIfNeeded();
+      } else {
+        // move to manual defaults the first time
+        colsInp.value = colsInp.value || DEFAULTS.manualCols;
+        rowsInp.value = rowsInp.value || DEFAULTS.manualRows;
+        applyManualSize();
+      }
+    });
+    bindToggle(paintRunToggle, (on)=>{ state.paintWhileRunning = on; });
+
+    applySizeBtn.addEventListener('click', applyManualSize);
+
+    toolRow.addEventListener('click', (e)=>{
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      setTool(chip.dataset.tool);
+    });
+
+    patternSel.addEventListener('change', ()=>{
+      state.pattern = patternSel.value;
+    });
+
+    // Pointer painting (mouse + touch unified)
+    function pointerStart(e){
+      const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      const cell = canvasToCell(p.clientX, p.clientY);
+      if (!cell) return;
+      if (state.running && !state.paintWhileRunning) return;
+
+      pointerDown = true;
+      lastPaintIndex = -1;
+      paintAtCell(cell.c, cell.r, false);
+    }
+
+    function pointerMove(e){
+      const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      const cell = canvasToCell(p.clientX, p.clientY);
+      if (!cell){
+        hover.on = false;
+        return;
+      }
+      hover.on = true;
+      hover.c = cell.c;
+      hover.r = cell.r;
+
+      if (!pointerDown) return;
+      if (state.running && !state.paintWhileRunning) return;
+      paintAtCell(cell.c, cell.r, true);
+    }
+
+    function pointerEnd(){
+      pointerDown = false;
+      lastPaintIndex = -1;
+    }
+
+    cv.addEventListener('mousedown', pointerStart);
+    window.addEventListener('mousemove', pointerMove);
+    window.addEventListener('mouseup', pointerEnd);
+
+    cv.addEventListener('touchstart', (e)=>{ e.preventDefault(); pointerStart(e); }, {passive:false});
+    cv.addEventListener('touchmove', (e)=>{ e.preventDefault(); pointerMove(e); }, {passive:false});
+    cv.addEventListener('touchend', (e)=>{ e.preventDefault(); pointerEnd(); }, {passive:false});
+    cv.addEventListener('mouseleave', ()=>{ hover.on=false; });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.isContentEditable)) return;
+
+      if (e.code === 'Space'){
+        e.preventDefault();
+        setRunning(!state.running);
+      } else if (e.key.toLowerCase() === 'r'){
+        randomFill();
+      } else if (e.key.toLowerCase() === 'c'){
+        clearGrid();
+      } else if (e.key.toLowerCase() === 's'){
+        if (!state.running){
+          step();
+          updateHUD();
+        }
+      }
+    });
+
+    // ===== Init
+    function init(){
+      // set UI defaults
+      speed.value = state.speedMs; speedVal.textContent = state.speedMs;
+      cell.value = state.cellSize; cellVal.textContent = state.cellSize;
+      dens.value = state.density; densVal.textContent = state.density;
+
+      setToggle(wrapToggle, state.wrap);
+      setToggle(gridToggle, state.showGrid);
+      setToggle(autoToggle, state.autoFit);
+      setToggle(paintRunToggle, state.paintWhileRunning);
+
+      colsInp.value = state.manualCols;
+      rowsInp.value = state.manualRows;
+
+      setTool(state.tool);
+      patternSel.value = state.pattern;
+
+      applyRule();
+
+      // initial canvas and grid
+      fitBoardIfNeeded();
+      if (!cols || !rows){
+        initGrid(state.manualCols, state.manualRows, false);
+      }
+      updateBoardInfo();
+      updateHUD();
+
+      // start animation
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener('resize', ()=>{
+      // refit board quickly
+      if (state.autoFit) fitBoardIfNeeded();
+      updateBoardInfo();
+    });
+
+    init();
+  </script>
+</body>
+</html>
