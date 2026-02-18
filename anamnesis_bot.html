@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <title>Anamnesis clínica – Asistente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg-main: #050814;
+      --bg-card: #0c1224;
+      --accent: #ff9900;
+      --accent-soft: rgba(255,153,0,0.14);
+      --text-main: #e5e9f0;
+      --text-soft: #9ca3af;
+      --border-soft: #1f2937;
+      --radius-lg: 14px;
+      --radius-sm: 8px;
+      --shadow-soft: 0 14px 30px rgba(0,0,0,0.45);
+      --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-main);
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 20px auto 40px;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 span.logo {
+      background: var(--accent-soft);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .subtitle {
+      color: var(--text-soft);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .stepper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .step {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.8);
+      border: 1px solid var(--border-soft);
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-soft);
+    }
+
+    .step.active {
+      background: var(--accent-soft);
+      color: var(--text-main);
+      border-color: var(--accent);
+    }
+
+    .step-number {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(15,23,42,0.9);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.8fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: rgba(15,23,42,0.96);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-soft);
+      padding: 14px 16px 16px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      margin: 0 0 8px;
+    }
+
+    .section {
+      margin-bottom: 12px;
+      border-bottom: 1px dashed rgba(148,163,184,0.4);
+      padding-bottom: 10px;
+    }
+
+    .section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+    }
+
+    .field-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 0.88rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      background: #020617;
+      color: var(--text-main);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+      padding: 4px 8px;
+      font-size: 0.88rem;
+    }
+
+    input[type="number"] {
+      width: 80px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      background: #020617;
+      color: var(--text-main);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-soft);
+      padding: 10px;
+      font-size: 0.9rem;
+      resize: vertical;
+      white-space: pre-wrap;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 3px 10px;
+      border: 1px solid var(--border-soft);
+      background: #020617;
+      font-size: 0.8rem;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text-soft);
+    }
+
+    .chip.selected {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--text-main);
+    }
+
+    .buttons-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      justify-content: flex-end;
+    }
+
+    button {
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #111827;
+      font-weight: 600;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--text-main);
+      border-color: var(--border-soft);
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid var(--border-soft);
+      color: var(--text-soft);
+      margin-left: 4px;
+    }
+
+    details {
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid var(--border-soft);
+      padding: 6px 8px 8px;
+      margin-bottom: 6px;
+    }
+
+    details summary {
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.82rem;
+      color: var(--text-soft);
+      font-weight: 500;
+    }
+
+    details[open] summary {
+      color: var(--accent);
+    }
+
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .symptom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+
+    .symptom-table th,
+    .symptom-table td {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 4px 6px;
+      font-size: 0.78rem;
+      vertical-align: top;
+    }
+
+    .symptom-table th {
+      text-align: left;
+      color: var(--text-soft);
+      font-weight: 500;
+    }
+
+    .symptom-table td input,
+    .symptom-table td select,
+    .symptom-table td textarea {
+      background: #020617;
+      border-radius: 6px;
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      padding: 3px 5px;
+      font-size: 0.78rem;
+    }
+
+    .symptom-table td textarea {
+      resize: vertical;
+    }
+
+    .tto-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+
+    .tto-item textarea {
+      width: 100%;
+      min-height: 40px;
+      font-size: 0.85rem;
+    }
+
+    .mini-btn {
+      border-radius: 999px;
+      border: 1px dashed var(--border-soft);
+      background: transparent;
+      color: var(--text-soft);
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+
+    .mini-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .home a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .home a span {
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+
+    .footer {
+      max-width: 1100px;
+      margin: 24px auto 32px;
+      padding: 12px 16px 24px;
+      border-top: 1px solid var(--border-soft);
+      color: var(--text-soft);
+      font-size: 0.78rem;
+    }
+
+    .footer a {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>
+      <span class="logo">🩺</span>
+      Anamnesis_BOT
+    </h1>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+    <div class="subtitle">
+    </div>
+
+    <div class="stepper">
+      <div class="step active" data-step="1">
+        <span class="step-number">1</span> Datos básicos
+      </div>
+      <div class="step" data-step="2">
+        <span class="step-number">2</span> Síntomas y hallazgos
+      </div>
+      <div class="step" data-step="3">
+        <span class="step-number">3</span> Tratamientos y documentos
+      </div>
+      <div class="step" data-step="4">
+        <span class="step-number">4</span> Exploración y DDx
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Columna izquierda: formulario -->
+      <div class="card">
+        <!-- PASO 1: DATOS BÁSICOS -->
+        <div class="form-step" data-step="1">
+          <h2>Datos básicos del paciente</h2>
+
+          <div class="section">
+            <div class="section-title">Identificación</div>
+            <div class="field-row">
+              <label>Nombre:</label>
+              <input type="text" id="nombrePaciente" placeholder="Luna, Toby…">
+            </div>
+            <div class="field-row">
+              <label>Especie:</label>
+              <div class="chips" id="chipEspecie">
+                <div class="chip" data-value="perro">Perro</div>
+                <div class="chip" data-value="gato">Gato</div>
+                <div class="chip" data-value="otro">Otro</div>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Raza:</label>
+              <input type="text" id="razaPaciente" placeholder="Mestizo, Labrador…">
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Edad, sexo y peso</div>
+            <div class="field-row">
+              <label>Edad:</label>
+              <input type="number" id="edadValor" min="0" step="0.1">
+              <select id="edadUnidad">
+                <option value="años">años</option>
+                <option value="meses">meses</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>Sexo / estado:</label>
+              <div class="chips" id="chipSexo">
+                <div class="chip" data-value="macho entero">M entero</div>
+                <div class="chip" data-value="macho castrado">M castrado</div>
+                <div class="chip" data-value="hembra entera">H entera</div>
+                <div class="chip" data-value="hembra esterilizada">H esterilizada</div>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Peso (kg):</label>
+              <input type="number" id="pesoPaciente" min="0" step="0.1">
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2: SÍNTOMAS DETALLADOS -->
+        <div class="form-step" data-step="2" style="display:none">
+          <h2>Síntomas y hallazgos clínicos</h2>
+
+          <div class="section">
+            <div class="section-title">Selección de síntomas por sistemas</div>
+            <div class="hint">
+              Haz clic en los síntomas. Aparecerán en la tabla inferior para definir inicio, duración y comentarios.
+            </div>
+            <div id="symptomGroups">
+              <!-- Alteraciones laboratoriales -->
+              <details open>
+                <summary>Alteraciones laboratoriales</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Hipoalbuminemia">Hipoalbuminemia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Ácidos biliares- incremento">Ácidos biliares- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Acidosis láctica">Acidosis láctica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Acidosis metabólica">Acidosis metabólica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Acidosis metabólica con anión GAP normal">Acidosis metabólica con anión GAP normal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Acidosis respiratoria">Acidosis respiratoria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Alcalosis metabólica">Alcalosis metabólica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Alcalosis respiratoria">Alcalosis respiratoria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="ALT- incremento">ALT- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Amilasa- incremento">Amilasa- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Anión GAP- disminución">Anión GAP- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Anión GAP- incremento">Anión GAP- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="AST- incremento">AST- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Bilirrubina- incremento">Bilirrubina- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Calcio- disminución">Calcio- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Calcio- incremento">Calcio- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Cloro- disminución">Cloro- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Cloro- incremento">Cloro- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Colesterol- disminución">Colesterol- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Colesterol- incremento">Colesterol- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Creatinina- incremento">Creatinina- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Fosfatasa alcalina- incremento">Fosfatasa alcalina- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Fósforo- disminución">Fósforo- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Fósforo- incremento">Fósforo- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Gammapatía monoclonal">Gammapatía monoclonal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Gammapatía policlonal">Gammapatía policlonal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="GGT- incremento">GGT- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Glucosa- disminución">Glucosa- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Glucosa- incremento">Glucosa- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Hipoxemia">Hipoxemia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Magnesio- disminución">Magnesio- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Magnesio- incremento">Magnesio- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Nitrógeno ureico en sangre - disminución">Nitrógeno ureico en sangre - disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Nitrógeno ureico en sangre - incremento">Nitrógeno ureico en sangre - incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Piuria">Piuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Potasio- disminución">Potasio- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Potasio- incremento">Potasio- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Proteínas- disminución">Proteínas- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Proteínas- incremento">Proteínas- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Proteinuria">Proteinuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Sodio- disminución">Sodio- disminución</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Sodio- incremento">Sodio- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="TP- prolongado">TP- prolongado</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="Triglicéridos- incremento">Triglicéridos- incremento</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones laboratoriales" data-label="TTP- prolongado">TTP- prolongado</div>
+                </div>
+              </details>
+
+              <!-- Síntomas cardiorrespiratorios -->
+              <details>
+                <summary>Síntomas cardiorrespiratorios</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Cianosis">Cianosis</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Derrame pericárdico">Derrame pericárdico</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Derrame pleural">Derrame pleural</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Disnea">Disnea</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Distensión vena yugular">Distensión vena yugular</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Edema generalizado">Edema generalizado</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Edema localizado">Edema localizado</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Epistaxis">Epistaxis</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Estornudo invertido">Estornudo invertido</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Estornudos">Estornudos</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Rinorrea unilateral">Rinorrea unilateral</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Rinorrea bilateral">Rinorrea bilateral</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Estridor">Estridor</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Hemoptisis">Hemoptisis</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Hipertensión pulmonar">Hipertensión pulmonar</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Insuficiencia cardiaca">Insuficiencia cardiaca</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Insuficiencia cardiaca congestiva derecha">Insuficiencia cardiaca congestiva derecha</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Insuficiencia cardiaca congestiva izquierda">Insuficiencia cardiaca congestiva izquierda</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Intolerancia al ejercicio">Intolerancia al ejercicio</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Mucosas congestivas">Mucosas congestivas</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Neumotórax">Neumotórax</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Nódulo pulmonar">Nódulo pulmonar</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Palidez de mucosas">Palidez de mucosas</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Parálisis laríngea">Parálisis laríngea</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Patrón pulmonar alveolar">Patrón pulmonar alveolar</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Pulso arterial débil">Pulso arterial débil</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Pulso arterial fuerte">Pulso arterial fuerte</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Rinorrea mucopurulenta">Rinorrea mucopurulenta</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Rinorrea serosa">Rinorrea serosa</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Síncope">Síncope</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Soplo">Soplo</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Soplo continuo">Soplo continuo</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Soplo diastólico">Soplo diastólico</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Soplo sistólico (de eyección)">Soplo sistólico (de eyección)</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Soplo sistólico (regurgitación)">Soplo sistólico (regurgitación)</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Tos">Tos</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Tromboembolismo aorto-ilíaco">Tromboembolismo aorto-ilíaco</div>
+                  <div class="chip chip-sintoma" data-system="signos cardiorrespiratorios" data-label="Tromboembolismo pulmonar">Tromboembolismo pulmonar</div>
+                </div>
+              </details>
+
+              <!-- Dermatología -->
+              <details>
+                <summary>Síntomas dermatológicos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Alopecia difusa focal">Alopecia difusa focal</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Alopecia multifocal">Alopecia multifocal</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Alopecia pruriginosa">Alopecia pruriginosa</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Alopecia simétrica y difusa">Alopecia simétrica y difusa</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Celulitis juvenil">Celulitis juvenil</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Dermatitis acral por lamido">Dermatitis acral por lamido</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Dermatitis húmeda aguda">Dermatitis húmeda aguda</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Dermatitis miliar felina">Dermatitis miliar felina</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Dermatosis erosiva/úlcerativa">Dermatosis erosiva/úlcerativa</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Dermatosis parasitaria">Dermatosis parasitaria</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Descamación / ictiosis">Descamación / ictiosis</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Enfermedad del saco anal">Enfermedad del saco anal</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Eritema interdigital y prurito">Eritema interdigital y prurito</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Hiperpigmentación difusa">Hiperpigmentación difusa</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Hiperpigmentación focal">Hiperpigmentación focal</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Hipopigmentación generalizada">Hipopigmentación generalizada</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Hipopigmentación localizada">Hipopigmentación localizada</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Nódulos cutáneos">Nódulos cutáneos</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Otitis externa">Otitis externa</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Pápulas y pústulas">Pápulas y pústulas</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Pioderma y Malassezia- causas de">Pioderma y Malassezia- causas de</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Prurito">Prurito</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Trastorno de las almohadillas">Trastorno de las almohadillas</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Trastorno de las uñas">Trastorno de las uñas</div>
+                  <div class="chip chip-sintoma" data-system="signos dermatológicos" data-label="Vasculitis cutánea">Vasculitis cutánea</div>
+                </div>
+              </details>
+
+              <!-- Alteraciones ecográficas -->
+              <details>
+                <summary>Alteraciones ecográficas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Cardiopatías congénitas">Cardiopatías congénitas</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Colestasis extrahepática">Colestasis extrahepática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Colestasis intrahepática">Colestasis intrahepática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Corteza renal hiperecogénica">Corteza renal hiperecogénica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Ecogenicidad mixta hepática">Ecogenicidad mixta hepática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Engrosamiento gástrico focal">Engrosamiento gástrico focal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Engrosamiento gástrico generalizado">Engrosamiento gástrico generalizado</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Engrosamiento pared intestino delgado">Engrosamiento pared intestino delgado</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Esplenomegalia difusa">Esplenomegalia difusa</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Esplenomegalia focal">Esplenomegalia focal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Gastropatía isquémica">Gastropatía isquémica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Hepatomegalia">Hepatomegalia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Hepatopatía focal o multifocal">Hepatopatía focal o multifocal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Hidronefrosis">Hidronefrosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Hiperecogenicidad hepática">Hiperecogenicidad hepática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Hipoecogenicidad hepática">Hipoecogenicidad hepática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Lesiones en diana">Lesiones en diana</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Lesiones estructurales">Lesiones estructurales</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Lesiones pancreáticas">Lesiones pancreáticas</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Linfadenopatía- índice esfericidad">Linfadenopatía- índice esfericidad</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Microhepatia">Microhepatia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Nefromegalia">Nefromegalia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Pielectasia">Pielectasia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Reducción del peristaltismo">Reducción del peristaltismo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Shunt portosistémico extrahepático">Shunt portosistémico extrahepático</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Signo de borde medular renal">Signo de borde medular renal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Tromboembolismo aorto-ilíaco">Tromboembolismo aorto-ilíaco</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Trombosis vena esplénica">Trombosis vena esplénica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones ecográficas" data-label="Trombosis vena porta">Trombosis vena porta</div>
+                </div>
+              </details>
+
+              <!-- Hallazgos ECG -->
+              <details>
+                <summary>Hallazgos en el ECG</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Arritmia ventricular (complejos prematuros ventriculares / taquicardia ventricular)">Arritmia ventricular (complejos prematuros ventriculares / taquicardia ventricular)</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Arritmia- diagnóstico">Arritmia- diagnóstico</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Arritmia- etiología">Arritmia- etiología</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Arritmias auriculares">Arritmias auriculares</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bloqueo aurículo-ventricular de primer grado">Bloqueo aurículo-ventricular de primer grado</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bloqueo auriculoventricular de segundo grado">Bloqueo auriculoventricular de segundo grado</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bloqueo auriculoventricular de tercer grado">Bloqueo auriculoventricular de tercer grado</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bloqueo fascicular anterior izquierdo">Bloqueo fascicular anterior izquierdo</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bloqueo rama izquierda del haz de His">Bloqueo rama izquierda del haz de His</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Bradicardia sinusal">Bradicardia sinusal</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Fibrilación auricular">Fibrilación auricular</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Parada auricular">Parada auricular</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Paro sinusal">Paro sinusal</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Síndrome de Wolff-Parkinson-White">Síndrome de Wolff-Parkinson-White</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Síndrome del nódulo sinusal enfermo (Sick Sinus Syndrome)">Síndrome del nódulo sinusal enfermo (Sick Sinus Syndrome)</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Taquicardia sinusal">Taquicardia sinusal</div>
+                  <div class="chip chip-sintoma" data-system="hallazgos en el ECG" data-label="Taquicardia supraventricular">Taquicardia supraventricular</div>
+                </div>
+              </details>
+
+              <!-- Endocrino -->
+              <details>
+                <summary>Signos endocrinos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Diabetes insípida central">Diabetes insípida central</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Diabetes insípida central-nefrogénica">Diabetes insípida central-nefrogénica</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Diabetes insípida nefrogénica">Diabetes insípida nefrogénica</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Diabetes Mellitus- etiología">Diabetes Mellitus- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Hiperadrenocorticismo- etiología">Hiperadrenocorticismo- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Hipertiroidismo- etiología">Hipertiroidismo- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Hipoadrenocorticismo- etiología">Hipoadrenocorticismo- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Hipotiroidismo- etiología">Hipotiroidismo- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Masa adrenal funcional">Masa adrenal funcional</div>
+                  <div class="chip chip-sintoma" data-system="signos endocrinos" data-label="Relación Na/K inferior a 27">Relación Na/K inferior a 27</div>
+                </div>
+              </details>
+
+              <!-- Procesos infecciosos -->
+              <details>
+                <summary>Procesos infecciosos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Actinomicosis felina">Actinomicosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Aspergilosis nasal">Aspergilosis nasal</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Aspergilosis sistémica">Aspergilosis sistémica</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Babesiosis">Babesiosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Bartonelosis felina">Bartonelosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Bordetelosis canina">Bordetelosis canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Bordetelosis felina">Bordetelosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Borreliosis (enfermedad de Lyme)">Borreliosis (enfermedad de Lyme)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Botulismo">Botulismo</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Brucelosis canina">Brucelosis canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Citauxzoonosis">Citauxzoonosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Criptococosis">Criptococosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Dirofilariosis canina">Dirofilariosis canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Dirofilariosis felina">Dirofilariosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Ehrlichiosis">Ehrlichiosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Endocarditis infecciosa">Endocarditis infecciosa</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Enfermedad felina del tracto respiratorio superior">Enfermedad felina del tracto respiratorio superior</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Enteritis vírica canina">Enteritis vírica canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Estafilococosis">Estafilococosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Estreptococosis">Estreptococosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="FeLV (Virus de la Leucemia Felina)">FeLV (Virus de la Leucemia Felina)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Fiebre de las Montañas Rocosas">Fiebre de las Montañas Rocosas</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Fiebre Q">Fiebre Q</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="FIV (Inmunodeficiencia felina)">FIV (Inmunodeficiencia felina)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Giardiasis">Giardiasis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Gripe Canina- H3N8">Gripe Canina- H3N8</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Hepatitis infecciosa canina">Hepatitis infecciosa canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Hepatozoonosis">Hepatozoonosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Herpesvirus canino">Herpesvirus canino</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Leishmaniosis">Leishmaniosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Leptospirosis">Leptospirosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Micobacteriosis">Micobacteriosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Micosis sistémica">Micosis sistémica</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Moquillo">Moquillo</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Mycoplasma haemofelis (Hemobartonelosis)">Mycoplasma haemofelis (Hemobartonelosis)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Neosporosis">Neosporosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Nocardiosis felina">Nocardiosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Panleucopenia felina (FPV)">Panleucopenia felina (FPV)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Parvovirus canino">Parvovirus canino</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Peste felina">Peste felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="PIF (Peritonitis infecciosa felina)">PIF (Peritonitis infecciosa felina)</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Pseudomonas">Pseudomonas</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Rabia">Rabia</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Salmonelosis">Salmonelosis</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Septicemia">Septicemia</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Tétanos">Tétanos</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Toxoplasmosis canina">Toxoplasmosis canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Toxoplasmosis felina">Toxoplasmosis felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Tularemia">Tularemia</div>
+                  <div class="chip chip-sintoma" data-system="procesos infecciosos" data-label="Virus del Nilo Occidental">Virus del Nilo Occidental</div>
+                </div>
+              </details>
+
+              <!-- Síntomas digestivos y generales (GI) -->
+              <details>
+                <summary>Signos digestivos y generales (GI)</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Abdomen agudo">Abdomen agudo</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Alteración faríngea">Alteración faríngea</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Anorexia">Anorexia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Ascitis (Transudado o Exudado)">Ascitis (Transudado o Exudado)</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Colitis">Colitis</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Coprofagia y pica">Coprofagia y pica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea aguda">Diarrea aguda</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea bacteriana">Diarrea bacteriana</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea hemorrágica">Diarrea hemorrágica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea- crónica">Diarrea- crónica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea- intestino delgado">Diarrea- intestino delgado</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Diarrea- intestino grueso">Diarrea- intestino grueso</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Disfagia">Disfagia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Distensión abdominal">Distensión abdominal</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enfermedad de las glándulas salivales">Enfermedad de las glándulas salivales</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enfermedad gástrica">Enfermedad gástrica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enfermedades intestinales">Enfermedades intestinales</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enteritis aguda">Enteritis aguda</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enteritis crónica">Enteritis crónica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Enteropatía perdedora de proteínas">Enteropatía perdedora de proteínas</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Estreñimiento">Estreñimiento</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Flatulencia">Flatulencia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Gastritis aguda">Gastritis aguda</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Gastritis crónica">Gastritis crónica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Gastroenteritis hemorrágica">Gastroenteritis hemorrágica</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Halitosis">Halitosis</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Hematemesis">Hematemesis</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Hematoquecia">Hematoquecia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Hepatomegalia (GI)">Hepatomegalia (GI)</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Hernia de hiato">Hernia de hiato</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Ictericia">Ictericia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Íleo">Íleo</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Incontinencia fecal">Incontinencia fecal</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Insuficiencia hepática">Insuficiencia hepática</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Lesiones orales">Lesiones orales</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Megaesófago">Megaesófago</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Melena">Melena</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Microhepatia">Microhepatia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Náuseas">Náuseas</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Obstrucción del flujo gástrico">Obstrucción del flujo gástrico</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Obstrucción intestinal">Obstrucción intestinal</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Pancreatitis- gato">Pancreatitis- gato</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Pancreatitis- perro">Pancreatitis- perro</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Ptialismo / Hipersalivación">Ptialismo / Hipersalivación</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Regurgitación">Regurgitación</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Tenesmo / Disquecia">Tenesmo / Disquecia</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Trastorno esofágico">Trastorno esofágico</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Ulceración gastrointestinal">Ulceración gastrointestinal</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos">Vómitos</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos agudos (&lt; 7 días)">Vómitos agudos (&lt; 7 días)</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos crónicos (&gt; 7 días)">Vómitos crónicos (&gt; 7 días)</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos hemorrágicos">Vómitos hemorrágicos</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos- causas GI">Vómitos- causas GI</div>
+                  <div class="chip chip-sintoma" data-system="signos digestivos y generales" data-label="Vómitos- causas no GI">Vómitos- causas no GI</div>
+                </div>
+              </details>
+
+              <!-- Hematología -->
+              <details>
+                <summary>Alteraciones hematológicas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Alteración de la hemostasia primaria">Alteración de la hemostasia primaria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Alteración de la hemostasia secundaria">Alteración de la hemostasia secundaria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia hemolítica">Anemia hemolítica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia macrocítica">Anemia macrocítica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia microcítica">Anemia microcítica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia no regenerativa">Anemia no regenerativa</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia regenerativa">Anemia regenerativa</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Anemia- general">Anemia- general</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Aplasia eritrocitaria pura">Aplasia eritrocitaria pura</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Basofilia">Basofilia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Coagulación intravascular diseminada">Coagulación intravascular diseminada</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Eosinofilia">Eosinofilia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Esplenomegalia difusa">Esplenomegalia difusa</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Esplenomegalia focal">Esplenomegalia focal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Linfocitosis">Linfocitosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Linfopenia">Linfopenia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Monocitosis">Monocitosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Neutrofilia">Neutrofilia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Neutropenia">Neutropenia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Pancitopenia">Pancitopenia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Petequias / Equimosis">Petequias / Equimosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Policitemia">Policitemia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Trombocitopenia">Trombocitopenia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones hematológicas" data-label="Trombocitosis">Trombocitosis</div>
+                </div>
+              </details>
+
+              <!-- Nefrología -->
+              <details>
+                <summary>Alteraciones nefrológicas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Anuria / Oliguria">Anuria / Oliguria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Azotemia">Azotemia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Enfermedad felina del tracto urinario inferior">Enfermedad felina del tracto urinario inferior</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Enfermedad prostática">Enfermedad prostática</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Glucosuria">Glucosuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Hematuria">Hematuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Hidronefrosis">Hidronefrosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Hipostenuria">Hipostenuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Incontinencia urinaria">Incontinencia urinaria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Incontinencia/incapacidad para vaciar la vejiga">Incontinencia/incapacidad para vaciar la vejiga</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Infecciones renales">Infecciones renales</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Insuficiencia renal">Insuficiencia renal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Insuficiencia renal aguda">Insuficiencia renal aguda</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Insuficiencia renal crónica">Insuficiencia renal crónica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Nefromegalia">Nefromegalia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Nefropatía perdedora de proteínas">Nefropatía perdedora de proteínas</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Nefropatía por endocrinopatía">Nefropatía por endocrinopatía</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Periuria">Periuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Pigmenturia y hematuria">Pigmenturia y hematuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Polaquiuria/Disuria">Polaquiuria/Disuria</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Polidipsia (&gt;100 ml de agua/kg/día)">Polidipsia (&gt;100 ml de agua/kg/día)</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones nefrológicas" data-label="Síndrome nefrótico">Síndrome nefrótico</div>
+                </div>
+              </details>
+
+              <!-- Neurología -->
+              <details>
+                <summary>Alteraciones neurológicas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Alteración del estado mental">Alteración del estado mental</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Ataxia">Ataxia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Ataxia y debilidad de miembros posteriores">Ataxia y debilidad de miembros posteriores</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Cerebelo">Cerebelo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Coma">Coma</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Comportamiento agresivo">Comportamiento agresivo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Convulsiones">Convulsiones</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Diencéfalo">Diencéfalo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Dolor de cuello y columna">Dolor de cuello y columna</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Estrabismo">Estrabismo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Mesencéfalo">Mesencéfalo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Miastenia gravis">Miastenia gravis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Midriasis">Midriasis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Miosis">Miosis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Neuropatías">Neuropatías</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Nistagmo">Nistagmo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Parálisis facial">Parálisis facial</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Paraparesia">Paraparesia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Paresia/parálisis espinal">Paresia/parálisis espinal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Síndrome de Horner">Síndrome de Horner</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Síndrome de Schiff-Sherrington">Síndrome de Schiff-Sherrington</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Síndrome vestibular central">Síndrome vestibular central</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Síndrome vestibular periférico">Síndrome vestibular periférico</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Sordera">Sordera</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Telencéfalo">Telencéfalo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Temblores">Temblores</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Tetraparesia">Tetraparesia</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Tronco encefálico y mielencéfalo">Tronco encefálico y mielencéfalo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones neurológicas" data-label="Ventroflexión cervical- gato">Ventroflexión cervical- gato</div>
+                </div>
+              </details>
+
+              <!-- Oftalmología -->
+              <details>
+                <summary>Alteraciones oftalmológicas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Anisocoria- midriasis unilateral">Anisocoria- midriasis unilateral</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Anisocoria- miosis unilateral">Anisocoria- miosis unilateral</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Atrofia del iris">Atrofia del iris</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Blefaritis">Blefaritis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Cataratas">Cataratas</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Ceguera">Ceguera</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Conjuntivitis">Conjuntivitis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Coriorretinitis">Coriorretinitis</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Epífora">Epífora</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Glaucoma">Glaucoma</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Hemorragia retiniana">Hemorragia retiniana</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Hifema">Hifema</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Hipopion">Hipopion</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Neuritis óptica">Neuritis óptica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Ojo rojo">Ojo rojo</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Protrusión del tercer párpado">Protrusión del tercer párpado</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Secreción ocular">Secreción ocular</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Ulceración corneal">Ulceración corneal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones oftalmológicas" data-label="Uveítis">Uveítis</div>
+                </div>
+              </details>
+
+              <!-- Oncología -->
+              <details>
+                <summary>Procesos oncológicos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Linfoma">Linfoma</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Mesotelioma">Mesotelioma</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Metástasis ósea">Metástasis ósea</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia cardiaca">Neoplasia cardiaca</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia cerebral">Neoplasia cerebral</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia cutánea">Neoplasia cutánea</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de colon- gatos">Neoplasia de colon- gatos</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de colon- perros">Neoplasia de colon- perros</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de la cavidad nasal y del plano nasal">Neoplasia de la cavidad nasal y del plano nasal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de la glándula adrenal">Neoplasia de la glándula adrenal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de la médula espinal">Neoplasia de la médula espinal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia de la pared torácica">Neoplasia de la pared torácica</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia del intestino delgado">Neoplasia del intestino delgado</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia del oído">Neoplasia del oído</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia del timo">Neoplasia del timo</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia esofágica">Neoplasia esofágica</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia esplénica">Neoplasia esplénica</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia gástrica">Neoplasia gástrica</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia hemolinfática">Neoplasia hemolinfática</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia hepática">Neoplasia hepática</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia intraocular">Neoplasia intraocular</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia mamaria canina">Neoplasia mamaria canina</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia mamaria felina">Neoplasia mamaria felina</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia oral">Neoplasia oral</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia ósea">Neoplasia ósea</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia ovárica">Neoplasia ovárica</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia pancreática exocrina">Neoplasia pancreática exocrina</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia perianal">Neoplasia perianal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia prostática">Neoplasia prostática</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia pulmonar">Neoplasia pulmonar</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia renal">Neoplasia renal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia testicular">Neoplasia testicular</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia tiroidea">Neoplasia tiroidea</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia traqueal">Neoplasia traqueal</div>
+                  <div class="chip chip-sintoma" data-system="procesos oncológicos" data-label="Neoplasia vaginal">Neoplasia vaginal</div>
+                </div>
+              </details>
+
+              <!-- Radiología torácica -->
+              <details>
+                <summary>Alteraciones radiológicas torácicas</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento cardiaco generalizado">Agrandamiento cardiaco generalizado</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de arterias y venas pulmonares">Agrandamiento de arterias y venas pulmonares</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de aurícula y ventrículo derechos">Agrandamiento de aurícula y ventrículo derechos</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de aurícula y ventrículo izquierdos">Agrandamiento de aurícula y ventrículo izquierdos</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de la aurícula derecha">Agrandamiento de la aurícula derecha</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de la aurícula izquierda">Agrandamiento de la aurícula izquierda</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de las arterias pulmonares">Agrandamiento de las arterias pulmonares</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Agrandamiento de las venas pulmonares">Agrandamiento de las venas pulmonares</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Bronconeumonía bacteriana">Bronconeumonía bacteriana</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Derrame pleural (exudado)">Derrame pleural (exudado)</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Derrame pleural (transudado puro o modificado)">Derrame pleural (transudado puro o modificado)</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Disminución de calibre de arterias y venas pulmonares">Disminución de calibre de arterias y venas pulmonares</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Disnea con radiografía de tórax normal">Disnea con radiografía de tórax normal</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Edema pulmonar">Edema pulmonar</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Enfermedad mediastínica">Enfermedad mediastínica</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Hemotórax">Hemotórax</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Masa mediastínica anterior">Masa mediastínica anterior</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Patrón alveolar">Patrón alveolar</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Patrón intersticial nodular">Patrón intersticial nodular</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Patrón intersticial reticular">Patrón intersticial reticular</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Quilotórax">Quilotórax</div>
+                  <div class="chip chip-sintoma" data-system="alteraciones radiológicas torácicas" data-label="Tos con radiografía de tórax normal">Tos con radiografía de tórax normal</div>
+                </div>
+              </details>
+
+              <!-- Síntomas generales sistémicos -->
+              <details>
+                <summary>Síntomas generales sistémicos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Aumento de peso">Aumento de peso</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Derrame cavidades">Derrame cavidades</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Dolor difuso">Dolor difuso</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Fiebre">Fiebre</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Hipertensión sistémica">Hipertensión sistémica</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Hipotensión">Hipotensión</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Hipotermia">Hipotermia</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Incapacidad para incorporarse">Incapacidad para incorporarse</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Linfadenomegalia generalizada">Linfadenomegalia generalizada</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Obesidad">Obesidad</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Pérdida de peso">Pérdida de peso</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Polifagia">Polifagia</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Poliuria/Polidipsia (PU/PD)">Poliuria/Polidipsia (PU/PD)</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Reacciones de hipersensibilidad">Reacciones de hipersensibilidad</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Retraso crecimiento">Retraso crecimiento</div>
+                  <div class="chip chip-sintoma" data-system="signos generales sistémicos" data-label="Vocalización nocturna">Vocalización nocturna</div>
+                </div>
+              </details>
+
+              <!-- Teriogenología -->
+              <details>
+                <summary>Signos de teriogenología</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Aborto">Aborto</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Anestro">Anestro</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Descarga prepucial">Descarga prepucial</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Distocia">Distocia</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Estro prolongado">Estro prolongado</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Infertilidad en hembras">Infertilidad en hembras</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Infertilidad en machos">Infertilidad en machos</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Mortalidad neonatal">Mortalidad neonatal</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Secreción peneana">Secreción peneana</div>
+                  <div class="chip chip-sintoma" data-system="signos de teriogenología" data-label="Secreción vaginal">Secreción vaginal</div>
+                </div>
+              </details>
+
+              <!-- Traumatología -->
+              <details>
+                <summary>Signos traumatológicos</summary>
+                <div class="chips">
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Cojera de miembro anterior">Cojera de miembro anterior</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Cojera de miembros posteriores">Cojera de miembros posteriores</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Cojera de múltiples extremidades">Cojera de múltiples extremidades</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Cojera- etiología">Cojera- etiología</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Dolor articular">Dolor articular</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Inflamación articular">Inflamación articular</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Miopatía">Miopatía</div>
+                  <div class="chip chip-sintoma" data-system="signos traumatológicos" data-label="Poliartritis">Poliartritis</div>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Detalle de cada síntoma seleccionado</div>
+            <table class="symptom-table">
+              <thead>
+                <tr>
+                  <th>Sistema</th>
+                  <th>Síntoma</th>
+                  <th>Inicio</th>
+                  <th>Duración</th>
+                  <th>Notas</th>
+                </tr>
+              </thead>
+              <tbody id="tablaSintomas">
+                <tr>
+                  <td colspan="5" style="font-size:0.78rem; color:#9ca3af;">
+                    No se han seleccionado síntomas todavía.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="hint">
+              Puedes indicar inicio (agudo, crónico, etc.), duración aproximada y comentarios para cada síntoma.
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 3: TRATAMIENTOS, ANTECEDENTES Y DOCUMENTOS -->
+        <div class="form-step" data-step="3" style="display:none">
+          <h2>Tratamientos previos, antecedentes y documentos</h2>
+
+          <div class="section">
+            <div class="section-title">Tratamientos previos/actuales</div>
+            <div class="chips" id="chipTto">
+              <div class="chip" data-value="AINE">AINE</div>
+              <div class="chip" data-value="corticoides">Corticoides</div>
+              <div class="chip" data-value="antibiótico">Antibiótico</div>
+              <div class="chip" data-value="diurético (ej. furosemida)">Diurético</div>
+              <div class="chip" data-value="IECA">IECA</div>
+              <div class="chip" data-value="broncodilatador">Broncodilatador</div>
+              <div class="chip" data-value="antiepiléptico">Antiepiléptico</div>
+            </div>
+            <div class="field-row">
+              <label>Respuesta global al tratamiento:</label>
+              <select id="respuestaTto">
+                <option value="">– seleccionar –</option>
+                <option value="buena">Buena</option>
+                <option value="parcial">Parcial</option>
+                <option value="nula">Nula</option>
+                <option value="dudosa">Dudosa</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>Tratamientos descritos (texto libre):</label>
+            </div>
+            <div id="listaTratamientos" class="tto-list">
+              <div class="tto-item">
+                <textarea class="tto-extra" rows="2" placeholder="Ej.: Prednisona 0,5 mg/kg/12 h desde hace 7 días; respuesta parcial."></textarea>
+              </div>
+            </div>
+            <button type="button" class="mini-btn" id="btnAgregarTratamiento">+ Añadir otro tratamiento</button>
+            <div class="hint">
+              Puedes dejar en blanco las líneas que no uses.
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Antecedentes</div>
+            <div class="field-row">
+              <label>Vacunación:</label>
+              <select id="vacunacion">
+                <option value="">No especificado</option>
+                <option value="completa">Completa</option>
+                <option value="incompleta">Incompleta</option>
+                <option value="desconocida">Desconocida</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>Desparasitación:</label>
+              <select id="desparasitacion">
+                <option value="">No especificado</option>
+                <option value="al día">Al día</option>
+                <option value="irregular">Irregular</option>
+                <option value="desconocida">Desconocida</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>Antecedentes relevantes:</label>
+              <input type="text" id="antecedentes" placeholder="Cardiopatía previa, IRC, cirugía…">
+            </div>
+            <div class="field-row">
+              <label>Entorno / estilo de vida:</label>
+              <input type="text" id="entorno" placeholder="Vive en piso, sale con correa, contacto con otros animales…">
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Documentos aportados por el propietario</div>
+            <div class="chips" id="chipDocs">
+              <div class="chip" data-value="radiografías de tórax">Rx tórax</div>
+              <div class="chip" data-value="radiografías de abdomen">Rx abdomen</div>
+              <div class="chip" data-value="análisis de sangre">Análisis de sangre</div>
+              <div class="chip" data-value="ecografía de abdomen">Ecografía de abdomen</div>
+              <div class="chip" data-value="TAC">TAC</div>
+              <div class="chip" data-value="RMN">RMN</div>
+              <div class="chip" data-value="ECG">ECG</div>
+            </div>
+            <div class="field-row">
+              <label>Resumen / comentarios:</label>
+            </div>
+            <textarea id="docsResumen" rows="3" placeholder="Resumen de pruebas aportadas, fechas, centro de realización, calidad, etc."></textarea>
+          </div>
+        </div>
+
+        <!-- PASO 4: EXPLORACIÓN FÍSICA Y DDx -->
+        <div class="form-step" data-step="4" style="display:none">
+          <h2>Exploración física y diagnósticos diferenciales</h2>
+
+          <div class="section">
+            <div class="section-title">Exploración física</div>
+
+            <div class="field-row">
+              <label>Estado general:</label>
+              <input type="text" id="estadoGeneral" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Auscultación respiratoria:</label>
+              <input type="text" id="auscResp" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Auscultación cardíaca:</label>
+              <select id="auscCardiaca">
+                <option value="normal">Normal</option>
+                <option value="taquicardia sin soplo audible">Taquicardia</option>
+                <option value="bradicardia sin soplo audible">Bradicardia</option>
+                <option value="soplo mitral">Soplo mitral</option>
+                <option value="soplo de eyección">Soplo de eyección</option>
+                <option value="soplo pulmonar">Soplo pulmonar</option>
+                <option value="soplo aórtico">Soplo aórtico</option>
+                <option value="soplo tricuspídeo">Soplo tricuspídeo</option>
+              </select>
+              <select id="soploGrado">
+                <option value="">Grado …</option>
+                <option value="I">I</option>
+                <option value="II">II</option>
+                <option value="III">III</option>
+                <option value="IV">IV</option>
+                <option value="V">V</option>
+                <option value="VI">VI</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label>Notas auscultación cardíaca:</label>
+              <input type="text" id="auscCardiacaNotas" placeholder="P.ej. foco apex izquierdo, holosistólico…">
+            </div>
+
+            <div class="field-row">
+              <label>Pulso femoral:</label>
+              <select id="pulsoFemoral">
+                <option value="fuerte y síncrono con los latidos cardíacos">Fuerte y síncrono con los latidos cardíacos</option>
+                <option value="débil">Débil</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label>Frecuencia cardíaca:</label>
+              <select id="freqCardiaca">
+                <option value="normal">Normal</option>
+                <option value="bradicardia">Bradicardia</option>
+                <option value="taquicardia">Taquicardia</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label>Presión arterial sistémica (mmHg):</label>
+              <input type="text" id="presionArterial" placeholder="Ej.: 160/95 (media 120)">
+            </div>
+
+            <div class="field-row">
+              <label>Temperatura corporal:</label>
+              <select id="temperatura">
+                <option value="normal">Normal</option>
+                <option value="hipotermia">Hipotermia</option>
+                <option value="hipertermia">Hipertermia</option>
+              </select>
+              <input type="text" id="temperaturaNotas" placeholder="P.ej. 38,2 ºC">
+            </div>
+
+            <div class="field-row">
+              <label>Examen de la piel y pelaje:</label>
+              <input type="text" id="pielPelaje" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Ojos y membranas mucosas:</label>
+              <input type="text" id="ojosMucosas" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Hidratación:</label>
+              <select id="hidratacion">
+                <option value="normal">Normal</option>
+                <option value="deshidratación leve">Deshidratación leve</option>
+                <option value="deshidratación moderada">Deshidratación moderada</option>
+                <option value="deshidratación grave">Deshidratación grave</option>
+              </select>
+              <input type="text" id="hidratacionNotas" placeholder="P.ej. pliegue cutáneo, mucosas…">
+            </div>
+
+            <div class="field-row">
+              <label>Oídos:</label>
+              <input type="text" id="oidos" value="normales">
+            </div>
+
+            <div class="field-row">
+              <label>Cavidad oral:</label>
+              <input type="text" id="cavidadOral" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Nódulos linfáticos:</label>
+              <input type="text" id="nodulosLinfaticos" value="normales">
+            </div>
+
+            <div class="field-row">
+              <label>Abdomen y palpación abdominal:</label>
+              <input type="text" id="abdomen" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Movimiento y marcha:</label>
+              <input type="text" id="marcha" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Sistema musculoesquelético:</label>
+              <input type="text" id="musculoesqueletico" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Examen neurológico:</label>
+              <input type="text" id="neurologico" value="normal">
+            </div>
+
+            <div class="field-row">
+              <label>Condición corporal:</label>
+              <select id="condicionCorporal">
+                <option value="1/9">1/9</option>
+                <option value="2/9">2/9</option>
+                <option value="3/9">3/9</option>
+                <option value="4/9">4/9</option>
+                <option value="5/9" selected>5/9</option>
+                <option value="6/9">6/9</option>
+                <option value="7/9">7/9</option>
+                <option value="8/9">8/9</option>
+                <option value="9/9">9/9</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Diagnósticos diferenciales</div>
+            <textarea id="diagnosticosDiferenciales" rows="4" placeholder="Lista de diagnósticos diferenciales principales, uno por línea si lo deseas."></textarea>
+          </div>
+        </div>
+
+        <div class="buttons-row">
+          <button class="secondary" id="btnPrev">&larr; Anterior</button>
+          <button class="secondary" id="btnNext">Siguiente &rarr;</button>
+          <button id="btnGenerar">Generar resumen</button>
+        </div>
+        <div class="hint">
+          Puedes generar el resumen en cualquier momento, seguir modificando los campos y volver a generarlo.
+        </div>
+      </div>
+
+      <!-- Columna derecha: resumen -->
+      <div class="card">
+        <h2>Resumen de anamnesis <span class="badge">Auto-generado</span></h2>
+        <textarea id="resumen" placeholder="Cada dato aparecerá en una línea independiente."></textarea>
+        <div class="buttons-row">
+          <button class="secondary" id="btnLimpiar">Limpiar todo</button>
+          <button id="btnCopiar">Copiar al portapapeles</button>
+        </div>
+        <div class="hint">
+          Revisa el texto y ajusta matices clínicos si es necesario antes de guardarlo de forma definitiva.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+  </footer>
+
+  <script>
+    // --- Gestión de pasos ---
+    const steps = document.querySelectorAll('.step');
+    const formSteps = document.querySelectorAll('.form-step');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    let currentStep = 1;
+
+    function showStep(step) {
+      currentStep = step;
+      formSteps.forEach(fs => {
+        fs.style.display = (parseInt(fs.dataset.step, 10) === step) ? 'block' : 'none';
+      });
+      steps.forEach(s => {
+        s.classList.toggle('active', parseInt(s.dataset.step, 10) === step);
+      });
+      btnPrev.disabled = (step === 1);
+      btnNext.disabled = (step === formSteps.length);
+    }
+
+    steps.forEach(s => {
+      s.addEventListener('click', () => {
+        const step = parseInt(s.dataset.step, 10);
+        showStep(step);
+      });
+    });
+
+    btnPrev.addEventListener('click', () => {
+      if (currentStep > 1) showStep(currentStep - 1);
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (currentStep < formSteps.length) showStep(currentStep + 1);
+    });
+
+    // --- Chips seleccionables simples ---
+    function initChipGroup(containerId, single = false) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        if (single) {
+          container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+        } else {
+          chip.classList.toggle('selected');
+        }
+      });
+    }
+
+    initChipGroup('chipEspecie', true);
+    initChipGroup('chipSexo', true);
+    initChipGroup('chipTto', false);
+    initChipGroup('chipDocs', false);
+
+    function getSelectedChips(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('.chip.selected'))
+                  .map(c => c.dataset.value || c.textContent.trim());
+    }
+
+    function getSingleChipValue(containerId) {
+      const vals = getSelectedChips(containerId);
+      return vals.length ? vals[0] : "";
+    }
+
+    // --- Síntomas detallados ---
+    let symptomDetails = {}; // key -> { system, label, inicio, durVal, durUnidad, notas }
+
+    function renderSymptomTable() {
+      const tbody = document.getElementById('tablaSintomas');
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      const entries = Object.values(symptomDetails);
+      if (!entries.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.textContent = "No se han seleccionado síntomas todavía.";
+        td.style.fontSize = "0.78rem";
+        td.style.color = "#9ca3af";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+      entries.forEach(sym => {
+        const key = sym.system + "||" + sym.label;
+        const tr = document.createElement('tr');
+        tr.dataset.key = key;
+        tr.innerHTML = `
+          <td>${sym.system}</td>
+          <td>${sym.label}</td>
+          <td>
+            <select class="sym-inicio">
+              <option value="">–</option>
+              <option value="agudo">Agudo</option>
+              <option value="subagudo">Subagudo</option>
+              <option value="crónico">Crónico</option>
+              <option value="recurrente">Recurrente</option>
+            </select>
+          </td>
+          <td>
+            <div style="display:flex; gap:4px;">
+              <input type="number" min="0" class="sym-dur-val" style="width:55px;">
+              <select class="sym-dur-unit">
+                <option value="horas">h</option>
+                <option value="días">días</option>
+                <option value="semanas">semanas</option>
+                <option value="meses">meses</option>
+              </select>
+            </div>
+          </td>
+          <td>
+            <textarea class="sym-notas" rows="2" placeholder="Comentarios adicionales…"></textarea>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        const inicioSel = tr.querySelector('.sym-inicio');
+        const durValInput = tr.querySelector('.sym-dur-val');
+        const durUnitSel = tr.querySelector('.sym-dur-unit');
+        const notasArea = tr.querySelector('.sym-notas');
+        inicioSel.value = sym.inicio || "";
+        durValInput.value = sym.durVal || "";
+        durUnitSel.value = sym.durUnidad || "días";
+        notasArea.value = sym.notas || "";
+      });
+    }
+
+    const symptomGroups = document.getElementById('symptomGroups');
+    if (symptomGroups) {
+      symptomGroups.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip-sintoma');
+        if (!chip) return;
+        const system = chip.dataset.system || "";
+        const label = chip.dataset.label || chip.textContent.trim();
+        const key = system + "||" + label;
+        if (chip.classList.contains('selected')) {
+          chip.classList.remove('selected');
+          delete symptomDetails[key];
+        } else {
+          chip.classList.add('selected');
+          if (!symptomDetails[key]) {
+            symptomDetails[key] = {
+              system,
+              label,
+              inicio: "",
+              durVal: "",
+              durUnidad: "días",
+              notas: ""
+            };
+          }
+        }
+        renderSymptomTable();
+      });
+    }
+
+    const tablaSintomas = document.getElementById('tablaSintomas');
+    if (tablaSintomas) {
+      const syncSymptomFromRow = (tr) => {
+        const key = tr.dataset.key;
+        if (!key || !symptomDetails[key]) return;
+        const sym = symptomDetails[key];
+        sym.inicio = tr.querySelector('.sym-inicio')?.value || "";
+        sym.durVal = tr.querySelector('.sym-dur-val')?.value || "";
+        sym.durUnidad = tr.querySelector('.sym-dur-unit')?.value || "días";
+        sym.notas = tr.querySelector('.sym-notas')?.value || "";
+      };
+
+      tablaSintomas.addEventListener('input', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        syncSymptomFromRow(tr);
+      });
+      tablaSintomas.addEventListener('change', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        syncSymptomFromRow(tr);
+      });
+    }
+
+    // --- Tratamientos extra ---
+    const listaTratamientos = document.getElementById('listaTratamientos');
+    const btnAgregarTratamiento = document.getElementById('btnAgregarTratamiento');
+    if (btnAgregarTratamiento && listaTratamientos) {
+      btnAgregarTratamiento.addEventListener('click', () => {
+        const div = document.createElement('div');
+        div.className = 'tto-item';
+        div.innerHTML = `<textarea class="tto-extra" rows="2" placeholder="Otro tratamiento (nombre, dosis, duración, respuesta)…"></textarea>`;
+        listaTratamientos.appendChild(div);
+      });
+    }
+
+    // --- Exploración física: soplo grado ---
+    const auscCardSel = document.getElementById('auscCardiaca');
+    const soploGradoSel = document.getElementById('soploGrado');
+    function updateSoploGradoState() {
+      if (!auscCardSel || !soploGradoSel) return;
+      const val = auscCardSel.value || "";
+      const esSoplo = val.startsWith("soplo");
+      soploGradoSel.disabled = !esSoplo;
+    }
+    if (auscCardSel && soploGradoSel) {
+      auscCardSel.addEventListener('change', updateSoploGradoState);
+    }
+
+    function setExploracionDefaults() {
+      const estadoGeneral = document.getElementById('estadoGeneral');
+      if (estadoGeneral) estadoGeneral.value = "normal";
+
+      const auscResp = document.getElementById('auscResp');
+      if (auscResp) auscResp.value = "normal";
+
+      if (auscCardSel) auscCardSel.value = "normal";
+      if (soploGradoSel) soploGradoSel.value = "";
+
+      const pulsoFemoral = document.getElementById('pulsoFemoral');
+      if (pulsoFemoral) pulsoFemoral.value = "fuerte y síncrono con los latidos cardíacos";
+
+      const freqCardiaca = document.getElementById('freqCardiaca');
+      if (freqCardiaca) freqCardiaca.value = "normal";
+
+      const temperatura = document.getElementById('temperatura');
+      if (temperatura) temperatura.value = "normal";
+      const temperaturaNotas = document.getElementById('temperaturaNotas');
+      if (temperaturaNotas) temperaturaNotas.value = "";
+
+      const pielPelaje = document.getElementById('pielPelaje');
+      if (pielPelaje) pielPelaje.value = "normal";
+
+      const ojosMucosas = document.getElementById('ojosMucosas');
+      if (ojosMucosas) ojosMucosas.value = "normal";
+
+      const hidratacion = document.getElementById('hidratacion');
+      if (hidratacion) hidratacion.value = "normal";
+      const hidratacionNotas = document.getElementById('hidratacionNotas');
+      if (hidratacionNotas) hidratacionNotas.value = "";
+
+      const oidos = document.getElementById('oidos');
+      if (oidos) oidos.value = "normales";
+
+      const cavidadOral = document.getElementById('cavidadOral');
+      if (cavidadOral) cavidadOral.value = "normal";
+
+      const nodulosLinfaticos = document.getElementById('nodulosLinfaticos');
+      if (nodulosLinfaticos) nodulosLinfaticos.value = "normales";
+
+      const abdomen = document.getElementById('abdomen');
+      if (abdomen) abdomen.value = "normal";
+
+      const marcha = document.getElementById('marcha');
+      if (marcha) marcha.value = "normal";
+
+      const musculoesqueletico = document.getElementById('musculoesqueletico');
+      if (musculoesqueletico) musculoesqueletico.value = "normal";
+
+      const neurologico = document.getElementById('neurologico');
+      if (neurologico) neurologico.value = "normal";
+
+      const condicionCorporal = document.getElementById('condicionCorporal');
+      if (condicionCorporal) condicionCorporal.value = "5/9";
+
+      const presionArterial = document.getElementById('presionArterial');
+      if (presionArterial) presionArterial.value = "";
+
+      updateSoploGradoState();
+    }
+
+    // --- Generar resumen ---
+    function generarResumen() {
+      const nombre = document.getElementById('nombrePaciente').value.trim();
+      const especie = getSingleChipValue('chipEspecie');
+      const raza = document.getElementById('razaPaciente').value.trim();
+      const edadVal = document.getElementById('edadValor').value;
+      const edadUnidad = document.getElementById('edadUnidad').value;
+      const sexo = getSingleChipValue('chipSexo');
+      const peso = document.getElementById('pesoPaciente').value;
+
+      const ttos = getSelectedChips('chipTto');
+      const respTto = document.getElementById('respuestaTto').value;
+      const vacunacion = document.getElementById('vacunacion').value;
+      const desparasitacion = document.getElementById('desparasitacion').value;
+      const antecedentes = document.getElementById('antecedentes').value.trim();
+      const entorno = document.getElementById('entorno').value.trim();
+
+      const docs = getSelectedChips('chipDocs');
+      const docsResumen = document.getElementById('docsResumen').value.trim();
+
+      const extraTtos = Array.from(document.querySelectorAll('.tto-extra'))
+                              .map(t => t.value.trim())
+                              .filter(v => v.length > 0);
+
+      const lineas = [];
+
+      const addExamLine = (label, value) => {
+        if (!value) return;
+        const v = value.trim();
+        if (!v) return;
+        lineas.push(label + ": " + v);
+      };
+
+      // Presentación
+      let linea1 = "Paciente";
+      if (especie) linea1 += " " + especie;
+      if (raza) linea1 += " " + raza;
+      if (sexo) linea1 += ", " + sexo;
+      if (edadVal) linea1 += " de " + edadVal + " " + edadUnidad;
+      if (peso) linea1 += ", " + peso + " kg";
+      if (nombre) linea1 += ", llamado/a " + nombre;
+      linea1 += ".";
+      lineas.push(linea1);
+
+      // Síntomas detallados (cada síntoma en una línea)
+      const sintomasEntries = Object.values(symptomDetails);
+      if (sintomasEntries.length) {
+        sintomasEntries.sort((a, b) => {
+          const sa = (a.system || "").localeCompare(b.system || "");
+          if (sa !== 0) return sa;
+          return a.label.localeCompare(b.label);
+        });
+        sintomasEntries.forEach(sym => {
+          const extras = [];
+          if (sym.inicio) extras.push("inicio " + sym.inicio);
+          if (sym.durVal) extras.push("duración aproximada " + sym.durVal + " " + (sym.durUnidad || ""));
+          if (sym.notas) extras.push(sym.notas);
+          let linea = "";
+          if (sym.system) linea += sym.system + ": ";
+          linea += sym.label;
+          if (extras.length) linea += " (" + extras.join("; ") + ")";
+          lineas.push(linea);
+        });
+      }
+
+      // Tratamientos previos
+      if (ttos.length || extraTtos.length || respTto) {
+        const partes = [];
+        if (ttos.length) {
+          if (ttos.length === 1) {
+            partes.push(ttos[0]);
+          } else {
+            const tUlt = ttos.slice(-1)[0];
+            const tRest = ttos.slice(0, -1);
+            partes.push(tRest.join(", ") + " y " + tUlt);
+          }
+        }
+        if (extraTtos.length) {
+          partes.push("otros tratamientos descritos por el propietario: " + extraTtos.join(" | "));
+        }
+        let lineaTto = "Tratamientos previos/actuales: " + (partes.length ? partes.join("; ") : "no especificados");
+        if (respTto) {
+          lineaTto += " (respuesta " + respTto + ")";
+        }
+        lineaTto += ".";
+        lineas.push(lineaTto);
+      }
+
+      // Antecedentes
+      const partesAnt = [];
+      if (vacunacion) partesAnt.push("vacunación " + vacunacion);
+      if (desparasitacion) partesAnt.push("desparasitación " + desparasitacion);
+      if (antecedentes) partesAnt.push("antecedentes relevantes: " + antecedentes);
+      if (entorno) partesAnt.push("entorno: " + entorno);
+      if (partesAnt.length) {
+        let lineaAnt = "Antecedentes: " + partesAnt.join("; ") + ".";
+        lineas.push(lineaAnt);
+      }
+
+      // Documentos aportados
+      if (docs.length || docsResumen) {
+        if (docs.length) {
+          lineas.push("Documentos aportados por el propietario: " + docs.join(", ") + ".");
+        }
+        if (docsResumen) {
+          lineas.push("Comentarios sobre las pruebas aportadas: " + docsResumen + ".");
+        }
+      }
+
+      // Exploración física (cada dato en una línea, solo si tiene valor)
+      const estadoGeneralVal = document.getElementById('estadoGeneral')?.value.trim();
+      addExamLine("Estado general", estadoGeneralVal);
+
+      const auscRespVal = document.getElementById('auscResp')?.value.trim();
+      addExamLine("Auscultación respiratoria", auscRespVal);
+
+      const auscCardVal = document.getElementById('auscCardiaca')?.value || "";
+      const soploGradVal = document.getElementById('soploGrado')?.value || "";
+      const auscCardNotas = document.getElementById('auscCardiacaNotas')?.value.trim();
+      let auscCardTxt = "";
+      if (auscCardVal) auscCardTxt += auscCardVal;
+      if (auscCardVal.startsWith("soplo") && soploGradVal) {
+        auscCardTxt += " grado " + soploGradVal + "/VI";
+      }
+      if (auscCardNotas) {
+        auscCardTxt += (auscCardTxt ? " (" + auscCardNotas + ")" : auscCardNotas);
+      }
+      addExamLine("Auscultación cardíaca", auscCardTxt);
+
+      const pulsoFemoralVal = document.getElementById('pulsoFemoral')?.value;
+      addExamLine("Pulso femoral", pulsoFemoralVal);
+
+      const freqCardVal = document.getElementById('freqCardiaca')?.value;
+      addExamLine("Frecuencia cardíaca", freqCardVal);
+
+      const presionVal = document.getElementById('presionArterial')?.value.trim();
+      addExamLine("Presión arterial sistémica (mmHg)", presionVal);
+
+      const tempVal = document.getElementById('temperatura')?.value;
+      const tempNotas = document.getElementById('temperaturaNotas')?.value.trim();
+      let tempTxt = "";
+      if (tempVal) tempTxt += tempVal;
+      if (tempNotas) tempTxt += (tempTxt ? " (" + tempNotas + ")" : tempNotas);
+      addExamLine("Temperatura corporal", tempTxt);
+
+      const pielPelajeVal = document.getElementById('pielPelaje')?.value.trim();
+      addExamLine("Piel y pelaje", pielPelajeVal);
+
+      const ojosMucVal = document.getElementById('ojosMucosas')?.value.trim();
+      addExamLine("Ojos y membranas mucosas", ojosMucVal);
+
+      const hidraVal = document.getElementById('hidratacion')?.value;
+      const hidraNotas = document.getElementById('hidratacionNotas')?.value.trim();
+      let hidraTxt = "";
+      if (hidraVal) hidraTxt += hidraVal;
+      if (hidraNotas) hidraTxt += (hidraTxt ? " (" + hidraNotas + ")" : hidraNotas);
+      addExamLine("Estado de hidratación", hidraTxt);
+
+      const oidosVal = document.getElementById('oidos')?.value.trim();
+      addExamLine("Oídos", oidosVal);
+
+      const cavidadOralVal = document.getElementById('cavidadOral')?.value.trim();
+      addExamLine("Cavidad oral", cavidadOralVal);
+
+      const nodulosVal = document.getElementById('nodulosLinfaticos')?.value.trim();
+      addExamLine("Nódulos linfáticos", nodulosVal);
+
+      const abdomenVal = document.getElementById('abdomen')?.value.trim();
+      addExamLine("Abdomen y palpación abdominal", abdomenVal);
+
+      const marchaVal = document.getElementById('marcha')?.value.trim();
+      addExamLine("Movimiento y marcha", marchaVal);
+
+      const muscVal = document.getElementById('musculoesqueletico')?.value.trim();
+      addExamLine("Sistema musculoesquelético", muscVal);
+
+      const neuroVal = document.getElementById('neurologico')?.value.trim();
+      addExamLine("Examen neurológico", neuroVal);
+
+      const bcsVal = document.getElementById('condicionCorporal')?.value;
+      addExamLine("Condición corporal", bcsVal);
+
+      // Diagnósticos diferenciales: cada dato en su línea
+      const ddxRaw = document.getElementById('diagnosticosDiferenciales')?.value || "";
+      const ddxTrim = ddxRaw.trim();
+      if (ddxTrim) {
+        const ddxLines = ddxTrim.split(/\n+/).map(l => l.trim()).filter(l => l.length > 0);
+        if (ddxLines.length === 1) {
+          lineas.push("Diagnósticos diferenciales: " + ddxLines[0]);
+        } else {
+          lineas.push("Diagnósticos diferenciales:");
+          ddxLines.forEach(l => lineas.push("- " + l));
+        }
+      }
+
+      document.getElementById('resumen').value = lineas.join("\n");
+    }
+
+    document.getElementById('btnGenerar').addEventListener('click', generarResumen);
+
+    // Limpiar todo
+    document.getElementById('btnLimpiar').addEventListener('click', () => {
+      document.querySelectorAll('input[type="text"], input[type="number"]').forEach(i => i.value = "");
+      document.querySelectorAll('select').forEach(s => s.value = "");
+      document.querySelectorAll('.chip.selected').forEach(c => c.classList.remove('selected'));
+      const docsResumen = document.getElementById('docsResumen');
+      if (docsResumen) docsResumen.value = "";
+      const ddxArea = document.getElementById('diagnosticosDiferenciales');
+      if (ddxArea) ddxArea.value = "";
+
+      if (listaTratamientos) {
+        const items = listaTratamientos.querySelectorAll('.tto-item');
+        items.forEach((it, idx) => {
+          const ta = it.querySelector('.tto-extra');
+          if (idx === 0) {
+            if (ta) ta.value = "";
+          } else {
+            it.remove();
+          }
+        });
+      }
+
+      symptomDetails = {};
+      renderSymptomTable();
+      setExploracionDefaults();
+      document.getElementById('resumen').value = "";
+      showStep(1);
+    });
+
+    // Copiar al portapapeles
+    document.getElementById('btnCopiar').addEventListener('click', async () => {
+      const texto = document.getElementById('resumen').value;
+      if (!texto.trim()) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(texto);
+          alert("Resumen copiado al portapapeles.");
+        } catch (e) {
+          alert("No se pudo copiar automáticamente. Selecciona el texto y copia manualmente.");
+        }
+      } else {
+        alert("Tu navegador no permite copia automática. Selecciona el texto y copia manualmente.");
+      }
+    });
+
+    // Inicialización
+    showStep(1);
+    renderSymptomTable();
+    setExploracionDefaults();
+  </script>
+</body>
+</html>
