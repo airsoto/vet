@@ -1,17 +1,19 @@
-<!doctype html>
+
+
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Buscador 23-F (JSON en GitHub) + visor PDF</title>
+  <script defer src="goat.js"></script>
 
-  <!-- PDF.js (CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+  <!-- ✅ PDF.js LEGACY (expone window.pdfjsLib) -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
 
   <style>
     :root{
-      --bg:#0b0f14; --panel:#111826; --card:#0f1724;
-      --text:#e9eef6; --muted:#a7b3c7; --accent:#ff9900;
+      --bg:#0b0f14; --text:#e9eef6; --muted:#a7b3c7; --accent:#ff9900;
       --line:rgba(255,255,255,.10); --shadow: 0 10px 26px rgba(0,0,0,.38);
       --r:18px; --tap:44px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -19,39 +21,21 @@
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background: radial-gradient(1200px 700px at 10% 0%, rgba(255,153,0,.10), transparent 60%),
                   radial-gradient(900px 600px at 90% 20%, rgba(39,209,127,.10), transparent 60%),
                   var(--bg);
       color:var(--text);
     }
-    .app{
-      height:100%;
-      display:grid;
-      grid-template-columns: 430px 1fr;
-      gap:14px;
-      padding:14px;
-    }
-    .left, .right{
+    .app{height:100%;display:grid;grid-template-columns: 430px 1fr;gap:14px;padding:14px}
+    .left,.right{
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      border:1px solid var(--line);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      min-height:0;
+      border:1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);
+      overflow:hidden; min-height:0;
     }
-    .header{
-      padding:14px 14px 10px 14px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .title{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
-    .title h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.2px}
+    .header{padding:14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+    .title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .title h1{margin:0;font-size:15px;font-weight:800}
     .badge{
       font-size:12px;color:var(--muted);
       border:1px solid var(--line); padding:4px 8px; border-radius:999px;
@@ -81,14 +65,10 @@
       padding:0 12px;
       cursor:pointer;
     }
-    button.primary{
-      border-color: rgba(255,153,0,.45);
-      background: rgba(255,153,0,.12);
-    }
+    button.primary{border-color: rgba(255,153,0,.45);background: rgba(255,153,0,.12)}
     button:hover{filter:brightness(1.08)}
     button:disabled{opacity:.55;cursor:not-allowed;filter:none}
-    .hint{font-size:12px;color:var(--muted);line-height:1.35}
-    .list{height:100%;display:flex;flex-direction:column;min-height:0}
+    .hint{font-size:12px;color:var(--muted);line-height:1.35;white-space:pre-wrap}
     .results{overflow:auto;padding:12px;min-height:0}
     .card{
       background: rgba(0,0,0,.22);
@@ -112,7 +92,6 @@
     .card .actions{display:flex;gap:8px;flex-wrap:wrap}
     .card .actions button{height:36px;border-radius:10px;font-size:12px}
 
-    /* Right panel */
     .viewer-head{
       padding:12px 14px;border-bottom:1px solid var(--line);
       display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;
@@ -135,44 +114,26 @@
     .viewer-controls .box span{font-size:12px;color:var(--muted)}
     .viewer-body{height: calc(100% - 62px);display:grid;grid-template-columns: 1fr 320px;min-height:0}
     .pdfwrap{position:relative;overflow:auto;padding:14px;min-height:0}
-    .page{
-      position:relative;margin:0 auto 14px auto;width: fit-content;
-      border-radius:14px;overflow:hidden;border:1px solid var(--line);background: rgba(0,0,0,.20);
-    }
+    .page{position:relative;margin:0 auto 14px auto;width: fit-content;border-radius:14px;overflow:hidden;border:1px solid var(--line);background: rgba(0,0,0,.20)}
     canvas{display:block}
-    .textLayer{
-      position:absolute;inset:0;opacity:0.00;transform-origin:0 0;pointer-events:none;
-    }
-    .textLayer span{position:absolute;white-space:pre;transform-origin:0 0;color:#fff}
-    .textLayer span.hit{background: rgba(255,153,0,.35);border-radius:3px;opacity:1}
-
+    .textLayer{position:absolute;inset:0;opacity:0.00;pointer-events:none}
+    .textLayer span{position:absolute;white-space:pre;color:#fff;transform-origin:0 0}
+    .textLayer span.hit{background: rgba(255,153,0,.35);border-radius:3px}
     .side{border-left:1px solid var(--line);min-height:0;display:flex;flex-direction:column}
     .side .sidehead{padding:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
     .side .sidebody{overflow:auto;padding:12px;min-height:0}
-    .small{font-size:12px;color:var(--muted);line-height:1.35}
     .kpi{display:flex;gap:10px;flex-wrap:wrap}
-    .kpi .pill{
-      font-size:12px;border:1px solid var(--line);background: rgba(255,255,255,.02);
-      border-radius:999px;padding:6px 10px;color:var(--muted);
-    }
+    .kpi .pill{font-size:12px;border:1px solid var(--line);background: rgba(255,255,255,.02);border-radius:999px;padding:6px 10px;color:var(--muted)}
     .pill b{color:var(--text)}
     .matches{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-    .match{
-      border:1px solid var(--line);background: rgba(0,0,0,.20);border-radius:12px;
-      padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;
-    }
+    .match{border:1px solid var(--line);background: rgba(0,0,0,.20);border-radius:12px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
     .match .mleft{display:flex;flex-direction:column;gap:2px;min-width:0}
-    .match .mleft .mtitle{font-size:12px;font-weight:700;margin:0;line-height:1.25;color:var(--text)}
-    .match .mleft .msub{
-      font-size:12px;color:var(--muted);
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px
-    }
+    .match .mleft .mtitle{font-size:12px;font-weight:700;margin:0;line-height:1.25}
+    .match .mleft .msub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
     .match button{height:34px;border-radius:10px;font-size:12px;white-space:nowrap}
-    .progress{
-      height:10px;border:1px solid var(--line);border-radius:999px;overflow:hidden;background: rgba(0,0,0,.25);
-    }
-    .progress > div{height:100%;width:0%;background: rgba(255,153,0,.6);transition: width .18s ease}
-    @media (max-width: 1100px){
+    .progress{height:10px;border:1px solid var(--line);border-radius:999px;overflow:hidden;background: rgba(0,0,0,.25)}
+    .progress>div{height:100%;width:0%;background: rgba(255,153,0,.6);transition: width .18s ease}
+    @media (max-width:1100px){
       .app{grid-template-columns:1fr}
       .viewer-body{grid-template-columns:1fr}
       .side{border-left:none;border-top:1px solid var(--line)}
@@ -182,8 +143,7 @@
 
 <body>
   <div class="app">
-    <!-- LEFT -->
-    <div class="left list">
+    <div class="left">
       <div class="header">
         <div class="title">
           <h1>Buscador (metadatos + contenido PDF)</h1>
@@ -192,27 +152,24 @@
 
         <div class="field">
           <label>Buscar por metadatos (filename / title / owner_chain)</label>
-          <input id="qMeta" type="text" placeholder="Ej: Tejero, CNI, 'Campaña', 1981, Carpeta..." />
+          <input id="qMeta" type="text" placeholder="Ej: Tejero, CNI, Campaña, 1981..." />
         </div>
 
         <div class="row">
           <div class="field">
-            <label>Ministerio (owner_chain[0])</label>
+            <label>Ministerio</label>
             <select id="fMin"><option value="">Todos</option></select>
           </div>
           <div class="field">
-            <label>Suborganismo (owner_chain[1])</label>
+            <label>Suborganismo</label>
             <select id="fSub"><option value="">Todos</option></select>
           </div>
         </div>
 
         <div class="field">
-          <label>Buscar DENTRO del texto de PDFs (requiere indexar)</label>
-          <input id="qPdf" type="text" placeholder="Ej: milans, golpe, cesid, congreso..." />
-          <div class="hint">
-            Para buscar dentro del contenido, la web tiene que <b>descargar y extraer texto</b> de los PDFs.
-            Se guarda en caché (IndexedDB) para no repetirlo.
-          </div>
+          <label>Buscar dentro del texto de PDFs (requiere indexar)</label>
+          <input id="qPdf" type="text" placeholder="Ej: milans, golpe, cesid..." />
+          <div class="hint">Primero pulsa “Indexar…”. Se guarda en caché (IndexedDB).</div>
         </div>
 
         <div class="btns">
@@ -222,14 +179,13 @@
           <button id="btnReset">Reset</button>
         </div>
 
-        <div class="progress" title="Progreso de indexación"><div id="bar"></div></div>
+        <div class="progress"><div id="bar"></div></div>
         <div class="hint" id="status">Listo.</div>
       </div>
 
       <div class="results" id="results"></div>
     </div>
 
-    <!-- RIGHT -->
     <div class="right">
       <div class="viewer-head">
         <div class="leftgroup">
@@ -255,9 +211,9 @@
       </div>
 
       <div class="viewer-body">
-        <div class="pdfwrap" id="pdfwrap">
-          <div class="hint" style="padding:10px 0 0 0; color: var(--muted)">
-            Visor PDF (PDF.js). Si un PDF falla por CORS, sirve la web con GitHub Pages (no como archivo local).
+        <div class="pdfwrap">
+          <div class="hint" style="padding:10px 0 0 0">
+            Si no carga un PDF puede ser CORS. Esto debe correr desde GitHub Pages (no file://).
           </div>
           <div id="pageHost"></div>
         </div>
@@ -277,12 +233,10 @@
               <div class="pill"><b id="hitCount">0</b> coincidencias</div>
               <div class="pill">pág. <b id="hitPage">—</b></div>
             </div>
-            <div class="hint">
-              Esto funciona <b>sin indexar</b> (solo el PDF abierto). Para búsqueda global entre documentos usa “Indexar…”.
-            </div>
+            <div class="hint">Global: escribe arriba en “Buscar dentro…” (solo docs indexados).</div>
           </div>
           <div class="sidebody">
-            <div class="small">Resultados de búsqueda global (contenido PDF) en documentos indexados:</div>
+            <div class="hint">Resultados globales (contenido indexado):</div>
             <div class="matches" id="globalMatches"></div>
           </div>
         </div>
@@ -291,24 +245,19 @@
   </div>
 
 <script>
-/* =========================================================
-   JSON en GitHub Pages
-   =========================================================
-   Si tu web está en GitHub Pages, y el JSON está en:
-     json/23f.json
-   entonces esta ruta relativa funciona:
-*/
-const DOCS_JSON_URL = "./json/23f.json"; // <-- CAMBIADO para tu caso
+/* =========================
+   1) CONFIG JSON (GitHub Pages)
+   ========================= */
+// ✅ Ruta robusta: funciona aunque tu página sea /repo/23f.html o /repo/sub/23f.html
+const DOCS_JSON_URL = new URL("json/23f.json", window.location.href).toString();
 
 /* =========================
    Helpers
    ========================= */
 const normalize = (s) => (s || "")
-  .toString()
-  .toLowerCase()
+  .toString().toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/\s+/g, " ")
-  .trim();
+  .replace(/\s+/g, " ").trim();
 
 const uniq = (arr) => Array.from(new Set(arr));
 const el = (id) => document.getElementById(id);
@@ -317,18 +266,26 @@ function setStatus(msg){ el("status").textContent = msg; }
 function setBar(p){ el("bar").style.width = `${Math.max(0, Math.min(100, p))}%`; }
 function escapeHtml(s){
   return (s || "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
     .replaceAll('"',"&quot;");
 }
 
 /* =========================
-   IndexedDB (cache índice)
+   2) PDF.js worker (legacy)
+   ========================= */
+if (!window.pdfjsLib){
+  setStatus("ERROR: PDF.js no cargó. Revisa bloqueadores / CSP.");
+} else {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js";
+}
+
+/* =========================
+   3) IndexedDB
    ========================= */
 const DB_NAME = "docs23f_index";
 const DB_VER  = 1;
-const STORE   = "pdftext"; // key=url, value={ url, pages:{ "1":"...", ... }, updatedAt }
+const STORE   = "pdftext";
 
 function idbOpen(){
   return new Promise((resolve, reject) => {
@@ -343,7 +300,6 @@ function idbOpen(){
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbGet(url){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -354,7 +310,6 @@ async function idbGet(url){
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbPut(record){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -365,7 +320,6 @@ async function idbPut(record){
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbClear(){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -376,7 +330,6 @@ async function idbClear(){
     req.onerror = () => reject(req.error);
   });
 }
-
 async function idbCount(){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -389,31 +342,32 @@ async function idbCount(){
 }
 
 /* =========================
-   Load docs + filters
+   4) Load docs
    ========================= */
 let DOCS = [];
 let filtered = [];
 let currentDoc = null;
 
 async function loadDocs(){
-  if (!DOCS_JSON_URL){
-    throw new Error("DOCS_JSON_URL vacío. Pon ./json/23f.json");
+  setStatus(`Cargando JSON...\n${DOCS_JSON_URL}`);
+
+  const r = await fetch(DOCS_JSON_URL, { cache: "no-store" });
+  if (!r.ok){
+    throw new Error(`JSON no cargó: HTTP ${r.status} ${r.statusText}\nURL: ${DOCS_JSON_URL}`);
   }
 
-  // Importante: en GitHub Pages esto debe estar servido por HTTP (no file://)
-  const r = await fetch(DOCS_JSON_URL, { cache: "no-store" });
-  if (!r.ok) throw new Error(`No se pudo cargar ${DOCS_JSON_URL} (HTTP ${r.status})`);
   const j = await r.json();
 
-  // Soporta:
-  //  - archivo como ARRAY: [...]
-  //  - archivo como OBJETO: {items:[...], ...}
-  DOCS = Array.isArray(j) ? j : (j.items || []);
-  DOCS = (DOCS || []).filter(d => d && d.url);
+  // Soporta: array [...] o {items:[...]}
+  const arr = Array.isArray(j) ? j : (j.items || null);
+  if (!arr || !Array.isArray(arr)){
+    throw new Error("Formato JSON no válido: debe ser [...] o {items:[...]}");
+  }
 
+  DOCS = arr.filter(d => d && d.url);
   el("countBadge").textContent = `${DOCS.length} docs`;
 
-  // Fill filter options
+  // filtros
   const mins = uniq(DOCS.map(d => (d.owner_chain && d.owner_chain[0]) ? d.owner_chain[0] : "—")).sort();
   const fMin = el("fMin");
   fMin.innerHTML = `<option value="">Todos</option>`;
@@ -426,6 +380,9 @@ async function loadDocs(){
 
   refreshSubFilter();
   await applyFilters();
+
+  const c = await idbCount();
+  setStatus(`Listo.\nDocs: ${DOCS.length}\nÍndice en caché: ${c}`);
 }
 
 function refreshSubFilter(){
@@ -451,7 +408,6 @@ function docMatchesMeta(d, q){
   const hay = normalize(`${d.filename||""} ${d.title||""} ${(d.owner_chain||[]).join(" ")}`);
   return hay.includes(q);
 }
-
 function docMatchesFilters(d){
   const min = el("fMin").value;
   const sub = el("fSub").value;
@@ -501,7 +457,7 @@ function renderResults(list){
 
     card.querySelector('[data-open="1"]').onclick = () => openDoc(d);
     card.querySelector('[data-copy="1"]').onclick = async () => {
-      try { await navigator.clipboard.writeText(d.url); setStatus("URL copiada al portapapeles."); }
+      try { await navigator.clipboard.writeText(d.url); setStatus("URL copiada."); }
       catch { setStatus("No se pudo copiar (permiso del navegador)."); }
     };
 
@@ -510,20 +466,22 @@ function renderResults(list){
 }
 
 /* =========================
-   PDF.js viewer
+   5) PDF Viewer
    ========================= */
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
-
 let pdfDoc = null;
 let pageNum = 1;
 let scale = 1.0;
+
 let openSearchHits = [];
 let openHitIndex = -1;
 
 const pageHost = el("pageHost");
 
 async function openDoc(d){
+  if (!window.pdfjsLib){
+    setStatus("PDF.js no está disponible (bloqueo de script/CDN).");
+    return;
+  }
   currentDoc = d;
   el("vName").textContent = d.title || d.filename || "Documento";
   el("vUrl").textContent = d.url || "—";
@@ -534,18 +492,16 @@ async function openDoc(d){
 
   try{
     pdfDoc = await pdfjsLib.getDocument({ url: d.url, withCredentials:false }).promise;
-    pageNum = 1;
-    el("pageNum").value = 1;
+    pageNum = 1; el("pageNum").value = 1;
     el("pageCount").textContent = `/ ${pdfDoc.numPages}`;
-    scale = 1.0;
-    el("zoomLabel").textContent = "100%";
+    scale = 1.0; el("zoomLabel").textContent = "100%";
 
     clearOpenHits();
     await renderPage(pageNum);
     setStatus("PDF cargado.");
   }catch(err){
     console.error(err);
-    setStatus("Error cargando PDF. Puede ser CORS o un PDF problemático.");
+    setStatus("Error cargando PDF (posible CORS o PDF dañado).");
   }
 }
 
@@ -576,20 +532,18 @@ async function renderPage(num){
 
   await page.render({ canvasContext: ctx, viewport }).promise;
 
-  const textContent = await page.getTextContent();
+  const tc = await page.getTextContent();
   const frag = document.createDocumentFragment();
-
-  for (const item of textContent.items){
+  for (const item of tc.items){
     const span = document.createElement("span");
     span.textContent = item.str;
 
     const tx = pdfjsLib.Util.transform(
       pdfjsLib.Util.transform(viewport.transform, item.transform),
-      [1, 0, 0, -1, 0, 0]
+      [1,0,0,-1,0,0]
     );
 
-    const x = tx[4];
-    const y = tx[5];
+    const x = tx[4], y = tx[5];
     const fontHeight = Math.hypot(tx[2], tx[3]);
 
     span.style.left = x + "px";
@@ -600,8 +554,8 @@ async function renderPage(num){
 
     frag.appendChild(span);
   }
-
   textLayerDiv.appendChild(frag);
+
   highlightOpenSearchOnCurrentPage();
 }
 
@@ -610,39 +564,15 @@ function clampPage(n){
   return Math.max(1, Math.min(pdfDoc.numPages, n));
 }
 
-/* Viewer controls */
-el("prevPage").onclick = async () => {
-  if (!pdfDoc) return;
-  pageNum = clampPage(pageNum - 1);
-  el("pageNum").value = pageNum;
-  await renderPage(pageNum);
-};
-el("nextPage").onclick = async () => {
-  if (!pdfDoc) return;
-  pageNum = clampPage(pageNum + 1);
-  el("pageNum").value = pageNum;
-  await renderPage(pageNum);
-};
-el("pageNum").addEventListener("change", async () => {
-  if (!pdfDoc) return;
-  pageNum = clampPage(parseInt(el("pageNum").value || "1", 10));
-  el("pageNum").value = pageNum;
-  await renderPage(pageNum);
-});
-el("zoomIn").onclick = async () => {
-  if (!pdfDoc) return;
-  scale = Math.min(2.5, scale + 0.15);
-  el("zoomLabel").textContent = Math.round(scale * 100) + "%";
-  await renderPage(pageNum);
-};
-el("zoomOut").onclick = async () => {
-  if (!pdfDoc) return;
-  scale = Math.max(0.5, scale - 0.15);
-  el("zoomLabel").textContent = Math.round(scale * 100) + "%";
-  await renderPage(pageNum);
-};
+el("prevPage").onclick = async () => { if(!pdfDoc) return; pageNum=clampPage(pageNum-1); el("pageNum").value=pageNum; await renderPage(pageNum); };
+el("nextPage").onclick = async () => { if(!pdfDoc) return; pageNum=clampPage(pageNum+1); el("pageNum").value=pageNum; await renderPage(pageNum); };
+el("pageNum").addEventListener("change", async () => { if(!pdfDoc) return; pageNum=clampPage(parseInt(el("pageNum").value||"1",10)); el("pageNum").value=pageNum; await renderPage(pageNum); });
+el("zoomIn").onclick = async () => { if(!pdfDoc) return; scale=Math.min(2.5,scale+0.15); el("zoomLabel").textContent=Math.round(scale*100)+"%"; await renderPage(pageNum); };
+el("zoomOut").onclick = async () => { if(!pdfDoc) return; scale=Math.max(0.5,scale-0.15); el("zoomLabel").textContent=Math.round(scale*100)+"%"; await renderPage(pageNum); };
 
-/* Search within opened PDF */
+/* =========================
+   6) Search within opened PDF
+   ========================= */
 function clearOpenHits(){
   openSearchHits = [];
   openHitIndex = -1;
@@ -654,23 +584,6 @@ el("clearHits").onclick = () => clearOpenHits();
 el("qOpen").addEventListener("keydown", (e) => { if (e.key === "Enter") findNext(true); });
 el("findNext").onclick = () => findNext(false);
 el("findPrev").onclick = () => findPrev(false);
-
-async function findNext(restart){
-  const q = normalize(el("qOpen").value);
-  if (!pdfDoc || !q){ setStatus("Abre un PDF y escribe un término."); return; }
-  if (restart || openSearchHits.length === 0 || openSearchHits.query !== q) await buildOpenSearchHits(q);
-  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
-  openHitIndex = (openHitIndex + 1) % openSearchHits.length;
-  await gotoHit(openSearchHits[openHitIndex]);
-}
-async function findPrev(restart){
-  const q = normalize(el("qOpen").value);
-  if (!pdfDoc || !q){ setStatus("Abre un PDF y escribe un término."); return; }
-  if (restart || openSearchHits.length === 0 || openSearchHits.query !== q) await buildOpenSearchHits(q);
-  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
-  openHitIndex = openHitIndex - 1; if (openHitIndex < 0) openHitIndex = openSearchHits.length - 1;
-  await gotoHit(openSearchHits[openHitIndex]);
-}
 
 async function buildOpenSearchHits(q){
   setStatus("Buscando dentro del PDF abierto…");
@@ -709,8 +622,25 @@ function highlightOpenSearchOnCurrentPage(){
   });
 }
 
+async function findNext(restart){
+  const q = normalize(el("qOpen").value);
+  if (!pdfDoc || !q){ setStatus("Abre un PDF y escribe un término."); return; }
+  if (restart || openSearchHits.length === 0 || openSearchHits.query !== q) await buildOpenSearchHits(q);
+  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
+  openHitIndex = (openHitIndex + 1) % openSearchHits.length;
+  await gotoHit(openSearchHits[openHitIndex]);
+}
+async function findPrev(restart){
+  const q = normalize(el("qOpen").value);
+  if (!pdfDoc || !q){ setStatus("Abre un PDF y escribe un término."); return; }
+  if (restart || openSearchHits.length === 0 || openSearchHits.query !== q) await buildOpenSearchHits(q);
+  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
+  openHitIndex = openHitIndex - 1; if (openHitIndex < 0) openHitIndex = openSearchHits.length - 1;
+  await gotoHit(openSearchHits[openHitIndex]);
+}
+
 /* =========================
-   Indexación global
+   7) Indexación global
    ========================= */
 async function extractPdfTextByPage(url){
   const pdf = await pdfjsLib.getDocument({ url }).promise;
@@ -741,15 +671,15 @@ async function indexDocs(list){
         const rec = await extractPdfTextByPage(d.url);
         await idbPut(rec);
       }
-    }catch(err){
-      console.warn("Fallo indexando:", d.url, err);
+    }catch(e){
+      console.warn("Fallo indexando:", d.url, e);
     }
     done++;
-    setBar((done / total) * 100);
+    setBar((done/total)*100);
     setStatus(`Indexando… ${done}/${total}`);
   }
 
-  setStatus(`Indexación terminada. (Caché: ${await idbCount()} docs)`);
+  setStatus(`Indexación terminada.\nCaché: ${await idbCount()} docs`);
   setBar(100);
 
   el("btnIndexAll").disabled = false;
@@ -767,7 +697,6 @@ el("btnClearIndex").onclick = async () => {
   el("globalMatches").innerHTML = "";
   setBar(0);
 };
-
 el("btnReset").onclick = async () => {
   el("qMeta").value = "";
   el("qPdf").value = "";
@@ -784,7 +713,7 @@ async function runGlobalContentSearch(){
   host.innerHTML = "";
 
   if (!q){
-    host.innerHTML = `<div class="hint">Escribe un término arriba para buscar dentro del contenido (solo en PDFs indexados).</div>`;
+    host.innerHTML = `<div class="hint">Escribe un término para buscar dentro del contenido (solo docs indexados).</div>`;
     return;
   }
 
@@ -803,14 +732,14 @@ async function runGlobalContentSearch(){
   }
 
   if (!hits.length){
-    host.innerHTML = `<div class="hint">No hay coincidencias en documentos indexados (o no hay índice todavía).</div>`;
+    host.innerHTML = `<div class="hint">Sin coincidencias en docs indexados (o aún no hay índice).</div>`;
     return;
   }
 
-  for (const h of hits.slice(0, 200)){
+  for (const h of hits.slice(0,200)){
     const div = document.createElement("div");
     div.className = "match";
-    const pagesTxt = h.pages.slice(0, 12).join(", ") + (h.pages.length > 12 ? "…" : "");
+    const pagesTxt = h.pages.slice(0,12).join(", ") + (h.pages.length>12 ? "…" : "");
     div.innerHTML = `
       <div class="mleft">
         <p class="mtitle">${escapeHtml(h.doc.title || h.doc.filename)}</p>
@@ -832,38 +761,32 @@ async function runGlobalContentSearch(){
 }
 
 /* =========================
-   Events
+   Events filtros/búsqueda
    ========================= */
 el("qMeta").addEventListener("input", () => applyFilters());
 el("qPdf").addEventListener("input", () => runGlobalContentSearch());
-
-el("fMin").addEventListener("change", async () => {
-  refreshSubFilter();
-  await applyFilters();
-});
+el("fMin").addEventListener("change", async () => { refreshSubFilter(); await applyFilters(); });
 el("fSub").addEventListener("change", () => applyFilters());
 
 /* =========================
    INIT
    ========================= */
-(async function init(){
+window.addEventListener("load", async () => {
   try{
-    setStatus("Cargando documentos desde ./json/23f.json …");
+    if (location.protocol === "file:"){
+      setStatus("ERROR: Estás abriendo con file://\nAbre desde GitHub Pages (https://...).");
+      return;
+    }
+    if (!window.pdfjsLib){
+      setStatus("ERROR: No se cargó PDF.js.\n¿AdBlock/CSP? Prueba otro navegador o desactiva bloqueadores.");
+      return;
+    }
     await loadDocs();
-    const c = await idbCount();
-    setStatus(`Listo. Índice en caché: ${c} documentos.`);
-    setBar(0);
   }catch(err){
     console.error(err);
-    setStatus(
-      "Error cargando el JSON. Revisa:\n" +
-      "1) que exista ./json/23f.json\n" +
-      "2) que estés abriendo la web vía GitHub Pages (no file://)\n" +
-      "3) que el JSON sea un array [...] o un objeto {items:[...]}\n" +
-      `Detalle: ${err.message}`
-    );
+    setStatus(`ERROR cargando JSON.\n${err.message}`);
   }
-})();
+});
 </script>
 </body>
 </html>
