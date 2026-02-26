@@ -6,7 +6,7 @@
   <title>Buscador 23-F documentos desclasificados</title>
   <script defer src="goat.js"></script>
 
-  <!-- ✅ PDF.js LEGACY (expone window.pdfjsLib) -->
+  <!-- PDF.js legacy -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
 
   <style>
@@ -146,7 +146,6 @@
         <div class="title">
           <h1>Buscador 23-F documentos desclasificados</h1>
           <div class="badge" id="countBadge">0 docs</div>
-
           <a href="https://www.lamoncloa.gob.es/consejodeministros/paginas/desclasificacion-documentos-23f.aspx"
              target="_blank" rel="noopener"
              style="display:inline-flex;align-items:center;gap:8px;
@@ -161,7 +160,7 @@
 
         <div class="field">
           <label>Buscar por metadatos (filename / title / owner_chain)</label>
-          <input id="qMeta" type="text" placeholder="Ej: Tejero, CNI, Campaña, 1981..." />
+          <input id="qMeta" type="text" placeholder="Ej: Tejero CNI Campaña 1981..." />
         </div>
 
         <div class="row">
@@ -177,7 +176,7 @@
 
         <div class="field">
           <label>Buscar dentro del texto de PDFs (requiere indexar)</label>
-          <input id="qPdf" type="text" placeholder="Ej: milans, golpe, cesid..." />
+          <input id="qPdf" type="text" placeholder="Ej: milans golpe cesid..." />
           <div class="hint">Primero pulsa “Indexar…”. Se guarda en caché (IndexedDB).</div>
         </div>
 
@@ -257,22 +256,30 @@
 /* =========================
    1) CONFIG JSON (GitHub Pages)
    ========================= */
-const DOCS_JSON_URL = "/vet/json/23f.json";
+const JSON_REL = new URL("json/23f.json", window.location.href).toString();
+const JSON_ABS = "https://airsoto.github.io/vet/json/23f.json";
+let DOCS_JSON_URL = JSON_REL;
 
 /* =========================
-   Helpers (más robustos)
+   Helpers
    ========================= */
 const normalize = (s) => (s || "")
-  .toString()
-  .toLowerCase()
-  // quita tildes
+  .toString().toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  // unifica guiones raros a "-"
-  .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, "-")
-  // elimina espacios invisibles (NBSP, etc.)
-  .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+  .replace(/\s+/g, " ").trim();
+
+function tokenizeQuery(q){
+  const nq = normalize(q);
+  if (!nq) return [];
+  // separa por espacios y quita vacíos
+  return nq.split(" ").filter(Boolean);
+}
+
+function allTokensInText(tokens, text){
+  if (!tokens.length) return true;
+  // requiere que TODAS las palabras aparezcan
+  return tokens.every(t => text.includes(t));
+}
 
 const uniq = (arr) => Array.from(new Set(arr));
 const el = (id) => document.getElementById(id);
@@ -296,14 +303,16 @@ if (!window.pdfjsLib){
 }
 
 /* =========================
-   3) IndexedDB
+   3) IndexedDB (con cache de conexión)
    ========================= */
 const DB_NAME = "docs23f_index";
 const DB_VER  = 1;
 const STORE   = "pdftext";
+let _dbPromise = null;
 
 function idbOpen(){
-  return new Promise((resolve, reject) => {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -314,7 +323,9 @@ function idbOpen(){
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+  return _dbPromise;
 }
+
 async function idbGet(url){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
@@ -363,25 +374,33 @@ let DOCS = [];
 let filtered = [];
 let currentDoc = null;
 
+async function fetchJsonWithFallback(){
+  // 1) intenta relativo
+  try{
+    const r1 = await fetch(JSON_REL, { cache: "no-store" });
+    if (r1.ok) { DOCS_JSON_URL = JSON_REL; return await r1.json(); }
+  }catch(_e){}
+
+  // 2) intenta absoluto
+  const r2 = await fetch(JSON_ABS, { cache: "no-store" });
+  if (!r2.ok) throw new Error(`JSON no cargó: HTTP ${r2.status} ${r2.statusText}\nURL: ${JSON_ABS}`);
+  DOCS_JSON_URL = JSON_ABS;
+  return await r2.json();
+}
+
 async function loadDocs(){
-  setStatus(`Cargando JSON...\n${DOCS_JSON_URL}`);
+  setStatus(`Cargando JSON...\n${JSON_REL}`);
 
-  const r = await fetch(DOCS_JSON_URL, { cache: "no-store" });
-  if (!r.ok){
-    throw new Error(`JSON no cargó: HTTP ${r.status} ${r.statusText}\nURL: ${DOCS_JSON_URL}`);
-  }
+  const j = await fetchJsonWithFallback();
 
-  const j = await r.json();
-
-  let arr;
-  if (Array.isArray(j)) arr = j;
-  else if (Array.isArray(j.items)) arr = j.items;
-  else throw new Error("Formato JSON no válido: debe ser [...] o {items:[...]}");
+  // Soporta: array [...] o {items:[...]}
+  const arr = Array.isArray(j) ? j : (Array.isArray(j.items) ? j.items : null);
+  if (!arr) throw new Error("Formato JSON no válido: debe ser [...] o {items:[...]}");
 
   DOCS = arr.filter(d => d && d.url);
-  console.log("DOCS cargados:", DOCS.length);
   el("countBadge").textContent = `${DOCS.length} docs`;
 
+  // filtros (ministerio = owner_chain[0], sub = owner_chain[1])
   const mins = uniq(DOCS.map(d => (d.owner_chain && d.owner_chain[0]) ? d.owner_chain[0] : "—")).sort();
   const fMin = el("fMin");
   fMin.innerHTML = `<option value="">Todos</option>`;
@@ -396,7 +415,7 @@ async function loadDocs(){
   await applyFilters();
 
   const c = await idbCount();
-  setStatus(`Listo.\nDocs: ${DOCS.length}\nÍndice en caché: ${c}`);
+  setStatus(`Listo.\nJSON: ${DOCS_JSON_URL}\nDocs: ${DOCS.length}\nÍndice en caché: ${c}`);
 }
 
 function refreshSubFilter(){
@@ -417,16 +436,11 @@ function refreshSubFilter(){
   });
 }
 
-function docMatchesMeta(d, q){
-  if (!q) return true;
-  const text = [
-    d.filename,
-    d.title,
-    ...(d.owner_chain || [])
-  ].filter(Boolean).join(" ");
-  return normalize(text).includes(q);
+function docMatchesMeta(d, tokens){
+  if (!tokens.length) return true;
+  const hay = normalize(`${d.filename||""} ${d.title||""} ${(d.owner_chain||[]).join(" ")}`);
+  return allTokensInText(tokens, hay);
 }
-
 function docMatchesFilters(d){
   const min = el("fMin").value;
   const sub = el("fSub").value;
@@ -438,24 +452,392 @@ function docMatchesFilters(d){
 }
 
 async function applyFilters(){
-  const qM = normalize(el("qMeta").value);
-  filtered = DOCS.filter(d => docMatchesFilters(d) && docMatchesMeta(d, qM));
+  const tokens = tokenizeQuery(el("qMeta").value);
+  filtered = DOCS.filter(d => docMatchesFilters(d) && docMatchesMeta(d, tokens));
   renderResults(filtered);
   await runGlobalContentSearch();
 }
 
-/* ==========
-   RENDER + RESTO: igual que tu versión
-   ========== */
-/*  NOTA: a partir de aquí dejo tu código tal cual (visor, búsqueda dentro, indexado),
-    porque la parte problemática era la normalización + config duplicada. */
+function renderResults(list){
+  const host = el("results");
+  host.innerHTML = "";
 
+  if (!list.length){
+    host.innerHTML = `<div class="hint">No hay resultados con esos filtros.</div>`;
+    return;
+  }
+
+  for (const d of list){
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const title = d.title || d.filename || d.url;
+    const chain = (d.owner_chain || []).filter(Boolean);
+    const chips = chain.map(x => `<span class="chip">${escapeHtml(x)}</span>`).join("");
+
+    card.innerHTML = `
+      <div class="top">
+        <p class="doc-title">${escapeHtml(title)}</p>
+        <span class="chip mono">${escapeHtml(d.filename || "")}</span>
+      </div>
+      <div class="chipbar">${chips}</div>
+      <div class="meta mono">${escapeHtml(d.url)}</div>
+      <div class="actions">
+        <button class="primary" data-open="1">Abrir en visor</button>
+        <button data-copy="1">Copiar URL</button>
+      </div>
+    `;
+
+    card.querySelector('[data-open="1"]').onclick = () => openDoc(d);
+    card.querySelector('[data-copy="1"]').onclick = async () => {
+      try { await navigator.clipboard.writeText(d.url); setStatus("URL copiada."); }
+      catch { setStatus("No se pudo copiar (permiso del navegador)."); }
+    };
+
+    host.appendChild(card);
+  }
+}
+
+/* =========================
+   5) PDF Viewer
+   ========================= */
+let pdfDoc = null;
+let pageNum = 1;
+let scale = 1.0;
+
+let openSearchHits = [];
+let openHitIndex = -1;
+
+const pageHost = el("pageHost");
+
+async function openDoc(d){
+  if (!window.pdfjsLib){
+    setStatus("PDF.js no está disponible (bloqueo de script/CDN).");
+    return;
+  }
+  currentDoc = d;
+  el("vName").textContent = d.title || d.filename || "Documento";
+  el("vUrl").textContent = d.url || "—";
+  el("openNewTab").onclick = () => window.open(d.url, "_blank");
+
+  setStatus("Cargando PDF…");
+  setBar(0);
+
+  try{
+    pdfDoc = await pdfjsLib.getDocument({ url: d.url, withCredentials:false }).promise;
+    pageNum = 1; el("pageNum").value = 1;
+    el("pageCount").textContent = `/ ${pdfDoc.numPages}`;
+    scale = 1.0; el("zoomLabel").textContent = "100%";
+
+    clearOpenHits();
+    await renderPage(pageNum);
+    setStatus("PDF cargado.");
+  }catch(err){
+    console.error(err);
+    setStatus("Error cargando PDF (posible CORS o PDF dañado).");
+  }
+}
+
+async function renderPage(num){
+  if (!pdfDoc) return;
+  const page = await pdfDoc.getPage(num);
+  const viewport = page.getViewport({ scale });
+
+  pageHost.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "page";
+  wrap.style.width = viewport.width + "px";
+  wrap.style.height = viewport.height + "px";
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { alpha:false });
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  wrap.appendChild(canvas);
+
+  const textLayerDiv = document.createElement("div");
+  textLayerDiv.className = "textLayer";
+  textLayerDiv.style.width = viewport.width + "px";
+  textLayerDiv.style.height = viewport.height + "px";
+  wrap.appendChild(textLayerDiv);
+
+  pageHost.appendChild(wrap);
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const tc = await page.getTextContent();
+  const frag = document.createDocumentFragment();
+  for (const item of tc.items){
+    const span = document.createElement("span");
+    span.textContent = item.str;
+
+    const tx = pdfjsLib.Util.transform(
+      pdfjsLib.Util.transform(viewport.transform, item.transform),
+      [1,0,0,-1,0,0]
+    );
+
+    const x = tx[4], y = tx[5];
+    const fontHeight = Math.hypot(tx[2], tx[3]);
+
+    span.style.left = x + "px";
+    span.style.top = (y - fontHeight) + "px";
+    span.style.fontSize = fontHeight + "px";
+    span.style.transform = `scaleX(${tx[0] / fontHeight})`;
+    span.dataset.t = normalize(item.str);
+
+    frag.appendChild(span);
+  }
+  textLayerDiv.appendChild(frag);
+
+  highlightOpenSearchOnCurrentPage();
+}
+
+function clampPage(n){
+  if (!pdfDoc) return 1;
+  return Math.max(1, Math.min(pdfDoc.numPages, n));
+}
+
+el("prevPage").onclick = async () => { if(!pdfDoc) return; pageNum=clampPage(pageNum-1); el("pageNum").value=pageNum; await renderPage(pageNum); };
+el("nextPage").onclick = async () => { if(!pdfDoc) return; pageNum=clampPage(pageNum+1); el("pageNum").value=pageNum; await renderPage(pageNum); };
+el("pageNum").addEventListener("change", async () => { if(!pdfDoc) return; pageNum=clampPage(parseInt(el("pageNum").value||"1",10)); el("pageNum").value=pageNum; await renderPage(pageNum); });
+el("zoomIn").onclick = async () => { if(!pdfDoc) return; scale=Math.min(2.5,scale+0.15); el("zoomLabel").textContent=Math.round(scale*100)+"%"; await renderPage(pageNum); };
+el("zoomOut").onclick = async () => { if(!pdfDoc) return; scale=Math.max(0.5,scale-0.15); el("zoomLabel").textContent=Math.round(scale*100)+"%"; await renderPage(pageNum); };
+
+/* =========================
+   6) Search within opened PDF (tokenizada)
+   ========================= */
+function clearOpenHits(){
+  openSearchHits = [];
+  openHitIndex = -1;
+  el("hitCount").textContent = "0";
+  el("hitPage").textContent = "—";
+  pageHost.querySelectorAll(".textLayer span.hit").forEach(s => s.classList.remove("hit"));
+}
+el("clearHits").onclick = () => clearOpenHits();
+el("qOpen").addEventListener("keydown", (e) => { if (e.key === "Enter") findNext(true); });
+el("findNext").onclick = () => findNext(false);
+el("findPrev").onclick = () => findPrev(false);
+
+async function buildOpenSearchHits(tokens){
+  setStatus("Buscando dentro del PDF abierto…");
+  clearOpenHits();
+  const hits = [];
+  for (let p = 1; p <= pdfDoc.numPages; p++){
+    const page = await pdfDoc.getPage(p);
+    const tc = await page.getTextContent();
+    const pageText = normalize(tc.items.map(it => it.str).join(" "));
+    if (allTokensInText(tokens, pageText)) hits.push({ page: p });
+  }
+  hits.queryKey = tokens.join(" ");
+  openSearchHits = hits;
+  openHitIndex = -1;
+  el("hitCount").textContent = String(hits.length);
+  el("hitPage").textContent = hits.length ? "…" : "—";
+  setStatus(hits.length ? `Encontradas ${hits.length} páginas con coincidencias.` : "Sin coincidencias.");
+}
+
+async function gotoHit(hit){
+  pageNum = hit.page;
+  el("pageNum").value = pageNum;
+  await renderPage(pageNum);
+  el("hitPage").textContent = String(pageNum);
+  highlightOpenSearchOnCurrentPage();
+}
+
+function highlightOpenSearchOnCurrentPage(){
+  const tokens = tokenizeQuery(el("qOpen").value);
+  if (!tokens.length) return;
+  const spans = pageHost.querySelectorAll(".textLayer span");
+  spans.forEach(s => s.classList.remove("hit"));
+  spans.forEach(s => {
+    const t = s.dataset.t || "";
+    // marca si el span contiene ALGUNA palabra (para que se vea algo útil)
+    if (tokens.some(tok => t.includes(tok))) s.classList.add("hit");
+  });
+}
+
+async function findNext(restart){
+  const tokens = tokenizeQuery(el("qOpen").value);
+  if (!pdfDoc || !tokens.length){ setStatus("Abre un PDF y escribe un término."); return; }
+  const key = tokens.join(" ");
+  if (restart || openSearchHits.length === 0 || openSearchHits.queryKey !== key) await buildOpenSearchHits(tokens);
+  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
+  openHitIndex = (openHitIndex + 1) % openSearchHits.length;
+  await gotoHit(openSearchHits[openHitIndex]);
+}
+async function findPrev(restart){
+  const tokens = tokenizeQuery(el("qOpen").value);
+  if (!pdfDoc || !tokens.length){ setStatus("Abre un PDF y escribe un término."); return; }
+  const key = tokens.join(" ");
+  if (restart || openSearchHits.length === 0 || openSearchHits.queryKey !== key) await buildOpenSearchHits(tokens);
+  if (!openSearchHits.length){ setStatus("Sin coincidencias en este PDF."); return; }
+  openHitIndex = openHitIndex - 1; if (openHitIndex < 0) openHitIndex = openSearchHits.length - 1;
+  await gotoHit(openSearchHits[openHitIndex]);
+}
+
+/* =========================
+   7) Indexación global + búsqueda global (tokenizada)
+   ========================= */
+async function extractPdfTextByPage(url){
+  const pdf = await pdfjsLib.getDocument({ url }).promise;
+  const pages = {};
+  for (let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    pages[String(p)] = normalize(tc.items.map(it => it.str).join(" "));
+  }
+  return { url, pages, updatedAt: Date.now() };
+}
+
+async function indexDocs(list){
+  if (!list.length){ setStatus("No hay documentos que indexar."); return; }
+
+  el("btnIndexAll").disabled = true;
+  el("btnIndexFiltered").disabled = true;
+  el("btnClearIndex").disabled = true;
+
+  let done = 0;
+  let ok = 0;
+  let fail = 0;
+  const total = list.length;
+
+  setStatus(`Indexando ${total} PDFs…`);
+  setBar(0);
+
+  for (const d of list){
+    try{
+      const existing = await idbGet(d.url);
+      if (!existing){
+        const rec = await extractPdfTextByPage(d.url);
+        await idbPut(rec);
+      }
+      ok++;
+    }catch(e){
+      fail++;
+      console.warn("Fallo indexando:", d.url, e);
+    }
+    done++;
+    setBar((done/total)*100);
+    setStatus(`Indexando… ${done}/${total}\nOK: ${ok} | Fallos: ${fail}`);
+  }
+
+  setStatus(`Indexación terminada.\nOK: ${ok} | Fallos: ${fail}\nCaché: ${await idbCount()} docs`);
+  setBar(100);
+
+  el("btnIndexAll").disabled = false;
+  el("btnIndexFiltered").disabled = false;
+  el("btnClearIndex").disabled = false;
+
+  await runGlobalContentSearch();
+}
+
+el("btnIndexAll").onclick = async () => indexDocs(DOCS);
+el("btnIndexFiltered").onclick = async () => indexDocs(filtered);
+el("btnClearIndex").onclick = async () => {
+  await idbClear();
+  setStatus("Índice borrado.");
+  el("globalMatches").innerHTML = "";
+  setBar(0);
+};
+el("btnReset").onclick = async () => {
+  el("qMeta").value = "";
+  el("qPdf").value = "";
+  el("fMin").value = "";
+  refreshSubFilter();
+  el("fSub").value = "";
+  await applyFilters();
+  setStatus("Reset aplicado.");
+};
+
+async function runGlobalContentSearch(){
+  const tokens = tokenizeQuery(el("qPdf").value);
+  const host = el("globalMatches");
+  host.innerHTML = "";
+
+  if (!tokens.length){
+    host.innerHTML = `<div class="hint">Escribe palabras para buscar dentro del contenido (solo docs indexados).</div>`;
+    return;
+  }
+
+  const candidates = filtered.length ? filtered : DOCS;
+  const hits = [];
+
+  // nota: esto recorre secuencialmente para no saturar el navegador/IDB
+  for (const d of candidates){
+    const rec = await idbGet(d.url);
+    if (!rec || !rec.pages) continue;
+
+    const pages = [];
+    for (const [p, txt] of Object.entries(rec.pages)){
+      if (txt && allTokensInText(tokens, txt)) pages.push(Number(p));
+    }
+    if (pages.length) hits.push({ doc: d, pages: pages.sort((a,b)=>a-b) });
+  }
+
+  if (!hits.length){
+    host.innerHTML = `<div class="hint">Sin coincidencias en docs indexados (o aún no hay índice).</div>`;
+    return;
+  }
+
+  for (const h of hits.slice(0,200)){
+    const div = document.createElement("div");
+    div.className = "match";
+    const pagesTxt = h.pages.slice(0,12).join(", ") + (h.pages.length>12 ? "…" : "");
+    div.innerHTML = `
+      <div class="mleft">
+        <p class="mtitle">${escapeHtml(h.doc.title || h.doc.filename)}</p>
+        <div class="msub mono">páginas: ${escapeHtml(pagesTxt)}</div>
+      </div>
+      <button class="primary">Abrir</button>
+    `;
+    div.querySelector("button").onclick = async () => {
+      await openDoc(h.doc);
+      if (h.pages.length){
+        pageNum = h.pages[0];
+        el("pageNum").value = pageNum;
+        await renderPage(pageNum);
+        setStatus(\`Abrí el documento y salté a la página \${pageNum}.\`);
+      }
+    };
+    host.appendChild(div);
+  }
+}
+
+/* =========================
+   Events filtros/búsqueda
+   ========================= */
+let _applyTimer = null;
+el("qMeta").addEventListener("input", () => {
+  clearTimeout(_applyTimer);
+  _applyTimer = setTimeout(() => applyFilters(), 80);
+});
+let _pdfTimer = null;
+el("qPdf").addEventListener("input", () => {
+  clearTimeout(_pdfTimer);
+  _pdfTimer = setTimeout(() => runGlobalContentSearch(), 120);
+});
+el("fMin").addEventListener("change", async () => { refreshSubFilter(); await applyFilters(); });
+el("fSub").addEventListener("change", () => applyFilters());
+
+/* =========================
+   INIT
+   ========================= */
+window.addEventListener("load", async () => {
+  try{
+    if (location.protocol === "file:"){
+      setStatus("ERROR: Estás abriendo con file://\nAbre desde GitHub Pages (https://...).");
+      return;
+    }
+    if (!window.pdfjsLib){
+      setStatus("ERROR: No se cargó PDF.js.\n¿AdBlock/CSP? Prueba otro navegador o desactiva bloqueadores.");
+      return;
+    }
+    await loadDocs();
+  }catch(err){
+    console.error(err);
+    setStatus(`ERROR cargando JSON.\n${err.message}`);
+  }
+});
 </script>
-
-<!-- ⬇️ IMPORTANTE: aquí debes pegar TODO tu código restante DESDE renderResults() hacia abajo
-     (lo que ya tenías), SIN cambios.
-     Si lo prefieres, te lo devuelvo completo con TODO incluido en un solo bloque, pero
-     necesitaría que me digas si quieres mantener EXACTAMENTE todo el resto sin cambios. -->
-
 </body>
 </html>
