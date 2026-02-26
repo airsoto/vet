@@ -687,28 +687,50 @@
   // Data load
   // =========================
   async function loadJson() {
-    setStatus("cargando…");
-    showWarn("");
-    resultsEl.innerHTML = `<div class="mini">Cargando JSON…</div>`;
-    try {
-      const res = await fetch(JSON_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      data = await res.json();
-      docs = Array.isArray(data.items) ? data.items : [];
-      const n = typeof data.count === "number" ? data.count : docs.length;
+  setStatus("cargando…");
+  showWarn("");
+  resultsEl.innerHTML = `<div class="mini">Cargando JSON…</div>`;
 
-      countBadge.textContent = `${n} docs`;
-      kpiTotal.textContent = `${docs.length}`;
-      kpiShown.textContent = `0`;
+  try {
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      setStatus("listo", "good");
-      resultsEl.innerHTML = `<div class="mini">Listo. Escribe una búsqueda y pulsa <strong>Buscar</strong>.</div>`;
-    } catch (e) {
-      setStatus("error", "bad");
-      showWarn("No se pudo cargar el JSON. Revisa que exista en 'json/23f.json' y que GitHub Pages lo sirva.", false);
-      resultsEl.innerHTML = `<div class="mini">Error cargando JSON: ${escapeHtml(e.message || String(e))}</div>`;
+    data = await res.json();
+
+    // ✅ Soporta:
+    // 1) { items:[...], count:n }
+    // 2) [ { items:[...], count:n, source_page:"..." } ]
+    // 3) [...items...]  (array directo de docs)
+    let root = data;
+
+    if (Array.isArray(root)) {
+      // Caso típico tuyo: [ {count, items, source_page} ]
+      if (root.length === 1 && root[0] && Array.isArray(root[0].items)) {
+        root = root[0];
+      } else {
+        // array directo de docs
+        docs = root;
+      }
     }
+
+    if (!docs.length) {
+      docs = Array.isArray(root?.items) ? root.items : [];
+    }
+
+    const n = (typeof root?.count === "number") ? root.count : docs.length;
+
+    countBadge.textContent = `${n} docs`;
+    kpiTotal.textContent = `${docs.length}`;
+    kpiShown.textContent = `0`;
+
+    setStatus("listo", "good");
+    resultsEl.innerHTML = `<div class="mini">Listo. Escribe una búsqueda y pulsa <strong>Buscar</strong>.</div>`;
+  } catch (e) {
+    setStatus("error", "bad");
+    showWarn("No se pudo cargar el JSON. Revisa que exista en 'json/23f.json' y que GitHub Pages lo sirva.", false);
+    resultsEl.innerHTML = `<div class="mini">Error cargando JSON: ${escapeHtml(e.message || String(e))}</div>`;
   }
+}
 
   // =========================
   // Search
