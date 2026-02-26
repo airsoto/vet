@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <title>Buscador 23-F (PDF) | Dark</title>
-
-  <!-- PDF.js (solo para VISOR canvas; la búsqueda usa NDJSON) -->
+  <title>Buscador 23-F Documentos desclasificados relativos al 23-F/title>
+  <script defer src="goat.js"></script>
+  <!-- PDF.js (visor canvas; la búsqueda usa NDJSON) -->
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <style>
@@ -39,7 +39,7 @@
     a{color:inherit}
     .wrap{max-width:1200px;margin:0 auto;padding:16px}
     header{
-      display:flex;gap:12px;align-items:center;justify-content:space-between;
+      display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
       padding:14px 14px;border:1px solid var(--line);border-radius:var(--r);
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       box-shadow:var(--shadow);
@@ -47,7 +47,7 @@
       backdrop-filter: blur(10px);
     }
     .title{display:flex;flex-direction:column;gap:2px;min-width:260px}
-    .title h1{margin:0;font-size:16px;letter-spacing:.2px;font-weight:700}
+    .title h1{margin:0;font-size:16px;letter-spacing:.2px;font-weight:800}
     .title p{margin:0;color:var(--muted);font-size:12.5px}
     .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 
@@ -63,7 +63,7 @@
       background:rgba(255,153,0,.14);
       border:1px solid rgba(255,153,0,.28);
       color:var(--text);
-      font-weight:700;
+      font-weight:800;
       font-size:12px;
     }
     .sourceRow a{
@@ -102,7 +102,7 @@
       display:flex;align-items:center;justify-content:space-between;gap:10px;
       background:rgba(0,0,0,.12);
     }
-    .panel .hd h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.2px}
+    .panel .hd h2{margin:0;font-size:13px;font-weight:900;letter-spacing:.2px}
     .panel .bd{padding:12px}
 
     .row{display:grid;gap:8px;margin-bottom:12px}
@@ -130,16 +130,12 @@
       background:rgba(255,255,255,.04);
       color:var(--text);
       cursor:pointer;
-      font-weight:800;
+      font-weight:900;
       letter-spacing:.2px;
     }
     button.primary{
       background:linear-gradient(180deg, rgba(255,153,0,.24), rgba(255,153,0,.10));
       border-color:rgba(255,153,0,.35);
-    }
-    button.danger{
-      background:linear-gradient(180deg, rgba(255,90,106,.20), rgba(255,90,106,.08));
-      border-color:rgba(255,90,106,.35);
     }
     button:disabled{opacity:.55;cursor:not-allowed}
 
@@ -180,9 +176,10 @@
       height:36px;padding:0 12px;border-radius:12px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.03);
-      font-weight:800;font-size:12px;
+      font-weight:900;font-size:12px;
       cursor:pointer;
       color:var(--text);
+      user-select:none;
     }
     .linkbtn:hover{border-color:rgba(255,153,0,.35)}
     .snippet{
@@ -202,17 +199,6 @@
       display:none;
       gap:10px;
     }
-    .bar{
-      height:10px;border-radius:999px;background:rgba(255,255,255,.06);
-      overflow:hidden;border:1px solid var(--line);
-    }
-    .bar > div{
-      height:100%;
-      width:0%;
-      background:linear-gradient(90deg, rgba(255,153,0,.75), rgba(39,209,127,.55));
-      transition:width .15s linear;
-    }
-    .progText{font-size:12px;color:var(--muted)}
     .warn{
       margin-top:8px;
       padding:10px;
@@ -229,7 +215,7 @@
     }
     .footer{margin:18px 0 10px;color:var(--muted);font-size:12px;text-align:center}
 
-    /* ===== Modal visor PDF ===== */
+    /* ===== Modal visor PDF (SOLO PDF.js canvas) ===== */
     .modal{position:fixed; inset:0; display:none; z-index:9999}
     .modal[aria-hidden="false"]{display:block}
     .modal__backdrop{position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter: blur(6px)}
@@ -270,13 +256,21 @@
       color:var(--muted); font-family:var(--mono); font-size:12px;
       display:inline-flex;align-items:center;
     }
-    .modal__body{height:calc(100% - 61px); background:rgba(0,0,0,.10); position:relative}
-    .pdfFrame{width:100%;height:100%;border:0;background:rgba(0,0,0,.20)}
+
+    .modal__body{
+      height:calc(100% - 61px);
+      background:rgba(0,0,0,.10);
+      position:relative;
+    }
     .canvasWrap{
-      position:absolute; inset:0;
-      display:flex; align-items:flex-start; justify-content:center;
-      padding:12px; overflow:auto;
-      pointer-events:none; /* iframe usable; canvas solo visual */
+      position:relative;
+      height:100%;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:12px;
+      overflow:auto;
+      pointer-events:auto;
     }
     #pdfCanvas{
       background:#0b0f14;
@@ -284,15 +278,19 @@
       border-radius:16px;
       box-shadow: var(--shadow);
       max-width:100%;
+      height:auto;
     }
     .canvasHint{
-      position:absolute; top:12px; left:12px;
+      position:absolute; top:12px; left:12px; right:12px;
       padding:8px 10px; border-radius:12px;
       border:1px solid var(--line);
-      background:rgba(0,0,0,.35);
+      background:rgba(0,0,0,.40);
       color:var(--muted);
       font-size:12px;
+      max-width:calc(100% - 24px);
     }
+    .canvasHint a{color:var(--accent);font-weight:900;text-decoration:none}
+    .canvasHint a:hover{text-decoration:underline}
   </style>
 </head>
 
@@ -303,18 +301,20 @@
         <h1>Buscador 23-F (Documentos desclasificados relativos al 23-F)</h1>
         <p></p>
       </div>
-      <!-- BLOQUE DESARROLLADO POR + HOME + BOTÓN DDx -->
-<div class="devRow" style="margin:10px 0 0 0;">
-  <div>
-    <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
-      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
-    </h2>
-    <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
-      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
-        🏠 <span>volver a página de inicio</span>
-      </a>
-    </p>
-  </div>
+
+      <!-- Bloque desarrollado por -->
+      <div class="devRow" style="margin:10px 0 0 0;">
+        <div>
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+      </div>
 
       <div class="right">
         <div class="sourceRow" title="Fuente oficial">
@@ -372,14 +372,10 @@
           <div class="btns">
             <button class="primary" id="btnSearch">Buscar</button>
             <button id="btnStop" disabled>Parar</button>
-            <button class="danger" id="btnClearCache" title="(ya no aplica) solo para compatibilidad" disabled>—</button>
+            <button id="btnClearCache" disabled title="Ya no se usa con NDJSON">—</button>
           </div>
 
-          <div class="progress" id="progressBox" style="margin-top:12px">
-            <div class="bar"><div id="barFill"></div></div>
-            <div class="progText" id="progText">…</div>
-          </div>
-
+          <div class="progress" id="progressBox" style="margin-top:12px"></div>
           <div class="warn" id="warnBox"></div>
 
           <div class="stat">
@@ -396,7 +392,7 @@
           <p class="mini" style="margin-top:12px">
             <strong>Notas:</strong><br/>
             • El modo <em>PDF</em> usa <code>json/index_23f.ndjson</code> (texto extraído offline con pdftotext).<br/>
-            • Si el índice no está subido, el modo PDF dará error.
+            • El visor “Ver aquí” es PDF.js (canvas). Si el servidor del PDF bloquea CORS, mostrará un enlace para abrir en pestaña.
           </p>
         </div>
       </section>
@@ -413,11 +409,11 @@
     </div>
 
     <div class="footer">
-      Hecho en HTML/CSS/JS (sin backend). Búsqueda por índice NDJSON + visor integrado.
+      Hecho en HTML/CSS/JS (sin backend). Búsqueda por índice NDJSON + visor PDF.js.
     </div>
   </div>
 
-  <!-- ===== Visor PDF (modal) ===== -->
+  <!-- ===== Visor PDF (modal) SOLO CANVAS ===== -->
   <div class="modal" id="pdfModal" aria-hidden="true">
     <div class="modal__backdrop" data-close="1"></div>
 
@@ -445,11 +441,9 @@
       </div>
 
       <div class="modal__body">
-        <iframe id="pdfFrame" class="pdfFrame" title="PDF"></iframe>
-
-        <div class="canvasWrap">
+        <div class="canvasWrap" id="canvasWrap">
           <canvas id="pdfCanvas"></canvas>
-          <div class="canvasHint" id="canvasHint">Renderizando con PDF.js…</div>
+          <div class="canvasHint" id="canvasHint">Cargando PDF…</div>
         </div>
       </div>
     </div>
@@ -476,7 +470,6 @@
   const caseEl = $("case");
 
   const btnSearch = $("btnSearch");
-  const btnStop = $("btnStop");
   const btnReload = $("btnReload");
 
   const resultsEl = $("results");
@@ -487,9 +480,6 @@
   const kpiTotal = $("kpiTotal");
   const kpiShown = $("kpiShown");
 
-  const progressBox = $("progressBox");
-  const barFill = $("barFill");
-  const progText = $("progText");
   const warnBox = $("warnBox");
 
   // =========================
@@ -499,8 +489,8 @@
   let docs = [];
 
   // índice NDJSON precargado
-  let indexRecs = null;   // [{url,title,owner_chain,text,...}]
-  let indexByUrl = null;  // Map(url -> rec)
+  let indexRecs = null;
+  let indexByUrl = null;
 
   // =========================
   // UI helpers
@@ -549,11 +539,11 @@
     return parts.filter(Boolean).join("\n");
   }
 
-  // Para búsquedas fiables (sin tildes, minúsculas)
+  // Para búsquedas fiables
   function fold(s){
     return (s || "")
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // tildes fuera
-      .replace(/\u00ad/g, "") // soft hyphen
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\u00ad/g, "")
       .replace(/[ﬁ]/g, "fi").replace(/[ﬂ]/g, "fl")
       .replace(/\s+/g, " ")
       .toLowerCase()
@@ -577,7 +567,7 @@
     return sn;
   }
 
-  // matcher actual (metadatos)
+  // matcher metadatos
   function buildMatcher(query, exact, caseSensitive) {
     const q = normalize(query);
     if (!q) return null;
@@ -618,31 +608,23 @@
     setStatus("cargando índice…");
     showWarn("");
 
-    try{
-      indexRecs = await loadNdjson(INDEX_URL);
-      indexByUrl = new Map(indexRecs.map(r => [r.url, r]));
-      cachePill.textContent = `índice: ${indexRecs.length}`;
-      setStatus("listo", "good");
-    } catch(e){
-      cachePill.textContent = `índice: no`;
-      setStatus("error", "bad");
-      showWarn("No se pudo cargar el índice NDJSON. Sube json/index_23f.ndjson al repo.", false);
-      throw e;
-    }
+    indexRecs = await loadNdjson(INDEX_URL);
+    indexByUrl = new Map(indexRecs.map(r => [r.url, r]));
+    cachePill.textContent = `índice: ${indexRecs.length}`;
+    setStatus("listo", "good");
   }
 
   // =========================
-  // PDF Viewer (modal)
+  // PDF Viewer (modal) SOLO CANVAS
   // =========================
   const pdfModal = document.getElementById("pdfModal");
-  const pdfFrame = document.getElementById("pdfFrame");
-  const pdfCanvas = document.getElementById("pdfCanvas");
   const pdfTitle = document.getElementById("pdfTitle");
   const pdfSub = document.getElementById("pdfSub");
   const pagePill = document.getElementById("pagePill");
   const zoomPill = document.getElementById("zoomPill");
   const canvasHint = document.getElementById("canvasHint");
 
+  const pdfCanvas = document.getElementById("pdfCanvas");
   const btnPrev = document.getElementById("btnPrev");
   const btnNext = document.getElementById("btnNext");
   const btnZoomIn = document.getElementById("btnZoomIn");
@@ -667,10 +649,12 @@
     viewPage = 1;
     viewScale = 1.1;
     viewTotal = 1;
-    pdfFrame.src = "about:blank";
+
     const ctx = pdfCanvas.getContext("2d");
     ctx && ctx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
     canvasHint.textContent = "";
+    pagePill.textContent = "pág 1/1";
+    zoomPill.textContent = "110%";
   }
 
   async function renderPage() {
@@ -695,13 +679,12 @@
     pdfTitle.textContent = title || "Documento";
     pdfSub.textContent = org ? org : url;
 
-    pdfFrame.src = url;
     btnOpenTab.href = url;
     btnDownload.href = url;
 
     showModal();
 
-    canvasHint.textContent = "Renderizando con PDF.js…";
+    canvasHint.innerHTML = `Cargando PDF…`;
     try {
       if (!window.pdfjsLib) throw new Error("PDF.js no está cargado.");
       pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -711,10 +694,13 @@
       viewTotal = viewPdf.numPages || 1;
       viewPage = 1;
 
-      canvasHint.textContent = "Canvas listo (si no se ve, usa el visor/iframe).";
+      canvasHint.textContent = "Listo. (Si no aparece, usa “Abrir ↗”).";
       await renderPage();
-    } catch {
-      canvasHint.textContent = "No se pudo renderizar con PDF.js (posible CORS). Usa el visor integrado o 'Abrir ↗'.";
+    } catch (e) {
+      // Si falla por CORS u otra política del servidor, damos fallback claro.
+      canvasHint.innerHTML =
+        `No se puede mostrar este PDF dentro de la web (seguridad/CORS del servidor). 
+         Usa <a href="${url}" target="_blank" rel="noopener">Abrir ↗</a>.`;
     }
   }
 
@@ -750,7 +736,7 @@
   // =========================
   // Render results
   // =========================
-  function renderCards(list, query, exact, caseSensitive, pdfSnippetsMap=null) {
+  function renderCards(list, pdfSnippetsMap=null) {
     resultsEl.innerHTML = "";
     if (!list.length) {
       resultsEl.innerHTML = `<div class="mini">No hay resultados con esos criterios.</div>`;
@@ -789,6 +775,7 @@
         <div class="snippet">${escapeHtml(sn || haystack(doc))}</div>
       `;
 
+      // click en tarjeta abre visor (si no clicas botón/link)
       card.addEventListener("click", (ev) => {
         const t = ev.target;
         if (t && (t.closest("a") || t.closest("button"))) return;
@@ -818,38 +805,32 @@
     showWarn("");
     resultsEl.innerHTML = `<div class="mini">Cargando JSON…</div>`;
 
-    try {
-      const res = await fetch(JSON_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      data = await res.json();
+    data = await res.json();
 
-      let root = data;
-      docs = [];
+    let root = data;
+    docs = [];
 
-      // soporta tu formato: [ {count, items, source_page} ]
-      if (Array.isArray(root)) {
-        if (root.length === 1 && root[0] && Array.isArray(root[0].items)) {
-          root = root[0];
-        } else {
-          docs = root;
-        }
+    // soporta: [ {count, items, source_page} ]
+    if (Array.isArray(root)) {
+      if (root.length === 1 && root[0] && Array.isArray(root[0].items)) {
+        root = root[0];
+      } else {
+        docs = root;
       }
-      if (!docs.length) docs = Array.isArray(root?.items) ? root.items : [];
-
-      const n = (typeof root?.count === "number") ? root.count : docs.length;
-
-      countBadge.textContent = `${n} docs`;
-      kpiTotal.textContent = `${docs.length}`;
-      kpiShown.textContent = `0`;
-
-      setStatus("listo", "good");
-      resultsEl.innerHTML = `<div class="mini">Listo. Escribe una búsqueda y pulsa <strong>Buscar</strong>.</div>`;
-    } catch (e) {
-      setStatus("error", "bad");
-      showWarn("No se pudo cargar el JSON remoto.", false);
-      resultsEl.innerHTML = `<div class="mini">Error cargando JSON: ${escapeHtml(e.message || String(e))}</div>`;
     }
+    if (!docs.length) docs = Array.isArray(root?.items) ? root.items : [];
+
+    const n = (typeof root?.count === "number") ? root.count : docs.length;
+
+    countBadge.textContent = `${n} docs`;
+    kpiTotal.textContent = `${docs.length}`;
+    kpiShown.textContent = `0`;
+
+    setStatus("listo", "good");
+    resultsEl.innerHTML = `<div class="mini">Listo. Escribe una búsqueda y pulsa <strong>Buscar</strong>.</div>`;
   }
 
   // =========================
@@ -876,28 +857,26 @@
 
     if (!matcher) {
       const cap = base.slice(0, 80);
-      renderCards(cap, "", exact, caseSensitive);
+      renderCards(cap);
       kpiShown.textContent = `${cap.length}`;
       setStatus("listo", "good");
       return;
     }
 
     btnSearch.disabled = true;
-    btnStop.disabled = true;
-    progressBox.style.display = "none";
 
     try {
-      // META: igual que antes
+      // META
       if (mode === "meta") {
         setStatus("buscando…");
         const hits = base.filter(d => matcher(haystack(d)));
-        renderCards(hits.slice(0, 200), query, exact, caseSensitive);
+        renderCards(hits.slice(0, 200));
         kpiShown.textContent = `${hits.length}`;
         setStatus("listo", "good");
         return;
       }
 
-      // PDF: busca en índice NDJSON (rápido y fiable)
+      // PDF (índice NDJSON)
       setStatus("buscando en índice…");
       await ensureIndexLoaded();
 
@@ -909,7 +888,6 @@
         return terms.every(term => T.includes(term));
       }
 
-      // limitamos a URLs permitidas (por filtro owner)
       const allowedUrls = new Set(base.map(d => d.url).filter(Boolean));
 
       const snippetMap = new Map();
@@ -927,45 +905,41 @@
       const docByUrl = new Map(docs.map(d => [d.url, d]));
       const hitDocs = hitUrls.map(u => docByUrl.get(u)).filter(Boolean);
 
-      renderCards(hitDocs.slice(0, 200), query, exact, caseSensitive, snippetMap);
+      renderCards(hitDocs.slice(0, 200), snippetMap);
       kpiShown.textContent = `${hitDocs.length}`;
       setStatus("listo", "good");
       if (hitDocs.length === 0) showWarn("No se encontraron coincidencias.", false);
+
     } catch (e) {
       setStatus("error", "bad");
-      showWarn(`Error en búsqueda: ${e?.message || e}`, false);
+      showWarn(`Error: ${e?.message || e}`, false);
     } finally {
       btnSearch.disabled = false;
-      progressBox.style.display = "none";
     }
   }
 
   // =========================
   // Events
   // =========================
-  btnReload.addEventListener("click", loadJson);
+  btnReload.addEventListener("click", () => location.reload());
   btnSearch.addEventListener("click", runSearch);
 
-  qEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") runSearch();
-  });
-  ownerEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") runSearch();
-  });
+  qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch(); });
+  ownerEl.addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch(); });
 
-  // Precarga índice si el usuario elige modo PDF
   modeEl.addEventListener("change", () => {
-    if (modeEl.value === "pdf") {
-      ensureIndexLoaded().catch(()=>{});
-    }
+    if (modeEl.value === "pdf") ensureIndexLoaded().catch(()=>{});
   });
 
   // =========================
   // Init
   // =========================
   cachePill.textContent = "índice: no";
-  loadJson();
-  // precarga silenciosa (opcional)
+  loadJson().catch(e => {
+    setStatus("error", "bad");
+    showWarn("No se pudo cargar el JSON remoto.", false);
+    resultsEl.innerHTML = `<div class="mini">${escapeHtml(String(e))}</div>`;
+  });
   ensureIndexLoaded().catch(()=>{});
 })();
 </script>
