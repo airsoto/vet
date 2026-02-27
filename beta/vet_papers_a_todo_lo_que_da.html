@@ -72,7 +72,6 @@
       box-shadow: 0 0 10px rgba(144,202,249,.6);
     }
 
-    /* Expansión agradable */
     .article.expanded {
       grid-column: 1 / -1;
       transform: scale(1.01);
@@ -275,8 +274,15 @@
 <div id="results" class="results"></div>
 
 <script>
-  // Ruta solicitada por ti
-const JSON_PATH = "../json/articulos_pubmed_vet.json";
+  // ✅ Carpeta base (un nivel superior) donde están los 3 JSON partidos
+  const JSON_BASE = "../json/";
+
+  // ✅ Tus 3 archivos (en esa carpeta)
+  const JSON_FILES = [
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract001.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract002.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract003.json"
+  ];
 
   let articles = [];
 
@@ -284,23 +290,34 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
     return (s ?? "")
       .toString()
       .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita acentos
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
   function safeArr(a){ return Array.isArray(a) ? a : []; }
 
+  // ✅ Carga los 3 JSON y los concatena en "articles"
   async function cargarArticulos() {
     const resultsContainer = document.getElementById('results');
     try {
-      const response = await fetch(JSON_PATH, { cache: "no-store" });
-      if (!response.ok) throw new Error('No se pudo cargar el archivo JSON');
-      const data = await response.json();
+      const responses = await Promise.all(
+        JSON_FILES.map(f => fetch(JSON_BASE + f, { cache: "no-store" }))
+      );
 
-      // Soporta JSON como array directo o como objeto con {articles:[...]}
-      articles = Array.isArray(data) ? data : (data.articles || data.items || []);
+      // Si alguno falla, aborta con mensaje claro
+      const bad = responses.find(r => !r.ok);
+      if (bad) throw new Error(`No se pudo cargar uno de los JSON (HTTP ${bad.status})`);
+
+      const datas = await Promise.all(responses.map(r => r.json()));
+
+      // Soporta array directo o wrapper {articles:[...]} / {items:[...]}
+      const merged = [];
+      for (const data of datas) {
+        const arr = Array.isArray(data) ? data : (data.articles || data.items || data.data || []);
+        merged.push(...arr);
+      }
 
       // Normaliza campos mínimos
-      articles = articles.map(a => ({
+      articles = merged.map(a => ({
         title: a.title || "",
         authors: safeArr(a.authors),
         journal: a.journal || "",
@@ -314,10 +331,13 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
       }));
 
       buildFilters();
-      // Primera render: sin filtros, pero no spamear con miles: muestra primeros N
       search();
     } catch (error) {
-      resultsContainer.innerHTML = '<p>Error al cargar los artículos. Revisa la ruta <code>json/articulos_pubmed_vet.json</code>.</p>';
+      resultsContainer.innerHTML = `
+        <p>Error al cargar los artículos.</p>
+        <p class="muted">Revisa que existan:</p>
+        <p class="muted">${escapeHtml(JSON_FILES.map(f => JSON_BASE + f).join(" · "))}</p>
+      `;
       console.error(error);
     }
   }
@@ -326,13 +346,19 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
     const journalSelect = document.getElementById("journal-select");
     const yearSelect = document.getElementById("year-select");
 
-    const journals = [...new Set(articles.map(a => a.journal).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-    const years = [...new Set(articles.map(a => a.year).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a)));
+    const journals = [...new Set(articles.map(a => a.journal).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b));
 
-    // Rellena revistas
-    journalSelect.innerHTML = '<option value="">Revista (todas)</option>' + journals.map(j => `<option value="${escapeHtmlAttr(j)}">${escapeHtml(j)}</option>`).join("");
-    // Rellena años
-    yearSelect.innerHTML = '<option value="">Año (todos)</option>' + years.map(y => `<option value="${escapeHtmlAttr(y)}">${escapeHtml(y)}</option>`).join("");
+    const years = [...new Set(articles.map(a => a.year).filter(Boolean))]
+      .sort((a,b)=>String(b).localeCompare(String(a)));
+
+    journalSelect.innerHTML =
+      '<option value="">Revista (todas)</option>' +
+      journals.map(j => `<option value="${escapeHtmlAttr(j)}">${escapeHtml(j)}</option>`).join("");
+
+    yearSelect.innerHTML =
+      '<option value="">Año (todos)</option>' +
+      years.map(y => `<option value="${escapeHtmlAttr(y)}">${escapeHtml(y)}</option>`).join("");
   }
 
   function resetAll(){
@@ -347,13 +373,11 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
   }
 
   function computeScore(article, qTitle, qAbs){
-    // scoring simple: match en título pesa más que en abstract
     let score = 0;
     const t = norm(article.title);
     const a = norm(article.abstract);
     if (qTitle){
       if (t.includes(qTitle)) score += 8;
-      // bonus por ocurrencias aproximadas
       score += countOccurrences(t, qTitle) * 2;
     }
     if (qAbs){
@@ -389,7 +413,6 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
     resultsContainer.innerHTML = '';
     countContainer.innerHTML = '';
 
-    // Filtrado
     let filtered = articles.filter(article => {
       if (journalVal && article.journal !== journalVal) return false;
       if (yearVal && String(article.year) !== String(yearVal)) return false;
@@ -403,10 +426,8 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
       return okTitle && okAbs;
     });
 
-    // Scoring
     filtered = filtered.map(a => ({...a, _score: computeScore(a, qTitle, qAbs)}));
 
-    // Orden
     if (sortMode === "year_desc"){
       filtered.sort((x,y)=> String(y.year).localeCompare(String(x.year)) || (y._score - x._score));
     } else if (sortMode === "year_asc"){
@@ -414,7 +435,6 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
     } else if (sortMode === "title_asc"){
       filtered.sort((x,y)=> x.title.localeCompare(y.title));
     } else {
-      // relevance
       filtered.sort((x,y)=> (y._score - x._score) || String(y.year).localeCompare(String(x.year)));
     }
 
@@ -484,7 +504,6 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
       div.addEventListener('click', () => {
         div.classList.toggle('expanded');
         if (div.classList.contains('expanded')) {
-          // sube un poco para que se vea el inicio del abstract
           div.scrollIntoView({behavior:"smooth", block:"start"});
         }
       });
@@ -494,10 +513,7 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
   }
 
   function sendEmailByIndex(renderedIdx){
-    // renderedIdx corresponde al índice dentro del "slice" mostrado si cambiamos; mejor reconstruir:
-    // Para simplicidad: buscamos la tarjeta en el DOM y leemos su título renderizado (no fiable).
-    // Solución robusta: guardamos el último "filtered slice" global. Aquí hacemos robusto:
-    // -> recomputamos búsqueda actual y tomamos el elemento por posición en "mostrados".
+    // Recalcula búsqueda actual y toma el elemento por posición
     const journalVal = document.getElementById('journal-select').value;
     const yearVal = document.getElementById('year-select').value;
     const qTitle = norm(document.getElementById('title-input').value.trim());
@@ -563,22 +579,18 @@ const JSON_PATH = "../json/articulos_pubmed_vet.json";
   function escapeHtmlAttr(s){ return escapeHtml(s).replace(/"/g,"&quot;"); }
 
   function highlight(text, terms){
-    // resalta términos exactos (sin regex peligrosa); mínimo para estética
     let out = escapeHtml(text);
     (terms || []).forEach(t => {
       if (!t) return;
       const tt = escapeHtml(t);
-      // reemplazo case-insensitive aproximado (simple) usando split/join por lower:
-      // Para no complicar: sólo si aparece tal cual (respetando mayúsculas/minúsculas del usuario es suficiente).
-      // Si quieres más fino, lo ajusto.
       out = out.split(tt).join(`<mark style="background: rgba(255,153,0,.35); color:#fff; padding:0 .15em; border-radius:4px;">${tt}</mark>`);
     });
     return out;
   }
 
   // Enter para buscar
-  ["title-input","abstract-input"].forEach(id=>{
-    document.addEventListener("DOMContentLoaded", ()=>{
+  document.addEventListener("DOMContentLoaded", ()=>{
+    ["title-input","abstract-input"].forEach(id=>{
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("keydown", (e)=>{
