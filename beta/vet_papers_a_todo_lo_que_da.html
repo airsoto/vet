@@ -110,10 +110,10 @@
 <div id="results" class="results"></div>
 
 <script>
-  // ✅ Carpeta base (un nivel superior) donde están los JSON partidos
-  const JSON_BASE = "../json/";
+  // ✅ JSON en la MISMA carpeta que el HTML, dentro de /json_art/
+  const JSON_BASE = "./json_art/";
 
-  // ✅ Tus 10 archivos (en esa carpeta)
+  // ✅ 10 archivos
   const JSON_FILES = [
     "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract001.json",
     "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract002.json",
@@ -138,20 +138,20 @@
 
   function safeArr(a){ return Array.isArray(a) ? a : []; }
 
+  // ✅ Carga secuencial + error claro indicando qué JSON falla
   async function cargarArticulos() {
     const resultsContainer = document.getElementById('results');
+    const countContainer = document.getElementById('result-count');
+
     try {
-      const responses = await Promise.all(
-        JSON_FILES.map(f => fetch(JSON_BASE + f, { cache: "no-store" }))
-      );
-
-      const bad = responses.find(r => !r.ok);
-      if (bad) throw new Error(`No se pudo cargar uno de los JSON (HTTP ${bad.status})`);
-
-      const datas = await Promise.all(responses.map(r => r.json()));
-
+      countContainer.innerHTML = `<span class="muted">Cargando artículos...</span>`;
       const merged = [];
-      for (const data of datas) {
+
+      for (const f of JSON_FILES) {
+        const url = JSON_BASE + f;
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) throw new Error(`Fallo cargando ${url} (HTTP ${r.status})`);
+        const data = await r.json();
         const arr = Array.isArray(data) ? data : (data.articles || data.items || data.data || []);
         merged.push(...arr);
       }
@@ -174,9 +174,11 @@
     } catch (error) {
       resultsContainer.innerHTML = `
         <p>Error al cargar los artículos.</p>
-        <p class="muted">Revisa que existan:</p>
+        <p class="muted">${escapeHtml(String(error.message || error))}</p>
+        <p class="muted">Rutas probadas:</p>
         <p class="muted">${escapeHtml(JSON_FILES.map(f => JSON_BASE + f).join(" · "))}</p>
       `;
+      countContainer.innerHTML = "";
       console.error(error);
     }
   }
