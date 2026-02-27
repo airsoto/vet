@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Buscador de Artículos Veterinarios</title>
+
+  <!-- Si goat.js está realmente aquí, OK. Si no, comenta esta línea. -->
+  <script defer src="/vet/goat.js"></script>
+
+  <style>
+    body { background-color:#121212; color:#f0f0f0; font-family:'Georgia', serif; margin:0; padding:2em; }
+    h1 { text-align:center; color:#90caf9; cursor:pointer; margin-top:0; }
+    .search-section { display:flex; gap:1em; justify-content:center; flex-wrap:wrap; margin-bottom:1.2em; }
+    input, select, button { padding:0.5em; font-size:1em; border-radius:5px; border:none; outline:none; }
+    input, select { width:220px; }
+    button { background-color:#1e88e5; color:white; cursor:pointer; }
+    button.secondary{ background-color:#2a2a2a; border:1px solid rgba(255,255,255,.10); }
+    .results { margin-top:1.4em; display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:1.5em; }
+    .article { background-color:#1e1e1e; padding:1.5em; border-left:4px solid #90caf9; border-radius:8px; cursor:pointer;
+      transition:transform 0.25s ease, box-shadow 0.25s ease; overflow:hidden; }
+    .article:hover { transform:scale(1.02); box-shadow:0 0 10px rgba(144,202,249,.6); }
+    .article.expanded { grid-column:1 / -1; transform:scale(1.01); z-index:10; }
+    .latex-style { font-family:'Times New Roman', serif; background-color:#222; padding:1em; border:1px solid #555; border-radius:6px; margin-top:0.6em; }
+    .abstract-text { font-style:italic; text-align:justify; line-height:1.65; margin-top:0.8em; font-size:1.05em; white-space:pre-wrap; }
+    .meta { text-align:center; font-size:0.95em; color:#cfd8dc; margin-top:0.25em; }
+    .pill { display:inline-block; padding:.22em .6em; border-radius:999px; background:rgba(144,202,249,.15);
+      border:1px solid rgba(144,202,249,.35); color:#cfe9ff; font-size:.86em; margin:.15em .15em 0 0; }
+    .chips { margin-top:.8em; text-align:center; }
+    .controls-row{ display:flex; gap:1em; justify-content:center; flex-wrap:wrap; margin:.8em 0 1.2em 0; }
+    .small-note{ text-align:center; color:#90caf9; margin-top:.6em; font-size:1.05em; }
+    .email-section { margin-top:1em; display:flex; gap:.6em; align-items:center; justify-content:center; flex-wrap:wrap; }
+    .email-section input{ width:260px; background:#111; color:#fff; border:1px solid rgba(255,255,255,.12); }
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8);
+      justify-content:center; align-items:center; padding:1em; }
+    .modal-content { background-color:#1e1e1e; padding:2em; border-radius:8px; max-width:640px; width:100%;
+      text-align:center; color:#fff; border:1px solid rgba(255,255,255,.12); }
+    .close-btn { background:#e53935; border:none; padding:0.5em 1em; color:white; margin-top:1em; cursor:pointer; border-radius:5px; }
+    .muted { color:#a7b3c7; font-size:.95em; text-align:center; margin-top:.4em; }
+    code { background:#0b0f14; padding:0 .35em; border-radius:6px; }
+    footer{ margin-top:2.5em; padding-top:1.5em; border-top:1px solid rgba(255,255,255,.12); color:#d7e3f2; text-align:center; font-family:'Georgia', serif; }
+    footer a{ color:#90caf9; text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<h1>
+  Buscador de Artículos de una selección de las principales revistas de Medicina Interna Veterinaria
+  <br>
+  <small>
+    <a href="javascript:void(0);" onclick="toggleModal()" style="color:#90caf9; text-decoration:underline;">
+      (pulsa aquí para ver las revistas indexadas)
+    </a>
+  </small>
+</h1>
+
+<h2 style="text-align:center;">
+  <span style="color:#ff9900;">Desarrollado por: Angel Soto</span>
+</h2>
+
+<p style="text-align:center; margin-top:-1em;">
+  <a href="https://airsoto.github.io/vet/howpapers.html" target="_blank" style="color:#90caf9; text-decoration:underline;">
+    (cómo está creada esta página)
+  </a>
+</p>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>Revistas indexadas</h2>
+    <p>
+      Journal of Veterinary Internal Medicine<br />
+      Journal of the American Veterinary Medical Association<br />
+      Journal of Veterinary Cardiology<br />
+      Journal of Small Animal Practice
+    </p>
+    <p><br />con m&aacute;s de 10600 art&iacute;culos.</p>
+    <button class="close-btn" onclick="toggleModal()">Cerrar</button>
+  </div>
+</div>
+
+<div class="search-section">
+  <select id="journal-select">
+    <option value="">Revista (todas)</option>
+  </select>
+
+  <select id="year-select">
+    <option value="">Año (todos)</option>
+  </select>
+
+  <input type="text" id="title-input" placeholder="Buscar en título...">
+  <input type="text" id="abstract-input" placeholder="Buscar en abstract...">
+
+  <button onclick="search()">Buscar</button>
+  <button class="secondary" onclick="resetAll()">Limpiar</button>
+</div>
+
+<div class="controls-row">
+  <select id="sort-select" onchange="search()">
+    <option value="relevance">Orden: relevancia</option>
+    <option value="year_desc">Orden: año ↓</option>
+    <option value="year_asc">Orden: año ↑</option>
+    <option value="title_asc">Orden: título A→Z</option>
+  </select>
+
+  <select id="limit-select" onchange="search()">
+    <option value="50">Mostrar: 50</option>
+    <option value="100">Mostrar: 100</option>
+    <option value="200">Mostrar: 200</option>
+    <option value="999999">Mostrar: todos</option>
+  </select>
+</div>
+
+<div id="result-count" class="small-note"></div>
+<div id="results" class="results"></div>
+
+<script>
+  // ✅ Ruta absoluta robusta en GitHub Pages
+  const JSON_BASE = "/vet/beta/json_art/";
+
+  const JSON_FILES = [
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract001.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract002.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract003.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract004.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract005.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract006.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract007.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract008.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract009.json",
+    "articulos_pubmed_vet_excluidos_lo_que_no_tienen_abstract010.json"
+  ];
+
+  let articles = [];
+
+  function norm(s){
+    return (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+  function safeArr(a){ return Array.isArray(a) ? a : []; }
+
+  async function fetchJsonStrict(url){
+    // Lee como texto primero para poder diagnosticar (HTML/404/truncado)
+    const r = await fetch(url, { cache: "no-store" });
+    const txt = await r.text();
+
+    if (!r.ok) {
+      throw new Error(`HTTP ${r.status} al cargar ${url}\nPrimeros 120 chars: ${txt.slice(0,120)}`);
+    }
+
+    const t = txt.trim();
+    if (!t) throw new Error(`Respuesta vacía al cargar ${url}`);
+
+    // Si te devuelve HTML (error page), lo detectamos
+    if (t.startsWith("<!doctype") || t.startsWith("<html") || t.startsWith("<!DOCTYPE")) {
+      throw new Error(`La URL ${url} devolvió HTML (no JSON). ¿Ruta incorrecta?\nPrimeros 120 chars: ${t.slice(0,120)}`);
+    }
+
+    try {
+      return JSON.parse(t);
+    } catch (e) {
+      throw new Error(`JSON corrupto/truncado en ${url}\nError: ${e}\nÚltimos 120 chars: ${t.slice(-120)}`);
+    }
+  }
+
+  async function cargarArticulos() {
+    const resultsContainer = document.getElementById('results');
+    const countContainer = document.getElementById('result-count');
+
+    try {
+      countContainer.innerHTML = `<span class="muted">Cargando artículos…</span>`;
+      const merged = [];
+
+      for (const f of JSON_FILES) {
+        const url = JSON_BASE + f;
+        countContainer.innerHTML = `<span class="muted">Cargando: <code>${escapeHtml(url)}</code></span>`;
+        const data = await fetchJsonStrict(url);
+        const arr = Array.isArray(data) ? data : (data.articles || data.items || data.data || []);
+        merged.push(...arr);
+      }
+
+      articles = merged.map(a => ({
+        title: a.title || "",
+        authors: safeArr(a.authors),
+        journal: a.journal || "",
+        volume: a.volume || "",
+        issue: a.issue || "",
+        year: a.year || "",
+        abstract: a.abstract || "",
+        keywords: safeArr(a.keywords),
+        doi: a.doi || "",
+        pmid: a.pmid || ""
+      }));
+
+      buildFilters();
+      search();
+    } catch (error) {
+      resultsContainer.innerHTML = `
+        <p>Error al cargar los artículos.</p>
+        <pre class="muted" style="white-space:pre-wrap; text-align:left; max-width:1100px; margin:0 auto;">
+${escapeHtml(String(error.message || error))}
+        </pre>
+        <p class="muted">Rutas probadas:</p>
+        <p class="muted">${escapeHtml(JSON_FILES.map(f => JSON_BASE + f).join(" · "))}</p>
+      `;
+      countContainer.innerHTML = "";
+      console.error(error);
+    }
+  }
+
+  function buildFilters(){
+    const journalSelect = document.getElementById("journal-select");
+    const yearSelect = document.getElementById("year-select");
+
+    const journals = [...new Set(articles.map(a => a.journal).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    const years = [...new Set(articles.map(a => a.year).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a)));
+
+    journalSelect.innerHTML = '<option value="">Revista (todas)</option>' +
+      journals.map(j => `<option value="${escapeHtmlAttr(j)}">${escapeHtml(j)}</option>`).join("");
+
+    yearSelect.innerHTML = '<option value="">Año (todos)</option>' +
+      years.map(y => `<option value="${escapeHtmlAttr(y)}">${escapeHtml(y)}</option>`).join("");
+  }
+
+  function resetAll(){
+    document.getElementById("journal-select").value = "";
+    document.getElementById("year-select").value = "";
+    document.getElementById("title-input").value = "";
+    document.getElementById("abstract-input").value = "";
+    document.getElementById("sort-select").value = "relevance";
+    document.getElementById("limit-select").value = "50";
+    search();
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function computeScore(article, qTitle, qAbs){
+    let score = 0;
+    const t = norm(article.title);
+    const a = norm(article.abstract);
+    if (qTitle){
+      if (t.includes(qTitle)) score += 8;
+      score += countOccurrences(t, qTitle) * 2;
+    }
+    if (qAbs){
+      if (a.includes(qAbs)) score += 3;
+      score += countOccurrences(a, qAbs) * 1;
+    }
+    return score;
+  }
+
+  function countOccurrences(haystack, needle){
+    if (!needle) return 0;
+    let count = 0, pos = 0;
+    while(true){
+      const idx = haystack.indexOf(needle, pos);
+      if (idx === -1) break;
+      count++;
+      pos = idx + needle.length;
+    }
+    return count;
+  }
+
+  function search() {
+    const journalVal = document.getElementById('journal-select').value;
+    const yearVal = document.getElementById('year-select').value;
+    const qTitle = norm(document.getElementById('title-input').value.trim());
+    const qAbs = norm(document.getElementById('abstract-input').value.trim());
+    const sortMode = document.getElementById('sort-select').value;
+    const limit = parseInt(document.getElementById('limit-select').value, 10);
+
+    const resultsContainer = document.getElementById('results');
+    const countContainer = document.getElementById('result-count');
+    resultsContainer.innerHTML = '';
+    countContainer.innerHTML = '';
+
+    let filtered = articles.filter(article => {
+      if (journalVal && article.journal !== journalVal) return false;
+      if (yearVal && String(article.year) !== String(yearVal)) return false;
+      const t = norm(article.title);
+      const a = norm(article.abstract);
+      const okTitle = !qTitle || t.includes(qTitle);
+      const okAbs = !qAbs || a.includes(qAbs);
+      return okTitle && okAbs;
+    });
+
+    filtered = filtered.map(a => ({...a, _score: computeScore(a, qTitle, qAbs)}));
+
+    if (sortMode === "year_desc"){
+      filtered.sort((x,y)=> String(y.year).localeCompare(String(x.year)) || (y._score - x._score));
+    } else if (sortMode === "year_asc"){
+      filtered.sort((x,y)=> String(x.year).localeCompare(String(y.year)) || (y._score - x._score));
+    } else if (sortMode === "title_asc"){
+      filtered.sort((x,y)=> x.title.localeCompare(y.title));
+    } else {
+      filtered.sort((x,y)=> (y._score - x._score) || String(y.year).localeCompare(String(x.year)));
+    }
+
+    const total = filtered.length;
+    const shown = Math.min(total, limit);
+
+    countContainer.innerHTML = `Se encontraron <strong>${total}</strong> artículo(s). Mostrando <strong>${shown}</strong>.`;
+
+    if (total === 0) {
+      resultsContainer.innerHTML = "<p>No se encontraron resultados.</p>";
+      return;
+    }
+
+    filtered.slice(0, shown).forEach((article, idx) => {
+      const div = document.createElement('div');
+      div.className = 'article';
+
+      const authorsStr = (article.authors && article.authors.length) ? article.authors.join(', ') : '—';
+      const volIssue = (article.volume || article.issue)
+        ? `Vol. ${escapeHtml(article.volume || "—")}(${escapeHtml(article.issue || "—")})`
+        : `Vol. —(—)`;
+
+      const chips = [
+        article.journal ? `<span class="pill">${escapeHtml(article.journal)}</span>` : "",
+        article.year ? `<span class="pill">${escapeHtml(article.year)}</span>` : "",
+        (article.pmid ? `<span class="pill">PMID: ${escapeHtml(article.pmid)}</span>` : ""),
+        (article.doi ? `<span class="pill">DOI</span>` : "")
+      ].filter(Boolean).join("");
+
+      const abstractPretty = article.abstract
+        ? highlight(article.abstract, [document.getElementById('abstract-input').value.trim()])
+        : "Sin abstract disponible.";
+
+      const titlePretty = article.title
+        ? highlight(article.title, [document.getElementById('title-input').value.trim()])
+        : "Sin título";
+
+      div.innerHTML = `
+        <div class="latex-style">
+          <h2 style="text-align:center; margin:0 0 .25em 0;">${titlePretty}</h2>
+          <p style="text-align:center; font-style:italic; margin:.2em 0 .4em 0;">${escapeHtml(authorsStr)}</p>
+          <p class="meta">${escapeHtml(article.journal || "—")}, ${volIssue}, ${escapeHtml(article.year || "—")}</p>
+          <div class="chips">${chips}</div>
+
+          <h3 style="margin-top:1.1em;">Resumen</h3>
+          <p class="abstract-text">${abstractPretty}</p>
+        </div>
+
+        <div class="email-section">
+          <input type="email" placeholder="Tu email..." id="email-${idx}" />
+          <button onclick="event.stopPropagation(); sendEmailByIndex(${idx})">Enviar por correo</button>
+        </div>
+
+        <p class="muted" style="margin-bottom:0;">Pulsa la tarjeta para expandir/contraer.</p>
+      `;
+
+      div.addEventListener('click', () => {
+        div.classList.toggle('expanded');
+        if (div.classList.contains('expanded')) div.scrollIntoView({behavior:"smooth", block:"start"});
+      });
+
+      resultsContainer.appendChild(div);
+    });
+  }
+
+  function sendEmailByIndex(renderedIdx){
+    const limit = parseInt(document.getElementById('limit-select').value, 10);
+    // Para no recalcular todo aquí: si lo necesitas, lo volvemos a implementar como antes.
+    // Por ahora: simple, busca el artículo por índice en el filtro actual (no perfecto si cambias orden).
+    const email = document.getElementById(`email-${renderedIdx}`).value;
+    if (!email || !email.includes('@')) { alert("Introduce un email válido."); return; }
+
+    // Recalcula búsqueda igual que search() para obtener 'shown'
+    const journalVal = document.getElementById('journal-select').value;
+    const yearVal = document.getElementById('year-select').value;
+    const qTitle = norm(document.getElementById('title-input').value.trim());
+    const qAbs = norm(document.getElementById('abstract-input').value.trim());
+    const sortMode = document.getElementById('sort-select').value;
+
+    let filtered = articles.filter(article => {
+      if (journalVal && article.journal !== journalVal) return false;
+      if (yearVal && String(article.year) !== String(yearVal)) return false;
+      const t = norm(article.title);
+      const a = norm(article.abstract);
+      const okTitle = !qTitle || t.includes(qTitle);
+      const okAbs = !qAbs || a.includes(qAbs);
+      return okTitle && okAbs;
+    }).map(a => ({...a, _score: computeScore(a, qTitle, qAbs)}));
+
+    if (sortMode === "year_desc"){
+      filtered.sort((x,y)=> String(y.year).localeCompare(String(x.year)) || (y._score - x._score));
+    } else if (sortMode === "year_asc"){
+      filtered.sort((x,y)=> String(x.year).localeCompare(String(y.year)) || (y._score - x._score));
+    } else if (sortMode === "title_asc"){
+      filtered.sort((x,y)=> x.title.localeCompare(y.title));
+    } else {
+      filtered.sort((x,y)=> (y._score - x._score) || String(y.year).localeCompare(String(x.year)));
+    }
+
+    const shown = filtered.slice(0, Math.min(filtered.length, limit));
+    const article = shown[renderedIdx];
+
+    const subject = encodeURIComponent("Artículo Veterinario: " + (article.title || "Sin título"));
+    const body = encodeURIComponent(
+      `Título: ${article.title}\n` +
+      `Autores: ${(article.authors || []).join(', ')}\n` +
+      `Revista: ${article.journal}, Vol. ${article.volume || "—"}(${article.issue || "—"}), ${article.year}\n` +
+      `\nResumen:\n${article.abstract || "Sin abstract disponible."}`
+    );
+
+    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  }
+
+  function toggleModal() {
+    const modal = document.getElementById('modal');
+    modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+  }
+
+  function escapeHtml(s){
+    return (s ?? "").toString()
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  }
+  function escapeHtmlAttr(s){ return escapeHtml(s).replace(/"/g,"&quot;"); }
+
+  function highlight(text, terms){
+    let out = escapeHtml(text);
+    (terms || []).forEach(t => {
+      if (!t) return;
+      const tt = escapeHtml(t);
+      out = out.split(tt).join(`<mark style="background: rgba(255,153,0,.35); color:#fff; padding:0 .15em; border-radius:4px;">${tt}</mark>`);
+    });
+    return out;
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    ["title-input","abstract-input"].forEach(id=>{
+      const el      = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("keydown", (e)=>{
+        if (e.key === "Enter") search();
+      });
+    });
+  });
+
+  cargarArticulos();
+</script>
+
+<footer>
+  <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;">
+    <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a>
+  </h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p>&nbsp;</p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+  <p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
+</footer>
+
+</body>
+</html>
