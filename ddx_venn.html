@@ -1,1 +1,209 @@
+// index.html
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>| DDx Venn Game |</title>
+  <link rel="stylesheet" href="styles_ddx_venn.css" />
 
+  <!-- D3 + venn.js (para N=2..3) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/d3@5/dist/d3.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/venn.js@0.2.20/build/venn.min.js"></script>
+
+  <script defer src="app.js"></script>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">∩</div>
+        <div>
+          <div class="title">DDx Venn Game</div>
+          <div class="subtitle">Intersecciones por coincidencia de tokens (2–6 procesos)</div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn ghost" id="btnHelp" title="Cómo funciona">?</button>
+
+        <div class="toggle">
+          <input id="themeToggle" type="checkbox" />
+          <label for="themeToggle" class="toggle-ui" title="Modo claro/oscuro">
+            <span class="toggle-pill"></span>
+            <span class="toggle-icon">☾</span>
+            <span class="toggle-icon sun">☀</span>
+          </label>
+        </div>
+
+        <a class="btn" id="btnRepo" href="#" target="_blank" rel="noreferrer">Repo</a>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- LEFT: selector -->
+      <section class="panel panel-left">
+        <div class="panel-head">
+          <h2>Procesos</h2>
+          <div class="badge" id="dataStatus">Cargando…</div>
+        </div>
+
+        <div class="controls">
+          <div class="field">
+            <label for="searchInput">Buscar</label>
+            <div class="input-wrap">
+              <input id="searchInput" type="text" placeholder="Proceso / especialidad / mnemotécnica…" autocomplete="off" />
+              <button class="icon-btn" id="clearSearch" title="Limpiar">×</button>
+            </div>
+            <div class="hint">Debounce activado (rendimiento).</div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="specialtyFilter">Filtrar por especialidad</label>
+              <select id="specialtyFilter">
+                <option value="">Todas</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="maxSelect">Límite selección</label>
+              <div class="range">
+                <input id="maxSelect" type="range" min="2" max="6" step="1" value="6" />
+                <div class="range-readout"><span id="maxSelectVal">6</span></div>
+              </div>
+              <div class="hint">Permite entre 2 y 6 procesos seleccionados.</div>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="sensitivity">Sensibilidad</label>
+              <select id="sensitivity">
+                <option value="t1">Coincidencia por 1 token</option>
+                <option value="t2">Coincidencia por ≥2 tokens</option>
+                <option value="rare">Coincidencia por token raro (IDF)</option>
+              </select>
+              <div class="hint">Afecta cómo se crean las aristas entre diagnósticos.</div>
+            </div>
+
+            <div class="field">
+              <label>Seleccionados</label>
+              <div class="chips" id="selectedChips"></div>
+              <div class="hint" id="selectHint">Selecciona 2–6 procesos para ver el diagrama.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="list-head">
+          <div class="muted" id="resultsCount">—</div>
+          <button class="btn ghost small" id="btnSelectRandom" title="Elige al azar (respeta el límite)">Random</button>
+        </div>
+
+        <div class="process-list" id="processList" role="list"></div>
+
+        <div class="footnote">
+          <div class="muted">
+            Fuente: <code>json/ddx_game.json</code> (ruta relativa). Para que <code>fetch()</code> funcione, abre en GitHub Pages o con servidor local.
+          </div>
+        </div>
+      </section>
+
+      <!-- CENTER: venn -->
+      <section class="panel panel-center">
+        <div class="panel-head">
+          <h2>Venn</h2>
+          <div class="muted" id="vennMode">—</div>
+        </div>
+
+        <div class="venn-wrap">
+          <div class="empty" id="emptyState">
+            <div class="empty-card">
+              <div class="empty-title">Empieza seleccionando procesos</div>
+              <div class="empty-text">
+                Selecciona <b>2 a 6</b> procesos a la izquierda. El sistema:
+                <ol>
+                  <li>Tokeniza diagnósticos (minúsculas, sin acentos/puntuación, sin stopwords).</li>
+                  <li>Une diagnósticos si comparten tokens según la sensibilidad.</li>
+                  <li>Agrupa en componentes conexos y asigna cada grupo a una región (A, A∩B, A∩B∩C…).</li>
+                </ol>
+                Haz <b>hover</b>/<b>click</b> sobre regiones para ver diagnósticos y tokens que causaron el match.
+              </div>
+              <div class="empty-actions">
+                <button class="btn" id="btnTryDemo">Probar demo (3 procesos)</button>
+                <button class="btn ghost" id="btnHowItWorks">Cómo decide intersecciones</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real venn (2-3) -->
+          <div class="venn-canvas" id="vennReal" aria-label="Venn real"></div>
+
+          <!-- Venn-like (4-6) -->
+          <svg class="venn-svg" id="vennLike" viewBox="0 0 900 600" aria-label="Venn estilizado" role="img">
+            <defs id="svgDefs"></defs>
+            <g id="blobLayer"></g>
+            <g id="labelLayer"></g>
+          </svg>
+
+          <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="region-strip" id="regionStrip"></div>
+      </section>
+
+      <!-- RIGHT: details -->
+      <aside class="panel panel-right">
+        <div class="panel-head">
+          <h2>Detalles</h2>
+          <button class="btn ghost small" id="btnCollapseRight" title="Contraer">⟷</button>
+        </div>
+
+        <div class="details">
+          <div class="card">
+            <div class="card-title">Procesos seleccionados</div>
+            <div class="sel-list" id="selectedList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Región activa</div>
+            <div class="region-meta" id="regionMeta">
+              <div class="muted">Pasa el ratón o haz click en una región.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Diagnósticos por proceso</div>
+            <div class="accordion" id="dxByProcess"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Intersecciones detectadas</div>
+            <div class="table" id="intersectionsTable"></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Modal ayuda -->
+    <div class="modal" id="modal">
+      <div class="modal-backdrop" data-close="1"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title" id="modalTitle">Cómo funciona</div>
+            <div class="muted">Criterio de match e intersecciones</div>
+          </div>
+          <button class="icon-btn" data-close="1" title="Cerrar">×</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+          <button class="btn" data-close="1">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
