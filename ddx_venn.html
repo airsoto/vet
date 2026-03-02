@@ -1,18 +1,775 @@
-// index.html
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <title>| DDx Venn Game |</title>
-  <link rel="stylesheet" href="styles_ddx_venn.css" />
+  <title>DDx Venn Game (Single File) | Diagnósticos dentro de círculos</title>
 
   <!-- D3 + venn.js (para N=2..3) -->
   <script defer src="https://cdn.jsdelivr.net/npm/d3@5/dist/d3.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/venn.js@0.2.20/build/venn.min.js"></script>
 
-  <script defer src="app.js"></script>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1724;
+      --panel2:#111b2b;
+      --text:#eaf0fb;
+      --muted:#a7b3c7;
+      --line:rgba(255,255,255,.10);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+      --r:18px;
+      --tap:44px;
+      --accent:#ff9900;
+
+      --glass: rgba(255,255,255,.06);
+      --glass2: rgba(255,255,255,.09);
+      --blur: blur(12px);
+
+      --ok:#27d17f;
+      --bad:#ff5a6a;
+    }
+
+    [data-theme="light"]{
+      --bg:#f6f7fb;
+      --panel:#ffffff;
+      --panel2:#ffffff;
+      --text:#101828;
+      --muted:#556070;
+      --line:rgba(16,24,40,.12);
+      --shadow: 0 14px 34px rgba(16,24,40,.12);
+      --glass: rgba(16,24,40,.05);
+      --glass2: rgba(16,24,40,.08);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background:
+        radial-gradient(1200px 700px at 15% -10%, rgba(255,153,0,.18), transparent 55%),
+        radial-gradient(900px 600px at 105% 20%, rgba(90,160,255,.18), transparent 55%),
+        radial-gradient(1000px 700px at 50% 120%, rgba(39,209,127,.12), transparent 55%),
+        var(--bg);
+      color:var(--text);
+    }
+
+    code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:.95em;
+      padding:.08em .35em;
+      border-radius:10px;
+      background: var(--glass);
+      border:1px solid var(--line);
+    }
+
+    a{ color:inherit; }
+
+    .app{ min-height:100%; display:flex; flex-direction:column; }
+
+    header.topbar{
+      position:sticky; top:0; z-index:10;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(0,0,0,.18), transparent), var(--glass);
+      backdrop-filter: var(--blur);
+    }
+
+    .brand{ display:flex; gap:12px; align-items:center; }
+    .logo{
+      width:44px;height:44px;
+      display:grid;place-items:center;
+      border-radius:14px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.22), rgba(255,255,255,.04) 60%),
+                linear-gradient(135deg, rgba(255,153,0,.35), rgba(90,160,255,.22));
+      border:1px solid var(--line);
+      box-shadow: var(--shadow);
+      font-size:22px;
+      user-select:none;
+    }
+    .title{ font-weight:900; letter-spacing:.2px; }
+    .subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
+
+    .top-actions{ display:flex; align-items:center; gap:10px; }
+
+    .btn{
+      height:var(--tap);
+      padding:0 14px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      color:var(--text);
+      cursor:pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,.12);
+      transition: transform .12s ease, background .2s ease, border-color .2s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(0px); }
+    .btn.ghost{ background: transparent; box-shadow:none; }
+    .btn.small{ height:36px; border-radius:12px; padding:0 12px; font-size:13px; }
+
+    .icon-btn{
+      width:40px;height:40px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      color:var(--text);
+      display:grid;place-items:center;
+      cursor:pointer;
+      transition: transform .12s ease, background .2s ease;
+    }
+    .icon-btn:hover{ transform: translateY(-1px); background: var(--glass2); }
+    .icon-btn:active{ transform: translateY(0px); }
+
+    .toggle{ display:flex; align-items:center; }
+    .toggle input{ display:none; }
+    .toggle-ui{
+      width:70px; height:var(--tap);
+      border-radius:18px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      position:relative;
+      display:flex; align-items:center;
+      padding:0 10px;
+      cursor:pointer;
+      gap:8px;
+    }
+    .toggle-pill{
+      position:absolute; left:6px; top:6px;
+      width:32px; height:32px; border-radius:14px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.24), rgba(255,255,255,.08)),
+                linear-gradient(135deg, rgba(255,153,0,.35), rgba(90,160,255,.22));
+      border:1px solid var(--line);
+      transition: transform .22s ease;
+    }
+    .toggle-icon{ z-index:1; font-size:14px; opacity:.9; }
+    .toggle-icon.sun{ margin-left:auto; opacity:.8; }
+    #themeToggle:checked + .toggle-ui .toggle-pill{ transform: translateX(26px); }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 360px 1fr 420px;
+      gap:14px;
+      padding:14px;
+      align-items:stretch;
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      min-height: calc(100vh - 86px);
+    }
+
+    .panel-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    [data-theme="light"] .panel-head{ background: rgba(16,24,40,.03); }
+
+    .panel h2{ margin:0; font-size:15px; letter-spacing:.2px; }
+    .muted{ color:var(--muted); }
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: var(--glass);
+    }
+
+    /* LEFT */
+    .panel-left{ display:flex; flex-direction:column; }
+    .controls{ padding:12px 14px 10px 14px; }
+    .field{ margin-bottom:12px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input[type="text"], select{
+      width:100%;
+      height:44px;
+      padding:0 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.16);
+      color:var(--text);
+      outline:none;
+      transition: border-color .2s ease, background .2s ease;
+    }
+    [data-theme="light"] input[type="text"],
+    [data-theme="light"] select{
+      background: rgba(16,24,40,.03);
+    }
+    input[type="text"]:focus, select:focus{ border-color: rgba(255,153,0,.35); }
+
+    .input-wrap{ position:relative; }
+    #clearSearch{
+      position:absolute;
+      right:6px; top:6px;
+      width:32px;height:32px;border-radius:12px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      color:var(--text);
+      cursor:pointer;
+    }
+    .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .range{ display:flex; align-items:center; gap:10px; }
+    .range input[type="range"]{ width:100%; }
+    .range-readout{
+      min-width:44px;
+      height:44px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      display:grid;place-items:center;
+      font-weight:900;
+    }
+
+    .chips{
+      display:flex; flex-wrap:wrap; gap:8px;
+      min-height:44px; padding:8px;
+      border-radius:14px;
+      border:1px dashed var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    [data-theme="light"] .chips{ background: rgba(16,24,40,.03); }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      font-size:12px;
+      animation: pop .16s ease;
+      user-select:none;
+    }
+    @keyframes pop{ from{ transform:scale(.96); opacity:.6; } to{ transform:scale(1); opacity:1; } }
+    .dot{ width:10px;height:10px;border-radius:99px; box-shadow: 0 0 0 3px rgba(255,255,255,.06) inset; }
+    .chip button{
+      border:0; background:transparent; color:var(--muted);
+      cursor:pointer; font-size:16px; line-height:1; padding:0;
+    }
+    .chip button:hover{ color:var(--text); }
+
+    .list-head{
+      padding:0 14px 10px 14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .process-list{
+      padding:10px 10px 14px 10px;
+      overflow:auto;
+      flex:1;
+    }
+
+    .item{
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      border-radius:16px;
+      padding:12px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      margin-bottom:10px;
+      transition: transform .14s ease, background .2s ease, border-color .2s ease;
+    }
+    [data-theme="light"] .item{ background: rgba(16,24,40,.03); }
+    .item:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+    .item .left{
+      display:flex; flex-direction:column; gap:8px; align-items:center;
+    }
+    .chk{ width:20px;height:20px; accent-color: var(--accent); cursor:pointer; }
+    .pill{
+      font-size:11px;
+      padding:5px 9px;
+      border-radius:999px;
+      background: var(--glass);
+      border:1px solid var(--line);
+    }
+    .item .main{ flex:1; }
+    .item .name{ font-weight:900; line-height:1.15; }
+    .item .meta{ margin-top:6px; color:var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; }
+    .tag{
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: var(--glass);
+    }
+    .colorbar{
+      width:10px; border-radius:999px; margin-left:auto; height:100%;
+      opacity:.85; box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+    }
+
+    .footnote{ padding:10px 14px 14px 14px; border-top:1px solid var(--line); }
+
+    /* CENTER */
+    .panel-center{ position:relative; display:flex; flex-direction:column; }
+    .venn-wrap{ position:relative; flex:1; min-height:560px; padding:12px; }
+
+    .empty{
+      position:absolute; inset:12px;
+      display:grid; place-items:center; z-index:2;
+    }
+    .empty-card{
+      max-width:720px;
+      padding:18px 18px;
+      border-radius:20px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      box-shadow: var(--shadow);
+    }
+    .empty-title{ font-size:18px; font-weight:900; }
+    .empty-text{ color:var(--muted); margin-top:10px; line-height:1.5; }
+    .empty-actions{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+
+    /* Real venn container (2-3) */
+    #vennReal{
+      position:relative;
+      width:100%;
+      height:100%;
+      min-height:560px;
+      display:none;
+    }
+    #vennReal .vennSvgHost{ position:absolute; inset:0; }
+    #vennReal .inCircleLayer{ position:absolute; inset:0; pointer-events:none; }
+    /* In-circle cards for real venn (HTML overlays) */
+    .circleCard{
+      position:absolute;
+      transform: translate(-50%, -50%);
+      width: 240px;
+      max-width: 42vw;
+      pointer-events:auto;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.38);
+      backdrop-filter: var(--blur);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    [data-theme="light"] .circleCard{ background: rgba(255,255,255,.78); }
+    .circleCard .head{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:10px 10px;
+      border-bottom:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+    }
+    .circleCard .head .ttl{ display:flex; align-items:center; gap:10px; font-weight:900; font-size:12px; }
+    .circleCard .head .sub{ color:var(--muted); font-size:11px; font-weight:700; }
+    .circleCard .tabs{
+      display:flex; gap:8px;
+      padding:8px 10px;
+      border-bottom:1px solid var(--line);
+    }
+    .tab{
+      pointer-events:auto;
+      cursor:pointer;
+      user-select:none;
+      font-size:11px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      color:var(--text);
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .tab.active{
+      border-color: rgba(255,153,0,.35);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.10);
+    }
+    .circleCard .body{
+      padding:10px;
+      max-height: 260px;
+      overflow:auto;
+      pointer-events:auto;
+    }
+
+    .dxRow{
+      font-size:11px;
+      line-height:1.35;
+      padding:8px 9px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.14);
+      margin-bottom:8px;
+    }
+    [data-theme="light"] .dxRow{ background: rgba(16,24,40,.03); }
+    .dxRow:last-child{ margin-bottom:0; }
+    .badges{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
+    .b{
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:10px;
+      padding:5px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+      color: var(--muted);
+    }
+    [data-theme="light"] .b{ background: rgba(16,24,40,.03); }
+
+    /* Intersection cards (overlay) */
+    .ixCard{
+      position:absolute;
+      transform: translate(-50%, -50%);
+      pointer-events:auto;
+      width: 210px;
+      max-width: 40vw;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.52);
+      backdrop-filter: var(--blur);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    [data-theme="light"] .ixCard{ background: rgba(255,255,255,.86); }
+    .ixCard .ixHead{
+      padding:10px 10px;
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .ixCard .ixName{ font-weight:900; font-size:12px; }
+    .ixCard .ixCount{
+      min-width:26px; height:22px;
+      border-radius:999px;
+      display:grid; place-items:center;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      font-weight:900;
+      font-size:11px;
+    }
+    .ixCard .ixBody{
+      padding:10px;
+      max-height: 190px;
+      overflow:auto;
+      color: var(--muted);
+      font-size:11px;
+      line-height:1.4;
+    }
+    .ixCard .ixBody .sample{
+      padding:8px 9px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      margin-bottom:8px;
+      color: var(--text);
+    }
+    [data-theme="light"] .ixCard .ixBody .sample{ background: rgba(16,24,40,.03); color:var(--text); }
+    .ixCard .ixBody .sample:last-child{ margin-bottom:0; }
+
+    /* Venn-like SVG (4-6) */
+    #vennLike{
+      width:100%;
+      height:100%;
+      min-height:560px;
+      display:none;
+    }
+    .blob{
+      mix-blend-mode: multiply;
+      opacity: .95;
+      stroke: rgba(0,0,0,.45);
+      stroke-width: 2.2;
+      filter: drop-shadow(0 16px 22px rgba(0,0,0,.18));
+      cursor:pointer;
+    }
+    [data-theme="light"] .blob{ stroke: rgba(16,24,40,.45); }
+    .blob:hover{ opacity: 1; }
+
+    .blob-label{ font-weight:900; font-size:14px; fill: var(--text); }
+    .blob-sub{ font-weight:800; font-size:12px; fill: var(--muted); }
+
+    /* In-circle HTML lists in SVG via foreignObject */
+    .foWrap{
+      pointer-events:none; /* enable clicks on SVG shapes; cards are separate */
+    }
+    .foCard{
+      width:100%;
+      height:100%;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.26);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      pointer-events:auto;
+      display:flex;
+      flex-direction:column;
+    }
+    [data-theme="light"] .foCard{ background: rgba(255,255,255,.70); }
+    .foHead{
+      padding:8px 10px;
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      font-weight:900;
+      font-size:12px;
+    }
+    .foTabs{ padding:7px 10px; border-bottom:1px solid var(--line); display:flex; gap:8px; }
+    .foBody{ padding:10px; overflow:auto; font-size:11px; line-height:1.35; color:var(--text); }
+    .foItem{
+      padding:8px 9px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      margin-bottom:8px;
+    }
+    [data-theme="light"] .foItem{ background: rgba(16,24,40,.03); }
+    .foItem:last-child{ margin-bottom:0; }
+
+    /* Region strip + tooltip */
+    .region-strip{
+      display:flex; flex-wrap:wrap; gap:8px;
+      padding:12px 12px 14px 12px;
+      border-top:1px solid var(--line);
+    }
+    .region-pill{
+      cursor:pointer; user-select:none;
+      font-size:12px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      display:flex; align-items:center; gap:8px;
+      transition: transform .12s ease, background .2s ease;
+    }
+    .region-pill:hover{ transform: translateY(-1px); background: var(--glass2); }
+    .region-pill .count{
+      min-width:26px; height:22px; border-radius:999px;
+      display:grid; place-items:center;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      font-weight:900;
+      font-size:11px;
+    }
+    [data-theme="light"] .region-pill .count{ background: rgba(16,24,40,.03); }
+    .region-pill.active{
+      border-color: rgba(255,153,0,.35);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.10);
+    }
+
+    .tooltip{
+      position:absolute;
+      pointer-events:none;
+      opacity:0;
+      transform: translateY(6px);
+      transition: opacity .12s ease, transform .12s ease;
+      padding:10px 12px;
+      max-width: 380px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.55);
+      backdrop-filter: var(--blur);
+      box-shadow: var(--shadow);
+      color:var(--text);
+      font-size:12px;
+      z-index:9;
+    }
+    [data-theme="light"] .tooltip{ background: rgba(255,255,255,.78); }
+    .tooltip .tt-title{ font-weight:900; margin-bottom:6px; }
+    .tooltip .tt-row{ color:var(--muted); }
+
+    /* RIGHT */
+    .panel-right{ display:flex; flex-direction:column; }
+    .details{ padding:12px; display:flex; flex-direction:column; gap:12px; overflow:auto; flex:1; }
+    .card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: rgba(0,0,0,.10);
+      padding:12px;
+    }
+    [data-theme="light"] .card{ background: rgba(16,24,40,.03); }
+    .card-title{ font-weight:900; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+    .sel-list{ display:flex; flex-direction:column; gap:10px; }
+    .sel-row{
+      display:flex; align-items:center; gap:10px;
+      padding:10px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: var(--glass);
+    }
+    .sel-row .dot{ width:12px;height:12px; }
+    .sel-row .txt{ flex:1; }
+    .sel-row .txt .p{ font-weight:900; }
+    .sel-row .txt .m{ color:var(--muted); font-size:12px; margin-top:2px; }
+
+    .hl{
+      font-weight:900;
+      padding:0 .25em;
+      border-radius:10px;
+      background: rgba(255,153,0,.18);
+      border:1px solid rgba(255,153,0,.22);
+    }
+
+    .region-meta .rx{
+      padding:10px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: var(--glass);
+      margin-top:8px;
+    }
+    .region-meta .rx .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .region-meta .rx .name{ font-weight:900; }
+    .tokens{ margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+    .token{
+      font-size:11px;
+      padding:5px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    [data-theme="light"] .token{ background: rgba(16,24,40,.03); }
+
+    .accordion .acc-item{
+      border:1px solid var(--line);
+      border-radius:16px;
+      margin-bottom:10px;
+      overflow:hidden;
+    }
+    .acc-head{
+      cursor:pointer; user-select:none;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      background: var(--glass);
+    }
+    .acc-head .dot{ width:10px;height:10px; }
+    .acc-head .t{ font-weight:900; flex:1; }
+    .acc-head .caret{ color:var(--muted); }
+    .acc-body{ padding:10px 12px; border-top:1px solid var(--line); display:none; }
+    .acc-item.open .acc-body{ display:block; }
+
+    .dx{
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      margin-bottom:8px;
+      background: rgba(0,0,0,.10);
+      font-size:12px;
+      line-height:1.4;
+    }
+    [data-theme="light"] .dx{ background: rgba(16,24,40,.03); }
+
+    .table{
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+    }
+    .trow{
+      display:grid;
+      grid-template-columns: 1.1fr .6fr 1.3fr;
+      gap:10px;
+      padding:10px 12px;
+      border-bottom:1px solid var(--line);
+      background: rgba(0,0,0,.08);
+      cursor:pointer;
+    }
+    [data-theme="light"] .trow{ background: rgba(16,24,40,.02); }
+    .trow:hover{ background: rgba(255,153,0,.08); }
+    .trow.header{
+      cursor:default;
+      font-weight:900;
+      color:var(--muted);
+    }
+    .trow:last-child{ border-bottom:0; }
+    .tcell{ font-size:12px; }
+
+    .panel-right.collapsed{ display:none; }
+
+    /* Modal */
+    .modal{ position:fixed; inset:0; display:none; z-index:50; }
+    .modal.open{ display:block; }
+    .modal-backdrop{ position:absolute; inset:0; background: rgba(0,0,0,.55); }
+    .modal-card{
+      position:relative;
+      max-width: 980px;
+      margin: 6vh auto;
+      background: var(--panel);
+      border:1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal-head{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:14px 14px;
+      border-bottom:1px solid var(--line);
+    }
+    .modal-title{ font-weight:900; }
+    .modal-body{ padding:14px; color:var(--muted); line-height:1.6; }
+    .modal-body b{ color:var(--text); }
+    .modal-foot{
+      padding:12px 14px;
+      border-top:1px solid var(--line);
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+
+    /* Toast */
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:18px;
+      transform: translateX(-50%) translateY(6px);
+      z-index:999;
+      padding:10px 12px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.58);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      color:var(--text);
+      font-size:12px;
+      opacity:0;
+      transition: opacity .14s ease, transform .14s ease;
+      pointer-events:none;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(0px); }
+
+    /* venn.js tooltip off */
+    .venntooltip{ display:none !important; }
+
+    @media (max-width: 1200px){
+      .layout{ grid-template-columns: 360px 1fr 380px; }
+      .circleCard{ width: 220px; }
+      .ixCard{ width: 200px; }
+    }
+    @media (max-width: 1024px){
+      .layout{ grid-template-columns: 1fr; }
+      .panel{ min-height:auto; }
+      .panel-left{ order:1; }
+      .panel-center{ order:2; }
+      .panel-right{ order:3; }
+      .venn-wrap{ min-height:520px; }
+      #vennReal{ min-height:520px; }
+      #vennLike{ min-height:520px; }
+      .circleCard{ max-width: 88vw; }
+      .ixCard{ max-width: 88vw; }
+    }
+    @media (max-width: 480px){
+      .grid2{ grid-template-columns: 1fr; }
+      .subtitle{ display:none; }
+      .btn{ padding:0 12px; }
+    }
+  </style>
 </head>
 
 <body>
@@ -22,7 +779,7 @@
         <div class="logo" aria-hidden="true">∩</div>
         <div>
           <div class="title">DDx Venn Game</div>
-          <div class="subtitle">Intersecciones por coincidencia de tokens (2–6 procesos)</div>
+          <div class="subtitle">Diagnósticos dentro de cada círculo + coincidencias por 1/2/3… procesos</div>
         </div>
       </div>
 
@@ -43,7 +800,7 @@
     </header>
 
     <main class="layout">
-      <!-- LEFT: selector -->
+      <!-- LEFT -->
       <section class="panel panel-left">
         <div class="panel-head">
           <h2>Procesos</h2>
@@ -57,7 +814,7 @@
               <input id="searchInput" type="text" placeholder="Proceso / especialidad / mnemotécnica…" autocomplete="off" />
               <button class="icon-btn" id="clearSearch" title="Limpiar">×</button>
             </div>
-            <div class="hint">Debounce activado (rendimiento).</div>
+            <div class="hint">Debounce activado.</div>
           </div>
 
           <div class="grid2">
@@ -86,7 +843,7 @@
                 <option value="t2">Coincidencia por ≥2 tokens</option>
                 <option value="rare">Coincidencia por token raro (IDF)</option>
               </select>
-              <div class="hint">Afecta cómo se crean las aristas entre diagnósticos.</div>
+              <div class="hint">Define cuándo dos diagnósticos se conectan.</div>
             </div>
 
             <div class="field">
@@ -106,12 +863,12 @@
 
         <div class="footnote">
           <div class="muted">
-            Fuente: <code>json/ddx_game.json</code> (ruta relativa). Para que <code>fetch()</code> funcione, abre en GitHub Pages o con servidor local.
+            Fuente: <code>json/ddx_game.json</code>. Para <code>fetch()</code>, usa GitHub Pages o servidor local (no <code>file://</code>).
           </div>
         </div>
       </section>
 
-      <!-- CENTER: venn -->
+      <!-- CENTER -->
       <section class="panel panel-center">
         <div class="panel-head">
           <h2>Venn</h2>
@@ -121,40 +878,44 @@
         <div class="venn-wrap">
           <div class="empty" id="emptyState">
             <div class="empty-card">
-              <div class="empty-title">Empieza seleccionando procesos</div>
+              <div class="empty-title">Selecciona procesos</div>
               <div class="empty-text">
-                Selecciona <b>2 a 6</b> procesos a la izquierda. El sistema:
-                <ol>
-                  <li>Tokeniza diagnósticos (minúsculas, sin acentos/puntuación, sin stopwords).</li>
-                  <li>Une diagnósticos si comparten tokens según la sensibilidad.</li>
-                  <li>Agrupa en componentes conexos y asigna cada grupo a una región (A, A∩B, A∩B∩C…).</li>
-                </ol>
-                Haz <b>hover</b>/<b>click</b> sobre regiones para ver diagnósticos y tokens que causaron el match.
+                Ahora los <b>diagnósticos aparecen dentro de cada círculo</b> (con pestañas):
+                <ul>
+                  <li><b>Únicos</b>: diagnósticos sin coincidencia con otros procesos.</li>
+                  <li><b>Coinciden</b>: diagnósticos que conectan con 2, 3, 4… procesos (se marcan con badge).</li>
+                </ul>
+                Además, las <b>intersecciones</b> (A∩B, A∩B∩C, …) se reseñan como tarjetas en el centro de las zonas de solape (click para ver detalle).
               </div>
               <div class="empty-actions">
                 <button class="btn" id="btnTryDemo">Probar demo (3 procesos)</button>
-                <button class="btn ghost" id="btnHowItWorks">Cómo decide intersecciones</button>
+                <button class="btn ghost" id="btnHowItWorks">Cómo decide coincidencias</button>
               </div>
             </div>
           </div>
 
-          <!-- Real venn (2-3) -->
-          <div class="venn-canvas" id="vennReal" aria-label="Venn real"></div>
+          <!-- REAL venn (2-3): SVG de venn.js + overlays HTML dentro de círculos -->
+          <div id="vennReal">
+            <div class="vennSvgHost" id="vennSvgHost"></div>
+            <div class="inCircleLayer" id="inCircleLayer"></div>
+          </div>
 
-          <!-- Venn-like (4-6) -->
-          <svg class="venn-svg" id="vennLike" viewBox="0 0 900 600" aria-label="Venn estilizado" role="img">
+          <!-- Venn-like SVG (4-6) + in-circle lists via foreignObject -->
+          <svg id="vennLike" viewBox="0 0 900 600" aria-label="Venn estilizado" role="img">
             <defs id="svgDefs"></defs>
             <g id="blobLayer"></g>
             <g id="labelLayer"></g>
+            <g id="foLayer" class="foWrap"></g>
+            <g id="ixLayer"></g>
           </svg>
 
-          <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+          <div class="tooltip" id="tooltip"></div>
         </div>
 
         <div class="region-strip" id="regionStrip"></div>
       </section>
 
-      <!-- RIGHT: details -->
+      <!-- RIGHT -->
       <aside class="panel panel-right">
         <div class="panel-head">
           <h2>Detalles</h2>
@@ -170,7 +931,7 @@
           <div class="card">
             <div class="card-title">Región activa</div>
             <div class="region-meta" id="regionMeta">
-              <div class="muted">Pasa el ratón o haz click en una región.</div>
+              <div class="muted">Click en una tarjeta de intersección o en una “píldora” inferior.</div>
             </div>
           </div>
 
@@ -187,14 +948,14 @@
       </aside>
     </main>
 
-    <!-- Modal ayuda -->
+    <!-- Modal -->
     <div class="modal" id="modal">
       <div class="modal-backdrop" data-close="1"></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-head">
           <div>
             <div class="modal-title" id="modalTitle">Cómo funciona</div>
-            <div class="muted">Criterio de match e intersecciones</div>
+            <div class="muted">Criterio de match + reseñado por 2/3/4… procesos</div>
           </div>
           <button class="icon-btn" data-close="1" title="Cerrar">×</button>
         </div>
@@ -204,6 +965,1708 @@
         </div>
       </div>
     </div>
+
+    <div class="toast" id="toast"></div>
   </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /**********************************************************************
+       * CONFIG
+       *********************************************************************/
+      const JSON_URL = "json/ddx_game.json";
+      const STOPWORDS = new Set([
+        "de","la","que","el","en","y","a","los","del","se","las","por","un","para","con","no","una","su","al","lo","como",
+        "más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me",
+        "hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso",
+        "ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra","él","tanto","esa","estos",
+        "mucho","quienes","nada","muchos","cual","poco","ella","estar","estas","algunas","algo","nosotros",
+        // ampliación suave
+        "u","rt","etc","etcétera","p","q","x","s","t","h","cm","mm","mg","ml"
+      ]);
+
+      // Paleta fija
+      const BASE_PALETTE = [
+        "#ff6b6b","#ffd166","#06d6a0","#4dabf7","#b197fc","#ff922b",
+        "#63e6be","#74c0fc","#ffa8a8","#e599f7","#99e9f2","#a9e34b"
+      ];
+
+      // "token raro" => df <= ~22% de diagnósticos seleccionados
+      const RARE_DF_RATIO = 0.22;
+
+      // Cuánto texto mostrar dentro de círculos (scroll interno)
+      const IN_CIRCLE_LIMIT = 18;
+
+      /**********************************************************************
+       * DOM
+       *********************************************************************/
+      const $ = (s, r=document) => r.querySelector(s);
+      const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+      const els = {
+        dataStatus: $("#dataStatus"),
+        btnRepo: $("#btnRepo"),
+        searchInput: $("#searchInput"),
+        clearSearch: $("#clearSearch"),
+        specialtyFilter: $("#specialtyFilter"),
+        maxSelect: $("#maxSelect"),
+        maxSelectVal: $("#maxSelectVal"),
+        sensitivity: $("#sensitivity"),
+        selectedChips: $("#selectedChips"),
+        selectHint: $("#selectHint"),
+        resultsCount: $("#resultsCount"),
+        processList: $("#processList"),
+        btnSelectRandom: $("#btnSelectRandom"),
+
+        emptyState: $("#emptyState"),
+        btnTryDemo: $("#btnTryDemo"),
+        btnHowItWorks: $("#btnHowItWorks"),
+
+        vennMode: $("#vennMode"),
+        vennReal: $("#vennReal"),
+        vennSvgHost: $("#vennSvgHost"),
+        inCircleLayer: $("#inCircleLayer"),
+
+        vennLike: $("#vennLike"),
+        svgDefs: $("#svgDefs"),
+        blobLayer: $("#blobLayer"),
+        labelLayer: $("#labelLayer"),
+        foLayer: $("#foLayer"),
+        ixLayer: $("#ixLayer"),
+
+        tooltip: $("#tooltip"),
+        regionStrip: $("#regionStrip"),
+
+        selectedList: $("#selectedList"),
+        dxByProcess: $("#dxByProcess"),
+        intersectionsTable: $("#intersectionsTable"),
+        regionMeta: $("#regionMeta"),
+        btnCollapseRight: $("#btnCollapseRight"),
+
+        btnHelp: $("#btnHelp"),
+        modal: $("#modal"),
+        modalBody: $("#modalBody"),
+        themeToggle: $("#themeToggle"),
+
+        toast: $("#toast"),
+      };
+
+      /**********************************************************************
+       * STATE + CACHES
+       *********************************************************************/
+      const state = {
+        raw: [],
+        filtered: [],
+        selectedKeys: [],
+        maxSelected: 6,
+        sensitivity: "t1",
+        specialty: "",
+        q: "",
+        theme: "dark",
+
+        tokenCache: new Map(), // proceso -> {meta, dx:[{id,text,tokens:Set,tokenArr:[]}]}
+        graphCache: new Map(), // selection+sensitivity -> computed
+        activeRegionKey: null,
+
+        // posiciones de círculos en el lienzo actual (para overlays)
+        circleLayout: new Map(), // procKey -> {x,y,r}
+      };
+
+      /**********************************************************************
+       * TEXT NORMALIZATION / TOKENIZATION
+       *********************************************************************/
+      const stripAccents = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const normalizeText = s => stripAccents(String(s||"").toLowerCase());
+      const removePunct = s => s
+        .replace(/[(){}\[\]]/g, " ")
+        .replace(/[.,;:¡!¿?/"'’“”]/g, " ")
+        .replace(/[–—-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      function lightNormalizeToken(t){
+        if (!t) return t;
+        if (t.length > 4) {
+          if (t.endsWith("es")) t = t.slice(0,-2);
+          else if (t.endsWith("s")) t = t.slice(0,-1);
+        }
+        return t;
+      }
+
+      function tokenize(text){
+        const cleaned = removePunct(normalizeText(text));
+        const parts = cleaned.split(" ").map(lightNormalizeToken);
+        return parts.filter(t =>
+          t && t.length >= 3 && !STOPWORDS.has(t) && !/^\d+$/.test(t)
+        );
+      }
+
+      /**********************************************************************
+       * UTIL
+       *********************************************************************/
+      function escapeHtml(s){
+        return String(s ?? "")
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+      function escapeRegExp(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+      function debounce(fn, ms=180){
+        let t=null;
+        return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+      }
+
+      function toast(msg, kind="info"){
+        els.toast.textContent = msg;
+        els.toast.style.borderColor =
+          kind==="bad" ? "rgba(255,107,107,.45)" :
+          kind==="ok"  ? "rgba(39,209,127,.45)" :
+          "var(--line)";
+        els.toast.classList.add("show");
+        clearTimeout(toast._t);
+        toast._t = setTimeout(()=> els.toast.classList.remove("show"), 1400);
+      }
+
+      function setStatus(text, kind="info"){
+        els.dataStatus.textContent = text;
+        els.dataStatus.style.borderColor =
+          kind === "ok" ? "rgba(39,209,127,.35)" :
+          kind === "bad" ? "rgba(255,107,107,.35)" :
+          "var(--line)";
+      }
+
+      function hash(str){
+        let h = 0;
+        for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
+        return h;
+      }
+
+      function colorForProcess(procName){
+        const idx = state.selectedKeys.indexOf(procName);
+        return BASE_PALETTE[(idx >= 0 ? idx : hash(procName)) % BASE_PALETTE.length];
+      }
+
+      function prettyRegionName(procArr){
+        const letters = "ABCDEF".split("");
+        const map = new Map(state.selectedKeys.map((p,i)=>[p, letters[i] || `S${i+1}`]));
+        return procArr.map(p => map.get(p) || p).join("∩");
+      }
+
+      /**********************************************************************
+       * DATA CACHE PER PROCESS
+       *********************************************************************/
+      function ensureProcessCached(procObj){
+        const key = procObj.Proceso;
+        if (state.tokenCache.has(key)) return state.tokenCache.get(key);
+
+        const dxArr = Array.isArray(procObj["Diagnósticos diferenciales"])
+          ? procObj["Diagnósticos diferenciales"]
+          : [];
+
+        const dx = dxArr.map((text, idx) => {
+          const tokenArr = tokenize(text);
+          return {
+            id: `${key}::${idx}`,
+            text,
+            tokenArr,
+            tokens: new Set(tokenArr),
+          };
+        });
+
+        const cached = {
+          meta: {
+            Proceso: procObj.Proceso,
+            especialidades: procObj.especialidades || "",
+            mnemotecnica: procObj["mnemotécnica"] || procObj.mnemotecnica || "",
+          },
+          dx
+        };
+
+        state.tokenCache.set(key, cached);
+        return cached;
+      }
+
+      function getSelectedProcessObjects(){
+        const set = new Set(state.selectedKeys);
+        return state.raw.filter(p => set.has(p.Proceso));
+      }
+
+      function getUniqueSpecialties(){
+        const s = new Set();
+        for (const p of state.raw){
+          if (p.especialidades) s.add(String(p.especialidades).trim());
+        }
+        return Array.from(s).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      }
+
+      /**********************************************************************
+       * IDF + EDGE LOGIC
+       *********************************************************************/
+      function buildIDF(selectedProcs){
+        const docs = [];
+        for (const p of selectedProcs){
+          const cached = ensureProcessCached(p);
+          for (const d of cached.dx) docs.push(d.tokenArr);
+        }
+        const N = docs.length || 1;
+        const df = new Map();
+        for (const toks of docs){
+          const uniq = new Set(toks);
+          for (const t of uniq) df.set(t, (df.get(t) || 0) + 1);
+        }
+        const idf = new Map();
+        for (const [t, f] of df.entries()){
+          const score = Math.log((N + 1) / (f + 1)) + 1;
+          idf.set(t, score);
+        }
+        const dfThreshold = Math.max(1, Math.floor(N * RARE_DF_RATIO));
+        const isRare = (t) => (df.get(t) || 0) <= dfThreshold;
+        return { N, df, idf, isRare, dfThreshold };
+      }
+
+      function sharedTokens(aSet, bSet){
+        const out = [];
+        for (const t of aSet) if (bSet.has(t)) out.push(t);
+        return out;
+      }
+
+      function qualifiesEdge(shared, idfInfo, sensitivity){
+        if (sensitivity === "t1") return shared.length >= 1;
+        if (sensitivity === "t2") return shared.length >= 2;
+        if (sensitivity === "rare") return shared.some(t => idfInfo.isRare(t));
+        return shared.length >= 1;
+      }
+
+      function edgeTokensForDisplay(shared, idfInfo, sensitivity){
+        if (sensitivity === "rare"){
+          const rareShared = shared.filter(t => idfInfo.isRare(t));
+          return rareShared.length ? rareShared : shared.slice(0, 3);
+        }
+        return shared;
+      }
+
+      /**********************************************************************
+       * CORE: GRAPH COMPONENTS -> REGIONS + (IMPORTANTE) "K coincidencias"
+       *
+       * Mejorado para tu petición:
+       * - Cada diagnóstico recibe un "k" = nº de procesos implicados en su componente conexo.
+       * - Dentro de cada círculo mostramos:
+       *   - Únicos: k=1 (o sin aristas)
+       *   - Coinciden: k>=2, agrupados por k (2,3,4...)
+       * - Las intersecciones (regiones exactas) se reseñan como:
+       *   - Píldoras inferiores
+       *   - Tarjetas overlay en el centro aproximado de los círculos involucrados
+       *********************************************************************/
+      function computeIntersections(){
+        const selected = getSelectedProcessObjects();
+        if (selected.length < 2) return null;
+
+        const cacheKey = `${selected.map(p=>p.Proceso).sort().join("||")}::${state.sensitivity}`;
+        if (state.graphCache.has(cacheKey)) return state.graphCache.get(cacheKey);
+
+        const idfInfo = buildIDF(selected);
+
+        // Nodes
+        const nodes = []; // {nodeId, procKey, text, tokens:Set, tokenArr}
+        const byProc = new Map(); // procKey -> nodeIdx[]
+        for (const p of selected){
+          const cached = ensureProcessCached(p);
+          const procKey = cached.meta.Proceso;
+          byProc.set(procKey, []);
+          for (const d of cached.dx){
+            const node = {
+              nodeId: d.id,
+              procKey,
+              text: d.text,
+              tokens: d.tokens,
+              tokenArr: d.tokenArr
+            };
+            const idx = nodes.push(node) - 1;
+            byProc.get(procKey).push(idx);
+          }
+        }
+
+        // Adjacency + record shared tokens on edges
+        const adj = Array.from({length:nodes.length}, () => []);
+        const procKeys = Array.from(byProc.keys());
+
+        for (let i=0;i<procKeys.length;i++){
+          for (let j=i+1;j<procKeys.length;j++){
+            const A = byProc.get(procKeys[i]);
+            const B = byProc.get(procKeys[j]);
+            for (const ai of A){
+              const a = nodes[ai];
+              for (const bi of B){
+                const b = nodes[bi];
+                const shared = sharedTokens(a.tokens, b.tokens);
+                if (qualifiesEdge(shared, idfInfo, state.sensitivity)){
+                  const tok = edgeTokensForDisplay(shared, idfInfo, state.sensitivity);
+                  adj[ai].push({to: bi, shared: tok});
+                  adj[bi].push({to: ai, shared: tok});
+                }
+              }
+            }
+          }
+        }
+
+        // Components (only from nodes that have any edge)
+        const seen = new Array(nodes.length).fill(false);
+        const components = []; // {nodeIdxs, procs:Set, tokenProcPresence:Map(token->Set(proc))}
+        const nodeToComp = new Array(nodes.length).fill(-1);
+
+        for (let i=0;i<nodes.length;i++){
+          if (seen[i]) continue;
+
+          if (adj[i].length === 0){
+            // isolated -> keep as "k=1 unique"
+            seen[i] = true;
+            continue;
+          }
+
+          const stack = [i];
+          seen[i] = true;
+
+          const nodeIdxs = [];
+          const procs = new Set();
+          const tokenProcPresence = new Map();
+
+          while (stack.length){
+            const u = stack.pop();
+            nodeIdxs.push(u);
+            const pk = nodes[u].procKey;
+            procs.add(pk);
+
+            for (const t of nodes[u].tokens){
+              let s = tokenProcPresence.get(t);
+              if (!s){ s = new Set(); tokenProcPresence.set(t, s); }
+              s.add(pk);
+            }
+
+            for (const e of adj[u]){
+              const v = e.to;
+              if (!seen[v]){
+                seen[v] = true;
+                stack.push(v);
+              }
+            }
+          }
+
+          const compIndex = components.push({nodeIdxs, procs, tokenProcPresence}) - 1;
+          for (const u of nodeIdxs) nodeToComp[u] = compIndex;
+        }
+
+        // Regions = group components by exact proc-set
+        const regionMap = new Map(); // regionKey(proc names joined by ∩) -> {procArr, components:[]}
+        for (const comp of components){
+          const procArr = Array.from(comp.procs).sort();
+          if (procArr.length < 2) continue;
+          const regionKey = procArr.join("∩");
+          if (!regionMap.has(regionKey)) regionMap.set(regionKey, {regionKey, procArr, components:[]});
+          regionMap.get(regionKey).components.push(comp);
+        }
+
+        // For each region: tokens causantes + dxByProc
+        const regions = [];
+        for (const region of regionMap.values()){
+          const procsSet = new Set(region.procArr);
+
+          const dxByProc = new Map();
+          for (const p of region.procArr) dxByProc.set(p, []);
+
+          const tokenPresence = new Map(); // token -> Set(proc)
+          for (const comp of region.components){
+            for (const idx of comp.nodeIdxs){
+              const node = nodes[idx];
+              if (!procsSet.has(node.procKey)) continue;
+              dxByProc.get(node.procKey).push(node);
+            }
+
+            for (const [t, setP] of comp.tokenProcPresence.entries()){
+              let s = tokenPresence.get(t);
+              if (!s){ s = new Set(); tokenPresence.set(t, s); }
+              for (const p of setP) if (procsSet.has(p)) s.add(p);
+            }
+          }
+
+          const tokensCausing = [];
+          for (const [t, setP] of tokenPresence.entries()){
+            let ok = true;
+            for (const p of region.procArr) if (!setP.has(p)) { ok=false; break; }
+            if (ok) tokensCausing.push(t);
+          }
+          tokensCausing.sort((a,b) => (idfInfo.idf.get(b)||0) - (idfInfo.idf.get(a)||0));
+
+          // dedupe dx text per proc
+          const dxOut = {};
+          for (const p of region.procArr){
+            const seenText = new Set();
+            dxOut[p] = [];
+            for (const node of dxByProc.get(p)){
+              if (seenText.has(node.text)) continue;
+              seenText.add(node.text);
+              dxOut[p].push(node.text);
+            }
+          }
+
+          const totalDx = Object.values(dxOut).reduce((acc, arr) => acc + arr.length, 0);
+
+          regions.push({
+            regionKey: region.regionKey,
+            procArr: region.procArr,
+            tokens: tokensCausing.slice(0, 20),
+            dxByProc: dxOut,
+            totalDx,
+            rareInfo: { dfThreshold: idfInfo.dfThreshold, Ndocs: idfInfo.N }
+          });
+        }
+
+        regions.sort((a,b)=>{
+          if (b.procArr.length !== a.procArr.length) return b.procArr.length - a.procArr.length;
+          return b.totalDx - a.totalDx;
+        });
+
+        // Per-process buckets for "inside circle":
+        // unique: dx with no edges OR component proc set size == 1
+        // sharedBuckets[k]: dx texts whose component has k processes (k>=2)
+        const procBuckets = new Map(); // proc -> {unique:[], shared: Map(k -> {items:[], procSetArrs:[]})}
+        for (const p of procKeys) procBuckets.set(p, {unique:[], shared:new Map()});
+
+        // Index nodes by their original dx list (we want all dx including isolated)
+        // We'll traverse every node and assign:
+        // - if isolated (adj==0): unique
+        // - else component size = k; assign into shared[k]
+        for (let i=0;i<nodes.length;i++){
+          const node = nodes[i];
+          const pk = node.procKey;
+          if (adj[i].length === 0){
+            procBuckets.get(pk).unique.push({
+              text: node.text,
+              k: 1,
+              procs: [pk]
+            });
+          } else {
+            const ci = nodeToComp[i];
+            const comp = components[ci];
+            const procArr = Array.from(comp.procs).sort();
+            const k = procArr.length;
+            const bucket = procBuckets.get(pk);
+            if (!bucket.shared.has(k)) bucket.shared.set(k, []);
+            bucket.shared.get(k).push({
+              text: node.text,
+              k,
+              procs: procArr
+            });
+          }
+        }
+
+        // Deduplicate entries in shared buckets per proc (same dx can appear multiple times)
+        for (const [pk, b] of procBuckets.entries()){
+          const seenU = new Set();
+          b.unique = b.unique.filter(x => (seenU.has(x.text) ? false : (seenU.add(x.text), true)));
+
+          for (const [k, arr] of b.shared.entries()){
+            const seenS = new Set();
+            const out = [];
+            for (const x of arr){
+              const key = x.text + "::" + x.procs.join("|");
+              if (seenS.has(key)) continue;
+              seenS.add(key);
+              out.push(x);
+            }
+            b.shared.set(k, out);
+          }
+        }
+
+        const computed = {
+          selectedProcs: procKeys,
+          regions,
+          idfInfo,
+          procBuckets,
+        };
+
+        state.graphCache.set(cacheKey, computed);
+        return computed;
+      }
+
+      /**********************************************************************
+       * FILTERS + RENDER LIST
+       *********************************************************************/
+      function applyFilters(){
+        const q = normalizeText(state.q);
+        const spec = state.specialty;
+
+        const filtered = state.raw.filter(p => {
+          if (spec && String(p.especialidades||"") !== spec) return false;
+          if (!q) return true;
+          const hay = normalizeText(`${p.Proceso||""} ${p.especialidades||""} ${p["mnemotécnica"]||p.mnemotecnica||""}`);
+          return hay.includes(q);
+        });
+
+        state.filtered = filtered;
+        renderProcessList();
+      }
+
+      function renderProcessList(){
+        const items = state.filtered;
+        els.resultsCount.textContent = `${items.length} procesos`;
+
+        els.processList.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
+        for (const p of items){
+          const key = p.Proceso;
+          const checked = state.selectedKeys.includes(key);
+          const canCheck = checked || state.selectedKeys.length < state.maxSelected;
+
+          const row = document.createElement("div");
+          row.className = "item";
+          row.setAttribute("role", "listitem");
+
+          const color = checked ? colorForProcess(key) : "transparent";
+
+          row.innerHTML = `
+            <div class="left">
+              <input class="chk" type="checkbox" ${checked ? "checked":""} ${canCheck ? "" : "disabled"} aria-label="Seleccionar" />
+              <div class="pill">${escapeHtml(p["mnemotécnica"] || p.mnemotecnica || "—")}</div>
+            </div>
+            <div class="main">
+              <div class="name">${escapeHtml(p.Proceso || "—")}</div>
+              <div class="meta">
+                <span class="tag">Especialidad</span> <span>${escapeHtml(p.especialidades || "—")}</span>
+              </div>
+            </div>
+            <div class="colorbar" style="background:${color};"></div>
+          `;
+
+          const chk = $(".chk", row);
+          chk.addEventListener("change", () => toggleProcessSelection(key, chk.checked));
+          row.addEventListener("click", (e) => {
+            if (e.target.closest("input,button,select,a")) return;
+            if (!canCheck && !checked) return;
+            chk.checked = !chk.checked;
+            toggleProcessSelection(key, chk.checked);
+          });
+
+          frag.appendChild(row);
+        }
+
+        els.processList.appendChild(frag);
+
+        renderSelectedChips();
+        renderSelectedRight();
+      }
+
+      function renderSelectedChips(){
+        els.selectedChips.innerHTML = "";
+        const frag = document.createDocumentFragment();
+        for (const key of state.selectedKeys){
+          const chip = document.createElement("div");
+          chip.className = "chip";
+          chip.innerHTML = `
+            <span class="dot" style="background:${colorForProcess(key)};"></span>
+            <span>${escapeHtml(key)}</span>
+            <button title="Quitar">×</button>
+          `;
+          $("button", chip).addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleProcessSelection(key, false);
+          });
+          frag.appendChild(chip);
+        }
+        els.selectedChips.appendChild(frag);
+
+        const n = state.selectedKeys.length;
+        els.selectHint.textContent =
+          n < 2 ? "Selecciona 2–6 procesos para ver el diagrama." :
+          n > state.maxSelected ? `Demasiados seleccionados (límite ${state.maxSelected}).` :
+          `OK: ${n} seleccionados.`;
+      }
+
+      function renderSelectedRight(){
+        // selected list
+        els.selectedList.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
+        for (const key of state.selectedKeys){
+          const obj = state.raw.find(p => p.Proceso === key);
+          const mn = obj ? (obj["mnemotécnica"] || obj.mnemotecnica || "") : "";
+          const row = document.createElement("div");
+          row.className = "sel-row";
+          row.innerHTML = `
+            <span class="dot" style="background:${colorForProcess(key)};"></span>
+            <div class="txt">
+              <div class="p">${escapeHtml(key)}</div>
+              <div class="m">${escapeHtml(mn)}</div>
+            </div>
+            <button class="icon-btn" title="Quitar">×</button>
+          `;
+          $("button", row).addEventListener("click", () => toggleProcessSelection(key, false));
+          frag.appendChild(row);
+        }
+        els.selectedList.appendChild(frag);
+
+        // Diagnósticos por proceso (accordion)
+        els.dxByProcess.innerHTML = "";
+        const selectedObjs = getSelectedProcessObjects();
+
+        for (const p of selectedObjs){
+          const cached = ensureProcessCached(p);
+          const key = cached.meta.Proceso;
+          const acc = document.createElement("div");
+          acc.className = "acc-item";
+          acc.innerHTML = `
+            <div class="acc-head">
+              <span class="dot" style="background:${colorForProcess(key)};"></span>
+              <div class="t">${escapeHtml(key)}</div>
+              <div class="caret">▾</div>
+            </div>
+            <div class="acc-body"></div>
+          `;
+          const body = $(".acc-body", acc);
+
+          for (const d of cached.dx){
+            const div = document.createElement("div");
+            div.className = "dx";
+            div.textContent = d.text;
+            body.appendChild(div);
+          }
+
+          $(".acc-head", acc).addEventListener("click", () => acc.classList.toggle("open"));
+          els.dxByProcess.appendChild(acc);
+        }
+      }
+
+      function toggleProcessSelection(key, on){
+        if (on){
+          if (!state.selectedKeys.includes(key)){
+            if (state.selectedKeys.length >= state.maxSelected){
+              toast(`Límite alcanzado (${state.maxSelected}).`, "bad");
+              renderProcessList();
+              return;
+            }
+            state.selectedKeys.push(key);
+          }
+        } else {
+          state.selectedKeys = state.selectedKeys.filter(x => x !== key);
+          state.activeRegionKey = null;
+          els.regionMeta.innerHTML = `<div class="muted">Click en una tarjeta o en una píldora inferior.</div>`;
+        }
+
+        renderProcessList();
+        renderVenn();
+      }
+
+      /**********************************************************************
+       * TOOLTIP
+       *********************************************************************/
+      function showTooltip(ev, html){
+        els.tooltip.style.opacity = "1";
+        els.tooltip.style.transform = "translateY(0px)";
+        els.tooltip.innerHTML = html;
+        moveTooltip(ev);
+      }
+      function moveTooltip(ev){
+        const pad = 14;
+        const rect = els.tooltip.getBoundingClientRect();
+        const x = Math.min(window.innerWidth - rect.width - pad, ev.clientX + 14);
+        const y = Math.min(window.innerHeight - rect.height - pad, ev.clientY + 14);
+        els.tooltip.style.left = `${x}px`;
+        els.tooltip.style.top = `${y}px`;
+      }
+      function hideTooltip(){
+        els.tooltip.style.opacity = "0";
+        els.tooltip.style.transform = "translateY(6px)";
+      }
+
+      /**********************************************************************
+       * REGION ACTIVE (RIGHT PANEL)
+       *********************************************************************/
+      function highlightTokensHtml(text, tokenSet){
+        const tokens = Array.from(tokenSet).slice(0, 10).sort((a,b)=>b.length-a.length);
+        let out = escapeHtml(text);
+        for (const t of tokens){
+          const re = new RegExp(`\\b(${escapeRegExp(t)})\\b`, "ig");
+          out = out.replace(re, `<span class="hl">$1</span>`);
+        }
+        return out;
+      }
+
+      function setActiveRegion(regionKey){
+        state.activeRegionKey = regionKey;
+        refreshRegionPillActive();
+
+        const computed = computeIntersections();
+        const selectedSet = new Set(state.selectedKeys);
+
+        // If single process
+        if (!regionKey.includes("∩") && selectedSet.has(regionKey)){
+          const obj = state.raw.find(p => p.Proceso === regionKey);
+          const cached = ensureProcessCached(obj);
+          els.regionMeta.innerHTML = `
+            <div class="rx">
+              <div class="top">
+                <div class="name">${escapeHtml(regionKey)}</div>
+                <div class="muted">${escapeHtml(cached.meta.mnemotecnica || "")}</div>
+              </div>
+              <div class="muted" style="margin-top:6px;">
+                Conjunto individual. Dentro del círculo, usa pestañas <b>Únicos</b> / <b>Coinciden</b>.
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const region = computed?.regions?.find(r => r.regionKey === regionKey);
+        if (!region){
+          els.regionMeta.innerHTML = `<div class="muted">No hay datos para esta región.</div>`;
+          return;
+        }
+
+        const tokenSet = new Set(region.tokens);
+        const regionName = prettyRegionName(region.procArr);
+        const tokensHtml = region.tokens.slice(0,14).map(t => `<span class="token">${escapeHtml(t)}</span>`).join("");
+
+        let blocks = "";
+        for (const proc of region.procArr){
+          const c = colorForProcess(proc);
+          const list = (region.dxByProc[proc] || []).slice(0, 22).map(t => {
+            return `<div class="dx">${highlightTokensHtml(t, tokenSet)}</div>`;
+          }).join("");
+
+          blocks += `
+            <div class="rx">
+              <div class="top">
+                <div class="name"><span class="dot" style="background:${c}; vertical-align:middle;"></span> ${escapeHtml(proc)}</div>
+                <div class="muted">${escapeHtml(String((region.dxByProc[proc]||[]).length))} dx</div>
+              </div>
+              <div style="margin-top:8px;">${list || `<div class="muted">—</div>`}</div>
+            </div>
+          `;
+        }
+
+        els.regionMeta.innerHTML = `
+          <div class="rx">
+            <div class="top">
+              <div class="name">Región ${escapeHtml(regionName)}</div>
+              <div class="muted">Total dx: ${escapeHtml(String(region.totalDx))}</div>
+            </div>
+            <div class="muted" style="margin-top:6px;">
+              Tokens causantes: aparecen en ≥1 dx de <b>cada</b> proceso de la región.
+            </div>
+            <div class="tokens">${tokensHtml || `<span class="muted">—</span>`}</div>
+          </div>
+          ${blocks}
+        `;
+      }
+
+      /**********************************************************************
+       * REGION STRIP + TABLE
+       *********************************************************************/
+      function refreshRegionPillActive(){
+        $$(".region-pill").forEach(p => {
+          p.classList.toggle("active", p.getAttribute("data-region") === state.activeRegionKey);
+        });
+      }
+
+      function makeTrow(cols, header=false, onClick=null){
+        const row = document.createElement("div");
+        row.className = "trow" + (header ? " header" : "");
+        cols.forEach(c => {
+          const cell = document.createElement("div");
+          cell.className = "tcell";
+          cell.textContent = c;
+          row.appendChild(cell);
+        });
+        if (onClick) row.addEventListener("click", onClick);
+        return row;
+      }
+
+      function countDiagnoses(proc){
+        const obj = state.raw.find(p => p.Proceso === proc);
+        return obj ? ((obj["Diagnósticos diferenciales"] || []).length || 0) : 0;
+      }
+
+      function renderRegionStripAndTable(computed){
+        els.regionStrip.innerHTML = "";
+        els.intersectionsTable.innerHTML = "";
+
+        if (!computed){
+          return;
+        }
+
+        const regions = computed.regions || [];
+
+        // Strip: singles + intersections
+        const stripFrag = document.createDocumentFragment();
+
+        for (const p of state.selectedKeys){
+          const pill = document.createElement("div");
+          pill.className = "region-pill";
+          pill.setAttribute("data-region", p);
+          pill.innerHTML = `<span>${escapeHtml(p)}</span><span class="count">${escapeHtml(String(countDiagnoses(p)))}</span>`;
+          pill.addEventListener("click", ()=> setActiveRegion(p));
+          stripFrag.appendChild(pill);
+        }
+
+        for (const r of regions){
+          const label = prettyRegionName(r.procArr);
+          const pill = document.createElement("div");
+          pill.className = "region-pill";
+          pill.setAttribute("data-region", r.regionKey);
+          pill.innerHTML = `<span>${escapeHtml(label)}</span><span class="count">${escapeHtml(String(r.totalDx))}</span>`;
+          pill.addEventListener("click", ()=> setActiveRegion(r.regionKey));
+          stripFrag.appendChild(pill);
+        }
+
+        els.regionStrip.appendChild(stripFrag);
+
+        // Table
+        const tblFrag = document.createDocumentFragment();
+        tblFrag.appendChild(makeTrow(["Región","Total","Tokens (top)"], true));
+
+        for (const r of regions){
+          const label = prettyRegionName(r.procArr);
+          const tokensTop = r.tokens.slice(0, 6).join(", ") || "—";
+          tblFrag.appendChild(makeTrow([label, String(r.totalDx), tokensTop], false, ()=> setActiveRegion(r.regionKey)));
+        }
+        if (!regions.length){
+          const row = makeTrow(["(sin intersecciones)", "0", "—"], false, null);
+          row.style.cursor = "default";
+          tblFrag.appendChild(row);
+        }
+
+        els.intersectionsTable.appendChild(tblFrag);
+
+        refreshRegionPillActive();
+      }
+
+      /**********************************************************************
+       * IN-CIRCLE RENDER (HTML)
+       * - Unique vs Shared inside each circle
+       * - Shared grouped by k (2,3,4...)
+       *********************************************************************/
+      function buildDxListHTML(items, tokenSet=null){
+        const out = [];
+        for (const it of items.slice(0, IN_CIRCLE_LIMIT)){
+          const badges = [];
+          if (it.k && it.k >= 2){
+            badges.push(`<span class="b">k=${it.k}</span>`);
+            badges.push(`<span class="b">${escapeHtml(prettyRegionName(it.procs))}</span>`);
+          } else {
+            badges.push(`<span class="b">k=1</span>`);
+          }
+          out.push(`
+            <div class="dxRow">
+              ${tokenSet ? highlightTokensHtml(it.text, tokenSet) : escapeHtml(it.text)}
+              <div class="badges">${badges.join("")}</div>
+            </div>
+          `);
+        }
+        if (items.length > IN_CIRCLE_LIMIT){
+          out.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${items.length - IN_CIRCLE_LIMIT} más…</div>`);
+        }
+        return out.join("");
+      }
+
+      /**********************************************************************
+       * REAL VENN (2-3) + OVERLAYS INSIDE CIRCLES + INTERSECTION CARDS
+       *********************************************************************/
+      function getVennCircleCenters(){
+        // Read from venn.js generated SVG:
+        // - paths exist for each set; we approximate center using the label position (text)
+        // - venn.js places labels near center of each set; good enough for overlay cards.
+        const svg = els.vennSvgHost.querySelector("svg");
+        if (!svg) return new Map();
+
+        const map = new Map();
+        const texts = svg.querySelectorAll("g.venn-area > text");
+        texts.forEach(t => {
+          const label = (t.textContent || "").trim();
+          // venn.js uses label for sets; intersections also have labels sometimes
+          if (state.selectedKeys.includes(label)){
+            const x = parseFloat(t.getAttribute("x") || "0");
+            const y = parseFloat(t.getAttribute("y") || "0");
+            map.set(label, {x, y});
+          }
+        });
+        return map;
+      }
+
+      function drawVennReal(n, computed){
+        els.vennSvgHost.innerHTML = "";
+        els.inCircleLayer.innerHTML = "";
+        state.circleLayout.clear();
+
+        const selected = state.selectedKeys.slice();
+        // areas
+        const areas = [];
+        for (const proc of selected){
+          const obj = state.raw.find(p => p.Proceso === proc);
+          const cached = ensureProcessCached(obj);
+          areas.push({ sets:[proc], size: Math.max(1, cached.dx.length), label: proc });
+        }
+        for (const r of (computed?.regions || [])){
+          if (r.procArr.length <= 1) continue;
+          areas.push({ sets: r.procArr, size: Math.max(1, r.totalDx), regionKey: r.regionKey });
+        }
+
+        // Draw venn.js
+        const chart = venn.VennDiagram()
+          .width(els.vennReal.clientWidth)
+          .height(Math.max(520, els.vennReal.clientHeight));
+
+        const div = d3.select(els.vennSvgHost);
+        div.datum(areas).call(chart);
+
+        // style fills
+        div.selectAll("path")
+          .style("fill-opacity", 0.86)
+          .style("stroke-opacity", 0.95)
+          .style("mix-blend-mode", "multiply");
+
+        div.selectAll(".venn-area").each(function(d){
+          const el = d3.select(this).select("path");
+          const sets = d.sets || [];
+          if (sets.length === 1){
+            el.style("fill", colorForProcess(sets[0]));
+            el.style("stroke", "rgba(0,0,0,.45)");
+          } else {
+            el.style("fill", "rgba(255,255,255,.18)");
+            el.style("stroke", "rgba(0,0,0,.30)");
+          }
+        });
+
+        div.selectAll("text")
+          .style("fill", "var(--text)")
+          .style("font-weight", 900);
+
+        // Tooltip/click
+        div.selectAll(".venn-area")
+          .on("mousemove", (event, d) => {
+            const key = (d.sets || []).slice().sort().join("∩");
+            const isSet = (d.sets||[]).length === 1;
+            const title = isSet ? d.sets[0] : `Región ${prettyRegionName(d.sets.slice().sort())}`;
+            showTooltip(event, `
+              <div class="tt-title">${escapeHtml(title)}</div>
+              <div class="tt-row">${isSet ? "Conjunto" : "Intersección"}</div>
+              <div class="tt-row muted">Click para fijar / ver detalle</div>
+            `);
+            moveTooltip(event);
+          })
+          .on("mouseout", hideTooltip)
+          .on("click", (event, d) => {
+            const key = (d.sets || []).slice().sort().join("∩");
+            // set or region
+            if ((d.sets||[]).length === 1) setActiveRegion(d.sets[0]);
+            else setActiveRegion(key);
+          });
+
+        // Build in-circle overlays using computed.procBuckets
+        // First compute approximate centers of each set from SVG labels
+        const centers = getVennCircleCenters();
+
+        // Also approximate radius for overlay sizing: based on canvas size and n
+        const W = els.vennReal.clientWidth;
+        const H = els.vennReal.clientHeight;
+        const rApprox = Math.min(W, H) * (n === 2 ? 0.23 : 0.20);
+
+        for (const proc of selected){
+          const c = centers.get(proc) || {x: W/2, y: H/2};
+          state.circleLayout.set(proc, {x: c.x, y: c.y, r: rApprox});
+          renderInCircleCardReal(proc, computed, c.x, c.y);
+        }
+
+        // Intersection overlay cards (A∩B, A∩B∩C...)
+        renderIntersectionCardsReal(computed, centers);
+      }
+
+      function renderInCircleCardReal(proc, computed, x, y){
+        const buckets = computed?.procBuckets?.get(proc);
+        if (!buckets) return;
+
+        const card = document.createElement("div");
+        card.className = "circleCard";
+        card.style.left = `${x}px`;
+        card.style.top  = `${y}px`;
+
+        const mn = (state.raw.find(p => p.Proceso === proc)?.["mnemotécnica"]) ||
+                   (state.raw.find(p => p.Proceso === proc)?.mnemotecnica) || "";
+
+        const uniqCount = buckets.unique.length;
+        let sharedCount = 0;
+        for (const arr of buckets.shared.values()) sharedCount += arr.length;
+
+        card.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="ttl">
+                <span class="dot" style="background:${colorForProcess(proc)};"></span>
+                <span>${escapeHtml(proc)}</span>
+              </div>
+              <div class="sub">${escapeHtml(mn)}</div>
+            </div>
+            <div class="muted" style="font-size:11px; font-weight:900;">${uniqCount}+${sharedCount}</div>
+          </div>
+          <div class="tabs">
+            <div class="tab active" data-tab="unique">Únicos <span class="muted">(${uniqCount})</span></div>
+            <div class="tab" data-tab="shared">Coinciden <span class="muted">(${sharedCount})</span></div>
+          </div>
+          <div class="body" data-body="unique"></div>
+          <div class="body" data-body="shared" style="display:none;"></div>
+        `;
+
+        // Fill unique
+        const bodyU = card.querySelector('[data-body="unique"]');
+        bodyU.innerHTML = buildDxListHTML(buckets.unique);
+
+        // Fill shared grouped by k
+        const bodyS = card.querySelector('[data-body="shared"]');
+        const ks = Array.from(buckets.shared.keys()).sort((a,b)=>a-b);
+        const blocks = [];
+        for (const k of ks){
+          const arr = buckets.shared.get(k) || [];
+          blocks.push(`<div class="muted" style="font-size:11px; font-weight:900; margin:6px 2px 8px;">Coinciden en <b>${k}</b> procesos</div>`);
+          blocks.push(buildDxListHTML(arr));
+        }
+        bodyS.innerHTML = blocks.join("") || `<div class="muted">—</div>`;
+
+        // Tabs
+        const tabs = card.querySelectorAll(".tab");
+        tabs.forEach(t => t.addEventListener("click", (e) => {
+          const which = t.getAttribute("data-tab");
+          tabs.forEach(z => z.classList.toggle("active", z === t));
+          card.querySelector('[data-body="unique"]').style.display = (which === "unique") ? "block" : "none";
+          card.querySelector('[data-body="shared"]').style.display = (which === "shared") ? "block" : "none";
+        }));
+
+        els.inCircleLayer.appendChild(card);
+      }
+
+      function renderIntersectionCardsReal(computed, centers){
+        // For each region (k>=2), place a card at centroid of involved set centers
+        // If a center is missing, skip.
+        const regions = (computed?.regions || []).slice(0, 10); // avoid clutter
+        for (const r of regions){
+          const pts = r.procArr.map(p => centers.get(p)).filter(Boolean);
+          if (pts.length !== r.procArr.length) continue;
+
+          const x = pts.reduce((a,p)=>a+p.x,0)/pts.length;
+          const y = pts.reduce((a,p)=>a+p.y,0)/pts.length;
+
+          // sample dx (first per proc)
+          const sample = [];
+          for (const p of r.procArr){
+            const arr = (r.dxByProc[p] || []);
+            if (arr.length) sample.push(arr[0]);
+          }
+
+          const div = document.createElement("div");
+          div.className = "ixCard";
+          div.style.left = `${x}px`;
+          div.style.top  = `${y}px`;
+          const label = prettyRegionName(r.procArr);
+
+          div.innerHTML = `
+            <div class="ixHead">
+              <div class="ixName">${escapeHtml(label)}</div>
+              <div class="ixCount">${escapeHtml(String(r.totalDx))}</div>
+            </div>
+            <div class="ixBody">
+              <div class="muted" style="margin-bottom:8px;">Tokens: <b>${escapeHtml((r.tokens||[]).slice(0,4).join(", ") || "—")}</b></div>
+              ${sample.slice(0,3).map(s => `<div class="sample">${escapeHtml(s)}</div>`).join("")}
+              <div class="muted" style="margin-top:8px;">Click para abrir detalle.</div>
+            </div>
+          `;
+
+          div.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setActiveRegion(r.regionKey);
+          });
+          div.addEventListener("mousemove", (ev) => {
+            showTooltip(ev, `
+              <div class="tt-title">Intersección ${escapeHtml(label)}</div>
+              <div class="tt-row">${escapeHtml(String(r.procArr.length))} procesos · ${escapeHtml(String(r.totalDx))} dx</div>
+              <div class="tt-row muted">Click para fijar</div>
+            `);
+          });
+          div.addEventListener("mouseleave", hideTooltip);
+
+          els.inCircleLayer.appendChild(div);
+        }
+      }
+
+      /**********************************************************************
+       * VENN-LIKE SVG (4-6) + FOREIGNOBJECT INSIDE EACH CIRCLE
+       *********************************************************************/
+      function drawVennLike(n, computed){
+        els.svgDefs.innerHTML = "";
+        els.blobLayer.innerHTML = "";
+        els.labelLayer.innerHTML = "";
+        els.foLayer.innerHTML = "";
+        els.ixLayer.innerHTML = "";
+        state.circleLayout.clear();
+
+        const W=900, H=600;
+        const cx=W/2, cy=H/2;
+        const positions = {
+          4: [[cx-160, cy-70],[cx+160, cy-70],[cx-160, cy+90],[cx+160, cy+90]],
+          5: [[cx-180, cy-60],[cx+0, cy-140],[cx+180, cy-60],[cx-110, cy+120],[cx+110, cy+120]],
+          6: [[cx-200, cy-70],[cx+0, cy-160],[cx+200, cy-70],[cx-200, cy+110],[cx+0, cy+190],[cx+200, cy+110]]
+        };
+        const sel = state.selectedKeys.slice(0,6);
+        const pos = positions[sel.length] || positions[6];
+        const r = sel.length <= 4 ? 180 : 165;
+
+        // defs: radial highlight per blob
+        sel.forEach((p, i) => {
+          const c = colorForProcess(p);
+          els.svgDefs.insertAdjacentHTML("beforeend", `
+            <radialGradient id="grad_${i}" cx="32%" cy="28%" r="70%">
+              <stop offset="0%" stop-color="rgba(255,255,255,.55)"/>
+              <stop offset="18%" stop-color="rgba(255,255,255,.18)"/>
+              <stop offset="55%" stop-color="${c}"/>
+              <stop offset="100%" stop-color="${c}"/>
+            </radialGradient>
+            <clipPath id="clip_${i}">
+              <circle cx="${pos[i][0]}" cy="${pos[i][1]}" r="${r-6}"></circle>
+            </clipPath>
+          `);
+        });
+
+        // draw circles + labels + foreignObject lists
+        sel.forEach((p, i) => {
+          const [x,y] = pos[i];
+          state.circleLayout.set(p, {x,y,r});
+
+          const c = colorForProcess(p);
+
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          circle.setAttribute("cx", x);
+          circle.setAttribute("cy", y);
+          circle.setAttribute("r", r);
+          circle.setAttribute("class", "blob");
+          circle.setAttribute("fill", `url(#grad_${i})`);
+          circle.addEventListener("mousemove", (ev) => {
+            showTooltip(ev, `
+              <div class="tt-title">${escapeHtml(p)}</div>
+              <div class="tt-row">Dentro del círculo: Únicos / Coinciden (k=2,3,4...)</div>
+              <div class="tt-row muted">Click para fijar conjunto</div>
+            `);
+          });
+          circle.addEventListener("mouseleave", hideTooltip);
+          circle.addEventListener("click", () => setActiveRegion(p));
+
+          g.appendChild(circle);
+          els.blobLayer.appendChild(g);
+
+          // Labels external
+          const obj = state.raw.find(o => o.Proceso === p);
+          const mn = obj ? (obj["mnemotécnica"] || obj.mnemotecnica || "") : "";
+          const labelG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          t.setAttribute("x", x);
+          t.setAttribute("y", y - r - 10);
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute("class", "blob-label");
+          t.textContent = p;
+
+          const sub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          sub.setAttribute("x", x);
+          sub.setAttribute("y", y - r + 10);
+          sub.setAttribute("text-anchor", "middle");
+          sub.setAttribute("class", "blob-sub");
+          sub.textContent = mn ? `(${mn})` : "";
+
+          labelG.appendChild(t);
+          labelG.appendChild(sub);
+          els.labelLayer.appendChild(labelG);
+
+          // ForeignObject (clipped to circle)
+          const fo = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+          const size = Math.floor((r*1.35)); // box containing the list
+          fo.setAttribute("x", x - size/2);
+          fo.setAttribute("y", y - size/2);
+          fo.setAttribute("width", size);
+          fo.setAttribute("height", size);
+          fo.setAttribute("clip-path", `url(#clip_${i})`);
+
+          const buckets = computed?.procBuckets?.get(p) || {unique:[], shared:new Map()};
+          let sharedCount = 0;
+          for (const arr of buckets.shared.values()) sharedCount += arr.length;
+
+          const container = document.createElement("div");
+          container.className = "foCard";
+
+          const head = document.createElement("div");
+          head.className = "foHead";
+          head.innerHTML = `
+            <span style="display:inline-flex;align-items:center;gap:10px;">
+              <span class="dot" style="background:${c}; width:10px; height:10px;"></span>
+              <span>${escapeHtml(p)}</span>
+            </span>
+            <span class="muted" style="font-size:11px;font-weight:900;">${buckets.unique.length}+${sharedCount}</span>
+          `;
+
+          const tabs = document.createElement("div");
+          tabs.className = "foTabs";
+          tabs.innerHTML = `
+            <div class="tab active" data-tab="unique">Únicos <span class="muted">(${buckets.unique.length})</span></div>
+            <div class="tab" data-tab="shared">Coinciden <span class="muted">(${sharedCount})</span></div>
+          `;
+
+          const bodyU = document.createElement("div");
+          bodyU.className = "foBody";
+          bodyU.setAttribute("data-body","unique");
+          bodyU.innerHTML = buildFoListHTML(buckets.unique);
+
+          const bodyS = document.createElement("div");
+          bodyS.className = "foBody";
+          bodyS.setAttribute("data-body","shared");
+          bodyS.style.display = "none";
+          bodyS.innerHTML = buildFoSharedHTML(buckets.shared);
+
+          container.appendChild(head);
+          container.appendChild(tabs);
+          container.appendChild(bodyU);
+          container.appendChild(bodyS);
+
+          // Tabs interactions (need pointer events; foreignObject supports it)
+          const tabEls = tabs.querySelectorAll(".tab");
+          tabEls.forEach(tab => tab.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const which = tab.getAttribute("data-tab");
+            tabEls.forEach(z => z.classList.toggle("active", z===tab));
+            bodyU.style.display = (which==="unique") ? "block" : "none";
+            bodyS.style.display = (which==="shared") ? "block" : "none";
+          }));
+
+          fo.appendChild(container);
+          els.foLayer.appendChild(fo);
+        });
+
+        // Intersection cards in SVG layer (as HTML overlays are trickier; we do SVG foreignObject "cards")
+        renderIntersectionCardsLike(computed, sel);
+      }
+
+      function buildFoListHTML(items){
+        const parts = [];
+        for (const it of items.slice(0, IN_CIRCLE_LIMIT)){
+          parts.push(`
+            <div class="foItem">
+              ${escapeHtml(it.text)}
+              <div class="badges" style="margin-top:6px;">
+                <span class="b">k=1</span>
+              </div>
+            </div>
+          `);
+        }
+        if (items.length > IN_CIRCLE_LIMIT){
+          parts.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${items.length - IN_CIRCLE_LIMIT} más…</div>`);
+        }
+        return parts.join("") || `<div class="muted">—</div>`;
+      }
+
+      function buildFoSharedHTML(sharedMap){
+        const ks = Array.from(sharedMap.keys()).sort((a,b)=>a-b);
+        const blocks = [];
+        for (const k of ks){
+          const arr = sharedMap.get(k) || [];
+          blocks.push(`<div class="muted" style="font-size:11px; font-weight:900; margin:6px 2px 8px;">Coinciden en <b>${k}</b> procesos</div>`);
+          for (const it of arr.slice(0, IN_CIRCLE_LIMIT)){
+            blocks.push(`
+              <div class="foItem">
+                ${escapeHtml(it.text)}
+                <div class="badges" style="margin-top:6px;">
+                  <span class="b">k=${k}</span>
+                  <span class="b">${escapeHtml(prettyRegionName(it.procs))}</span>
+                </div>
+              </div>
+            `);
+          }
+          if (arr.length > IN_CIRCLE_LIMIT){
+            blocks.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${arr.length - IN_CIRCLE_LIMIT} más…</div>`);
+          }
+        }
+        return blocks.join("") || `<div class="muted">—</div>`;
+      }
+
+      function renderIntersectionCardsLike(computed, sel){
+        const regions = (computed?.regions || []).slice(0, 12);
+        for (const r of regions){
+          // centroid of involved circles
+          const pts = r.procArr.map(p => state.circleLayout.get(p)).filter(Boolean);
+          if (pts.length !== r.procArr.length) continue;
+          const x = pts.reduce((a,p)=>a+p.x,0)/pts.length;
+          const y = pts.reduce((a,p)=>a+p.y,0)/pts.length;
+
+          const label = prettyRegionName(r.procArr);
+          const sample = [];
+          for (const p of r.procArr){
+            const arr = (r.dxByProc[p] || []);
+            if (arr.length) sample.push(arr[0]);
+          }
+
+          // SVG foreignObject as card
+          const fo = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+          fo.setAttribute("x", x - 105);
+          fo.setAttribute("y", y - 75);
+          fo.setAttribute("width", 210);
+          fo.setAttribute("height", 170);
+
+          const div = document.createElement("div");
+          div.className = "ixCard";
+          div.style.position = "relative";
+          div.style.left = "0";
+          div.style.top = "0";
+          div.style.transform = "none";
+
+          div.innerHTML = `
+            <div class="ixHead">
+              <div class="ixName">${escapeHtml(label)}</div>
+              <div class="ixCount">${escapeHtml(String(r.totalDx))}</div>
+            </div>
+            <div class="ixBody">
+              <div class="muted" style="margin-bottom:8px;">Tokens: <b>${escapeHtml((r.tokens||[]).slice(0,4).join(", ") || "—")}</b></div>
+              ${sample.slice(0,2).map(s => `<div class="sample">${escapeHtml(s)}</div>`).join("")}
+              <div class="muted" style="margin-top:8px;">Click para detalle.</div>
+            </div>
+          `;
+
+          div.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setActiveRegion(r.regionKey);
+          });
+
+          div.addEventListener("mousemove", (ev) => {
+            showTooltip(ev, `
+              <div class="tt-title">Intersección ${escapeHtml(label)}</div>
+              <div class="tt-row">${escapeHtml(String(r.procArr.length))} procesos · ${escapeHtml(String(r.totalDx))} dx</div>
+              <div class="tt-row muted">Click para fijar</div>
+            `);
+          });
+          div.addEventListener("mouseleave", hideTooltip);
+
+          fo.appendChild(div);
+          els.ixLayer.appendChild(fo);
+        }
+      }
+
+      /**********************************************************************
+       * MAIN VENN RENDER
+       *********************************************************************/
+      function renderVenn(){
+        const n = state.selectedKeys.length;
+        const computed = computeIntersections();
+
+        // empty state
+        const showEmpty = n < 2;
+        els.emptyState.style.display = showEmpty ? "grid" : "none";
+
+        // reset
+        els.vennReal.style.display = "none";
+        els.vennLike.style.display = "none";
+        els.regionStrip.innerHTML = "";
+        els.intersectionsTable.innerHTML = "";
+        els.vennSvgHost.innerHTML = "";
+        els.inCircleLayer.innerHTML = "";
+        els.svgDefs.innerHTML = "";
+        els.blobLayer.innerHTML = "";
+        els.labelLayer.innerHTML = "";
+        els.foLayer.innerHTML = "";
+        els.ixLayer.innerHTML = "";
+        state.circleLayout.clear();
+
+        if (showEmpty){
+          els.vennMode.textContent = "—";
+          return;
+        }
+
+        if (n <= 3){
+          els.vennMode.textContent = "Modo: Venn real (venn.js) + diagnósticos dentro de círculos";
+          els.vennReal.style.display = "block";
+          drawVennReal(n, computed);
+        } else {
+          els.vennMode.textContent = "Modo: Venn estilizado (SVG + multiply) + diagnósticos dentro de círculos";
+          els.vennLike.style.display = "block";
+          drawVennLike(n, computed);
+        }
+
+        renderRegionStripAndTable(computed);
+
+        // Auto-activate best region
+        if (!state.activeRegionKey && computed?.regions?.length){
+          setActiveRegion(computed.regions[0].regionKey);
+        } else if (!state.activeRegionKey && state.selectedKeys.length){
+          setActiveRegion(state.selectedKeys[0]);
+        }
+      }
+
+      /**********************************************************************
+       * HELP MODAL
+       *********************************************************************/
+      function helpHtml(){
+        return `
+          <b>Qué mejora aporta esta versión</b>
+          <ul>
+            <li>Los <b>diagnósticos aparecen dentro de cada círculo</b> del proceso.</li>
+            <li>Dentro del círculo se separan en <b>Únicos</b> (k=1) y <b>Coinciden</b> (k≥2) y se agrupan por <b>k=2,3,4…</b>.</li>
+            <li>Las intersecciones (A∩B, A∩B∩C, …) se <b>reseñan</b> como tarjetas en el solape y como lista abajo.</li>
+          </ul>
+
+          <b>Criterio de match (importante)</b><br/>
+          Construimos un grafo donde cada nodo es un diagnóstico. Conectamos diagnósticos de procesos distintos si:
+          <ul>
+            <li><b>1 token</b>: comparten ≥1 token.</li>
+            <li><b>≥2 tokens</b>: comparten ≥2 tokens.</li>
+            <li><b>token raro (IDF)</b>: comparten ≥1 token poco frecuente en el conjunto seleccionado.</li>
+          </ul>
+
+          Luego calculamos <b>componentes conexos</b>:
+          <ul>
+            <li>El número de procesos implicados en el componente es <b>k</b>.</li>
+            <li>Por eso, dentro de cada círculo, un diagnóstico se marca como <b>k=2</b>, <b>k=3</b>, etc.</li>
+            <li>La <b>región exacta</b> del componente se define por el conjunto de procesos implicados (ej. A∩B∩C).</li>
+          </ul>
+
+          <b>Tokens causantes</b><br/>
+          En una región, mostramos tokens que aparecen al menos en 1 diagnóstico de <b>cada</b> proceso de esa región.
+        `;
+      }
+
+      function openModal(html){
+        els.modalBody.innerHTML = html;
+        els.modal.classList.add("open");
+      }
+      function closeModal(){
+        els.modal.classList.remove("open");
+      }
+
+      /**********************************************************************
+       * DEMO + RANDOM
+       *********************************************************************/
+      function shuffle(arr){
+        for (let i=arr.length-1;i>0;i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function selectDemo(){
+        if (state.raw.length < 3) return;
+        state.selectedKeys = [];
+
+        const bySpec = new Map();
+        for (const p of state.raw){
+          const s = String(p.especialidades||"").trim();
+          if (!bySpec.has(s)) bySpec.set(s, []);
+          bySpec.get(s).push(p);
+        }
+        const specKeys = Array.from(bySpec.keys()).filter(Boolean);
+        shuffle(specKeys);
+
+        const picks = [];
+        for (const s of specKeys){
+          if (picks.length >= 3) break;
+          const arr = bySpec.get(s);
+          if (arr && arr.length) picks.push(arr[Math.floor(Math.random()*arr.length)]);
+        }
+        while (picks.length < 3){
+          picks.push(state.raw[Math.floor(Math.random()*state.raw.length)]);
+        }
+        for (const p of picks.slice(0,3)){
+          if (!state.selectedKeys.includes(p.Proceso)) state.selectedKeys.push(p.Proceso);
+        }
+
+        renderProcessList();
+        renderVenn();
+      }
+
+      function selectRandom(){
+        const max = state.maxSelected;
+        const n = Math.min(max, Math.max(2, Math.floor(2 + Math.random() * (max-1))));
+        const pool = state.filtered.length ? state.filtered : state.raw;
+        const picks = pool.slice();
+        shuffle(picks);
+        state.selectedKeys = picks.slice(0, n).map(p => p.Proceso);
+        renderProcessList();
+        renderVenn();
+      }
+
+      /**********************************************************************
+       * THEME
+       *********************************************************************/
+      function setTheme(theme){
+        state.theme = theme;
+        document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+        els.themeToggle.checked = (theme === "light");
+      }
+
+      /**********************************************************************
+       * LOAD DATA
+       *********************************************************************/
+      async function loadData(){
+        setStatus("Cargando…");
+        try{
+          const res = await fetch(JSON_URL, { cache: "no-store" });
+          if (!res.ok){
+            throw new Error(`HTTP ${res.status} (${res.statusText}). ¿Existe ${JSON_URL}?`);
+          }
+          const text = await res.text();
+          let json;
+          try{ json = JSON.parse(text); }
+          catch{ throw new Error("JSON inválido: no se pudo parsear. Revisa comillas y estructura."); }
+
+          if (!Array.isArray(json)) throw new Error("Estructura inválida: se esperaba un array en el root.");
+          for (const [i, o] of json.entries()){
+            if (!o || typeof o !== "object" || !("Proceso" in o)){
+              throw new Error(`Elemento #${i} inválido: falta "Proceso".`);
+            }
+          }
+
+          state.raw = json;
+          state.filtered = json;
+
+          setStatus(`OK · ${json.length}`, "ok");
+
+          // specialties
+          const specs = getUniqueSpecialties();
+          for (const s of specs){
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            els.specialtyFilter.appendChild(opt);
+          }
+
+          guessRepoLink();
+          applyFilters();
+          renderVenn();
+        } catch(err){
+          console.error(err);
+          setStatus("Error", "bad");
+          const msg = String(err?.message || err);
+          const extra = (location.protocol === "file:")
+            ? `<br/><br/><b>Nota:</b> <code>fetch()</code> suele fallar en <code>file://</code>. Usa GitHub Pages o servidor local (python -m http.server).`
+            : "";
+          openModal(`
+            <b>Error al cargar</b> <code>${escapeHtml(JSON_URL)}</code><br/>
+            <div style="margin-top:10px;">${escapeHtml(msg)}</div>
+            ${extra}
+          `);
+        }
+      }
+
+      function guessRepoLink(){
+        try{
+          const host = location.hostname;
+          if (host.endsWith("github.io")){
+            const parts = location.pathname.split("/").filter(Boolean);
+            const user = host.split(".")[0];
+            const repo = parts[0] || "";
+            if (repo){
+              els.btnRepo.href = `https://github.com/${user}/${repo}`;
+              return;
+            }
+          }
+        } catch {}
+        els.btnRepo.href = "#";
+      }
+
+      /**********************************************************************
+       * EVENTS
+       *********************************************************************/
+      function wireEvents(){
+        const onSearch = debounce(() => {
+          state.q = els.searchInput.value || "";
+          applyFilters();
+        }, 180);
+
+        els.searchInput.addEventListener("input", onSearch);
+        els.clearSearch.addEventListener("click", () => {
+          els.searchInput.value = "";
+          state.q = "";
+          applyFilters();
+        });
+
+        els.specialtyFilter.addEventListener("change", () => {
+          state.specialty = els.specialtyFilter.value || "";
+          applyFilters();
+        });
+
+        els.maxSelect.addEventListener("input", () => {
+          const v = parseInt(els.maxSelect.value, 10);
+          state.maxSelected = v;
+          els.maxSelectVal.textContent = String(v);
+          if (state.selectedKeys.length > v) state.selectedKeys = state.selectedKeys.slice(0, v);
+          renderProcessList();
+          renderVenn();
+        });
+
+        els.sensitivity.addEventListener("change", () => {
+          state.sensitivity = els.sensitivity.value;
+          state.activeRegionKey = null;
+          renderVenn();
+        });
+
+        els.btnSelectRandom.addEventListener("click", selectRandom);
+        els.btnTryDemo.addEventListener("click", selectDemo);
+
+        els.btnHelp.addEventListener("click", () => openModal(helpHtml()));
+        els.btnHowItWorks.addEventListener("click", () => openModal(helpHtml()));
+
+        els.modal.addEventListener("click", (e) => {
+          if (e.target?.dataset?.close) closeModal();
+        });
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeModal();
+        });
+
+        els.btnCollapseRight.addEventListener("click", () => {
+          $(".panel-right")?.classList.toggle("collapsed");
+        });
+
+        els.themeToggle.addEventListener("change", () => {
+          setTheme(els.themeToggle.checked ? "light" : "dark");
+          renderVenn();
+        });
+
+        // tooltip follow for overlay cards
+        document.addEventListener("mousemove", (ev) => {
+          if (els.tooltip.style.opacity === "1") moveTooltip(ev);
+        });
+      }
+
+      /**********************************************************************
+       * INIT
+       *********************************************************************/
+      function init(){
+        const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+        setTheme(prefersLight ? "light" : "dark");
+
+        state.maxSelected = parseInt(els.maxSelect.value, 10);
+        els.maxSelectVal.textContent = String(state.maxSelected);
+
+        wireEvents();
+        loadData();
+      }
+
+      init();
+
+    })();
+  </script>
+
+  <!--
+    ✅ Cómo correr:
+    - GitHub Pages (recomendado): asegúrate de que existe json/ddx_game.json en la rama publicada.
+    - Local: python -m http.server 8000  → http://localhost:8000
+    Nota: file:// suele bloquear fetch() por CORS.
+  -->
 </body>
 </html>
