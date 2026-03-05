@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Gasto de Agua | Calculadora de goteo de agua</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1724;
+      --card:#111826;
+      --card2:#0c1320;
+      --ink:#e9eef6;
+      --muted:#a7b3c7;
+      --brand:#90caf9;
+      --accent:#ff9900;
+      --good:#66e3a7;
+      --warn:#ffd166;
+      --bad:#ff6b6b;
+      --line:rgba(255,255,255,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.40);
+      --shadow2: 0 8px 18px rgba(0,0,0,.35);
+      --r:18px;
+      --r2:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--ink);
+      background:
+        radial-gradient(900px 600px at 10% 0%, rgba(144,202,249,.16), transparent 55%),
+        radial-gradient(900px 600px at 90% 10%, rgba(255,153,0,.14), transparent 58%),
+        radial-gradient(900px 700px at 40% 120%, rgba(102,227,167,.10), transparent 55%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+
+    a{color:inherit}
+    .wrap{
+      max-width:1080px;
+      margin:0 auto;
+      padding:24px 16px 0 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    header{
+      position:relative;
+      padding:22px 18px;
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    header:before{
+      content:"";
+      position:absolute;
+      inset:-120px -140px auto auto;
+      width:420px; height:420px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,153,0,.30), transparent 60%),
+                  radial-gradient(circle at 65% 60%, rgba(144,202,249,.22), transparent 55%);
+      filter: blur(6px);
+      transform: rotate(10deg);
+      pointer-events:none;
+    }
+    .title-row{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      position:relative;
+      z-index:1;
+    }
+    h1{
+      margin:0;
+      font-size:clamp(22px, 3.6vw, 34px);
+      letter-spacing:.2px;
+      line-height:1.1;
+    }
+    .subtitle{
+      margin:8px 0 0 0;
+      color:var(--muted);
+      font-size:clamp(13px, 2.5vw, 15px);
+      max-width:72ch;
+    }
+
+    .pillbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:14px;
+      position:relative;
+      z-index:1;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background: rgba(17,24,38,.55);
+      color:var(--muted);
+      font-size:12px;
+      box-shadow: var(--shadow2);
+      user-select:none;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:99px;
+      background: rgba(255,255,255,.15);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.06) inset;
+    }
+    .dot.live{ background: var(--good); box-shadow: 0 0 0 2px rgba(102,227,167,.25) inset, 0 0 14px rgba(102,227,167,.35); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:14px;
+      margin-top:14px;
+      align-items:start;
+    }
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      border:1px solid var(--line);
+      background: rgba(17,24,38,.55);
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h3{
+      margin:0;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      font-size:14px;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .card h3 small{
+      color:var(--muted);
+      font-weight:500;
+      font-size:12px;
+    }
+    .card .body{ padding:16px; }
+
+    .tap-zone{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .tap-btn{
+      width:100%;
+      border:0;
+      border-radius:22px;
+      padding:16px 16px;
+      font-size:16px;
+      font-weight:700;
+      color:#081019;
+      background: linear-gradient(180deg, #ffb347, #ff9900);
+      box-shadow: 0 22px 42px rgba(255,153,0,.22), 0 12px 22px rgba(0,0,0,.35);
+      cursor:pointer;
+      transform: translateY(0);
+      transition: transform .08s ease, filter .15s ease, box-shadow .15s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      position:relative;
+      overflow:hidden;
+    }
+    .tap-btn:active{
+      transform: translateY(2px);
+      filter:saturate(1.05);
+      box-shadow: 0 16px 32px rgba(255,153,0,.18), 0 8px 14px rgba(0,0,0,.32);
+    }
+    .tap-btn .hint{
+      display:block;
+      margin-top:6px;
+      font-size:12px;
+      font-weight:600;
+      color: rgba(8,16,25,.72);
+    }
+
+    .droplet{
+      position:absolute;
+      right:18px;
+      top:12px;
+      width:36px; height:36px;
+      border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.75), rgba(255,255,255,.05) 55%, rgba(255,255,255,0) 70%),
+                  radial-gradient(circle at 60% 70%, rgba(8,16,25,.18), rgba(8,16,25,0) 60%),
+                  rgba(255,255,255,.12);
+      box-shadow: 0 8px 22px rgba(0,0,0,.25);
+      transform: rotate(18deg);
+      pointer-events:none;
+    }
+    .droplet:after{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:-10px;
+      width:16px;height:16px;
+      transform: translateX(-50%) rotate(45deg);
+      background: rgba(255,255,255,.14);
+      border-radius: 2px 0 12px 0;
+      filter: blur(.2px);
+    }
+
+    .pulse{
+      animation: pulse .55s ease;
+    }
+    @keyframes pulse{
+      0%{ box-shadow: 0 0 0 0 rgba(144,202,249,.00); }
+      35%{ box-shadow: 0 0 0 10px rgba(144,202,249,.18); }
+      100%{ box-shadow: 0 0 0 18px rgba(144,202,249,0); }
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .mini{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:8px;
+    }
+    @media (max-width: 520px){
+      .mini{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .field{
+      background: rgba(12,19,32,.70);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 10px;
+    }
+    .input{
+      width:100%;
+      background:transparent;
+      border:0;
+      outline:none;
+      color:var(--ink);
+      font-size:14px;
+    }
+    .help{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .btns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .btn{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color:var(--ink);
+      padding:10px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+      transition: transform .08s ease, background .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: rgba(144,202,249,.12);
+      border-color: rgba(144,202,249,.28);
+    }
+    .btn.danger{
+      background: rgba(255,107,107,.10);
+      border-color: rgba(255,107,107,.25);
+    }
+
+    .kpi{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:10px;
+    }
+    @media (max-width: 520px){
+      .kpi{ grid-template-columns: 1fr; }
+    }
+    .k{
+      background: rgba(12,19,32,.70);
+      border:1px solid var(--line);
+      border-radius:var(--r2);
+      padding:12px;
+      position:relative;
+      overflow:hidden;
+    }
+    .k:before{
+      content:"";
+      position:absolute;
+      inset:-60px -80px auto auto;
+      width:220px;height:220px;
+      background: radial-gradient(circle at 30% 30%, rgba(144,202,249,.18), transparent 60%);
+      pointer-events:none;
+      filter: blur(6px);
+    }
+    .k .name{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+      position:relative;
+      z-index:1;
+    }
+    .k .val{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.2px;
+      position:relative;
+      z-index:1;
+    }
+    .k .sub{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+      position:relative;
+      z-index:1;
+    }
+
+    .table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      overflow:hidden;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: rgba(12,19,32,.55);
+    }
+    .table th, .table td{
+      text-align:left;
+      padding:10px 12px;
+      font-size:13px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:top;
+    }
+    .table th{
+      color:var(--muted);
+      font-weight:800;
+      font-size:12px;
+      background: rgba(255,255,255,.03);
+    }
+    .table tr:last-child td{ border-bottom:0; }
+    .right{ text-align:right; }
+
+    .note{
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px dashed rgba(255,255,255,.18);
+      background: rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    .ref{
+      position:fixed;
+      right:10px;
+      bottom:10px;
+      z-index:999;
+      max-width:min(360px, calc(100vw - 20px));
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(17,24,38,.72);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .ref a{ color: var(--brand); text-decoration:none; }
+    .ref a:hover{ text-decoration:underline; }
+    .ref code{
+      color:var(--ink);
+      background: rgba(255,255,255,.06);
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    /* Footer (tu bloque tal cual) */
+    .footer{
+      margin:18px auto 28px auto;
+      max-width:1080px;
+      padding:18px 16px;
+      border-top:1px solid rgba(255,255,255,.10);
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+    .footer a{ color:var(--brand); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title-row">
+        <div>
+          <h1>💧 Gato de Agua — Calculadora de goteo</h1>
+          <p class="subtitle">
+            Pulsa el botón con cada gota del grifo. Con <strong>3 pulsaciones</strong> calculamos el intervalo medio y estimamos
+            <strong>gotas/min</strong>, consumo de agua y coste.
+          </p>
+
+          <!-- BLOQUE DESARROLLADO POR + HOME -->
+          <div style="margin:10px 0 0 0;">
+            <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+              <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+            </h2>
+            <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+              <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+                🏠 <span>volver a página de inicio</span>
+              </a>
+            </p>
+          </div>
+
+          <div class="pillbar">
+            <span class="pill"><span id="liveDot" class="dot"></span> <span id="statusTxt">Esperando pulsaciones…</span></span>
+            <span class="pill">⏱️ <span id="tapCount">0</span>/3 pulsaciones</span>
+            <span class="pill">📌 Promedio de intervalos: <strong id="avgSec">—</strong></span>
+          </div>
+        </div>
+
+        <div class="note" style="min-width:min(330px, 100%);">
+          <strong>Consejo:</strong> coloca el móvil cerca del grifo y pulsa con el mismo dedo, siempre “a tiempo” con la gota.
+          Si el goteo es irregular, repite la medición para obtener un promedio más fiable.
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- IZQUIERDA: medición -->
+      <div class="card">
+        <h3>
+          <span>🎯 Medición por pulsaciones</span>
+          <small id="lastTapLabel">Última pulsación: —</small>
+        </h3>
+        <div class="body">
+          <div class="tap-zone">
+            <button id="tapBtn" class="tap-btn" aria-label="Pulsar con cada gota">
+              PULSAR CON CADA GOTA
+              <span class="hint">Se calcula con 3 pulsaciones (2 intervalos) • Tecla: <kbd style="background:rgba(8,16,25,.12);border:1px solid rgba(8,16,25,.18);padding:2px 6px;border-radius:8px;font-weight:900;">ESPACIO</kbd></span>
+              <span class="droplet" aria-hidden="true"></span>
+            </button>
+
+            <div class="mini">
+              <div class="field">
+                <label for="mlPerDrop">mL por gota</label>
+                <input id="mlPerDrop" class="input" type="number" inputmode="decimal" min="0" step="0.01" value="0.05" />
+                <div class="help">Valor típico orientativo: 0,05 mL (depende del grifo).</div>
+              </div>
+
+              <div class="field">
+                <label for="waterPrice">Precio del agua (€/litro)</label>
+                <input id="waterPrice" class="input" type="number" inputmode="decimal" min="0" step="0.000000001" value="0.001727272727" />
+                <div class="help">Puedes ajustar si quieres otra tarifa.</div>
+              </div>
+            </div>
+
+            <div class="btns">
+              <button id="resetBtn" class="btn danger">Resetear medición</button>
+              <button id="keepAvgBtn" class="btn primary" title="Mantener el valor actual y empezar otra medición para comparar">Nueva medición (sin borrar resultados)</button>
+              <button id="demoBtn" class="btn" title="Simula un goteo estable para probar la interfaz">Modo demo</button>
+            </div>
+
+            <div class="note" id="warnBox" style="display:none; border-style:solid; border-color:rgba(255,209,102,.25); background:rgba(255,209,102,.06); color:var(--ink);">
+              <strong>Ojo:</strong> la medición parece poco consistente. Intenta repetirla o usa más cuidado al pulsar.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DERECHA: resultados -->
+      <div class="card">
+        <h3>
+          <span>📊 Resultados</span>
+          <small>Actualizados automáticamente</small>
+        </h3>
+        <div class="body">
+          <div class="kpi">
+            <div class="k">
+              <div class="name">Gotas por minuto</div>
+              <div class="val" id="dpm">—</div>
+              <div class="sub" id="dpmSub">Pulsa 3 veces para calcular</div>
+            </div>
+            <div class="k">
+              <div class="name">Consumo</div>
+              <div class="val" id="lph">—</div>
+              <div class="sub" id="lphSub">Litros por hora</div>
+            </div>
+            <div class="k">
+              <div class="name">Coste mensual</div>
+              <div class="val" id="costMonth">—</div>
+              <div class="sub" id="costMonthSub">€/mes</div>
+            </div>
+            <div class="k">
+              <div class="name">Coste anual</div>
+              <div class="val" id="costYear">—</div>
+              <div class="sub" id="costYearSub">€/año</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <table class="table" aria-label="Tabla de consumos y costes">
+            <thead>
+              <tr>
+                <th>Periodo</th>
+                <th class="right">Agua</th>
+                <th class="right">Coste</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr>
+                <td>Hora</td>
+                <td class="right" id="waterHour">—</td>
+                <td class="right" id="costHour">—</td>
+              </tr>
+              <tr>
+                <td>Día</td>
+                <td class="right" id="waterDay">—</td>
+                <td class="right" id="costDay">—</td>
+              </tr>
+              <tr>
+                <td>Mes (30 días)</td>
+                <td class="right" id="waterMonth">—</td>
+                <td class="right" id="costMonthRow">—</td>
+              </tr>
+              <tr>
+                <td>Año (365 días)</td>
+                <td class="right" id="waterYear">—</td>
+                <td class="right" id="costYearRow">—</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="height:12px"></div>
+
+          <div class="note">
+            <strong>Cómo se calcula:</strong> con 3 pulsaciones tenemos 2 intervalos. Usamos el intervalo medio (segundos/gota) → gotas/min.
+            Con “mL por gota” convertimos a mL/L por periodo, y aplicamos el precio (€/litro).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div style="height:12px"></div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="ref" id="refBox">
+    <div style="display:flex; gap:10px; align-items:flex-start; justify-content:space-between;">
+      <div>
+        <strong style="color:var(--ink)">Referencia tarifa:</strong><br/>
+        Canal de Isabel II — Tarifas y bonificaciones:
+        <a href="https://oficinavirtual.canaldeisabelsegunda.es/informacion/tarifas-y-bonificaciones" target="_blank" rel="noopener">ver</a><br/>
+        Precio estimado usado: <code id="refPrice">1.727272727×10⁻³ €/L</code>
+      </div>
+      <button id="hideRef" class="btn" style="padding:8px 10px; border-radius:12px;">Ocultar</button>
+    </div>
+  </div>
+
+  <script>
+    // ==========================
+    //   GATO DE AGUA - JS
+    // ==========================
+    const tapBtn = document.getElementById('tapBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const keepAvgBtn = document.getElementById('keepAvgBtn');
+    const demoBtn = document.getElementById('demoBtn');
+
+    const mlPerDropEl = document.getElementById('mlPerDrop');
+    const waterPriceEl = document.getElementById('waterPrice');
+
+    const statusTxt = document.getElementById('statusTxt');
+    const tapCount = document.getElementById('tapCount');
+    const avgSec = document.getElementById('avgSec');
+    const lastTapLabel = document.getElementById('lastTapLabel');
+    const liveDot = document.getElementById('liveDot');
+
+    const warnBox = document.getElementById('warnBox');
+
+    // KPIs
+    const dpmEl = document.getElementById('dpm');
+    const dpmSub = document.getElementById('dpmSub');
+    const lphEl = document.getElementById('lph');
+    const lphSub = document.getElementById('lphSub');
+    const costMonthEl = document.getElementById('costMonth');
+    const costYearEl = document.getElementById('costYear');
+    const costMonthSub = document.getElementById('costMonthSub');
+    const costYearSub = document.getElementById('costYearSub');
+
+    // Table
+    const waterHourEl = document.getElementById('waterHour');
+    const waterDayEl = document.getElementById('waterDay');
+    const waterMonthEl = document.getElementById('waterMonth');
+    const waterYearEl = document.getElementById('waterYear');
+
+    const costHourEl = document.getElementById('costHour');
+    const costDayEl = document.getElementById('costDay');
+    const costMonthRowEl = document.getElementById('costMonthRow');
+    const costYearRowEl = document.getElementById('costYearRow');
+
+    // Ref box
+    const hideRefBtn = document.getElementById('hideRef');
+    const refBox = document.getElementById('refBox');
+    const refPrice = document.getElementById('refPrice');
+
+    // State
+    let taps = [];          // timestamps in ms
+    let lastComputed = null; // {dpm, secPerDrop, ...}
+    let demoTimer = null;
+
+    // Constants
+    const DAYS_PER_MONTH = 30;
+    const DAYS_PER_YEAR  = 365;
+
+    function nowStr(){
+      const d = new Date();
+      return d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    }
+
+    function fmtNum(n, digits=2){
+      if (!isFinite(n)) return '—';
+      return n.toLocaleString('es-ES', {maximumFractionDigits: digits, minimumFractionDigits: digits});
+    }
+    function fmtMoney(n){
+      if (!isFinite(n)) return '—';
+      return n.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+    }
+    function fmtLiters(l){
+      if (!isFinite(l)) return '—';
+      // Si es pequeño, muestro mL
+      if (l < 0.001) return `${fmtNum(l*1000, 2)} mL`;
+      if (l < 1) return `${fmtNum(l, 3)} L`;
+      return `${fmtNum(l, 2)} L`;
+    }
+
+    function setLive(on){
+      liveDot.classList.toggle('live', !!on);
+    }
+
+    function softPulse(el){
+      el.classList.remove('pulse');
+      void el.offsetWidth; // reflow
+      el.classList.add('pulse');
+    }
+
+    function resetMeasurement(){
+      taps = [];
+      setLive(false);
+      statusTxt.textContent = 'Esperando pulsaciones…';
+      tapCount.textContent = '0';
+      avgSec.textContent = '—';
+      lastTapLabel.textContent = 'Última pulsación: —';
+      warnBox.style.display = 'none';
+      tapBtn.disabled = false;
+      tapBtn.style.opacity = '1';
+    }
+
+    function stopDemo(){
+      if (demoTimer) clearInterval(demoTimer);
+      demoTimer = null;
+      demoBtn.textContent = 'Modo demo';
+      demoBtn.classList.remove('primary');
+    }
+
+    function startDemo(){
+      stopDemo();
+      resetMeasurement();
+      // Simula un goteo cada 1.2s aprox con pequeña variación
+      demoBtn.textContent = 'Detener demo';
+      demoBtn.classList.add('primary');
+
+      let remaining = 3;
+      demoTimer = setInterval(() => {
+        if (remaining <= 0){
+          stopDemo();
+          return;
+        }
+        doTap(true);
+        remaining--;
+      }, 1200 + Math.random()*200);
+    }
+
+    function doTap(fromDemo=false){
+      const t = performance.now();
+      taps.push(t);
+
+      setLive(true);
+      softPulse(tapBtn);
+
+      tapCount.textContent = String(taps.length);
+      lastTapLabel.textContent = `Última pulsación: ${nowStr()}`;
+
+      if (taps.length === 1){
+        statusTxt.textContent = 'Bien. Sigue pulsando con las próximas gotas…';
+        avgSec.textContent = '—';
+        warnBox.style.display = 'none';
+        return;
+      }
+
+      // Para 2 taps o 3 taps, mostramos promedio parcial
+      const intervals = [];
+      for (let i=1; i<taps.length; i++){
+        intervals.push((taps[i] - taps[i-1]) / 1000); // seconds
+      }
+      const avg = intervals.reduce((a,b)=>a+b,0) / intervals.length;
+
+      avgSec.textContent = `${fmtNum(avg, 3)} s/gota`;
+
+      if (taps.length < 3){
+        statusTxt.textContent = 'Casi. Falta 1 pulsación…';
+        return;
+      }
+
+      // Ya tenemos 3 pulsaciones
+      statusTxt.textContent = 'Medición completada ✅ (puedes repetir para comparar)';
+      setLive(false);
+
+      computeAndRender(intervals, avg);
+      // permitimos seguir pulsando si quieren, pero el cálculo pedido es con 3 taps.
+      // Bloqueo suave para evitar confusión:
+      tapBtn.disabled = true;
+      tapBtn.style.opacity = '.88';
+    }
+
+    function computeAndRender(intervals, avgSecPerDrop){
+      // Consistencia: si los 2 intervalos difieren mucho, avisar
+      const i1 = intervals[0], i2 = intervals[1];
+      const diff = Math.abs(i1 - i2);
+      const rel = diff / Math.max(0.0001, avgSecPerDrop);
+      // Umbral: 15% (bastante razonable para pulsación manual)
+      if (rel > 0.15){
+        warnBox.style.display = 'block';
+      } else {
+        warnBox.style.display = 'none';
+      }
+
+      const dpm = 60 / avgSecPerDrop; // drops per minute
+
+      const mlPerDrop = parseFloat(mlPerDropEl.value);
+      const pricePerLiter = parseFloat(waterPriceEl.value);
+
+      // Volumen
+      const mlPerMin = dpm * mlPerDrop;
+      const lPerMin  = mlPerMin / 1000;
+      const lPerHour = lPerMin * 60;
+      const lPerDay  = lPerHour * 24;
+      const lPerMonth= lPerDay * DAYS_PER_MONTH;
+      const lPerYear = lPerDay * DAYS_PER_YEAR;
+
+      // Costes
+      const cHour  = lPerHour  * pricePerLiter;
+      const cDay   = lPerDay   * pricePerLiter;
+      const cMonth = lPerMonth * pricePerLiter;
+      const cYear  = lPerYear  * pricePerLiter;
+
+      lastComputed = {
+        dpm, avgSecPerDrop, mlPerDrop, pricePerLiter,
+        lPerHour, lPerDay, lPerMonth, lPerYear,
+        cHour, cDay, cMonth, cYear
+      };
+
+      // KPIs
+      dpmEl.textContent = `${fmtNum(dpm, 2)} gotas/min`;
+      dpmSub.textContent = `Intervalo medio: ${fmtNum(avgSecPerDrop, 3)} s/gota`;
+
+      lphEl.textContent = `${fmtNum(lPerHour, 3)} L/h`;
+      lphSub.textContent = `(${fmtNum(mlPerMin, 1)} mL/min)`;
+
+      costMonthEl.textContent = fmtMoney(cMonth);
+      costYearEl.textContent = fmtMoney(cYear);
+
+      costMonthSub.textContent = `Con ${fmtNum(lPerMonth, 1)} L/mes`;
+      costYearSub.textContent = `Con ${fmtNum(lPerYear, 1)} L/año`;
+
+      // Tabla
+      waterHourEl.textContent  = fmtLiters(lPerHour);
+      waterDayEl.textContent   = fmtLiters(lPerDay);
+      waterMonthEl.textContent = fmtLiters(lPerMonth);
+      waterYearEl.textContent  = fmtLiters(lPerYear);
+
+      costHourEl.textContent    = fmtMoney(cHour);
+      costDayEl.textContent     = fmtMoney(cDay);
+      costMonthRowEl.textContent= fmtMoney(cMonth);
+      costYearRowEl.textContent = fmtMoney(cYear);
+
+      // Ref price display (bonito)
+      refPrice.textContent = `${pricePerLiter.toExponential(9).replace('e-3','×10⁻³').replace('e-4','×10⁻⁴').replace('e-5','×10⁻⁵')} €/L`;
+    }
+
+    function rerenderIfComputed(){
+      if (!lastComputed) return;
+      // recalcular con el mismo avgSecPerDrop pero inputs nuevos
+      const avg = lastComputed.avgSecPerDrop;
+      // recreamos intervals dummy para revalidar warning con el mismo avg
+      computeAndRender([avg, avg], avg);
+    }
+
+    // UI: eventos
+    tapBtn.addEventListener('click', () => doTap(false));
+
+    // Tecla espacio para pulsar
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space'){
+        e.preventDefault();
+        if (!tapBtn.disabled) doTap(false);
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      stopDemo();
+      resetMeasurement();
+      // no borramos resultados; el usuario puede comparar visualmente
+      statusTxt.textContent = 'Medición reseteada. Pulsa con la primera gota.';
+    });
+
+    keepAvgBtn.addEventListener('click', () => {
+      stopDemo();
+      resetMeasurement();
+      statusTxt.textContent = 'Nueva medición lista (resultados anteriores se mantienen).';
+    });
+
+    demoBtn.addEventListener('click', () => {
+      if (demoTimer) stopDemo();
+      else startDemo();
+    });
+
+    mlPerDropEl.addEventListener('input', () => {
+      // no recalculamos sin medición
+      if (lastComputed) {
+        // recompute with last avg but new mL
+        const avg = lastComputed.avgSecPerDrop;
+        computeAndRender([avg, avg], avg);
+      }
+    });
+
+    waterPriceEl.addEventListener('input', () => {
+      if (lastComputed) {
+        const avg = lastComputed.avgSecPerDrop;
+        computeAndRender([avg, avg], avg);
+      }
+    });
+
+    hideRefBtn.addEventListener('click', () => {
+      const hidden = refBox.style.display === 'none';
+      if (hidden){
+        refBox.style.display = 'block';
+        hideRefBtn.textContent = 'Ocultar';
+      } else {
+        refBox.style.display = 'none';
+      }
+    });
+
+    // Init
+    resetMeasurement();
+    // Asegura mostrar el precio inicial bonito
+    refPrice.textContent = `1.727272727×10⁻³ €/L`;
+  </script>
+</body>
+</html>
