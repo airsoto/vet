@@ -1,2672 +1,1432 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
+<script defer src="goat.js"></script>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <title>DDx Venn Game (Single File) | Diagnósticos dentro de círculos</title>
-
-  <!-- D3 + venn.js (para N=2..3) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/d3@5/dist/d3.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/venn.js@0.2.20/build/venn.min.js"></script>
+  <title>Diagrama de Venn DDx | Ángel Soto</title>
 
   <style>
     :root{
       --bg:#0b0f14;
-      --panel:#0f1724;
-      --panel2:#111b2b;
-      --text:#eaf0fb;
-      --muted:#a7b3c7;
+      --bg2:#0f1724;
+      --panel:#111826;
+      --panel2:#0d1420;
+      --text:#e9eef6;
+      --muted:#9fb0c6;
       --line:rgba(255,255,255,.10);
-      --shadow: 0 14px 34px rgba(0,0,0,.35);
-      --r:18px;
-      --tap:44px;
+      --softline:rgba(255,255,255,.06);
       --accent:#ff9900;
-
-      --glass: rgba(255,255,255,.06);
-      --glass2: rgba(255,255,255,.09);
-      --blur: blur(12px);
-
-      --ok:#27d17f;
-      --bad:#ff5a6a;
+      --accent2:#90caf9;
+      --good:#27d17f;
+      --warn:#ffb347;
+      --danger:#ff6b6b;
+      --shadow:0 18px 42px rgba(0,0,0,.38);
+      --radius:18px;
+      --tap:46px;
+      --maxw:1500px;
+      --circle-stroke:rgba(255,255,255,.35);
+      --chip-bg:rgba(8,14,24,.78);
+      --chip-bd:rgba(255,255,255,.14);
+      --chip-shadow:0 8px 20px rgba(0,0,0,.28);
     }
 
-    [data-theme="light"]{
-      --bg:#f6f7fb;
-      --panel:#ffffff;
-      --panel2:#ffffff;
-      --text:#101828;
-      --muted:#556070;
-      --line:rgba(16,24,40,.12);
-      --shadow: 0 14px 34px rgba(16,24,40,.12);
-      --glass: rgba(16,24,40,.05);
-      --glass2: rgba(16,24,40,.08);
-    }
-
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
+    *{box-sizing:border-box}
+    html,body{
       margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      padding:0;
       background:
-        radial-gradient(1200px 700px at 15% -10%, rgba(255,153,0,.18), transparent 55%),
-        radial-gradient(900px 600px at 105% 20%, rgba(90,160,255,.18), transparent 55%),
-        radial-gradient(1000px 700px at 50% 120%, rgba(39,209,127,.12), transparent 55%),
-        var(--bg);
+        radial-gradient(circle at top left, rgba(30,136,229,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(255,153,0,.10), transparent 28%),
+        linear-gradient(180deg, #0b0f14 0%, #0d121a 100%);
       color:var(--text);
+      font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height:100%;
     }
 
-    code{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size:.95em;
-      padding:.08em .35em;
-      border-radius:10px;
-      background: var(--glass);
+    a{ color:var(--accent2); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    .wrap{
+      width:min(var(--maxw), calc(100% - 24px));
+      margin:20px auto 34px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
       border:1px solid var(--line);
-    }
-
-    a{ color:inherit; }
-
-    .app{ min-height:100%; display:flex; flex-direction:column; }
-
-    header.topbar{
-      position:sticky; top:0; z-index:10;
-      display:flex; align-items:center; justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(0,0,0,.18), transparent), var(--glass);
-      backdrop-filter: var(--blur);
-    }
-
-    .brand{ display:flex; gap:12px; align-items:center; }
-    .logo{
-      width:44px;height:44px;
-      display:grid;place-items:center;
-      border-radius:14px;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.22), rgba(255,255,255,.04) 60%),
-                linear-gradient(135deg, rgba(255,153,0,.35), rgba(90,160,255,.22));
-      border:1px solid var(--line);
-      box-shadow: var(--shadow);
-      font-size:22px;
-      user-select:none;
-    }
-    .title{ font-weight:900; letter-spacing:.2px; }
-    .subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
-
-    .top-actions{ display:flex; align-items:center; gap:10px; }
-
-    .btn{
-      height:var(--tap);
-      padding:0 14px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-      color:var(--text);
-      cursor:pointer;
-      box-shadow: 0 6px 18px rgba(0,0,0,.12);
-      transition: transform .12s ease, background .2s ease, border-color .2s ease;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      text-decoration:none;
-      user-select:none;
-    }
-    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
-    .btn:active{ transform: translateY(0px); }
-    .btn.ghost{ background: transparent; box-shadow:none; }
-    .btn.small{ height:36px; border-radius:12px; padding:0 12px; font-size:13px; }
-
-    .icon-btn{
-      width:40px;height:40px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: var(--glass);
-      color:var(--text);
-      display:grid;place-items:center;
-      cursor:pointer;
-      transition: transform .12s ease, background .2s ease;
-    }
-    .icon-btn:hover{ transform: translateY(-1px); background: var(--glass2); }
-    .icon-btn:active{ transform: translateY(0px); }
-
-    .toggle{ display:flex; align-items:center; }
-    .toggle input{ display:none; }
-    .toggle-ui{
-      width:70px; height:var(--tap);
-      border-radius:18px;
-      border:1px solid var(--line);
-      background: var(--glass);
+      border-radius:24px;
+      padding:22px 22px 18px;
+      box-shadow:var(--shadow);
       position:relative;
-      display:flex; align-items:center;
-      padding:0 10px;
-      cursor:pointer;
-      gap:8px;
+      overflow:hidden;
     }
-    .toggle-pill{
-      position:absolute; left:6px; top:6px;
-      width:32px; height:32px; border-radius:14px;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.24), rgba(255,255,255,.08)),
-                linear-gradient(135deg, rgba(255,153,0,.35), rgba(90,160,255,.22));
-      border:1px solid var(--line);
-      transition: transform .22s ease;
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -120px -120px auto;
+      width:280px;height:280px;
+      background:radial-gradient(circle, rgba(255,153,0,.15), transparent 65%);
+      pointer-events:none;
+      filter:blur(10px);
     }
-    .toggle-icon{ z-index:1; font-size:14px; opacity:.9; }
-    .toggle-icon.sun{ margin-left:auto; opacity:.8; }
-    #themeToggle:checked + .toggle-ui .toggle-pill{ transform: translateX(26px); }
+
+    h1{
+      margin:0;
+      font-size:clamp(26px, 4.4vw, 44px);
+      line-height:1.05;
+      letter-spacing:-.02em;
+    }
+
+    .subtitle{
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:clamp(14px, 2vw, 16px);
+      max-width:950px;
+    }
 
     .layout{
       display:grid;
-      grid-template-columns: 360px 1fr 420px;
-      gap:14px;
-      padding:14px;
-      align-items:stretch;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap:18px;
+      margin-top:18px;
     }
 
-    .panel{
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
       border:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      min-height: calc(100vh - 86px);
+      border-radius:22px;
+      box-shadow:var(--shadow);
     }
 
-    .panel-head{
+    .sidebar{
+      padding:16px;
+      position:sticky;
+      top:14px;
+      align-self:start;
+      max-height:calc(100vh - 28px);
+      overflow:auto;
+    }
+
+    .section-title{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:14px 14px 10px 14px;
-      border-bottom:1px solid var(--line);
-      background: rgba(0,0,0,.10);
+      gap:12px;
+      margin:2px 0 12px;
     }
-    [data-theme="light"] .panel-head{ background: rgba(16,24,40,.03); }
 
-    .panel h2{ margin:0; font-size:15px; letter-spacing:.2px; }
-    .muted{ color:var(--muted); }
-    .badge{
+    .section-title h2{
+      margin:0;
+      font-size:16px;
+      letter-spacing:.01em;
+    }
+
+    .small{
+      color:var(--muted);
       font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: var(--glass);
     }
 
-    /* LEFT */
-    .panel-left{ display:flex; flex-direction:column; }
-    .controls{ padding:12px 14px 10px 14px; }
-    .field{ margin-bottom:12px; }
-    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
-    input[type="text"], select{
+    .searchbox,
+    .select,
+    .btn{
       width:100%;
-      height:44px;
-      padding:0 12px;
+      min-height:var(--tap);
       border-radius:14px;
       border:1px solid var(--line);
-      background: rgba(0,0,0,.16);
+      background:var(--panel2);
       color:var(--text);
       outline:none;
-      transition: border-color .2s ease, background .2s ease;
+      transition:.2s ease;
     }
-    [data-theme="light"] input[type="text"],
-    [data-theme="light"] select{
-      background: rgba(16,24,40,.03);
-    }
-    input[type="text"]:focus, select:focus{ border-color: rgba(255,153,0,.35); }
 
-    .input-wrap{ position:relative; }
-    #clearSearch{
-      position:absolute;
-      right:6px; top:6px;
-      width:32px;height:32px;border-radius:12px;
+    .searchbox,
+    .select{
+      padding:0 14px;
+      font-size:15px;
+    }
+
+    .searchbox:focus,
+    .select:focus{
+      border-color:rgba(144,202,249,.55);
+      box-shadow:0 0 0 4px rgba(144,202,249,.12);
+    }
+
+    .controls{
+      display:grid;
+      gap:10px;
+    }
+
+    .quick-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .btn{
+      cursor:pointer;
+      font-weight:700;
+      font-size:14px;
+      padding:0 14px;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.18);
+      background:#121b2a;
+    }
+
+    .btn.primary{
+      background:linear-gradient(180deg, rgba(255,153,0,.18), rgba(255,153,0,.10));
+      border-color:rgba(255,153,0,.35);
+      color:#fff;
+    }
+
+    .btn.ghost{
+      background:linear-gradient(180deg, rgba(144,202,249,.10), rgba(144,202,249,.05));
+      border-color:rgba(144,202,249,.25);
+    }
+
+    .btn.slim{
+      min-height:38px;
+      font-size:12px;
+      padding:0 12px;
+      width:auto;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .stat{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--softline);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    .stat .n{
+      display:block;
+      font-size:22px;
+      font-weight:800;
+      line-height:1;
+      margin-bottom:4px;
+    }
+
+    .stat .l{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .process-list{
+      margin-top:16px;
+      display:grid;
+      gap:10px;
+    }
+
+    .process-item{
+      position:relative;
       border:1px solid var(--line);
-      background: var(--glass);
-      color:var(--text);
+      background:rgba(255,255,255,.025);
+      border-radius:16px;
+      padding:12px 12px 12px 46px;
+      cursor:pointer;
+      transition:.18s ease;
+      user-select:none;
+    }
+
+    .process-item:hover{
+      border-color:rgba(255,255,255,.18);
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.04);
+    }
+
+    .process-item input{
+      position:absolute;
+      left:12px;
+      top:14px;
+      width:20px;
+      height:20px;
+      accent-color:#ff9900;
       cursor:pointer;
     }
-    .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
 
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    .range{ display:flex; align-items:center; gap:10px; }
-    .range input[type="range"]{ width:100%; }
-    .range-readout{
-      min-width:44px;
-      height:44px;
-      border-radius:14px;
+    .process-item .p-title{
+      font-weight:700;
+      line-height:1.25;
+      margin:0 0 6px;
+    }
+
+    .process-item .p-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:7px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
       border:1px solid var(--line);
-      background: var(--glass);
-      display:grid;place-items:center;
-      font-weight:900;
+      background:rgba(255,255,255,.035);
+      color:var(--muted);
+      white-space:nowrap;
     }
 
-    .chips{
-      display:flex; flex-wrap:wrap; gap:8px;
-      min-height:44px; padding:8px;
-      border-radius:14px;
-      border:1px dashed var(--line);
-      background: rgba(0,0,0,.10);
+    .pill.spec{
+      color:#d5e7ff;
+      background:rgba(144,202,249,.09);
+      border-color:rgba(144,202,249,.18);
     }
-    [data-theme="light"] .chips{ background: rgba(16,24,40,.03); }
-    .chip{
+
+    .pill.mnemo{
+      color:#ffe4b5;
+      background:rgba(255,153,0,.09);
+      border-color:rgba(255,153,0,.18);
+    }
+
+    .process-item .p-count{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .main{
+      display:grid;
+      gap:18px;
+    }
+
+    .toolbar{
+      padding:14px;
+      display:grid;
+      gap:12px;
+    }
+
+    .toolbar-top{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .selected-wrap{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .selected-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      background:rgba(255,153,0,.10);
+      border:1px solid rgba(255,153,0,.20);
+      border-radius:999px;
+      font-size:13px;
+      color:#fff;
+    }
+
+    .selected-pill button{
+      all:unset;
+      cursor:pointer;
+      font-weight:800;
+      color:#ffd7a0;
+      line-height:1;
+    }
+
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+
+    .legend .key{
       display:inline-flex;
       align-items:center;
       gap:8px;
       padding:7px 10px;
       border-radius:999px;
       border:1px solid var(--line);
-      background: var(--glass);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
       font-size:12px;
-      animation: pop .16s ease;
-      user-select:none;
     }
-    @keyframes pop{ from{ transform:scale(.96); opacity:.6; } to{ transform:scale(1); opacity:1; } }
-    .dot{ width:10px;height:10px;border-radius:99px; box-shadow: 0 0 0 3px rgba(255,255,255,.06) inset; }
-    .chip button{
-      border:0; background:transparent; color:var(--muted);
-      cursor:pointer; font-size:16px; line-height:1; padding:0;
-    }
-    .chip button:hover{ color:var(--text); }
 
-    .list-head{
-      padding:0 14px 10px 14px;
+    .dot{
+      width:12px;
+      height:12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      flex:0 0 12px;
+    }
+
+    .diagram-card{
+      padding:14px;
+    }
+
+    .diagram-head{
       display:flex;
-      justify-content:space-between;
       align-items:center;
-    }
-
-    .process-list{
-      padding:10px 10px 14px 10px;
-      overflow:auto;
-      flex:1;
-    }
-
-    .item{
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.12);
-      border-radius:16px;
-      padding:12px;
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
       margin-bottom:10px;
-      transition: transform .14s ease, background .2s ease, border-color .2s ease;
-    }
-    [data-theme="light"] .item{ background: rgba(16,24,40,.03); }
-    .item:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
-    .item .left{
-      display:flex; flex-direction:column; gap:8px; align-items:center;
-    }
-    .chk{ width:20px;height:20px; accent-color: var(--accent); cursor:pointer; }
-    .pill{
-      font-size:11px;
-      padding:5px 9px;
-      border-radius:999px;
-      background: var(--glass);
-      border:1px solid var(--line);
-    }
-    .item .main{ flex:1; }
-    .item .name{ font-weight:900; line-height:1.15; }
-    .item .meta{ margin-top:6px; color:var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; }
-    .tag{
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: var(--glass);
-    }
-    .colorbar{
-      width:10px; border-radius:999px; margin-left:auto; height:100%;
-      opacity:.85; box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
     }
 
-    .footnote{ padding:10px 14px 14px 14px; border-top:1px solid var(--line); }
-
-    /* CENTER */
-    .panel-center{ position:relative; display:flex; flex-direction:column; }
-    .venn-wrap{ position:relative; flex:1; min-height:560px; padding:12px; }
-
-    .empty{
-      position:absolute; inset:12px;
-      display:grid; place-items:center; z-index:2;
+    .diagram-head h2{
+      margin:0;
+      font-size:18px;
     }
-    .empty-card{
-      max-width:720px;
-      padding:18px 18px;
-      border-radius:20px;
-      border:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-      box-shadow: var(--shadow);
-    }
-    .empty-title{ font-size:18px; font-weight:900; }
-    .empty-text{ color:var(--muted); margin-top:10px; line-height:1.5; }
-    .empty-actions{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
 
-    /* Real venn container (2-3) */
-    #vennReal{
+    .diagram-head p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .diagram-stage{
       position:relative;
       width:100%;
-      height:100%;
-      min-height:560px;
-      display:none;
-    }
-    #vennReal .vennSvgHost{ position:absolute; inset:0; }
-    #vennReal .inCircleLayer{ position:absolute; inset:0; pointer-events:none; }
-    /* In-circle cards for real venn (HTML overlays) */
-    .circleCard{
-      position:absolute;
-      transform: translate(-50%, -50%);
-      width: 240px;
-      max-width: 42vw;
-      pointer-events:auto;
-      border-radius:18px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.38);
-      backdrop-filter: var(--blur);
-      box-shadow: var(--shadow);
+      min-height:740px;
+      border-radius:22px;
       overflow:hidden;
-    }
-    [data-theme="light"] .circleCard{ background: rgba(255,255,255,.78); }
-    .circleCard .head{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding:10px 10px;
-      border-bottom:1px solid var(--line);
-      background: rgba(255,255,255,.06);
-    }
-    .circleCard .head .ttl{ display:flex; align-items:center; gap:10px; font-weight:900; font-size:12px; }
-    .circleCard .head .sub{ color:var(--muted); font-size:11px; font-weight:700; }
-    .circleCard .tabs{
-      display:flex; gap:8px;
-      padding:8px 10px;
-      border-bottom:1px solid var(--line);
-    }
-    .tab{
-      pointer-events:auto;
-      cursor:pointer;
-      user-select:none;
-      font-size:11px;
-      padding:6px 10px;
-      border-radius:999px;
       border:1px solid var(--line);
-      background: var(--glass);
-      color:var(--text);
-      display:inline-flex; align-items:center; gap:8px;
-    }
-    .tab.active{
-      border-color: rgba(255,153,0,.35);
-      box-shadow: 0 0 0 3px rgba(255,153,0,.10);
-    }
-    .circleCard .body{
-      padding:10px;
-      max-height: 260px;
-      overflow:auto;
-      pointer-events:auto;
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,.03), transparent 55%),
+        linear-gradient(180deg, #0c131e 0%, #0b1119 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
     }
 
-    .dxRow{
-      font-size:11px;
-      line-height:1.35;
-      padding:8px 9px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.14);
-      margin-bottom:8px;
-    }
-    [data-theme="light"] .dxRow{ background: rgba(16,24,40,.03); }
-    .dxRow:last-child{ margin-bottom:0; }
-    .badges{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
-    .b{
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:10px;
-      padding:5px 8px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.10);
-      color: var(--muted);
-    }
-    [data-theme="light"] .b{ background: rgba(16,24,40,.03); }
-
-    /* Intersection cards (overlay) */
-    .ixCard{
+    .diagram-stage::before{
+      content:"";
       position:absolute;
-      transform: translate(-50%, -50%);
-      pointer-events:auto;
-      width: 210px;
-      max-width: 40vw;
-      border-radius:18px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.52);
-      backdrop-filter: var(--blur);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    [data-theme="light"] .ixCard{ background: rgba(255,255,255,.86); }
-    .ixCard .ixHead{
-      padding:10px 10px;
-      border-bottom:1px solid var(--line);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
-    .ixCard .ixName{ font-weight:900; font-size:12px; }
-    .ixCard .ixCount{
-      min-width:26px; height:22px;
-      border-radius:999px;
-      display:grid; place-items:center;
-      border:1px solid var(--line);
-      background: rgba(255,255,255,.06);
-      font-weight:900;
-      font-size:11px;
-    }
-    .ixCard .ixBody{
-      padding:10px;
-      max-height: 190px;
-      overflow:auto;
-      color: var(--muted);
-      font-size:11px;
-      line-height:1.4;
-    }
-    .ixCard .ixBody .sample{
-      padding:8px 9px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.12);
-      margin-bottom:8px;
-      color: var(--text);
-    }
-    [data-theme="light"] .ixCard .ixBody .sample{ background: rgba(16,24,40,.03); color:var(--text); }
-    .ixCard .ixBody .sample:last-child{ margin-bottom:0; }
-
-    /* Venn-like SVG (4-6) */
-    #vennLike{
-      width:100%;
-      height:100%;
-      min-height:560px;
-      display:none;
-    }
-    .blob{
-      mix-blend-mode: multiply;
-      opacity: .95;
-      stroke: rgba(0,0,0,.45);
-      stroke-width: 2.2;
-      filter: drop-shadow(0 16px 22px rgba(0,0,0,.18));
-      cursor:pointer;
-    }
-    [data-theme="light"] .blob{ stroke: rgba(16,24,40,.45); }
-    .blob:hover{ opacity: 1; }
-
-    .blob-label{ font-weight:900; font-size:14px; fill: var(--text); }
-    .blob-sub{ font-weight:800; font-size:12px; fill: var(--muted); }
-
-    /* In-circle HTML lists in SVG via foreignObject */
-    .foWrap{
-      pointer-events:none; /* enable clicks on SVG shapes; cards are separate */
-    }
-    .foCard{
-      width:100%;
-      height:100%;
-      border-radius:18px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.26);
-      backdrop-filter: blur(10px);
-      overflow:hidden;
-      pointer-events:auto;
-      display:flex;
-      flex-direction:column;
-    }
-    [data-theme="light"] .foCard{ background: rgba(255,255,255,.70); }
-    .foHead{
-      padding:8px 10px;
-      border-bottom:1px solid var(--line);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      font-weight:900;
-      font-size:12px;
-    }
-    .foTabs{ padding:7px 10px; border-bottom:1px solid var(--line); display:flex; gap:8px; }
-    .foBody{ padding:10px; overflow:auto; font-size:11px; line-height:1.35; color:var(--text); }
-    .foItem{
-      padding:8px 9px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.12);
-      margin-bottom:8px;
-    }
-    [data-theme="light"] .foItem{ background: rgba(16,24,40,.03); }
-    .foItem:last-child{ margin-bottom:0; }
-
-    /* Region strip + tooltip */
-    .region-strip{
-      display:flex; flex-wrap:wrap; gap:8px;
-      padding:12px 12px 14px 12px;
-      border-top:1px solid var(--line);
-    }
-    .region-pill{
-      cursor:pointer; user-select:none;
-      font-size:12px;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: var(--glass);
-      display:flex; align-items:center; gap:8px;
-      transition: transform .12s ease, background .2s ease;
-    }
-    .region-pill:hover{ transform: translateY(-1px); background: var(--glass2); }
-    .region-pill .count{
-      min-width:26px; height:22px; border-radius:999px;
-      display:grid; place-items:center;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.12);
-      font-weight:900;
-      font-size:11px;
-    }
-    [data-theme="light"] .region-pill .count{ background: rgba(16,24,40,.03); }
-    .region-pill.active{
-      border-color: rgba(255,153,0,.35);
-      box-shadow: 0 0 0 3px rgba(255,153,0,.10);
-    }
-
-    .tooltip{
-      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:24px 24px;
+      mask-image:radial-gradient(circle at center, black 45%, transparent 95%);
       pointer-events:none;
-      opacity:0;
-      transform: translateY(6px);
-      transition: opacity .12s ease, transform .12s ease;
-      padding:10px 12px;
-      max-width: 380px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.55);
-      backdrop-filter: var(--blur);
-      box-shadow: var(--shadow);
-      color:var(--text);
-      font-size:12px;
-      z-index:9;
-    }
-    [data-theme="light"] .tooltip{ background: rgba(255,255,255,.78); }
-    .tooltip .tt-title{ font-weight:900; margin-bottom:6px; }
-    .tooltip .tt-row{ color:var(--muted); }
-
-    /* RIGHT */
-    .panel-right{ display:flex; flex-direction:column; }
-    .details{ padding:12px; display:flex; flex-direction:column; gap:12px; overflow:auto; flex:1; }
-    .card{
-      border:1px solid var(--line);
-      border-radius:18px;
-      background: rgba(0,0,0,.10);
-      padding:12px;
-    }
-    [data-theme="light"] .card{ background: rgba(16,24,40,.03); }
-    .card-title{ font-weight:900; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
-    .sel-list{ display:flex; flex-direction:column; gap:10px; }
-    .sel-row{
-      display:flex; align-items:center; gap:10px;
-      padding:10px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background: var(--glass);
-    }
-    .sel-row .dot{ width:12px;height:12px; }
-    .sel-row .txt{ flex:1; }
-    .sel-row .txt .p{ font-weight:900; }
-    .sel-row .txt .m{ color:var(--muted); font-size:12px; margin-top:2px; }
-
-    .hl{
-      font-weight:900;
-      padding:0 .25em;
-      border-radius:10px;
-      background: rgba(255,153,0,.18);
-      border:1px solid rgba(255,153,0,.22);
     }
 
-    .region-meta .rx{
-      padding:10px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background: var(--glass);
-      margin-top:8px;
+    svg#vennSvg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:1;
     }
-    .region-meta .rx .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+
+    .chip-layer{
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
     }
-    .region-meta .rx .name{ font-weight:900; }
-    .tokens{ margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
-    .token{
+
+    .diag-chip{
+      position:absolute;
+      transform:translate(-50%, -50%);
+      max-width:240px;
+      padding:8px 11px;
+      border-radius:14px;
+      border:1px solid var(--chip-bd);
+      background:var(--chip-bg);
+      backdrop-filter:blur(10px);
+      color:#f6f9ff;
+      font-size:12.5px;
+      line-height:1.25;
+      text-align:center;
+      box-shadow:var(--chip-shadow);
+      pointer-events:auto;
+      cursor:default;
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .diag-chip:hover{
+      transform:translate(-50%, -50%) scale(1.03);
+      box-shadow:0 10px 28px rgba(0,0,0,.34);
+      border-color:rgba(255,255,255,.22);
+    }
+
+    .diag-chip.shared{
+      border-color:rgba(255,153,0,.28);
+      background:linear-gradient(180deg, rgba(255,153,0,.14), rgba(8,14,24,.82));
+    }
+
+    .diag-chip em{
+      display:block;
+      margin-top:4px;
+      color:#ffddad;
+      font-style:normal;
       font-size:11px;
-      padding:5px 8px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.10);
+      opacity:.92;
     }
-    [data-theme="light"] .token{ background: rgba(16,24,40,.03); }
 
-    .accordion .acc-item{
-      border:1px solid var(--line);
-      border-radius:16px;
-      margin-bottom:10px;
-      overflow:hidden;
+    .circle-group{
+      cursor:grab;
     }
-    .acc-head{
-      cursor:pointer; user-select:none;
-      display:flex; align-items:center; gap:10px;
+    .circle-group.dragging{
+      cursor:grabbing;
+    }
+
+    .circle-fill{
+      fill-opacity:.20;
+      stroke:var(--circle-stroke);
+      stroke-width:2;
+      transition:fill-opacity .2s ease, stroke-width .2s ease;
+      filter:drop-shadow(0 10px 18px rgba(0,0,0,.18));
+    }
+
+    .circle-group:hover .circle-fill{
+      fill-opacity:.26;
+      stroke-width:2.4;
+    }
+
+    .circle-label{
+      font-size:15px;
+      fill:#fff;
+      font-weight:800;
+      text-anchor:middle;
+      pointer-events:none;
+    }
+
+    .circle-sub{
+      font-size:11px;
+      fill:#d7e5f5;
+      opacity:.86;
+      text-anchor:middle;
+      pointer-events:none;
+    }
+
+    .empty-state{
+      min-height:680px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:30px;
+      color:var(--muted);
+      position:relative;
+      z-index:3;
+    }
+
+    .empty-box{
+      max-width:600px;
+      padding:26px;
+      border-radius:24px;
+      border:1px dashed rgba(255,255,255,.14);
+      background:rgba(255,255,255,.02);
+    }
+
+    .empty-box h3{
+      margin:0 0 8px;
+      color:#fff;
+      font-size:22px;
+    }
+
+    .empty-box p{
+      margin:0;
+      line-height:1.55;
+    }
+
+    .bottom-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+    }
+
+    .info-card{
+      padding:16px;
+    }
+
+    .info-card h3{
+      margin:0 0 10px;
+      font-size:16px;
+    }
+
+    .shared-list{
+      display:grid;
+      gap:10px;
+      max-height:340px;
+      overflow:auto;
+    }
+
+    .shared-item{
       padding:10px 12px;
-      background: var(--glass);
-    }
-    .acc-head .dot{ width:10px;height:10px; }
-    .acc-head .t{ font-weight:900; flex:1; }
-    .acc-head .caret{ color:var(--muted); }
-    .acc-body{ padding:10px 12px; border-top:1px solid var(--line); display:none; }
-    .acc-item.open .acc-body{ display:block; }
-
-    .dx{
-      padding:8px 10px;
       border-radius:14px;
       border:1px solid var(--line);
-      margin-bottom:8px;
-      background: rgba(0,0,0,.10);
-      font-size:12px;
-      line-height:1.4;
+      background:rgba(255,255,255,.025);
     }
-    [data-theme="light"] .dx{ background: rgba(16,24,40,.03); }
 
-    .table{
+    .shared-item strong{
+      display:block;
+      margin-bottom:4px;
+    }
+
+    .shared-item span{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .help-list{
+      margin:0;
+      padding-left:18px;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:14px;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:18px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
       border:1px solid var(--line);
-      border-radius:16px;
-      overflow:hidden;
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      color:var(--muted);
+      font-size:14px;
     }
-    .trow{
-      display:grid;
-      grid-template-columns: 1.1fr .6fr 1.3fr;
-      gap:10px;
-      padding:10px 12px;
-      border-bottom:1px solid var(--line);
-      background: rgba(0,0,0,.08);
-      cursor:pointer;
+
+    .footer p, .footer h4{
+      margin:10px 0;
     }
-    [data-theme="light"] .trow{ background: rgba(16,24,40,.02); }
-    .trow:hover{ background: rgba(255,153,0,.08); }
-    .trow.header{
-      cursor:default;
-      font-weight:900;
+
+    .footer strong{
+      color:#fff;
+    }
+
+    .muted{
       color:var(--muted);
     }
-    .trow:last-child{ border-bottom:0; }
-    .tcell{ font-size:12px; }
 
-    .panel-right.collapsed{ display:none; }
-
-    /* Modal */
-    .modal{ position:fixed; inset:0; display:none; z-index:50; }
-    .modal.open{ display:block; }
-    .modal-backdrop{ position:absolute; inset:0; background: rgba(0,0,0,.55); }
-    .modal-card{
-      position:relative;
-      max-width: 980px;
-      margin: 6vh auto;
-      background: var(--panel);
-      border:1px solid var(--line);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .modal-head{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding:14px 14px;
-      border-bottom:1px solid var(--line);
-    }
-    .modal-title{ font-weight:900; }
-    .modal-body{ padding:14px; color:var(--muted); line-height:1.6; }
-    .modal-body b{ color:var(--text); }
-    .modal-foot{
-      padding:12px 14px;
-      border-top:1px solid var(--line);
-      display:flex;
-      justify-content:flex-end;
-      gap:10px;
+    .no-results{
+      margin-top:12px;
+      padding:14px;
+      border-radius:14px;
+      border:1px dashed rgba(255,255,255,.14);
+      color:var(--muted);
+      text-align:center;
+      display:none;
     }
 
-    /* Toast */
-    .toast{
-      position:fixed;
-      left:50%;
-      bottom:18px;
-      transform: translateX(-50%) translateY(6px);
-      z-index:999;
-      padding:10px 12px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.58);
-      backdrop-filter: blur(10px);
-      box-shadow: var(--shadow);
-      color:var(--text);
-      font-size:12px;
-      opacity:0;
-      transition: opacity .14s ease, transform .14s ease;
-      pointer-events:none;
+    @media (max-width: 1180px){
+      .layout{
+        grid-template-columns:1fr;
+      }
+      .sidebar{
+        position:relative;
+        top:0;
+        max-height:none;
+      }
     }
-    .toast.show{ opacity:1; transform: translateX(-50%) translateY(0px); }
 
-    /* venn.js tooltip off */
-    .venntooltip{ display:none !important; }
+    @media (max-width: 820px){
+      .diagram-stage{ min-height:660px; }
+      .bottom-grid{ grid-template-columns:1fr; }
+      .stats{ grid-template-columns:1fr 1fr 1fr; }
+    }
 
-    @media (max-width: 1200px){
-      .layout{ grid-template-columns: 360px 1fr 380px; }
-      .circleCard{ width: 220px; }
-      .ixCard{ width: 200px; }
-    }
-    @media (max-width: 1024px){
-      .layout{ grid-template-columns: 1fr; }
-      .panel{ min-height:auto; }
-      .panel-left{ order:1; }
-      .panel-center{ order:2; }
-      .panel-right{ order:3; }
-      .venn-wrap{ min-height:520px; }
-      #vennReal{ min-height:520px; }
-      #vennLike{ min-height:520px; }
-      .circleCard{ max-width: 88vw; }
-      .ixCard{ max-width: 88vw; }
-    }
-    @media (max-width: 480px){
-      .grid2{ grid-template-columns: 1fr; }
-      .subtitle{ display:none; }
-      .btn{ padding:0 12px; }
+    @media (max-width: 580px){
+      .wrap{ width:min(var(--maxw), calc(100% - 14px)); }
+      .hero{ padding:18px 14px 14px; border-radius:20px; }
+      .sidebar, .toolbar, .diagram-card, .info-card{ padding:14px; }
+      .diagram-stage{ min-height:620px; border-radius:18px; }
+      .stats{ grid-template-columns:1fr; }
+      .quick-actions{ grid-template-columns:1fr; }
+      .diag-chip{ max-width:180px; font-size:11.5px; padding:7px 10px; }
     }
   </style>
 </head>
-
 <body>
-  <div class="app" id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">∩</div>
-        <div>
-          <div class="title">DDx Venn Game</div>
-          <div class="subtitle">Diagnósticos dentro de cada círculo + coincidencias por 1/2/3… procesos</div>
-        </div>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Diagramas de Venn de diagnósticos diferenciales</h1>
+      <p class="subtitle">
+        Selecciona uno o varios procesos, filtra por especialidad y visualiza qué diagnósticos diferenciales
+        son exclusivos o compartidos entre procesos. Puedes arrastrar los círculos para explorar mejor las intersecciones.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
       </div>
+    </section>
 
-      <div class="top-actions">
-        <button class="btn ghost" id="btnHelp" title="Cómo funciona">?</button>
-
-        <div class="toggle">
-          <input id="themeToggle" type="checkbox" />
-          <label for="themeToggle" class="toggle-ui" title="Modo claro/oscuro">
-            <span class="toggle-pill"></span>
-            <span class="toggle-icon">☾</span>
-            <span class="toggle-icon sun">☀</span>
-          </label>
-        </div>
-
-        <a class="btn" id="btnRepo" href="#" target="_blank" rel="noreferrer">Repo</a>
-      </div>
-    </header>
-
-    <main class="layout">
-      <!-- LEFT -->
-      <section class="panel panel-left">
-        <div class="panel-head">
-          <h2>Procesos</h2>
-          <div class="badge" id="dataStatus">Cargando…</div>
+    <div class="layout">
+      <aside class="card sidebar">
+        <div class="section-title">
+          <h2>Selección de procesos</h2>
+          <span class="small" id="loadStatus">Cargando JSON…</span>
         </div>
 
         <div class="controls">
-          <div class="field">
-            <label for="searchInput">Buscar</label>
-            <div class="input-wrap">
-              <input id="searchInput" type="text" placeholder="Proceso / especialidad / mnemotécnica…" autocomplete="off" />
-              <button class="icon-btn" id="clearSearch" title="Limpiar">×</button>
-            </div>
-            <div class="hint">Debounce activado.</div>
-          </div>
+          <input id="searchInput" class="searchbox" type="text" placeholder="Buscar proceso, mnemotécnica o diagnóstico…" />
 
-          <div class="grid2">
-            <div class="field">
-              <label for="specialtyFilter">Filtrar por especialidad</label>
-              <select id="specialtyFilter">
-                <option value="">Todas</option>
-              </select>
-            </div>
+          <select id="specialtySelect" class="select">
+            <option value="">Todas las especialidades</option>
+          </select>
 
-            <div class="field">
-              <label for="maxSelect">Límite selección</label>
-              <div class="range">
-                <input id="maxSelect" type="range" min="2" max="6" step="1" value="6" />
-                <div class="range-readout"><span id="maxSelectVal">6</span></div>
-              </div>
-              <div class="hint">Permite entre 2 y 6 procesos seleccionados.</div>
-            </div>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="sensitivity">Sensibilidad</label>
-              <select id="sensitivity">
-                <option value="t1">Coincidencia por 1 token</option>
-                <option value="t2">Coincidencia por ≥2 tokens</option>
-                <option value="rare">Coincidencia por token raro (IDF)</option>
-              </select>
-              <div class="hint">Define cuándo dos diagnósticos se conectan.</div>
-            </div>
-
-            <div class="field">
-              <label>Seleccionados</label>
-              <div class="chips" id="selectedChips"></div>
-              <div class="hint" id="selectHint">Selecciona 2–6 procesos para ver el diagrama.</div>
-            </div>
+          <div class="quick-actions">
+            <button class="btn primary" id="selectVisibleBtn">Seleccionar visibles</button>
+            <button class="btn ghost" id="clearBtn">Limpiar selección</button>
           </div>
         </div>
 
-        <div class="list-head">
-          <div class="muted" id="resultsCount">—</div>
-          <button class="btn ghost small" id="btnSelectRandom" title="Elige al azar (respeta el límite)">Random</button>
-        </div>
-
-        <div class="process-list" id="processList" role="list"></div>
-
-        <div class="footnote">
-          <div class="muted">
-            Fuente: <code>json/ddx_game.json</code>. Para <code>fetch()</code>, usa GitHub Pages o servidor local (no <code>file://</code>).
+        <div class="stats">
+          <div class="stat">
+            <span class="n" id="totalProcesses">0</span>
+            <span class="l">Procesos</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="visibleProcesses">0</span>
+            <span class="l">Visibles</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="selectedProcesses">0</span>
+            <span class="l">Seleccionados</span>
           </div>
         </div>
-      </section>
 
-      <!-- CENTER -->
-      <section class="panel panel-center">
-        <div class="panel-head">
-          <h2>Venn</h2>
-          <div class="muted" id="vennMode">—</div>
-        </div>
-
-        <div class="venn-wrap">
-          <div class="empty" id="emptyState">
-            <div class="empty-card">
-              <div class="empty-title">Selecciona procesos</div>
-              <div class="empty-text">
-                Ahora los <b>diagnósticos aparecen dentro de cada círculo</b> (con pestañas):
-                <ul>
-                  <li><b>Únicos</b>: diagnósticos sin coincidencia con otros procesos.</li>
-                  <li><b>Coinciden</b>: diagnósticos que conectan con 2, 3, 4… procesos (se marcan con badge).</li>
-                </ul>
-                Además, las <b>intersecciones</b> (A∩B, A∩B∩C, …) se reseñan como tarjetas en el centro de las zonas de solape (click para ver detalle).
-              </div>
-              <div class="empty-actions">
-                <button class="btn" id="btnTryDemo">Probar demo (3 procesos)</button>
-                <button class="btn ghost" id="btnHowItWorks">Cómo decide coincidencias</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- REAL venn (2-3): SVG de venn.js + overlays HTML dentro de círculos -->
-          <div id="vennReal">
-            <div class="vennSvgHost" id="vennSvgHost"></div>
-            <div class="inCircleLayer" id="inCircleLayer"></div>
-          </div>
-
-          <!-- Venn-like SVG (4-6) + in-circle lists via foreignObject -->
-          <svg id="vennLike" viewBox="0 0 900 600" aria-label="Venn estilizado" role="img">
-            <defs id="svgDefs"></defs>
-            <g id="blobLayer"></g>
-            <g id="labelLayer"></g>
-            <g id="foLayer" class="foWrap"></g>
-            <g id="ixLayer"></g>
-          </svg>
-
-          <div class="tooltip" id="tooltip"></div>
-        </div>
-
-        <div class="region-strip" id="regionStrip"></div>
-      </section>
-
-      <!-- RIGHT -->
-      <aside class="panel panel-right">
-        <div class="panel-head">
-          <h2>Detalles</h2>
-          <button class="btn ghost small" id="btnCollapseRight" title="Contraer">⟷</button>
-        </div>
-
-        <div class="details">
-          <div class="card">
-            <div class="card-title">Procesos seleccionados</div>
-            <div class="sel-list" id="selectedList"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Región activa</div>
-            <div class="region-meta" id="regionMeta">
-              <div class="muted">Click en una tarjeta de intersección o en una “píldora” inferior.</div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Diagnósticos por proceso</div>
-            <div class="accordion" id="dxByProcess"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Intersecciones detectadas</div>
-            <div class="table" id="intersectionsTable"></div>
-          </div>
-        </div>
+        <div class="process-list" id="processList"></div>
+        <div class="no-results" id="noResults">No hay procesos que coincidan con la búsqueda o el filtro.</div>
       </aside>
-    </main>
 
-    <!-- Modal -->
-    <div class="modal" id="modal">
-      <div class="modal-backdrop" data-close="1"></div>
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-head">
-          <div>
-            <div class="modal-title" id="modalTitle">Cómo funciona</div>
-            <div class="muted">Criterio de match + reseñado por 2/3/4… procesos</div>
+      <main class="main">
+        <section class="card toolbar">
+          <div class="toolbar-top">
+            <div>
+              <strong>Procesos activos</strong>
+              <div class="small">Máximo recomendado visual: 2–5 procesos para una lectura cómoda.</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn slim ghost" id="autoLayoutBtn">Autoordenar círculos</button>
+              <button class="btn slim ghost" id="fitBtn">Reajustar chips</button>
+            </div>
           </div>
-          <button class="icon-btn" data-close="1" title="Cerrar">×</button>
-        </div>
-        <div class="modal-body" id="modalBody"></div>
-        <div class="modal-foot">
-          <button class="btn" data-close="1">Cerrar</button>
-        </div>
-      </div>
+
+          <div class="selected-wrap" id="selectedWrap"></div>
+
+          <div class="legend" id="legend"></div>
+        </section>
+
+        <section class="card diagram-card">
+          <div class="diagram-head">
+            <div>
+              <h2>Vista Venn interactiva</h2>
+              <p>Arrastra cada círculo. Los diagnósticos compartidos se colocan en el centro geométrico de los procesos que los contienen.</p>
+            </div>
+            <div class="small" id="diagSummary">0 diagnósticos mostrados</div>
+          </div>
+
+          <div class="diagram-stage" id="diagramStage">
+            <svg id="vennSvg" viewBox="0 0 1200 760" preserveAspectRatio="none" aria-label="Diagrama de Venn"></svg>
+            <div class="chip-layer" id="chipLayer"></div>
+
+            <div class="empty-state" id="emptyState">
+              <div class="empty-box">
+                <h3>Selecciona uno o varios procesos</h3>
+                <p>
+                  Al elegir procesos en la columna izquierda, aparecerán círculos interactivos con sus diagnósticos diferenciales.
+                  Si un diagnóstico está presente en varios procesos, se mostrará en la zona compartida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bottom-grid">
+          <section class="card info-card">
+            <h3>Diagnósticos compartidos</h3>
+            <div class="shared-list" id="sharedList">
+              <div class="muted">Aquí aparecerán los diagnósticos que se repiten entre procesos seleccionados.</div>
+            </div>
+          </section>
+
+          <section class="card info-card">
+            <h3>Cómo usar la vista</h3>
+            <ul class="help-list">
+              <li>Busca por nombre del proceso, mnemotécnica o cualquier diagnóstico diferencial.</li>
+              <li>Filtra por especialidad para reducir la lista.</li>
+              <li>Marca varios procesos para comparar solapamientos.</li>
+              <li>Arrastra los círculos para despejar zonas y ver mejor los diagnósticos.</li>
+              <li>Usa “Autoordenar círculos” para recolocar todo automáticamente.</li>
+            </ul>
+          </section>
+        </section>
+      </main>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
   </div>
 
   <script>
-    (() => {
-      "use strict";
+    const JSON_URL = "json/ddx_game.json";
 
-      /**********************************************************************
-       * CONFIG
-       *********************************************************************/
-      const JSON_URL = "json/ddx_game.json";
-      const STOPWORDS = new Set([
-        "de","la","que","el","en","y","a","los","del","se","las","por","un","para","con","no","una","su","al","lo","como",
-        "más","pero","sus","le","ya","o","este","sí","porque","esta","entre","cuando","muy","sin","sobre","también","me",
-        "hasta","hay","donde","quien","desde","todo","nos","durante","todos","uno","les","ni","contra","otros","ese","eso",
-        "ante","ellos","e","esto","mí","antes","algunos","qué","unos","yo","otro","otras","otra","él","tanto","esa","estos",
-        "mucho","quienes","nada","muchos","cual","poco","ella","estar","estas","algunas","algo","nosotros",
-        // ampliación suave
-        "u","rt","etc","etcétera","p","q","x","s","t","h","cm","mm","mg","ml"
-      ]);
+    const COLORS = [
+      { fill: "rgba(255, 153, 0, 0.95)", solid: "#ff9900" },
+      { fill: "rgba(144, 202, 249, 0.95)", solid: "#90caf9" },
+      { fill: "rgba(39, 209, 127, 0.95)", solid: "#27d17f" },
+      { fill: "rgba(173, 133, 255, 0.95)", solid: "#ad85ff" },
+      { fill: "rgba(255, 107, 107, 0.95)", solid: "#ff6b6b" },
+      { fill: "rgba(255, 179, 71, 0.95)", solid: "#ffb347" },
+      { fill: "rgba(89, 194, 255, 0.95)", solid: "#59c2ff" },
+      { fill: "rgba(255, 130, 196, 0.95)", solid: "#ff82c4" }
+    ];
 
-      // Paleta fija
-      const BASE_PALETTE = [
-        "#ff6b6b","#ffd166","#06d6a0","#4dabf7","#b197fc","#ff922b",
-        "#63e6be","#74c0fc","#ffa8a8","#e599f7","#99e9f2","#a9e34b"
-      ];
+    const state = {
+      raw: [],
+      filtered: [],
+      selectedIds: new Set(),
+      circles: [],
+      drag: null,
+      viewBox: { w: 1200, h: 760 },
+      renderedItems: [],
+      diagnosisMap: new Map()
+    };
 
-      // "token raro" => df <= ~22% de diagnósticos seleccionados
-      const RARE_DF_RATIO = 0.22;
+    const el = {
+      processList: document.getElementById("processList"),
+      noResults: document.getElementById("noResults"),
+      specialtySelect: document.getElementById("specialtySelect"),
+      searchInput: document.getElementById("searchInput"),
+      selectedWrap: document.getElementById("selectedWrap"),
+      legend: document.getElementById("legend"),
+      vennSvg: document.getElementById("vennSvg"),
+      chipLayer: document.getElementById("chipLayer"),
+      diagramStage: document.getElementById("diagramStage"),
+      emptyState: document.getElementById("emptyState"),
+      totalProcesses: document.getElementById("totalProcesses"),
+      visibleProcesses: document.getElementById("visibleProcesses"),
+      selectedProcesses: document.getElementById("selectedProcesses"),
+      loadStatus: document.getElementById("loadStatus"),
+      diagSummary: document.getElementById("diagSummary"),
+      sharedList: document.getElementById("sharedList"),
+      selectVisibleBtn: document.getElementById("selectVisibleBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      autoLayoutBtn: document.getElementById("autoLayoutBtn"),
+      fitBtn: document.getElementById("fitBtn")
+    };
 
-      // Cuánto texto mostrar dentro de círculos (scroll interno)
-      const IN_CIRCLE_LIMIT = 18;
-
-      /**********************************************************************
-       * DOM
-       *********************************************************************/
-      const $ = (s, r=document) => r.querySelector(s);
-      const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-
-      const els = {
-        dataStatus: $("#dataStatus"),
-        btnRepo: $("#btnRepo"),
-        searchInput: $("#searchInput"),
-        clearSearch: $("#clearSearch"),
-        specialtyFilter: $("#specialtyFilter"),
-        maxSelect: $("#maxSelect"),
-        maxSelectVal: $("#maxSelectVal"),
-        sensitivity: $("#sensitivity"),
-        selectedChips: $("#selectedChips"),
-        selectHint: $("#selectHint"),
-        resultsCount: $("#resultsCount"),
-        processList: $("#processList"),
-        btnSelectRandom: $("#btnSelectRandom"),
-
-        emptyState: $("#emptyState"),
-        btnTryDemo: $("#btnTryDemo"),
-        btnHowItWorks: $("#btnHowItWorks"),
-
-        vennMode: $("#vennMode"),
-        vennReal: $("#vennReal"),
-        vennSvgHost: $("#vennSvgHost"),
-        inCircleLayer: $("#inCircleLayer"),
-
-        vennLike: $("#vennLike"),
-        svgDefs: $("#svgDefs"),
-        blobLayer: $("#blobLayer"),
-        labelLayer: $("#labelLayer"),
-        foLayer: $("#foLayer"),
-        ixLayer: $("#ixLayer"),
-
-        tooltip: $("#tooltip"),
-        regionStrip: $("#regionStrip"),
-
-        selectedList: $("#selectedList"),
-        dxByProcess: $("#dxByProcess"),
-        intersectionsTable: $("#intersectionsTable"),
-        regionMeta: $("#regionMeta"),
-        btnCollapseRight: $("#btnCollapseRight"),
-
-        btnHelp: $("#btnHelp"),
-        modal: $("#modal"),
-        modalBody: $("#modalBody"),
-        themeToggle: $("#themeToggle"),
-
-        toast: $("#toast"),
-      };
-
-      /**********************************************************************
-       * STATE + CACHES
-       *********************************************************************/
-      const state = {
-        raw: [],
-        filtered: [],
-        selectedKeys: [],
-        maxSelected: 6,
-        sensitivity: "t1",
-        specialty: "",
-        q: "",
-        theme: "dark",
-
-        tokenCache: new Map(), // proceso -> {meta, dx:[{id,text,tokens:Set,tokenArr:[]}]}
-        graphCache: new Map(), // selection+sensitivity -> computed
-        activeRegionKey: null,
-
-        // posiciones de círculos en el lienzo actual (para overlays)
-        circleLayout: new Map(), // procKey -> {x,y,r}
-      };
-
-      /**********************************************************************
-       * TEXT NORMALIZATION / TOKENIZATION
-       *********************************************************************/
-      const stripAccents = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const normalizeText = s => stripAccents(String(s||"").toLowerCase());
-      const removePunct = s => s
-        .replace(/[(){}\[\]]/g, " ")
-        .replace(/[.,;:¡!¿?/"'’“”]/g, " ")
-        .replace(/[–—-]/g, " ")
+    function normalizeText(str){
+      return (str || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, " ")
-        .trim();
+        .trim()
+        .toLowerCase();
+    }
 
-      function lightNormalizeToken(t){
-        if (!t) return t;
-        if (t.length > 4) {
-          if (t.endsWith("es")) t = t.slice(0,-2);
-          else if (t.endsWith("s")) t = t.slice(0,-1);
-        }
-        return t;
-      }
+    function safeArray(v){
+      return Array.isArray(v) ? v : [];
+    }
 
-      function tokenize(text){
-        const cleaned = removePunct(normalizeText(text));
-        const parts = cleaned.split(" ").map(lightNormalizeToken);
-        return parts.filter(t =>
-          t && t.length >= 3 && !STOPWORDS.has(t) && !/^\d+$/.test(t)
-        );
-      }
+    function uidFromProcess(item, idx){
+      return `${idx}__${normalizeText(item.Proceso || "proceso")}`;
+    }
 
-      /**********************************************************************
-       * UTIL
-       *********************************************************************/
-      function escapeHtml(s){
-        return String(s ?? "")
-          .replaceAll("&","&amp;")
-          .replaceAll("<","&lt;")
-          .replaceAll(">","&gt;")
-          .replaceAll('"',"&quot;")
-          .replaceAll("'","&#039;");
-      }
-      function escapeRegExp(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
-
-      function debounce(fn, ms=180){
-        let t=null;
-        return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-      }
-
-      function toast(msg, kind="info"){
-        els.toast.textContent = msg;
-        els.toast.style.borderColor =
-          kind==="bad" ? "rgba(255,107,107,.45)" :
-          kind==="ok"  ? "rgba(39,209,127,.45)" :
-          "var(--line)";
-        els.toast.classList.add("show");
-        clearTimeout(toast._t);
-        toast._t = setTimeout(()=> els.toast.classList.remove("show"), 1400);
-      }
-
-      function setStatus(text, kind="info"){
-        els.dataStatus.textContent = text;
-        els.dataStatus.style.borderColor =
-          kind === "ok" ? "rgba(39,209,127,.35)" :
-          kind === "bad" ? "rgba(255,107,107,.35)" :
-          "var(--line)";
-      }
-
-      function hash(str){
-        let h = 0;
-        for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
-        return h;
-      }
-
-      function colorForProcess(procName){
-        const idx = state.selectedKeys.indexOf(procName);
-        return BASE_PALETTE[(idx >= 0 ? idx : hash(procName)) % BASE_PALETTE.length];
-      }
-
-      function prettyRegionName(procArr){
-        const letters = "ABCDEF".split("");
-        const map = new Map(state.selectedKeys.map((p,i)=>[p, letters[i] || `S${i+1}`]));
-        return procArr.map(p => map.get(p) || p).join("∩");
-      }
-
-      /**********************************************************************
-       * DATA CACHE PER PROCESS
-       *********************************************************************/
-      function ensureProcessCached(procObj){
-        const key = procObj.Proceso;
-        if (state.tokenCache.has(key)) return state.tokenCache.get(key);
-
-        const dxArr = Array.isArray(procObj["Diagnósticos diferenciales"])
-          ? procObj["Diagnósticos diferenciales"]
-          : [];
-
-        const dx = dxArr.map((text, idx) => {
-          const tokenArr = tokenize(text);
-          return {
-            id: `${key}::${idx}`,
-            text,
-            tokenArr,
-            tokens: new Set(tokenArr),
-          };
-        });
-
-        const cached = {
-          meta: {
-            Proceso: procObj.Proceso,
-            especialidades: procObj.especialidades || "",
-            mnemotecnica: procObj["mnemotécnica"] || procObj.mnemotecnica || "",
-          },
-          dx
+    function parseData(arr){
+      return arr.map((item, idx) => {
+        const diagnoses = safeArray(item["Diagnósticos diferenciales"]).map(d => String(d).trim()).filter(Boolean);
+        return {
+          id: uidFromProcess(item, idx),
+          idx,
+          proceso: item.Proceso || `Proceso ${idx + 1}`,
+          especialidad: item.especialidades || "Sin especialidad",
+          mnemotecnia: item["mnemotécnica"] || "",
+          diagnosticos: diagnoses
         };
-
-        state.tokenCache.set(key, cached);
-        return cached;
-      }
-
-      function getSelectedProcessObjects(){
-        const set = new Set(state.selectedKeys);
-        return state.raw.filter(p => set.has(p.Proceso));
-      }
-
-      function getUniqueSpecialties(){
-        const s = new Set();
-        for (const p of state.raw){
-          if (p.especialidades) s.add(String(p.especialidades).trim());
-        }
-        return Array.from(s).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-      }
-
-      /**********************************************************************
-       * IDF + EDGE LOGIC
-       *********************************************************************/
-      function buildIDF(selectedProcs){
-        const docs = [];
-        for (const p of selectedProcs){
-          const cached = ensureProcessCached(p);
-          for (const d of cached.dx) docs.push(d.tokenArr);
-        }
-        const N = docs.length || 1;
-        const df = new Map();
-        for (const toks of docs){
-          const uniq = new Set(toks);
-          for (const t of uniq) df.set(t, (df.get(t) || 0) + 1);
-        }
-        const idf = new Map();
-        for (const [t, f] of df.entries()){
-          const score = Math.log((N + 1) / (f + 1)) + 1;
-          idf.set(t, score);
-        }
-        const dfThreshold = Math.max(1, Math.floor(N * RARE_DF_RATIO));
-        const isRare = (t) => (df.get(t) || 0) <= dfThreshold;
-        return { N, df, idf, isRare, dfThreshold };
-      }
-
-      function sharedTokens(aSet, bSet){
-        const out = [];
-        for (const t of aSet) if (bSet.has(t)) out.push(t);
-        return out;
-      }
-
-      function qualifiesEdge(shared, idfInfo, sensitivity){
-        if (sensitivity === "t1") return shared.length >= 1;
-        if (sensitivity === "t2") return shared.length >= 2;
-        if (sensitivity === "rare") return shared.some(t => idfInfo.isRare(t));
-        return shared.length >= 1;
-      }
-
-      function edgeTokensForDisplay(shared, idfInfo, sensitivity){
-        if (sensitivity === "rare"){
-          const rareShared = shared.filter(t => idfInfo.isRare(t));
-          return rareShared.length ? rareShared : shared.slice(0, 3);
-        }
-        return shared;
-      }
-
-      /**********************************************************************
-       * CORE: GRAPH COMPONENTS -> REGIONS + (IMPORTANTE) "K coincidencias"
-       *
-       * Mejorado para tu petición:
-       * - Cada diagnóstico recibe un "k" = nº de procesos implicados en su componente conexo.
-       * - Dentro de cada círculo mostramos:
-       *   - Únicos: k=1 (o sin aristas)
-       *   - Coinciden: k>=2, agrupados por k (2,3,4...)
-       * - Las intersecciones (regiones exactas) se reseñan como:
-       *   - Píldoras inferiores
-       *   - Tarjetas overlay en el centro aproximado de los círculos involucrados
-       *********************************************************************/
-      function computeIntersections(){
-        const selected = getSelectedProcessObjects();
-        if (selected.length < 2) return null;
-
-        const cacheKey = `${selected.map(p=>p.Proceso).sort().join("||")}::${state.sensitivity}`;
-        if (state.graphCache.has(cacheKey)) return state.graphCache.get(cacheKey);
-
-        const idfInfo = buildIDF(selected);
-
-        // Nodes
-        const nodes = []; // {nodeId, procKey, text, tokens:Set, tokenArr}
-        const byProc = new Map(); // procKey -> nodeIdx[]
-        for (const p of selected){
-          const cached = ensureProcessCached(p);
-          const procKey = cached.meta.Proceso;
-          byProc.set(procKey, []);
-          for (const d of cached.dx){
-            const node = {
-              nodeId: d.id,
-              procKey,
-              text: d.text,
-              tokens: d.tokens,
-              tokenArr: d.tokenArr
-            };
-            const idx = nodes.push(node) - 1;
-            byProc.get(procKey).push(idx);
-          }
-        }
-
-        // Adjacency + record shared tokens on edges
-        const adj = Array.from({length:nodes.length}, () => []);
-        const procKeys = Array.from(byProc.keys());
-
-        for (let i=0;i<procKeys.length;i++){
-          for (let j=i+1;j<procKeys.length;j++){
-            const A = byProc.get(procKeys[i]);
-            const B = byProc.get(procKeys[j]);
-            for (const ai of A){
-              const a = nodes[ai];
-              for (const bi of B){
-                const b = nodes[bi];
-                const shared = sharedTokens(a.tokens, b.tokens);
-                if (qualifiesEdge(shared, idfInfo, state.sensitivity)){
-                  const tok = edgeTokensForDisplay(shared, idfInfo, state.sensitivity);
-                  adj[ai].push({to: bi, shared: tok});
-                  adj[bi].push({to: ai, shared: tok});
-                }
-              }
-            }
-          }
-        }
-
-        // Components (only from nodes that have any edge)
-        const seen = new Array(nodes.length).fill(false);
-        const components = []; // {nodeIdxs, procs:Set, tokenProcPresence:Map(token->Set(proc))}
-        const nodeToComp = new Array(nodes.length).fill(-1);
-
-        for (let i=0;i<nodes.length;i++){
-          if (seen[i]) continue;
-
-          if (adj[i].length === 0){
-            // isolated -> keep as "k=1 unique"
-            seen[i] = true;
-            continue;
-          }
-
-          const stack = [i];
-          seen[i] = true;
-
-          const nodeIdxs = [];
-          const procs = new Set();
-          const tokenProcPresence = new Map();
-
-          while (stack.length){
-            const u = stack.pop();
-            nodeIdxs.push(u);
-            const pk = nodes[u].procKey;
-            procs.add(pk);
-
-            for (const t of nodes[u].tokens){
-              let s = tokenProcPresence.get(t);
-              if (!s){ s = new Set(); tokenProcPresence.set(t, s); }
-              s.add(pk);
-            }
-
-            for (const e of adj[u]){
-              const v = e.to;
-              if (!seen[v]){
-                seen[v] = true;
-                stack.push(v);
-              }
-            }
-          }
-
-          const compIndex = components.push({nodeIdxs, procs, tokenProcPresence}) - 1;
-          for (const u of nodeIdxs) nodeToComp[u] = compIndex;
-        }
-
-        // Regions = group components by exact proc-set
-        const regionMap = new Map(); // regionKey(proc names joined by ∩) -> {procArr, components:[]}
-        for (const comp of components){
-          const procArr = Array.from(comp.procs).sort();
-          if (procArr.length < 2) continue;
-          const regionKey = procArr.join("∩");
-          if (!regionMap.has(regionKey)) regionMap.set(regionKey, {regionKey, procArr, components:[]});
-          regionMap.get(regionKey).components.push(comp);
-        }
-
-        // For each region: tokens causantes + dxByProc
-        const regions = [];
-        for (const region of regionMap.values()){
-          const procsSet = new Set(region.procArr);
-
-          const dxByProc = new Map();
-          for (const p of region.procArr) dxByProc.set(p, []);
-
-          const tokenPresence = new Map(); // token -> Set(proc)
-          for (const comp of region.components){
-            for (const idx of comp.nodeIdxs){
-              const node = nodes[idx];
-              if (!procsSet.has(node.procKey)) continue;
-              dxByProc.get(node.procKey).push(node);
-            }
-
-            for (const [t, setP] of comp.tokenProcPresence.entries()){
-              let s = tokenPresence.get(t);
-              if (!s){ s = new Set(); tokenPresence.set(t, s); }
-              for (const p of setP) if (procsSet.has(p)) s.add(p);
-            }
-          }
-
-          const tokensCausing = [];
-          for (const [t, setP] of tokenPresence.entries()){
-            let ok = true;
-            for (const p of region.procArr) if (!setP.has(p)) { ok=false; break; }
-            if (ok) tokensCausing.push(t);
-          }
-          tokensCausing.sort((a,b) => (idfInfo.idf.get(b)||0) - (idfInfo.idf.get(a)||0));
-
-          // dedupe dx text per proc
-          const dxOut = {};
-          for (const p of region.procArr){
-            const seenText = new Set();
-            dxOut[p] = [];
-            for (const node of dxByProc.get(p)){
-              if (seenText.has(node.text)) continue;
-              seenText.add(node.text);
-              dxOut[p].push(node.text);
-            }
-          }
-
-          const totalDx = Object.values(dxOut).reduce((acc, arr) => acc + arr.length, 0);
-
-          regions.push({
-            regionKey: region.regionKey,
-            procArr: region.procArr,
-            tokens: tokensCausing.slice(0, 20),
-            dxByProc: dxOut,
-            totalDx,
-            rareInfo: { dfThreshold: idfInfo.dfThreshold, Ndocs: idfInfo.N }
-          });
-        }
-
-        regions.sort((a,b)=>{
-          if (b.procArr.length !== a.procArr.length) return b.procArr.length - a.procArr.length;
-          return b.totalDx - a.totalDx;
-        });
-
-        // Per-process buckets for "inside circle":
-        // unique: dx with no edges OR component proc set size == 1
-        // sharedBuckets[k]: dx texts whose component has k processes (k>=2)
-        const procBuckets = new Map(); // proc -> {unique:[], shared: Map(k -> {items:[], procSetArrs:[]})}
-        for (const p of procKeys) procBuckets.set(p, {unique:[], shared:new Map()});
-
-        // Index nodes by their original dx list (we want all dx including isolated)
-        // We'll traverse every node and assign:
-        // - if isolated (adj==0): unique
-        // - else component size = k; assign into shared[k]
-        for (let i=0;i<nodes.length;i++){
-          const node = nodes[i];
-          const pk = node.procKey;
-          if (adj[i].length === 0){
-            procBuckets.get(pk).unique.push({
-              text: node.text,
-              k: 1,
-              procs: [pk]
-            });
-          } else {
-            const ci = nodeToComp[i];
-            const comp = components[ci];
-            const procArr = Array.from(comp.procs).sort();
-            const k = procArr.length;
-            const bucket = procBuckets.get(pk);
-            if (!bucket.shared.has(k)) bucket.shared.set(k, []);
-            bucket.shared.get(k).push({
-              text: node.text,
-              k,
-              procs: procArr
-            });
-          }
-        }
-
-        // Deduplicate entries in shared buckets per proc (same dx can appear multiple times)
-        for (const [pk, b] of procBuckets.entries()){
-          const seenU = new Set();
-          b.unique = b.unique.filter(x => (seenU.has(x.text) ? false : (seenU.add(x.text), true)));
-
-          for (const [k, arr] of b.shared.entries()){
-            const seenS = new Set();
-            const out = [];
-            for (const x of arr){
-              const key = x.text + "::" + x.procs.join("|");
-              if (seenS.has(key)) continue;
-              seenS.add(key);
-              out.push(x);
-            }
-            b.shared.set(k, out);
-          }
-        }
-
-        const computed = {
-          selectedProcs: procKeys,
-          regions,
-          idfInfo,
-          procBuckets,
-        };
-
-        state.graphCache.set(cacheKey, computed);
-        return computed;
-      }
-
-      /**********************************************************************
-       * FILTERS + RENDER LIST
-       *********************************************************************/
-      function applyFilters(){
-        const q = normalizeText(state.q);
-        const spec = state.specialty;
-
-        const filtered = state.raw.filter(p => {
-          if (spec && String(p.especialidades||"") !== spec) return false;
-          if (!q) return true;
-          const hay = normalizeText(`${p.Proceso||""} ${p.especialidades||""} ${p["mnemotécnica"]||p.mnemotecnica||""}`);
-          return hay.includes(q);
-        });
-
-        state.filtered = filtered;
-        renderProcessList();
-      }
-
-      function renderProcessList(){
-        const items = state.filtered;
-        els.resultsCount.textContent = `${items.length} procesos`;
-
-        els.processList.innerHTML = "";
-        const frag = document.createDocumentFragment();
-
-        for (const p of items){
-          const key = p.Proceso;
-          const checked = state.selectedKeys.includes(key);
-          const canCheck = checked || state.selectedKeys.length < state.maxSelected;
-
-          const row = document.createElement("div");
-          row.className = "item";
-          row.setAttribute("role", "listitem");
-
-          const color = checked ? colorForProcess(key) : "transparent";
-
-          row.innerHTML = `
-            <div class="left">
-              <input class="chk" type="checkbox" ${checked ? "checked":""} ${canCheck ? "" : "disabled"} aria-label="Seleccionar" />
-              <div class="pill">${escapeHtml(p["mnemotécnica"] || p.mnemotecnica || "—")}</div>
-            </div>
-            <div class="main">
-              <div class="name">${escapeHtml(p.Proceso || "—")}</div>
-              <div class="meta">
-                <span class="tag">Especialidad</span> <span>${escapeHtml(p.especialidades || "—")}</span>
-              </div>
-            </div>
-            <div class="colorbar" style="background:${color};"></div>
-          `;
-
-          const chk = $(".chk", row);
-          chk.addEventListener("change", () => toggleProcessSelection(key, chk.checked));
-          row.addEventListener("click", (e) => {
-            if (e.target.closest("input,button,select,a")) return;
-            if (!canCheck && !checked) return;
-            chk.checked = !chk.checked;
-            toggleProcessSelection(key, chk.checked);
-          });
-
-          frag.appendChild(row);
-        }
-
-        els.processList.appendChild(frag);
-
-        renderSelectedChips();
-        renderSelectedRight();
-      }
-
-      function renderSelectedChips(){
-        els.selectedChips.innerHTML = "";
-        const frag = document.createDocumentFragment();
-        for (const key of state.selectedKeys){
-          const chip = document.createElement("div");
-          chip.className = "chip";
-          chip.innerHTML = `
-            <span class="dot" style="background:${colorForProcess(key)};"></span>
-            <span>${escapeHtml(key)}</span>
-            <button title="Quitar">×</button>
-          `;
-          $("button", chip).addEventListener("click", (e) => {
-            e.stopPropagation();
-            toggleProcessSelection(key, false);
-          });
-          frag.appendChild(chip);
-        }
-        els.selectedChips.appendChild(frag);
-
-        const n = state.selectedKeys.length;
-        els.selectHint.textContent =
-          n < 2 ? "Selecciona 2–6 procesos para ver el diagrama." :
-          n > state.maxSelected ? `Demasiados seleccionados (límite ${state.maxSelected}).` :
-          `OK: ${n} seleccionados.`;
-      }
-
-      function renderSelectedRight(){
-        // selected list
-        els.selectedList.innerHTML = "";
-        const frag = document.createDocumentFragment();
-
-        for (const key of state.selectedKeys){
-          const obj = state.raw.find(p => p.Proceso === key);
-          const mn = obj ? (obj["mnemotécnica"] || obj.mnemotecnica || "") : "";
-          const row = document.createElement("div");
-          row.className = "sel-row";
-          row.innerHTML = `
-            <span class="dot" style="background:${colorForProcess(key)};"></span>
-            <div class="txt">
-              <div class="p">${escapeHtml(key)}</div>
-              <div class="m">${escapeHtml(mn)}</div>
-            </div>
-            <button class="icon-btn" title="Quitar">×</button>
-          `;
-          $("button", row).addEventListener("click", () => toggleProcessSelection(key, false));
-          frag.appendChild(row);
-        }
-        els.selectedList.appendChild(frag);
-
-        // Diagnósticos por proceso (accordion)
-        els.dxByProcess.innerHTML = "";
-        const selectedObjs = getSelectedProcessObjects();
-
-        for (const p of selectedObjs){
-          const cached = ensureProcessCached(p);
-          const key = cached.meta.Proceso;
-          const acc = document.createElement("div");
-          acc.className = "acc-item";
-          acc.innerHTML = `
-            <div class="acc-head">
-              <span class="dot" style="background:${colorForProcess(key)};"></span>
-              <div class="t">${escapeHtml(key)}</div>
-              <div class="caret">▾</div>
-            </div>
-            <div class="acc-body"></div>
-          `;
-          const body = $(".acc-body", acc);
-
-          for (const d of cached.dx){
-            const div = document.createElement("div");
-            div.className = "dx";
-            div.textContent = d.text;
-            body.appendChild(div);
-          }
-
-          $(".acc-head", acc).addEventListener("click", () => acc.classList.toggle("open"));
-          els.dxByProcess.appendChild(acc);
-        }
-      }
-
-      function toggleProcessSelection(key, on){
-        if (on){
-          if (!state.selectedKeys.includes(key)){
-            if (state.selectedKeys.length >= state.maxSelected){
-              toast(`Límite alcanzado (${state.maxSelected}).`, "bad");
-              renderProcessList();
-              return;
-            }
-            state.selectedKeys.push(key);
-          }
-        } else {
-          state.selectedKeys = state.selectedKeys.filter(x => x !== key);
-          state.activeRegionKey = null;
-          els.regionMeta.innerHTML = `<div class="muted">Click en una tarjeta o en una píldora inferior.</div>`;
-        }
-
-        renderProcessList();
-        renderVenn();
-      }
-
-      /**********************************************************************
-       * TOOLTIP
-       *********************************************************************/
-      function showTooltip(ev, html){
-        els.tooltip.style.opacity = "1";
-        els.tooltip.style.transform = "translateY(0px)";
-        els.tooltip.innerHTML = html;
-        moveTooltip(ev);
-      }
-      function moveTooltip(ev){
-        const pad = 14;
-        const rect = els.tooltip.getBoundingClientRect();
-        const x = Math.min(window.innerWidth - rect.width - pad, ev.clientX + 14);
-        const y = Math.min(window.innerHeight - rect.height - pad, ev.clientY + 14);
-        els.tooltip.style.left = `${x}px`;
-        els.tooltip.style.top = `${y}px`;
-      }
-      function hideTooltip(){
-        els.tooltip.style.opacity = "0";
-        els.tooltip.style.transform = "translateY(6px)";
-      }
-
-      /**********************************************************************
-       * REGION ACTIVE (RIGHT PANEL)
-       *********************************************************************/
-      function highlightTokensHtml(text, tokenSet){
-        const tokens = Array.from(tokenSet).slice(0, 10).sort((a,b)=>b.length-a.length);
-        let out = escapeHtml(text);
-        for (const t of tokens){
-          const re = new RegExp(`\\b(${escapeRegExp(t)})\\b`, "ig");
-          out = out.replace(re, `<span class="hl">$1</span>`);
-        }
-        return out;
-      }
-
-      function setActiveRegion(regionKey){
-        state.activeRegionKey = regionKey;
-        refreshRegionPillActive();
-
-        const computed = computeIntersections();
-        const selectedSet = new Set(state.selectedKeys);
-
-        // If single process
-        if (!regionKey.includes("∩") && selectedSet.has(regionKey)){
-          const obj = state.raw.find(p => p.Proceso === regionKey);
-          const cached = ensureProcessCached(obj);
-          els.regionMeta.innerHTML = `
-            <div class="rx">
-              <div class="top">
-                <div class="name">${escapeHtml(regionKey)}</div>
-                <div class="muted">${escapeHtml(cached.meta.mnemotecnica || "")}</div>
-              </div>
-              <div class="muted" style="margin-top:6px;">
-                Conjunto individual. Dentro del círculo, usa pestañas <b>Únicos</b> / <b>Coinciden</b>.
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        const region = computed?.regions?.find(r => r.regionKey === regionKey);
-        if (!region){
-          els.regionMeta.innerHTML = `<div class="muted">No hay datos para esta región.</div>`;
-          return;
-        }
-
-        const tokenSet = new Set(region.tokens);
-        const regionName = prettyRegionName(region.procArr);
-        const tokensHtml = region.tokens.slice(0,14).map(t => `<span class="token">${escapeHtml(t)}</span>`).join("");
-
-        let blocks = "";
-        for (const proc of region.procArr){
-          const c = colorForProcess(proc);
-          const list = (region.dxByProc[proc] || []).slice(0, 22).map(t => {
-            return `<div class="dx">${highlightTokensHtml(t, tokenSet)}</div>`;
-          }).join("");
-
-          blocks += `
-            <div class="rx">
-              <div class="top">
-                <div class="name"><span class="dot" style="background:${c}; vertical-align:middle;"></span> ${escapeHtml(proc)}</div>
-                <div class="muted">${escapeHtml(String((region.dxByProc[proc]||[]).length))} dx</div>
-              </div>
-              <div style="margin-top:8px;">${list || `<div class="muted">—</div>`}</div>
-            </div>
-          `;
-        }
-
-        els.regionMeta.innerHTML = `
-          <div class="rx">
-            <div class="top">
-              <div class="name">Región ${escapeHtml(regionName)}</div>
-              <div class="muted">Total dx: ${escapeHtml(String(region.totalDx))}</div>
-            </div>
-            <div class="muted" style="margin-top:6px;">
-              Tokens causantes: aparecen en ≥1 dx de <b>cada</b> proceso de la región.
-            </div>
-            <div class="tokens">${tokensHtml || `<span class="muted">—</span>`}</div>
-          </div>
-          ${blocks}
-        `;
-      }
-
-      /**********************************************************************
-       * REGION STRIP + TABLE
-       *********************************************************************/
-      function refreshRegionPillActive(){
-        $$(".region-pill").forEach(p => {
-          p.classList.toggle("active", p.getAttribute("data-region") === state.activeRegionKey);
-        });
-      }
-
-      function makeTrow(cols, header=false, onClick=null){
-        const row = document.createElement("div");
-        row.className = "trow" + (header ? " header" : "");
-        cols.forEach(c => {
-          const cell = document.createElement("div");
-          cell.className = "tcell";
-          cell.textContent = c;
-          row.appendChild(cell);
-        });
-        if (onClick) row.addEventListener("click", onClick);
-        return row;
-      }
-
-      function countDiagnoses(proc){
-        const obj = state.raw.find(p => p.Proceso === proc);
-        return obj ? ((obj["Diagnósticos diferenciales"] || []).length || 0) : 0;
-      }
-
-      function renderRegionStripAndTable(computed){
-        els.regionStrip.innerHTML = "";
-        els.intersectionsTable.innerHTML = "";
-
-        if (!computed){
-          return;
-        }
-
-        const regions = computed.regions || [];
-
-        // Strip: singles + intersections
-        const stripFrag = document.createDocumentFragment();
-
-        for (const p of state.selectedKeys){
-          const pill = document.createElement("div");
-          pill.className = "region-pill";
-          pill.setAttribute("data-region", p);
-          pill.innerHTML = `<span>${escapeHtml(p)}</span><span class="count">${escapeHtml(String(countDiagnoses(p)))}</span>`;
-          pill.addEventListener("click", ()=> setActiveRegion(p));
-          stripFrag.appendChild(pill);
-        }
-
-        for (const r of regions){
-          const label = prettyRegionName(r.procArr);
-          const pill = document.createElement("div");
-          pill.className = "region-pill";
-          pill.setAttribute("data-region", r.regionKey);
-          pill.innerHTML = `<span>${escapeHtml(label)}</span><span class="count">${escapeHtml(String(r.totalDx))}</span>`;
-          pill.addEventListener("click", ()=> setActiveRegion(r.regionKey));
-          stripFrag.appendChild(pill);
-        }
-
-        els.regionStrip.appendChild(stripFrag);
-
-        // Table
-        const tblFrag = document.createDocumentFragment();
-        tblFrag.appendChild(makeTrow(["Región","Total","Tokens (top)"], true));
-
-        for (const r of regions){
-          const label = prettyRegionName(r.procArr);
-          const tokensTop = r.tokens.slice(0, 6).join(", ") || "—";
-          tblFrag.appendChild(makeTrow([label, String(r.totalDx), tokensTop], false, ()=> setActiveRegion(r.regionKey)));
-        }
-        if (!regions.length){
-          const row = makeTrow(["(sin intersecciones)", "0", "—"], false, null);
-          row.style.cursor = "default";
-          tblFrag.appendChild(row);
-        }
-
-        els.intersectionsTable.appendChild(tblFrag);
-
-        refreshRegionPillActive();
-      }
-
-      /**********************************************************************
-       * IN-CIRCLE RENDER (HTML)
-       * - Unique vs Shared inside each circle
-       * - Shared grouped by k (2,3,4...)
-       *********************************************************************/
-      function buildDxListHTML(items, tokenSet=null){
-        const out = [];
-        for (const it of items.slice(0, IN_CIRCLE_LIMIT)){
-          const badges = [];
-          if (it.k && it.k >= 2){
-            badges.push(`<span class="b">k=${it.k}</span>`);
-            badges.push(`<span class="b">${escapeHtml(prettyRegionName(it.procs))}</span>`);
-          } else {
-            badges.push(`<span class="b">k=1</span>`);
-          }
-          out.push(`
-            <div class="dxRow">
-              ${tokenSet ? highlightTokensHtml(it.text, tokenSet) : escapeHtml(it.text)}
-              <div class="badges">${badges.join("")}</div>
-            </div>
-          `);
-        }
-        if (items.length > IN_CIRCLE_LIMIT){
-          out.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${items.length - IN_CIRCLE_LIMIT} más…</div>`);
-        }
-        return out.join("");
-      }
-
-      /**********************************************************************
-       * REAL VENN (2-3) + OVERLAYS INSIDE CIRCLES + INTERSECTION CARDS
-       *********************************************************************/
-      function getVennCircleCenters(){
-        // Read from venn.js generated SVG:
-        // - paths exist for each set; we approximate center using the label position (text)
-        // - venn.js places labels near center of each set; good enough for overlay cards.
-        const svg = els.vennSvgHost.querySelector("svg");
-        if (!svg) return new Map();
-
-        const map = new Map();
-        const texts = svg.querySelectorAll("g.venn-area > text");
-        texts.forEach(t => {
-          const label = (t.textContent || "").trim();
-          // venn.js uses label for sets; intersections also have labels sometimes
-          if (state.selectedKeys.includes(label)){
-            const x = parseFloat(t.getAttribute("x") || "0");
-            const y = parseFloat(t.getAttribute("y") || "0");
-            map.set(label, {x, y});
-          }
-        });
-        return map;
-      }
-
-      function drawVennReal(n, computed){
-        els.vennSvgHost.innerHTML = "";
-        els.inCircleLayer.innerHTML = "";
-        state.circleLayout.clear();
-
-        const selected = state.selectedKeys.slice();
-        // areas
-        const areas = [];
-        for (const proc of selected){
-          const obj = state.raw.find(p => p.Proceso === proc);
-          const cached = ensureProcessCached(obj);
-          areas.push({ sets:[proc], size: Math.max(1, cached.dx.length), label: proc });
-        }
-        for (const r of (computed?.regions || [])){
-          if (r.procArr.length <= 1) continue;
-          areas.push({ sets: r.procArr, size: Math.max(1, r.totalDx), regionKey: r.regionKey });
-        }
-
-        // Draw venn.js
-        const chart = venn.VennDiagram()
-          .width(els.vennReal.clientWidth)
-          .height(Math.max(520, els.vennReal.clientHeight));
-
-        const div = d3.select(els.vennSvgHost);
-        div.datum(areas).call(chart);
-
-        // style fills
-        div.selectAll("path")
-          .style("fill-opacity", 0.86)
-          .style("stroke-opacity", 0.95)
-          .style("mix-blend-mode", "multiply");
-
-        div.selectAll(".venn-area").each(function(d){
-          const el = d3.select(this).select("path");
-          const sets = d.sets || [];
-          if (sets.length === 1){
-            el.style("fill", colorForProcess(sets[0]));
-            el.style("stroke", "rgba(0,0,0,.45)");
-          } else {
-            el.style("fill", "rgba(255,255,255,.18)");
-            el.style("stroke", "rgba(0,0,0,.30)");
-          }
-        });
-
-        div.selectAll("text")
-          .style("fill", "var(--text)")
-          .style("font-weight", 900);
-
-        // Tooltip/click
-        div.selectAll(".venn-area")
-          .on("mousemove", (event, d) => {
-            const key = (d.sets || []).slice().sort().join("∩");
-            const isSet = (d.sets||[]).length === 1;
-            const title = isSet ? d.sets[0] : `Región ${prettyRegionName(d.sets.slice().sort())}`;
-            showTooltip(event, `
-              <div class="tt-title">${escapeHtml(title)}</div>
-              <div class="tt-row">${isSet ? "Conjunto" : "Intersección"}</div>
-              <div class="tt-row muted">Click para fijar / ver detalle</div>
-            `);
-            moveTooltip(event);
-          })
-          .on("mouseout", hideTooltip)
-          .on("click", (event, d) => {
-            const key = (d.sets || []).slice().sort().join("∩");
-            // set or region
-            if ((d.sets||[]).length === 1) setActiveRegion(d.sets[0]);
-            else setActiveRegion(key);
-          });
-
-        // Build in-circle overlays using computed.procBuckets
-        // First compute approximate centers of each set from SVG labels
-        const centers = getVennCircleCenters();
-
-        // Also approximate radius for overlay sizing: based on canvas size and n
-        const W = els.vennReal.clientWidth;
-        const H = els.vennReal.clientHeight;
-        const rApprox = Math.min(W, H) * (n === 2 ? 0.23 : 0.20);
-
-        for (const proc of selected){
-          const c = centers.get(proc) || {x: W/2, y: H/2};
-          state.circleLayout.set(proc, {x: c.x, y: c.y, r: rApprox});
-          renderInCircleCardReal(proc, computed, c.x, c.y);
-        }
-
-        // Intersection overlay cards (A∩B, A∩B∩C...)
-        renderIntersectionCardsReal(computed, centers);
-      }
-
-      function renderInCircleCardReal(proc, computed, x, y){
-        const buckets = computed?.procBuckets?.get(proc);
-        if (!buckets) return;
-
-        const card = document.createElement("div");
-        card.className = "circleCard";
-        card.style.left = `${x}px`;
-        card.style.top  = `${y}px`;
-
-        const mn = (state.raw.find(p => p.Proceso === proc)?.["mnemotécnica"]) ||
-                   (state.raw.find(p => p.Proceso === proc)?.mnemotecnica) || "";
-
-        const uniqCount = buckets.unique.length;
-        let sharedCount = 0;
-        for (const arr of buckets.shared.values()) sharedCount += arr.length;
-
-        card.innerHTML = `
-          <div class="head">
-            <div>
-              <div class="ttl">
-                <span class="dot" style="background:${colorForProcess(proc)};"></span>
-                <span>${escapeHtml(proc)}</span>
-              </div>
-              <div class="sub">${escapeHtml(mn)}</div>
-            </div>
-            <div class="muted" style="font-size:11px; font-weight:900;">${uniqCount}+${sharedCount}</div>
-          </div>
-          <div class="tabs">
-            <div class="tab active" data-tab="unique">Únicos <span class="muted">(${uniqCount})</span></div>
-            <div class="tab" data-tab="shared">Coinciden <span class="muted">(${sharedCount})</span></div>
-          </div>
-          <div class="body" data-body="unique"></div>
-          <div class="body" data-body="shared" style="display:none;"></div>
-        `;
-
-        // Fill unique
-        const bodyU = card.querySelector('[data-body="unique"]');
-        bodyU.innerHTML = buildDxListHTML(buckets.unique);
-
-        // Fill shared grouped by k
-        const bodyS = card.querySelector('[data-body="shared"]');
-        const ks = Array.from(buckets.shared.keys()).sort((a,b)=>a-b);
-        const blocks = [];
-        for (const k of ks){
-          const arr = buckets.shared.get(k) || [];
-          blocks.push(`<div class="muted" style="font-size:11px; font-weight:900; margin:6px 2px 8px;">Coinciden en <b>${k}</b> procesos</div>`);
-          blocks.push(buildDxListHTML(arr));
-        }
-        bodyS.innerHTML = blocks.join("") || `<div class="muted">—</div>`;
-
-        // Tabs
-        const tabs = card.querySelectorAll(".tab");
-        tabs.forEach(t => t.addEventListener("click", (e) => {
-          const which = t.getAttribute("data-tab");
-          tabs.forEach(z => z.classList.toggle("active", z === t));
-          card.querySelector('[data-body="unique"]').style.display = (which === "unique") ? "block" : "none";
-          card.querySelector('[data-body="shared"]').style.display = (which === "shared") ? "block" : "none";
-        }));
-
-        els.inCircleLayer.appendChild(card);
-      }
-
-      function renderIntersectionCardsReal(computed, centers){
-        // For each region (k>=2), place a card at centroid of involved set centers
-        // If a center is missing, skip.
-        const regions = (computed?.regions || []).slice(0, 10); // avoid clutter
-        for (const r of regions){
-          const pts = r.procArr.map(p => centers.get(p)).filter(Boolean);
-          if (pts.length !== r.procArr.length) continue;
-
-          const x = pts.reduce((a,p)=>a+p.x,0)/pts.length;
-          const y = pts.reduce((a,p)=>a+p.y,0)/pts.length;
-
-          // sample dx (first per proc)
-          const sample = [];
-          for (const p of r.procArr){
-            const arr = (r.dxByProc[p] || []);
-            if (arr.length) sample.push(arr[0]);
-          }
-
-          const div = document.createElement("div");
-          div.className = "ixCard";
-          div.style.left = `${x}px`;
-          div.style.top  = `${y}px`;
-          const label = prettyRegionName(r.procArr);
-
-          div.innerHTML = `
-            <div class="ixHead">
-              <div class="ixName">${escapeHtml(label)}</div>
-              <div class="ixCount">${escapeHtml(String(r.totalDx))}</div>
-            </div>
-            <div class="ixBody">
-              <div class="muted" style="margin-bottom:8px;">Tokens: <b>${escapeHtml((r.tokens||[]).slice(0,4).join(", ") || "—")}</b></div>
-              ${sample.slice(0,3).map(s => `<div class="sample">${escapeHtml(s)}</div>`).join("")}
-              <div class="muted" style="margin-top:8px;">Click para abrir detalle.</div>
-            </div>
-          `;
-
-          div.addEventListener("click", (e) => {
-            e.stopPropagation();
-            setActiveRegion(r.regionKey);
-          });
-          div.addEventListener("mousemove", (ev) => {
-            showTooltip(ev, `
-              <div class="tt-title">Intersección ${escapeHtml(label)}</div>
-              <div class="tt-row">${escapeHtml(String(r.procArr.length))} procesos · ${escapeHtml(String(r.totalDx))} dx</div>
-              <div class="tt-row muted">Click para fijar</div>
-            `);
-          });
-          div.addEventListener("mouseleave", hideTooltip);
-
-          els.inCircleLayer.appendChild(div);
-        }
-      }
-
-      /**********************************************************************
-       * VENN-LIKE SVG (4-6) + FOREIGNOBJECT INSIDE EACH CIRCLE
-       *********************************************************************/
-      function drawVennLike(n, computed){
-        els.svgDefs.innerHTML = "";
-        els.blobLayer.innerHTML = "";
-        els.labelLayer.innerHTML = "";
-        els.foLayer.innerHTML = "";
-        els.ixLayer.innerHTML = "";
-        state.circleLayout.clear();
-
-        const W=900, H=600;
-        const cx=W/2, cy=H/2;
-        const positions = {
-          4: [[cx-160, cy-70],[cx+160, cy-70],[cx-160, cy+90],[cx+160, cy+90]],
-          5: [[cx-180, cy-60],[cx+0, cy-140],[cx+180, cy-60],[cx-110, cy+120],[cx+110, cy+120]],
-          6: [[cx-200, cy-70],[cx+0, cy-160],[cx+200, cy-70],[cx-200, cy+110],[cx+0, cy+190],[cx+200, cy+110]]
-        };
-        const sel = state.selectedKeys.slice(0,6);
-        const pos = positions[sel.length] || positions[6];
-        const r = sel.length <= 4 ? 180 : 165;
-
-        // defs: radial highlight per blob
-        sel.forEach((p, i) => {
-          const c = colorForProcess(p);
-          els.svgDefs.insertAdjacentHTML("beforeend", `
-            <radialGradient id="grad_${i}" cx="32%" cy="28%" r="70%">
-              <stop offset="0%" stop-color="rgba(255,255,255,.55)"/>
-              <stop offset="18%" stop-color="rgba(255,255,255,.18)"/>
-              <stop offset="55%" stop-color="${c}"/>
-              <stop offset="100%" stop-color="${c}"/>
-            </radialGradient>
-            <clipPath id="clip_${i}">
-              <circle cx="${pos[i][0]}" cy="${pos[i][1]}" r="${r-6}"></circle>
-            </clipPath>
-          `);
-        });
-
-        // draw circles + labels + foreignObject lists
-        sel.forEach((p, i) => {
-          const [x,y] = pos[i];
-          state.circleLayout.set(p, {x,y,r});
-
-          const c = colorForProcess(p);
-
-          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-          circle.setAttribute("cx", x);
-          circle.setAttribute("cy", y);
-          circle.setAttribute("r", r);
-          circle.setAttribute("class", "blob");
-          circle.setAttribute("fill", `url(#grad_${i})`);
-          circle.addEventListener("mousemove", (ev) => {
-            showTooltip(ev, `
-              <div class="tt-title">${escapeHtml(p)}</div>
-              <div class="tt-row">Dentro del círculo: Únicos / Coinciden (k=2,3,4...)</div>
-              <div class="tt-row muted">Click para fijar conjunto</div>
-            `);
-          });
-          circle.addEventListener("mouseleave", hideTooltip);
-          circle.addEventListener("click", () => setActiveRegion(p));
-
-          g.appendChild(circle);
-          els.blobLayer.appendChild(g);
-
-          // Labels external
-          const obj = state.raw.find(o => o.Proceso === p);
-          const mn = obj ? (obj["mnemotécnica"] || obj.mnemotecnica || "") : "";
-          const labelG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          t.setAttribute("x", x);
-          t.setAttribute("y", y - r - 10);
-          t.setAttribute("text-anchor", "middle");
-          t.setAttribute("class", "blob-label");
-          t.textContent = p;
-
-          const sub = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          sub.setAttribute("x", x);
-          sub.setAttribute("y", y - r + 10);
-          sub.setAttribute("text-anchor", "middle");
-          sub.setAttribute("class", "blob-sub");
-          sub.textContent = mn ? `(${mn})` : "";
-
-          labelG.appendChild(t);
-          labelG.appendChild(sub);
-          els.labelLayer.appendChild(labelG);
-
-          // ForeignObject (clipped to circle)
-          const fo = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
-          const size = Math.floor((r*1.35)); // box containing the list
-          fo.setAttribute("x", x - size/2);
-          fo.setAttribute("y", y - size/2);
-          fo.setAttribute("width", size);
-          fo.setAttribute("height", size);
-          fo.setAttribute("clip-path", `url(#clip_${i})`);
-
-          const buckets = computed?.procBuckets?.get(p) || {unique:[], shared:new Map()};
-          let sharedCount = 0;
-          for (const arr of buckets.shared.values()) sharedCount += arr.length;
-
-          const container = document.createElement("div");
-          container.className = "foCard";
-
-          const head = document.createElement("div");
-          head.className = "foHead";
-          head.innerHTML = `
-            <span style="display:inline-flex;align-items:center;gap:10px;">
-              <span class="dot" style="background:${c}; width:10px; height:10px;"></span>
-              <span>${escapeHtml(p)}</span>
+      });
+    }
+
+    async function loadData(){
+      try{
+        const res = await fetch(JSON_URL, { cache: "no-store" });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        state.raw = parseData(json);
+        el.loadStatus.textContent = "JSON cargado";
+        populateSpecialties();
+        applyFilters();
+      }catch(err){
+        console.error(err);
+        el.loadStatus.textContent = "Error cargando JSON";
+        el.processList.innerHTML = `
+          <div class="shared-item" style="border-color:rgba(255,107,107,.25); background:rgba(255,107,107,.06);">
+            <strong>No se pudo cargar ${JSON_URL}</strong>
+            <span>
+              Comprueba que el archivo existe en <code>json/ddx_game.json</code> y que el JSON es válido.
             </span>
-            <span class="muted" style="font-size:11px;font-weight:900;">${buckets.unique.length}+${sharedCount}</span>
-          `;
-
-          const tabs = document.createElement("div");
-          tabs.className = "foTabs";
-          tabs.innerHTML = `
-            <div class="tab active" data-tab="unique">Únicos <span class="muted">(${buckets.unique.length})</span></div>
-            <div class="tab" data-tab="shared">Coinciden <span class="muted">(${sharedCount})</span></div>
-          `;
-
-          const bodyU = document.createElement("div");
-          bodyU.className = "foBody";
-          bodyU.setAttribute("data-body","unique");
-          bodyU.innerHTML = buildFoListHTML(buckets.unique);
-
-          const bodyS = document.createElement("div");
-          bodyS.className = "foBody";
-          bodyS.setAttribute("data-body","shared");
-          bodyS.style.display = "none";
-          bodyS.innerHTML = buildFoSharedHTML(buckets.shared);
-
-          container.appendChild(head);
-          container.appendChild(tabs);
-          container.appendChild(bodyU);
-          container.appendChild(bodyS);
-
-          // Tabs interactions (need pointer events; foreignObject supports it)
-          const tabEls = tabs.querySelectorAll(".tab");
-          tabEls.forEach(tab => tab.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const which = tab.getAttribute("data-tab");
-            tabEls.forEach(z => z.classList.toggle("active", z===tab));
-            bodyU.style.display = (which==="unique") ? "block" : "none";
-            bodyS.style.display = (which==="shared") ? "block" : "none";
-          }));
-
-          fo.appendChild(container);
-          els.foLayer.appendChild(fo);
-        });
-
-        // Intersection cards in SVG layer (as HTML overlays are trickier; we do SVG foreignObject "cards")
-        renderIntersectionCardsLike(computed, sel);
+          </div>`;
       }
+    }
 
-      function buildFoListHTML(items){
-        const parts = [];
-        for (const it of items.slice(0, IN_CIRCLE_LIMIT)){
-          parts.push(`
-            <div class="foItem">
-              ${escapeHtml(it.text)}
-              <div class="badges" style="margin-top:6px;">
-                <span class="b">k=1</span>
-              </div>
-            </div>
-          `);
-        }
-        if (items.length > IN_CIRCLE_LIMIT){
-          parts.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${items.length - IN_CIRCLE_LIMIT} más…</div>`);
-        }
-        return parts.join("") || `<div class="muted">—</div>`;
+    function populateSpecialties(){
+      const specs = [...new Set(state.raw.map(x => x.especialidad).filter(Boolean))].sort((a,b)=>a.localeCompare(b, 'es'));
+      el.specialtySelect.innerHTML = `<option value="">Todas las especialidades</option>`;
+      for(const spec of specs){
+        const op = document.createElement("option");
+        op.value = spec;
+        op.textContent = spec;
+        el.specialtySelect.appendChild(op);
       }
+      el.totalProcesses.textContent = state.raw.length;
+    }
 
-      function buildFoSharedHTML(sharedMap){
-        const ks = Array.from(sharedMap.keys()).sort((a,b)=>a-b);
-        const blocks = [];
-        for (const k of ks){
-          const arr = sharedMap.get(k) || [];
-          blocks.push(`<div class="muted" style="font-size:11px; font-weight:900; margin:6px 2px 8px;">Coinciden en <b>${k}</b> procesos</div>`);
-          for (const it of arr.slice(0, IN_CIRCLE_LIMIT)){
-            blocks.push(`
-              <div class="foItem">
-                ${escapeHtml(it.text)}
-                <div class="badges" style="margin-top:6px;">
-                  <span class="b">k=${k}</span>
-                  <span class="b">${escapeHtml(prettyRegionName(it.procs))}</span>
-                </div>
-              </div>
-            `);
-          }
-          if (arr.length > IN_CIRCLE_LIMIT){
-            blocks.push(`<div class="muted" style="font-size:11px; padding:6px 2px;">+${arr.length - IN_CIRCLE_LIMIT} más…</div>`);
-          }
-        }
-        return blocks.join("") || `<div class="muted">—</div>`;
-      }
+    function applyFilters(){
+      const q = normalizeText(el.searchInput.value);
+      const spec = el.specialtySelect.value;
 
-      function renderIntersectionCardsLike(computed, sel){
-        const regions = (computed?.regions || []).slice(0, 12);
-        for (const r of regions){
-          // centroid of involved circles
-          const pts = r.procArr.map(p => state.circleLayout.get(p)).filter(Boolean);
-          if (pts.length !== r.procArr.length) continue;
-          const x = pts.reduce((a,p)=>a+p.x,0)/pts.length;
-          const y = pts.reduce((a,p)=>a+p.y,0)/pts.length;
+      state.filtered = state.raw.filter(item => {
+        const matchSpec = !spec || item.especialidad === spec;
+        if(!matchSpec) return false;
+        if(!q) return true;
 
-          const label = prettyRegionName(r.procArr);
-          const sample = [];
-          for (const p of r.procArr){
-            const arr = (r.dxByProc[p] || []);
-            if (arr.length) sample.push(arr[0]);
-          }
+        const hay = [
+          item.proceso,
+          item.especialidad,
+          item.mnemotecnia,
+          ...item.diagnosticos
+        ].map(normalizeText).join(" | ");
 
-          // SVG foreignObject as card
-          const fo = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
-          fo.setAttribute("x", x - 105);
-          fo.setAttribute("y", y - 75);
-          fo.setAttribute("width", 210);
-          fo.setAttribute("height", 170);
+        return hay.includes(q);
+      });
 
-          const div = document.createElement("div");
-          div.className = "ixCard";
-          div.style.position = "relative";
-          div.style.left = "0";
-          div.style.top = "0";
-          div.style.transform = "none";
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderDiagram();
+    }
 
-          div.innerHTML = `
-            <div class="ixHead">
-              <div class="ixName">${escapeHtml(label)}</div>
-              <div class="ixCount">${escapeHtml(String(r.totalDx))}</div>
-            </div>
-            <div class="ixBody">
-              <div class="muted" style="margin-bottom:8px;">Tokens: <b>${escapeHtml((r.tokens||[]).slice(0,4).join(", ") || "—")}</b></div>
-              ${sample.slice(0,2).map(s => `<div class="sample">${escapeHtml(s)}</div>`).join("")}
-              <div class="muted" style="margin-top:8px;">Click para detalle.</div>
-            </div>
-          `;
+    function updateStats(){
+      el.visibleProcesses.textContent = state.filtered.length;
+      el.selectedProcesses.textContent = state.selectedIds.size;
+      el.noResults.style.display = state.filtered.length ? "none" : "block";
+    }
 
-          div.addEventListener("click", (e) => {
-            e.stopPropagation();
-            setActiveRegion(r.regionKey);
-          });
-
-          div.addEventListener("mousemove", (ev) => {
-            showTooltip(ev, `
-              <div class="tt-title">Intersección ${escapeHtml(label)}</div>
-              <div class="tt-row">${escapeHtml(String(r.procArr.length))} procesos · ${escapeHtml(String(r.totalDx))} dx</div>
-              <div class="tt-row muted">Click para fijar</div>
-            `);
-          });
-          div.addEventListener("mouseleave", hideTooltip);
-
-          fo.appendChild(div);
-          els.ixLayer.appendChild(fo);
-        }
-      }
-
-      /**********************************************************************
-       * MAIN VENN RENDER
-       *********************************************************************/
-      function renderVenn(){
-        const n = state.selectedKeys.length;
-        const computed = computeIntersections();
-
-        // empty state
-        const showEmpty = n < 2;
-        els.emptyState.style.display = showEmpty ? "grid" : "none";
-
-        // reset
-        els.vennReal.style.display = "none";
-        els.vennLike.style.display = "none";
-        els.regionStrip.innerHTML = "";
-        els.intersectionsTable.innerHTML = "";
-        els.vennSvgHost.innerHTML = "";
-        els.inCircleLayer.innerHTML = "";
-        els.svgDefs.innerHTML = "";
-        els.blobLayer.innerHTML = "";
-        els.labelLayer.innerHTML = "";
-        els.foLayer.innerHTML = "";
-        els.ixLayer.innerHTML = "";
-        state.circleLayout.clear();
-
-        if (showEmpty){
-          els.vennMode.textContent = "—";
-          return;
-        }
-
-        if (n <= 3){
-          els.vennMode.textContent = "Modo: Venn real (venn.js) + diagnósticos dentro de círculos";
-          els.vennReal.style.display = "block";
-          drawVennReal(n, computed);
-        } else {
-          els.vennMode.textContent = "Modo: Venn estilizado (SVG + multiply) + diagnósticos dentro de círculos";
-          els.vennLike.style.display = "block";
-          drawVennLike(n, computed);
-        }
-
-        renderRegionStripAndTable(computed);
-
-        // Auto-activate best region
-        if (!state.activeRegionKey && computed?.regions?.length){
-          setActiveRegion(computed.regions[0].regionKey);
-        } else if (!state.activeRegionKey && state.selectedKeys.length){
-          setActiveRegion(state.selectedKeys[0]);
-        }
-      }
-
-      /**********************************************************************
-       * HELP MODAL
-       *********************************************************************/
-      function helpHtml(){
-        return `
-          <b>Qué mejora aporta esta versión</b>
-          <ul>
-            <li>Los <b>diagnósticos aparecen dentro de cada círculo</b> del proceso.</li>
-            <li>Dentro del círculo se separan en <b>Únicos</b> (k=1) y <b>Coinciden</b> (k≥2) y se agrupan por <b>k=2,3,4…</b>.</li>
-            <li>Las intersecciones (A∩B, A∩B∩C, …) se <b>reseñan</b> como tarjetas en el solape y como lista abajo.</li>
-          </ul>
-
-          <b>Criterio de match (importante)</b><br/>
-          Construimos un grafo donde cada nodo es un diagnóstico. Conectamos diagnósticos de procesos distintos si:
-          <ul>
-            <li><b>1 token</b>: comparten ≥1 token.</li>
-            <li><b>≥2 tokens</b>: comparten ≥2 tokens.</li>
-            <li><b>token raro (IDF)</b>: comparten ≥1 token poco frecuente en el conjunto seleccionado.</li>
-          </ul>
-
-          Luego calculamos <b>componentes conexos</b>:
-          <ul>
-            <li>El número de procesos implicados en el componente es <b>k</b>.</li>
-            <li>Por eso, dentro de cada círculo, un diagnóstico se marca como <b>k=2</b>, <b>k=3</b>, etc.</li>
-            <li>La <b>región exacta</b> del componente se define por el conjunto de procesos implicados (ej. A∩B∩C).</li>
-          </ul>
-
-          <b>Tokens causantes</b><br/>
-          En una región, mostramos tokens que aparecen al menos en 1 diagnóstico de <b>cada</b> proceso de esa región.
+    function renderProcessList(){
+      el.processList.innerHTML = "";
+      for(const item of state.filtered){
+        const checked = state.selectedIds.has(item.id);
+        const div = document.createElement("label");
+        div.className = "process-item";
+        div.innerHTML = `
+          <input type="checkbox" ${checked ? "checked" : ""} data-id="${item.id}" />
+          <div class="p-title">${escapeHtml(item.proceso)}</div>
+          <div class="p-meta">
+            <span class="pill spec">${escapeHtml(item.especialidad)}</span>
+            ${item.mnemotecnia ? `<span class="pill mnemo">${escapeHtml(item.mnemotecnia)}</span>` : ""}
+          </div>
+          <div class="p-count">${item.diagnosticos.length} diagnósticos diferenciales</div>
         `;
+        const input = div.querySelector("input");
+        input.addEventListener("change", () => {
+          toggleSelection(item.id, input.checked);
+        });
+        el.processList.appendChild(div);
       }
+    }
 
-      function openModal(html){
-        els.modalBody.innerHTML = html;
-        els.modal.classList.add("open");
-      }
-      function closeModal(){
-        els.modal.classList.remove("open");
-      }
+    function toggleSelection(id, checked){
+      if(checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderDiagram();
+    }
 
-      /**********************************************************************
-       * DEMO + RANDOM
-       *********************************************************************/
-      function shuffle(arr){
-        for (let i=arr.length-1;i>0;i--){
-          const j = Math.floor(Math.random()*(i+1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
+    function renderSelectedPills(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.selectedWrap.innerHTML = `<span class="small">No hay procesos seleccionados.</span>`;
+        return;
+      }
+      el.selectedWrap.innerHTML = selected.map(p => `
+        <span class="selected-pill">
+          ${escapeHtml(p.proceso)}
+          <button type="button" data-remove="${p.id}" aria-label="Quitar ${escapeHtmlAttr(p.proceso)}">×</button>
+        </span>
+      `).join("");
+
+      el.selectedWrap.querySelectorAll("[data-remove]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.selectedIds.delete(btn.dataset.remove);
+          applyFilters();
+        });
+      });
+    }
+
+    function renderLegend(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.legend.innerHTML = `<span class="small">La leyenda aparecerá al seleccionar procesos.</span>`;
+        return;
+      }
+      el.legend.innerHTML = selected.map((p, i) => `
+        <span class="key">
+          <span class="dot" style="background:${COLORS[i % COLORS.length].solid}"></span>
+          ${escapeHtml(p.proceso)}
+        </span>
+      `).join("");
+    }
+
+    function getSelectedProcesses(){
+      return state.raw.filter(x => state.selectedIds.has(x.id));
+    }
+
+    function autoLayoutCircles(selected){
+      const n = selected.length;
+      const { w, h } = state.viewBox;
+      const cx = w / 2;
+      const cy = h / 2 + 6;
+
+      let radius;
+      if(n <= 2) radius = 200;
+      else if(n === 3) radius = 180;
+      else if(n === 4) radius = 158;
+      else radius = 142;
+
+      let spread;
+      if(n === 1) spread = 0;
+      else if(n === 2) spread = 150;
+      else if(n === 3) spread = 155;
+      else if(n === 4) spread = 180;
+      else spread = 205;
+
+      const arr = [];
+      for(let i=0;i<n;i++){
+        let x, y;
+        if(n === 1){
+          x = cx; y = cy;
+        }else if(n === 2){
+          x = cx + (i === 0 ? -spread : spread);
+          y = cy;
+        }else{
+          const angle = (-Math.PI / 2) + (i * (Math.PI * 2 / n));
+          x = cx + Math.cos(angle) * spread;
+          y = cy + Math.sin(angle) * (spread * 0.78);
         }
-        return arr;
+        arr.push({
+          id: selected[i].id,
+          x, y, r: radius
+        });
       }
+      state.circles = arr;
+    }
 
-      function selectDemo(){
-        if (state.raw.length < 3) return;
-        state.selectedKeys = [];
-
-        const bySpec = new Map();
-        for (const p of state.raw){
-          const s = String(p.especialidades||"").trim();
-          if (!bySpec.has(s)) bySpec.set(s, []);
-          bySpec.get(s).push(p);
-        }
-        const specKeys = Array.from(bySpec.keys()).filter(Boolean);
-        shuffle(specKeys);
-
-        const picks = [];
-        for (const s of specKeys){
-          if (picks.length >= 3) break;
-          const arr = bySpec.get(s);
-          if (arr && arr.length) picks.push(arr[Math.floor(Math.random()*arr.length)]);
-        }
-        while (picks.length < 3){
-          picks.push(state.raw[Math.floor(Math.random()*state.raw.length)]);
-        }
-        for (const p of picks.slice(0,3)){
-          if (!state.selectedKeys.includes(p.Proceso)) state.selectedKeys.push(p.Proceso);
-        }
-
-        renderProcessList();
-        renderVenn();
+    function ensureCircleState(selected){
+      const ids = new Set(selected.map(s => s.id));
+      state.circles = state.circles.filter(c => ids.has(c.id));
+      const missing = selected.filter(s => !state.circles.some(c => c.id === s.id));
+      if(missing.length){
+        autoLayoutCircles(selected);
       }
-
-      function selectRandom(){
-        const max = state.maxSelected;
-        const n = Math.min(max, Math.max(2, Math.floor(2 + Math.random() * (max-1))));
-        const pool = state.filtered.length ? state.filtered : state.raw;
-        const picks = pool.slice();
-        shuffle(picks);
-        state.selectedKeys = picks.slice(0, n).map(p => p.Proceso);
-        renderProcessList();
-        renderVenn();
+      if(state.circles.length !== selected.length){
+        autoLayoutCircles(selected);
       }
+    }
 
-      /**********************************************************************
-       * THEME
-       *********************************************************************/
-      function setTheme(theme){
-        state.theme = theme;
-        document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
-        els.themeToggle.checked = (theme === "light");
-      }
+    function buildDiagnosisMembership(selected){
+      const map = new Map();
 
-      /**********************************************************************
-       * LOAD DATA
-       *********************************************************************/
-      async function loadData(){
-        setStatus("Cargando…");
-        try{
-          const res = await fetch(JSON_URL, { cache: "no-store" });
-          if (!res.ok){
-            throw new Error(`HTTP ${res.status} (${res.statusText}). ¿Existe ${JSON_URL}?`);
+      for(const proc of selected){
+        for(const diag of proc.diagnosticos){
+          const key = normalizeText(diag);
+          if(!map.has(key)){
+            map.set(key, {
+              label: diag,
+              members: [],
+              processNames: []
+            });
           }
-          const text = await res.text();
-          let json;
-          try{ json = JSON.parse(text); }
-          catch{ throw new Error("JSON inválido: no se pudo parsear. Revisa comillas y estructura."); }
+          const item = map.get(key);
+          item.members.push(proc.id);
+          item.processNames.push(proc.proceso);
+        }
+      }
+      return map;
+    }
 
-          if (!Array.isArray(json)) throw new Error("Estructura inválida: se esperaba un array en el root.");
-          for (const [i, o] of json.entries()){
-            if (!o || typeof o !== "object" || !("Proceso" in o)){
-              throw new Error(`Elemento #${i} inválido: falta "Proceso".`);
+    function groupByMembership(diagMap){
+      const groups = new Map();
+      for(const [, item] of diagMap){
+        const signature = [...item.members].sort().join("||");
+        if(!groups.has(signature)){
+          groups.set(signature, {
+            memberIds: [...item.members].sort(),
+            items: []
+          });
+        }
+        groups.get(signature).items.push(item);
+      }
+      return groups;
+    }
+
+    function positionGroupItems(groups, selected){
+      const circleById = Object.fromEntries(state.circles.map(c => [c.id, c]));
+      const allPositions = [];
+
+      for(const [, group] of groups){
+        const memberCircles = group.memberIds.map(id => circleById[id]).filter(Boolean);
+        if(!memberCircles.length) continue;
+
+        const centroid = {
+          x: memberCircles.reduce((a,c)=>a+c.x,0) / memberCircles.length,
+          y: memberCircles.reduce((a,c)=>a+c.y,0) / memberCircles.length
+        };
+
+        const count = group.items.length;
+        const isShared = group.memberIds.length > 1;
+
+        let spread = 0;
+        if(count <= 1) spread = 0;
+        else if(isShared) spread = Math.min(72, 22 + count * 8);
+        else spread = Math.min(85, 28 + count * 7);
+
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const cellX = isShared ? 118 : 122;
+        const cellY = isShared ? 54 : 58;
+        const startX = centroid.x - ((cols - 1) * cellX) / 2;
+        const startY = centroid.y - ((rows - 1) * cellY) / 2;
+
+        group.items.forEach((item, index) => {
+          let x, y;
+
+          if(count === 1){
+            x = centroid.x;
+            y = centroid.y;
+          }else if(count <= 3){
+            const ang = (-Math.PI / 2) + (index * ((Math.PI * 2) / count));
+            x = centroid.x + Math.cos(ang) * spread;
+            y = centroid.y + Math.sin(ang) * spread * 0.75;
+          }else{
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            x = startX + col * cellX;
+            y = startY + row * cellY;
+          }
+
+          x = clamp(x, 60, state.viewBox.w - 60);
+          y = clamp(y, 72, state.viewBox.h - 54);
+
+          allPositions.push({
+            ...item,
+            x, y,
+            shared: isShared,
+            signature: group.memberIds.join("||")
+          });
+        });
+      }
+
+      relaxCollisions(allPositions);
+      return allPositions;
+    }
+
+    function relaxCollisions(items){
+      const iterations = 120;
+      const padX = 18;
+      const padY = 12;
+
+      for(let iter=0; iter<iterations; iter++){
+        for(let i=0; i<items.length; i++){
+          for(let j=i+1; j<items.length; j++){
+            const a = items[i];
+            const b = items[j];
+            const aw = estimateChipWidth(a.label);
+            const bw = estimateChipWidth(b.label);
+            const ah = estimateChipHeight(a.label);
+            const bh = estimateChipHeight(b.label);
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+
+            const minDx = (aw + bw)/2 + padX;
+            const minDy = (ah + bh)/2 + padY;
+
+            if(Math.abs(dx) < minDx && Math.abs(dy) < minDy){
+              const pushX = (minDx - Math.abs(dx)) * 0.16 * (dx === 0 ? (Math.random() > .5 ? 1 : -1) : Math.sign(dx));
+              const pushY = (minDy - Math.abs(dy)) * 0.16 * (dy === 0 ? (Math.random() > .5 ? 1 : -1) : Math.sign(dy));
+
+              a.x -= pushX;
+              b.x += pushX;
+              a.y -= pushY;
+              b.y += pushY;
+
+              a.x = clamp(a.x, 60, state.viewBox.w - 60);
+              b.x = clamp(b.x, 60, state.viewBox.w - 60);
+              a.y = clamp(a.y, 70, state.viewBox.h - 54);
+              b.y = clamp(b.y, 70, state.viewBox.h - 54);
             }
           }
-
-          state.raw = json;
-          state.filtered = json;
-
-          setStatus(`OK · ${json.length}`, "ok");
-
-          // specialties
-          const specs = getUniqueSpecialties();
-          for (const s of specs){
-            const opt = document.createElement("option");
-            opt.value = s;
-            opt.textContent = s;
-            els.specialtyFilter.appendChild(opt);
-          }
-
-          guessRepoLink();
-          applyFilters();
-          renderVenn();
-        } catch(err){
-          console.error(err);
-          setStatus("Error", "bad");
-          const msg = String(err?.message || err);
-          const extra = (location.protocol === "file:")
-            ? `<br/><br/><b>Nota:</b> <code>fetch()</code> suele fallar en <code>file://</code>. Usa GitHub Pages o servidor local (python -m http.server).`
-            : "";
-          openModal(`
-            <b>Error al cargar</b> <code>${escapeHtml(JSON_URL)}</code><br/>
-            <div style="margin-top:10px;">${escapeHtml(msg)}</div>
-            ${extra}
-          `);
         }
       }
+    }
 
-      function guessRepoLink(){
-        try{
-          const host = location.hostname;
-          if (host.endsWith("github.io")){
-            const parts = location.pathname.split("/").filter(Boolean);
-            const user = host.split(".")[0];
-            const repo = parts[0] || "";
-            if (repo){
-              els.btnRepo.href = `https://github.com/${user}/${repo}`;
-              return;
-            }
-          }
-        } catch {}
-        els.btnRepo.href = "#";
+    function estimateChipWidth(label){
+      return clamp(70 + Math.min(label.length * 4.2, 150), 90, 230);
+    }
+
+    function estimateChipHeight(label){
+      const lines = Math.ceil(label.length / 26);
+      return 26 + (lines - 1) * 14;
+    }
+
+    function renderDiagram(){
+      const selected = getSelectedProcesses();
+
+      el.emptyState.style.display = selected.length ? "none" : "grid";
+      el.vennSvg.innerHTML = "";
+      el.chipLayer.innerHTML = "";
+
+      if(!selected.length){
+        el.diagSummary.textContent = "0 diagnósticos mostrados";
+        renderSharedList([]);
+        return;
       }
 
-      /**********************************************************************
-       * EVENTS
-       *********************************************************************/
-      function wireEvents(){
-        const onSearch = debounce(() => {
-          state.q = els.searchInput.value || "";
-          applyFilters();
-        }, 180);
+      ensureCircleState(selected);
 
-        els.searchInput.addEventListener("input", onSearch);
-        els.clearSearch.addEventListener("click", () => {
-          els.searchInput.value = "";
-          state.q = "";
-          applyFilters();
+      const diagMap = buildDiagnosisMembership(selected);
+      state.diagnosisMap = diagMap;
+
+      const groups = groupByMembership(diagMap);
+      const positioned = positionGroupItems(groups, selected);
+      state.renderedItems = positioned;
+
+      renderCircles(selected);
+      renderChips(positioned);
+      renderSharedList(positioned.filter(x => x.shared));
+      el.diagSummary.textContent = `${positioned.length} diagnósticos mostrados`;
+    }
+
+    function renderCircles(selected){
+      const frag = document.createDocumentFragment();
+
+      selected.forEach((proc, index) => {
+        const circle = state.circles.find(c => c.id === proc.id);
+        if(!circle) return;
+
+        const g = svgEl("g", {
+          class: "circle-group",
+          "data-id": proc.id
         });
 
-        els.specialtyFilter.addEventListener("change", () => {
-          state.specialty = els.specialtyFilter.value || "";
-          applyFilters();
+        const color = COLORS[index % COLORS.length];
+
+        const ring = svgEl("circle", {
+          cx: circle.x,
+          cy: circle.y,
+          r: circle.r,
+          class: "circle-fill",
+          fill: color.fill
         });
 
-        els.maxSelect.addEventListener("input", () => {
-          const v = parseInt(els.maxSelect.value, 10);
-          state.maxSelected = v;
-          els.maxSelectVal.textContent = String(v);
-          if (state.selectedKeys.length > v) state.selectedKeys = state.selectedKeys.slice(0, v);
-          renderProcessList();
-          renderVenn();
+        const label = svgEl("text", {
+          x: circle.x,
+          y: circle.y - circle.r - 18,
+          class: "circle-label"
         });
+        label.textContent = proc.proceso;
 
-        els.sensitivity.addEventListener("change", () => {
-          state.sensitivity = els.sensitivity.value;
-          state.activeRegionKey = null;
-          renderVenn();
+        const sub = svgEl("text", {
+          x: circle.x,
+          y: circle.y - circle.r - 2,
+          class: "circle-sub"
         });
+        sub.textContent = `${proc.especialidad}${proc.mnemotecnia ? " · " + proc.mnemotecnia : ""}`;
 
-        els.btnSelectRandom.addEventListener("click", selectRandom);
-        els.btnTryDemo.addEventListener("click", selectDemo);
+        g.appendChild(ring);
+        g.appendChild(label);
+        g.appendChild(sub);
+        attachDrag(g, proc.id, selected);
+        frag.appendChild(g);
+      });
 
-        els.btnHelp.addEventListener("click", () => openModal(helpHtml()));
-        els.btnHowItWorks.addEventListener("click", () => openModal(helpHtml()));
+      el.vennSvg.appendChild(frag);
+    }
 
-        els.modal.addEventListener("click", (e) => {
-          if (e.target?.dataset?.close) closeModal();
-        });
-        window.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") closeModal();
-        });
+    function renderChips(items){
+      const stageRect = el.diagramStage.getBoundingClientRect();
+      const sx = stageRect.width / state.viewBox.w;
+      const sy = stageRect.height / state.viewBox.h;
 
-        els.btnCollapseRight.addEventListener("click", () => {
-          $(".panel-right")?.classList.toggle("collapsed");
-        });
+      const frag = document.createDocumentFragment();
 
-        els.themeToggle.addEventListener("change", () => {
-          setTheme(els.themeToggle.checked ? "light" : "dark");
-          renderVenn();
-        });
+      for(const item of items){
+        const div = document.createElement("div");
+        div.className = `diag-chip${item.shared ? " shared" : ""}`;
+        div.style.left = `${item.x * sx}px`;
+        div.style.top = `${item.y * sy}px`;
 
-        // tooltip follow for overlay cards
-        document.addEventListener("mousemove", (ev) => {
-          if (els.tooltip.style.opacity === "1") moveTooltip(ev);
-        });
+        const memberNames = item.processNames.join(" · ");
+        div.innerHTML = `
+          ${escapeHtml(item.label)}
+          ${item.shared ? `<em>Compartido: ${escapeHtml(memberNames)}</em>` : ""}
+        `;
+        frag.appendChild(div);
       }
 
-      /**********************************************************************
-       * INIT
-       *********************************************************************/
-      function init(){
-        const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-        setTheme(prefersLight ? "light" : "dark");
+      el.chipLayer.appendChild(frag);
+    }
 
-        state.maxSelected = parseInt(els.maxSelect.value, 10);
-        els.maxSelectVal.textContent = String(state.maxSelected);
-
-        wireEvents();
-        loadData();
+    function renderSharedList(sharedItems){
+      if(!sharedItems.length){
+        el.sharedList.innerHTML = `<div class="muted">No hay diagnósticos compartidos entre los procesos seleccionados.</div>`;
+        return;
       }
 
-      init();
+      const unique = new Map();
+      for(const item of sharedItems){
+        const key = normalizeText(item.label) + "||" + item.signature;
+        if(!unique.has(key)) unique.set(key, item);
+      }
 
-    })();
+      el.sharedList.innerHTML = [...unique.values()]
+        .sort((a,b)=> a.label.localeCompare(b.label, 'es'))
+        .map(item => `
+          <div class="shared-item">
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${escapeHtml(item.processNames.join(" · "))}</span>
+          </div>
+        `).join("");
+    }
+
+    function attachDrag(group, id, selected){
+      const onPointerDown = (e) => {
+        e.preventDefault();
+        group.classList.add("dragging");
+        const pt = eventToSvgPoint(e);
+        const circle = state.circles.find(c => c.id === id);
+        if(!circle) return;
+        state.drag = {
+          id,
+          offsetX: pt.x - circle.x,
+          offsetY: pt.y - circle.y
+        };
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp, { once:true });
+      };
+
+      const onPointerMove = (e) => {
+        if(!state.drag || state.drag.id !== id) return;
+        const pt = eventToSvgPoint(e);
+        const circle = state.circles.find(c => c.id === id);
+        if(!circle) return;
+
+        circle.x = clamp(pt.x - state.drag.offsetX, circle.r + 24, state.viewBox.w - circle.r - 24);
+        circle.y = clamp(pt.y - state.drag.offsetY, circle.r + 48, state.viewBox.h - circle.r - 24);
+
+        renderDiagram();
+      };
+
+      const onPointerUp = () => {
+        state.drag = null;
+        group.classList.remove("dragging");
+        window.removeEventListener("pointermove", onPointerMove);
+      };
+
+      group.addEventListener("pointerdown", onPointerDown);
+    }
+
+    function eventToSvgPoint(e){
+      const rect = el.vennSvg.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * state.viewBox.w;
+      const y = ((e.clientY - rect.top) / rect.height) * state.viewBox.h;
+      return { x, y };
+    }
+
+    function svgEl(tag, attrs = {}){
+      const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for(const [k,v] of Object.entries(attrs)){
+        node.setAttribute(k, v);
+      }
+      return node;
+    }
+
+    function clamp(v, min, max){
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeHtmlAttr(str){
+      return escapeHtml(str).replaceAll('"', "&quot;");
+    }
+
+    el.searchInput.addEventListener("input", applyFilters);
+    el.specialtySelect.addEventListener("change", applyFilters);
+
+    el.clearBtn.addEventListener("click", () => {
+      state.selectedIds.clear();
+      applyFilters();
+    });
+
+    el.selectVisibleBtn.addEventListener("click", () => {
+      state.filtered.forEach(item => state.selectedIds.add(item.id));
+      applyFilters();
+    });
+
+    el.autoLayoutBtn.addEventListener("click", () => {
+      const selected = getSelectedProcesses();
+      if(!selected.length) return;
+      autoLayoutCircles(selected);
+      renderDiagram();
+    });
+
+    el.fitBtn.addEventListener("click", () => {
+      renderDiagram();
+    });
+
+    window.addEventListener("resize", () => {
+      if(getSelectedProcesses().length){
+        renderDiagram();
+      }
+    });
+
+    loadData();
   </script>
-
-  <!--
-    ✅ Cómo correr:
-    - GitHub Pages (recomendado): asegúrate de que existe json/ddx_game.json en la rama publicada.
-    - Local: python -m http.server 8000  → http://localhost:8000
-    Nota: file:// suele bloquear fetch() por CORS.
-  -->
 </body>
 </html>
