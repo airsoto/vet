@@ -2,547 +2,1628 @@
 <html lang="en">
 <script defer src="goat.js"></script>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vet Diagnostic Tool - MnemoVetDDX</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-        /* TEMA DARK MODE */
-        :root {
-            --bg-main: #121212;
-            --bg-panel: #1e1e1e;
-            --bg-panel-hover: #2c2c2c;
-            --text-main: #e0e0e0;
-            --text-muted: #a0a0a0;
-            --primary-color: #0f3460;
-            --secondary-color: #4db8ff;
-            --accent-color: #ff9900;
-            --border-color: #333333;
-            --border-radius: 8px;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="color-scheme" content="dark" />
+  <title>Veterinary Diagnostic Network | Ángel Soto</title>
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            flex-grow: 1;
-            width: 100%;
-            box-sizing: border-box;
-        }
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --bg2:#0f1724;
+      --panel:#111826;
+      --panel2:#0d1420;
+      --text:#e9eef6;
+      --muted:#9fb0c6;
+      --line:rgba(255,255,255,.10);
+      --softline:rgba(255,255,255,.06);
+      --accent:#ff9900;
+      --accent2:#90caf9;
+      --good:#27d17f;
+      --danger:#ff6b6b;
+      --shadow:0 18px 42px rgba(0,0,0,.38);
+      --shadow2:0 10px 22px rgba(0,0,0,.35);
+      --shadowSoft:0 10px 30px rgba(0,0,0,.22);
+      --ring:0 0 0 4px rgba(144,202,249,.12);
+      --ring2:0 0 0 4px rgba(255,153,0,.12);
+      --grad-border: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)) 1;
+      --maxw: 1540px;
+      --tap: 46px;
+    }
 
-        header {
-            background-color: var(--bg-panel);
-            padding: 20px;
-            border-bottom: 2px solid var(--border-color);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
+    *{ box-sizing:border-box; }
 
-        h1 {
-            margin: 0;
-            color: var(--secondary-color);
-            font-size: 1.8rem;
-        }
+    html,body{
+      margin:0;
+      padding:0;
+      min-height:100%;
+      background:
+        radial-gradient(circle at top left, rgba(30,136,229,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(255,153,0,.10), transparent 28%),
+        linear-gradient(180deg, #0b0f14 0%, #0d121a 100%);
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      text-rendering:optimizeLegibility;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
 
-        /* Enlaces del header */
-        .home a {
-            color: var(--secondary-color) !important;
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        .home a:hover {
-            color: var(--accent-color) !important;
-        }
+    ::selection{
+      background: rgba(255,153,0,.24);
+      color:#fff;
+    }
 
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 20px 0;
-            background: var(--bg-panel);
-            padding: 15px;
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
+    a{
+      color:var(--accent2);
+      text-decoration:none;
+    }
 
-        input, select {
-            padding: 12px;
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
+    a:hover{
+      text-decoration:underline;
+    }
 
-        input:focus, select:focus {
-            border-color: var(--secondary-color);
-        }
+    .wrap{
+      width:min(var(--maxw), calc(100% - 24px));
+      margin:20px auto 34px;
+      position:relative;
+    }
 
-        .main-layout {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 20px;
-        }
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border-radius:26px;
+      padding:24px 22px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012));
+      border:1px solid transparent;
+      border-image: var(--grad-border);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(12px);
+    }
 
-        #process-list-container {
-            background: var(--bg-panel);
-            padding: 15px;
-            border-radius: var(--border-radius);
-            height: 650px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-        }
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -140px -140px auto;
+      width:320px;
+      height:320px;
+      background:radial-gradient(circle, rgba(255,153,0,.18), transparent 62%);
+      filter:blur(12px);
+      pointer-events:none;
+    }
 
-        .process-list-header {
-            padding-bottom: 15px;
-            margin-bottom: 10px;
-            font-weight: bold;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--secondary-color);
-            position: sticky;
-            top: 0;
-            background: var(--bg-panel);
-        }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(144,202,249,.08), transparent 42%),
+        radial-gradient(circle at 82% 28%, rgba(255,153,0,.08), transparent 45%);
+      pointer-events:none;
+    }
 
-        .process-item {
-            padding: 10px;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s ease;
-            border-radius: 4px;
-            margin-bottom: 2px;
-        }
+    h1{
+      margin:0;
+      position:relative;
+      z-index:1;
+      font-size:clamp(26px, 4.5vw, 44px);
+      line-height:1.05;
+      letter-spacing:-.02em;
+      text-shadow:0 10px 30px rgba(0,0,0,.35);
+      max-width:980px;
+    }
 
-        .process-item:hover {
-            background-color: var(--bg-panel-hover);
-        }
+    .subtitle{
+      position:relative;
+      z-index:1;
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:clamp(14px, 2vw, 16px);
+      max-width:980px;
+      line-height:1.6;
+    }
 
-        .process-item.active {
-            background-color: var(--primary-color);
-            color: #ffffff;
-            border-left: 4px solid var(--secondary-color);
-        }
+    .source-badge{
+      position:absolute;
+      right:18px;
+      bottom:16px;
+      z-index:2;
+      font-size:12px;
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(8,14,24,.58);
+      border:1px solid rgba(255,255,255,.12);
+      color:#d7e5f5;
+      box-shadow:0 12px 24px rgba(0,0,0,.28);
+      backdrop-filter:blur(10px);
+    }
 
-        #graph-container {
-            background: var(--bg-main);
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border-color);
-            height: 650px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-        }
+    .source-badge a{
+      color:#fff;
+      font-weight:700;
+    }
 
-        svg {
-            width: 100%;
-            height: 100%;
-        }
+    .layout{
+      display:grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap:18px;
+      margin-top:18px;
+    }
 
-        /* Estilos D3.js para Dark Mode */
-        .node circle {
-            stroke: var(--bg-main);
-            stroke-width: 2px;
-        }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.010));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      box-shadow:var(--shadowSoft);
+      backdrop-filter: blur(10px);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
 
-        .node text {
-            font-size: 11px;
-            fill: var(--text-main);
-            pointer-events: none;
-            user-select: none;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.8);
-        }
+    .card:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.14);
+      box-shadow: var(--shadow2);
+    }
 
-        .link {
-            stroke: #555555;
-            stroke-opacity: 0.6;
-        }
+    .sidebar{
+      padding:16px;
+      align-self:start;
+      position:sticky;
+      top:14px;
+      max-height:calc(100vh - 28px);
+      overflow:auto;
+    }
 
-        .source-badge {
-            margin: 20px 0;
-            padding: 10px 15px;
-            background: #1a2639;
-            border-left: 4px solid var(--accent-color);
-            font-size: 0.9rem;
-            display: inline-block;
-            border-radius: 0 4px 4px 0;
-            color: var(--text-muted);
-        }
+    .section-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin:2px 0 12px;
+    }
 
-        .source-badge a {
-            color: var(--accent-color);
-            text-decoration: none;
-            font-weight: bold;
-        }
+    .section-title h2{
+      margin:0;
+      font-size:16px;
+      letter-spacing:.01em;
+    }
 
-        .footer {
-            margin-top: auto;
-            background-color: #0a0a0a;
-            color: var(--text-muted);
-            padding: 30px 20px;
-            font-size: 0.85rem;
-            line-height: 1.6;
-            border-top: 1px solid var(--border-color);
-        }
+    .small{
+      color:var(--muted);
+      font-size:12px;
+    }
 
-        .footer a {
-            color: var(--secondary-color);
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        
-        .footer a:hover {
-            color: var(--accent-color);
-        }
+    .controls{
+      display:grid;
+      gap:10px;
+    }
 
-        .tooltip {
-            position: absolute;
-            padding: 10px 14px;
-            background: rgba(20, 20, 20, 0.95);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 13px;
-            pointer-events: none;
-            z-index: 100;
-            max-width: 300px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-        }
+    .searchbox,.select,.btn{
+      width:100%;
+      min-height:var(--tap);
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      color:var(--text);
+      outline:none;
+      transition:.18s ease;
+    }
 
-        .error-message {
-            color: #ff6b6b;
-            padding: 15px;
-            background: rgba(255, 107, 107, 0.1);
-            border-radius: 4px;
-            border: 1px solid #ff6b6b;
-            margin-bottom: 10px;
-        }
+    .searchbox,.select{
+      padding:0 14px;
+      font-size:15px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
 
-        @media (max-width: 850px) {
-            .main-layout {
-                grid-template-columns: 1fr;
-            }
-            .controls {
-                grid-template-columns: 1fr;
-            }
-            #process-list-container {
-                height: 300px;
-            }
-        }
-    </style>
+    .searchbox{
+      padding-left:44px;
+      background-repeat:no-repeat;
+      background-position:14px 50%;
+      background-size:18px 18px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239fb0c6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E");
+    }
+
+    .searchbox::placeholder{
+      color: rgba(159,176,198,.72);
+    }
+
+    .select{
+      appearance:none;
+      cursor:pointer;
+    }
+
+    .searchbox:focus,.select:focus{
+      border-color:rgba(144,202,249,.55);
+      box-shadow: var(--ring);
+    }
+
+    .btn{
+      cursor:pointer;
+      font-weight:800;
+      font-size:14px;
+      padding:0 14px;
+      letter-spacing:.01em;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.18);
+    }
+
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(255,153,0,.24), rgba(255,153,0,.10));
+      border-color:rgba(255,153,0,.35);
+      color:#fff;
+    }
+
+    .btn.ghost{
+      background: linear-gradient(180deg, rgba(144,202,249,.12), rgba(144,202,249,.05));
+      border-color:rgba(144,202,249,.25);
+    }
+
+    .quick-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:2px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .stat{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--softline);
+      border-radius:14px;
+      padding:10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .stat .n{
+      display:block;
+      font-size:22px;
+      font-weight:900;
+      line-height:1;
+      margin-bottom:4px;
+      letter-spacing:-.02em;
+    }
+
+    .stat .l{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .selection-bar{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.025);
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    .process-list{
+      margin-top:16px;
+      display:grid;
+      gap:12px;
+    }
+
+    .process-group{
+      display:grid;
+      gap:10px;
+    }
+
+    .process-group-title{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--accent2);
+      opacity:.92;
+      padding:0 2px;
+      font-weight:800;
+    }
+
+    .process-grid{
+      display:grid;
+      gap:10px;
+    }
+
+    .process-item{
+      position:relative;
+      text-align:left;
+      width:100%;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.022);
+      border-radius:16px;
+      padding:12px 12px 12px 14px;
+      color:var(--text);
+      cursor:pointer;
+      transition:.18s ease;
+      overflow:hidden;
+    }
+
+    .process-item::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:3px;
+      background: linear-gradient(180deg, rgba(144,202,249,.0), rgba(144,202,249,.55), rgba(255,153,0,.55), rgba(255,153,0,0));
+      opacity:0;
+      transition:opacity .18s ease;
+    }
+
+    .process-item:hover{
+      border-color:rgba(255,255,255,.18);
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.04);
+    }
+
+    .process-item.selected{
+      border-color: rgba(255,153,0,.32);
+      background: radial-gradient(circle at 14% 20%, rgba(255,153,0,.10), transparent 40%), linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+      box-shadow: 0 0 0 1px rgba(255,153,0,.10) inset, 0 12px 28px rgba(255,153,0,.08), 0 12px 30px rgba(0,0,0,.26);
+    }
+
+    .process-item.selected::before{
+      opacity:1;
+    }
+
+    .p-title{
+      font-weight:850;
+      line-height:1.25;
+      margin:0 0 6px;
+      letter-spacing:-.01em;
+    }
+
+    .p-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:7px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      white-space:nowrap;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .pill.spec{
+      color:#d5e7ff;
+      background:rgba(144,202,249,.09);
+      border-color:rgba(144,202,249,.18);
+    }
+
+    .p-count{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .main{
+      display:grid;
+      gap:18px;
+    }
+
+    .toolbar{
+      padding:14px;
+      display:grid;
+      gap:12px;
+    }
+
+    .toolbar-top{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .selected-wrap{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .selected-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      background: linear-gradient(180deg, rgba(255,153,0,.14), rgba(255,153,0,.07));
+      border:1px solid rgba(255,153,0,.20);
+      border-radius:999px;
+      font-size:13px;
+      color:#fff;
+      box-shadow: 0 12px 26px rgba(255,153,0,.08);
+    }
+
+    .selected-pill button{
+      all:unset;
+      cursor:pointer;
+      font-weight:900;
+      color:#ffe0b3;
+      line-height:1;
+      width:18px;
+      height:18px;
+      display:grid;
+      place-items:center;
+      border-radius:999px;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.14);
+    }
+
+    .selected-pill button:hover{
+      background: rgba(0,0,0,.34);
+    }
+
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+
+    .legend .key{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .dot{
+      width:12px;
+      height:12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      flex:0 0 12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+    }
+
+    .graph-card{
+      padding:14px;
+    }
+
+    .graph-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    .graph-head h2{
+      margin:0;
+      font-size:18px;
+      letter-spacing:-.01em;
+    }
+
+    .graph-head p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.55;
+    }
+
+    #cy{
+      width:100%;
+      min-height:760px;
+      border-radius:22px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.12);
+      background:
+        radial-gradient(circle at 50% 38%, rgba(144,202,249,.08), transparent 24%),
+        radial-gradient(circle at 50% 72%, rgba(255,153,0,.05), transparent 28%),
+        linear-gradient(180deg, #0c131e 0%, #0a1018 52%, #091018 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.03),
+        inset 0 -70px 120px rgba(0,0,0,.24),
+        0 30px 80px rgba(0,0,0,.28);
+    }
+
+    .empty-state{
+      min-height:220px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:30px;
+      color:var(--muted);
+    }
+
+    .empty-box{
+      max-width:640px;
+      padding:26px;
+      border-radius:24px;
+      border:1px dashed rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+      backdrop-filter: blur(10px);
+    }
+
+    .empty-box h3{
+      margin:0 0 8px;
+      color:#fff;
+      font-size:22px;
+      letter-spacing:-.01em;
+    }
+
+    .empty-box p{
+      margin:0;
+      line-height:1.55;
+    }
+
+    .bottom-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+    }
+
+    .info-card{
+      padding:16px;
+    }
+
+    .info-card h3{
+      margin:0 0 10px;
+      font-size:16px;
+      letter-spacing:-.01em;
+    }
+
+    .shared-spotlight{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .spot-item{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,153,0,.22);
+      background:linear-gradient(180deg, rgba(255,153,0,.14), rgba(255,153,0,.05));
+      color:#fff;
+      font-size:12.5px;
+      box-shadow:0 12px 26px rgba(255,153,0,.08);
+    }
+
+    .spot-item small{
+      display:block;
+      margin-top:4px;
+      color:#ffd9a3;
+      font-size:11px;
+      line-height:1.35;
+    }
+
+    .shared-list{
+      display:grid;
+      gap:10px;
+      max-height:340px;
+      overflow:auto;
+      padding-right:2px;
+    }
+
+    .shared-item{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.02);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .shared-item strong{
+      display:block;
+      margin-bottom:4px;
+    }
+
+    .shared-item span{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .help-list{
+      margin:0;
+      padding-left:18px;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:18px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      box-shadow:var(--shadowSoft);
+      color:var(--muted);
+      font-size:14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .footer p, .footer h4{
+      margin:10px 0;
+    }
+
+    .footer strong{
+      color:#fff;
+    }
+
+    .no-results{
+      margin-top:12px;
+      padding:14px;
+      border-radius:14px;
+      border:1px dashed rgba(255,255,255,.16);
+      color:var(--muted);
+      text-align:center;
+      display:none;
+      background: rgba(255,255,255,.02);
+    }
+
+    .fab{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      z-index:9999;
+      min-height:44px;
+      padding:0 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      color:#fff;
+      font-weight:900;
+      letter-spacing:.01em;
+      cursor:pointer;
+      box-shadow: 0 14px 34px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      user-select:none;
+    }
+
+    .fab:hover{
+      transform: translateY(-1px);
+    }
+
+    .cosmos-hint{
+      position:fixed;
+      right:16px;
+      bottom:68px;
+      z-index:9999;
+      max-width:min(420px, calc(100% - 32px));
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(8,14,24,.72);
+      color: rgba(233,238,246,.92);
+      box-shadow: 0 14px 34px rgba(0,0,0,.32);
+      backdrop-filter: blur(12px);
+      font-size:12.5px;
+      line-height:1.35;
+      opacity:0;
+      transform: translateY(6px);
+      pointer-events:none;
+      transition: .18s ease;
+    }
+
+    body.cosmos-interactive .cosmos-hint{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1180px){
+      .layout{ grid-template-columns:1fr; }
+      .sidebar{ position:relative; top:0; max-height:none; }
+    }
+
+    @media (max-width: 820px){
+      #cy{ min-height:620px; }
+      .bottom-grid{ grid-template-columns:1fr; }
+      .stats{ grid-template-columns:1fr 1fr 1fr; }
+      .source-badge{ position:relative; right:auto; bottom:auto; display:inline-flex; margin-top:14px; }
+    }
+
+    @media (max-width: 580px){
+      .wrap{ width:min(var(--maxw), calc(100% - 14px)); }
+      .hero{ padding:18px 14px 14px; border-radius:20px; }
+      .sidebar, .toolbar, .graph-card, .info-card{ padding:14px; }
+      #cy{ min-height:560px; border-radius:18px; }
+      .stats{ grid-template-columns:1fr; }
+      .quick-actions{ grid-template-columns:1fr; }
+      .fab{ right:12px; bottom:12px; }
+      .cosmos-hint{ right:12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; animation:none !important; }
+      .card:hover, .btn:hover, .process-item:hover, .fab:hover{ transform:none !important; }
+    }
+  </style>
 </head>
+
 <body>
+  <canvas id="cosmosCanvas" aria-hidden="true"></canvas>
+  <div id="noiseLayer" aria-hidden="true"></div>
+  <div id="vignetteLayer" aria-hidden="true"></div>
 
-    <header>
-        <div class="container" style="padding:0;">
-            <h1>MnemoVetDDX: Interactive Network</h1>
-            <div style="margin:10px 0 0 0;">
-                <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
-                    <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
-                </h2>
-                <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
-                    <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
-                        🏠 <span>volver a página de inicio</span>
-                    </a>
-                </p>
-            </div>
+  <button id="cosmosToggle" class="fab" type="button" aria-pressed="false" title="Enable or disable 3D mode">
+    ✨ 3D <span style="color:rgba(159,176,198,.9); font-weight:800; font-size:12px;">bloom</span>
+  </button>
+
+  <div id="cosmosHint" class="cosmos-hint" role="status" aria-live="polite">
+    <strong style="color:#fff;">3D mode active.</strong> Drag to orbit · wheel to zoom · right-click/Ctrl+drag to pan · <strong>ESC</strong> to exit.
+  </div>
+
+  <div class="wrap">
+    <section class="hero">
+      <h1>Veterinary diagnostic network</h1>
+      <p class="subtitle">
+        Explore clinical processes and their differential diagnoses as an interactive network. Shared differential diagnoses automatically connect multiple processes so overlapping clinical signs become visually obvious.
+      </p>
+
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+
+      <div class="source-badge">
+        Based on information from
+        <a href="https://consultant.vet.cornell.edu/" target="_blank" rel="noopener">consultant.vet.cornell.edu</a>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="card sidebar">
+        <div class="section-title">
+          <h2>Process selection</h2>
+          <span class="small" id="loadStatus">Loading JSON…</span>
         </div>
-    </header>
 
-    <main class="container">
         <div class="controls">
-            <input type="text" id="search-input" placeholder="🔍 Search Process (e.g. Cough, Fever)...">
-            <select id="specialty-filter">
-                <option value="">All Specialties</option>
-            </select>
+          <input id="searchInput" class="searchbox" type="text" placeholder="Search by Proceso…" />
+          <select id="specialtySelect" class="select">
+            <option value="">All specialties</option>
+          </select>
+
+          <div class="quick-actions">
+            <button class="btn primary" id="selectVisibleBtn">Select visible</button>
+            <button class="btn ghost" id="clearBtn">Clear selection</button>
+          </div>
         </div>
 
-        <div class="main-layout">
-            <div id="process-list-container">
-                <div class="process-list-header">Select Signs to Visualize:</div>
-                <div id="process-list">
-                    <div style="text-align:center; padding: 20px; color: var(--text-muted);">
-                        Loading data...
-                    </div>
-                </div>
-            </div>
-            <div id="graph-container">
-                <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
-            </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="n" id="totalProcesses">0</span>
+            <span class="l">Processes</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="visibleProcesses">0</span>
+            <span class="l">Visible</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="selectedProcesses">0</span>
+            <span class="l">Selected</span>
+          </div>
         </div>
 
-        <section>
-            <div class="source-badge">
-                Based on information from
-                <a href="https://consultant.vet.cornell.edu/" target="_blank" rel="noopener">consultant.vet.cornell.edu</a>
+        <div class="selection-bar">
+          Click complete cards to select processes. Shared differential diagnoses are emphasized in the network, while unique diagnoses are smaller and less dominant.
+        </div>
+
+        <div class="process-list" id="processList"></div>
+        <div class="no-results" id="noResults">No processes match the current search or filter.</div>
+      </aside>
+
+      <main class="main">
+        <section class="card toolbar">
+          <div class="toolbar-top">
+            <div>
+              <strong>Active processes</strong>
+              <div class="small">Tip: 2–5 selected processes usually gives the clearest overlap graph.</div>
             </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn ghost" id="fitGraphBtn" style="width:auto; min-height:38px;">Fit graph</button>
+              <button class="btn primary" id="sharedOnlyBtn" style="width:auto; min-height:38px;">Shared only</button>
+              <button class="btn ghost" id="sharedPlusUniqueBtn" style="width:auto; min-height:38px;">Shared + unique</button>
+            </div>
+          </div>
+
+          <div class="selected-wrap" id="selectedWrap"></div>
+          <div class="legend" id="legend"></div>
         </section>
-    </main>
+
+        <section class="card graph-card">
+          <div class="graph-head">
+            <div>
+              <h2>Interactive network graph</h2>
+              <p>Selected processes are shown as central process nodes. Differential diagnoses connect across processes whenever they are shared, making clinical overlap easy to detect.</p>
+            </div>
+            <div class="small" id="graphSummary">0 nodes · 0 edges</div>
+          </div>
+
+          <div id="cy" aria-label="Interactive diagnostic network"></div>
+          <div class="empty-state" id="emptyState">
+            <div class="empty-box">
+              <h3>Select one or more processes</h3>
+              <p>
+                Once you select processes from the left panel, the graph will display them as connected medical entities. Shared differential diagnoses will stand out visually.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="bottom-grid">
+          <section class="card info-card">
+            <h3>Shared differential diagnoses</h3>
+            <div class="shared-spotlight" id="sharedSpotlight">
+              <div class="small">Shared diagnoses will appear here.</div>
+            </div>
+            <div class="shared-list" id="sharedList">
+              <div class="small">Repeated diagnoses across selected processes will appear here.</div>
+            </div>
+          </section>
+
+          <section class="card info-card">
+            <h3>How to use this view</h3>
+            <ul class="help-list">
+              <li>Filter processes by specialty or search by process name.</li>
+              <li>Select multiple processes to reveal shared differential diagnoses.</li>
+              <li>Use <strong>Shared only</strong> for the cleanest overlap-focused graph.</li>
+              <li>Use <strong>Shared + unique</strong> to keep exclusive diagnoses visible too.</li>
+              <li>Drag nodes, zoom, and pan freely in the graph.</li>
+            </ul>
+          </section>
+        </section>
+      </main>
+    </div>
 
     <footer class="footer">
-        <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
-        <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
-        <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
-        <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
-        <p><strong>_______________________________________________</strong></p>
-        <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
-        <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
-        Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
-        <p>_______________________________________________</p>
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
     </footer>
+  </div>
 
-    <script>
-        let fullData = [];
-        let selectedProcesses = new Set();
-        
-        // Setup D3 Canvas
-        const graphContainer = document.getElementById('graph-container');
-        const width = graphContainer.clientWidth;
-        const height = graphContainer.clientHeight;
-        
-        const svg = d3.select("#graph-container").append("svg")
-            .attr("viewBox", [0, 0, width, height]);
-        
-        const g = svg.append("g");
-        const tooltip = d3.select("#tooltip");
+  <script>
+    const JSON_URL = "json/consultant_signs_canine.json";
 
-        // Configuración de la simulación de físicas para la red
-        const simulation = d3.forceSimulation()
-            .force("link", d3.forceLink().id(d => d.id).distance(150))
-            .force("charge", d3.forceManyBody().strength(-300))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collide", d3.forceCollide().radius(20));
+    const PROCESS_COLORS = [
+      "#ff9900", "#90caf9", "#27d17f", "#ad85ff",
+      "#ff6b6b", "#ffb347", "#59c2ff", "#ff82c4"
+    ];
 
-        // Funcionalidad de Zoom y Paneo
-        const zoom = d3.zoom()
-            .scaleExtent([0.1, 4])
-            .on("zoom", (event) => {
-                g.attr("transform", event.transform);
+    const state = {
+      raw: [],
+      filtered: [],
+      selectedIds: new Set(),
+      displayMode: "shared-only",
+      cy: null
+    };
+
+    const el = {
+      processList: document.getElementById("processList"),
+      noResults: document.getElementById("noResults"),
+      specialtySelect: document.getElementById("specialtySelect"),
+      searchInput: document.getElementById("searchInput"),
+      selectedWrap: document.getElementById("selectedWrap"),
+      legend: document.getElementById("legend"),
+      totalProcesses: document.getElementById("totalProcesses"),
+      visibleProcesses: document.getElementById("visibleProcesses"),
+      selectedProcesses: document.getElementById("selectedProcesses"),
+      loadStatus: document.getElementById("loadStatus"),
+      graphSummary: document.getElementById("graphSummary"),
+      sharedList: document.getElementById("sharedList"),
+      sharedSpotlight: document.getElementById("sharedSpotlight"),
+      selectVisibleBtn: document.getElementById("selectVisibleBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      sharedOnlyBtn: document.getElementById("sharedOnlyBtn"),
+      sharedPlusUniqueBtn: document.getElementById("sharedPlusUniqueBtn"),
+      fitGraphBtn: document.getElementById("fitGraphBtn"),
+      cy: document.getElementById("cy"),
+      emptyState: document.getElementById("emptyState")
+    };
+
+    function normalizeText(str){
+      return (str || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function safeArray(v){
+      return Array.isArray(v) ? v : [];
+    }
+
+    function uidFromProcess(item, idx){
+      return `${idx}__${normalizeText(item.Proceso || item.process || "process")}`;
+    }
+
+    function parseData(input){
+      let arr = input;
+
+      if (Array.isArray(arr) && arr.length && arr[0]?.Proceso) {
+        // direct array of processes
+      } else if (Array.isArray(arr) && arr.length && Array.isArray(arr[0]?.items)) {
+        arr = arr[0].items;
+      } else if (!Array.isArray(arr)) {
+        if (Array.isArray(input.items)) arr = input.items;
+        else if (Array.isArray(input.data)) arr = input.data;
+        else if (Array.isArray(input.results)) arr = input.results;
+        else if (Array.isArray(input.signs)) arr = input.signs;
+        else throw new Error("The JSON root does not contain a valid items array.");
+      } else {
+        throw new Error("Unsupported JSON structure.");
+      }
+
+      return arr.map((item, idx) => {
+        const diagnoses = safeArray(
+          item["Diagnósticos diferenciales"] ??
+          item["Differential diagnoses"]
+        ).map(d => String(d).trim()).filter(Boolean);
+
+        return {
+          id: uidFromProcess(item, idx),
+          idx,
+          proceso: item["Proceso"] ?? item["process"] ?? `Process ${idx + 1}`,
+          especialidad: item["especialidades"] ?? item["specialty"] ?? item["specialties"] ?? "No specialty",
+          mnemotecnia: item["mnemotécnica"] ?? item["mnemonic"] ?? "",
+          diagnosticos: diagnoses,
+          meta: item.meta || {}
+        };
+      });
+    }
+
+    async function loadData(){
+      try{
+        const res = await fetch(JSON_URL, { cache: "no-store" });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        state.raw = parseData(json);
+        el.loadStatus.textContent = "JSON loaded";
+        populateSpecialties();
+        applyFilters();
+      }catch(err){
+        console.error("JSON load error:", err);
+        el.loadStatus.textContent = "Error loading JSON";
+        el.processList.innerHTML = `
+          <div class="shared-item" style="border-color:rgba(255,107,107,.25); background:rgba(255,107,107,.06);">
+            <strong>Could not load ${JSON_URL}</strong>
+            <span>Check that the file exists and that the JSON structure matches the Cornell export.</span>
+          </div>
+        `;
+      }
+    }
+
+    function populateSpecialties(){
+      const specs = [...new Set(state.raw.map(x => x.especialidad).filter(Boolean))].sort((a,b)=>a.localeCompare(b, "en"));
+      el.specialtySelect.innerHTML = `<option value="">All specialties</option>`;
+      for(const spec of specs){
+        const op = document.createElement("option");
+        op.value = spec;
+        op.textContent = spec;
+        el.specialtySelect.appendChild(op);
+      }
+      el.totalProcesses.textContent = state.raw.length;
+    }
+
+    function getSelectedProcesses(){
+      return state.raw.filter(x => state.selectedIds.has(x.id));
+    }
+
+    function applyFilters(){
+      const q = normalizeText(el.searchInput.value);
+      const spec = el.specialtySelect.value;
+
+      state.filtered = state.raw.filter(item => {
+        const matchSpec = !spec || item.especialidad === spec;
+        if(!matchSpec) return false;
+        if(!q) return true;
+        return normalizeText(item.proceso).includes(q);
+      });
+
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderGraph();
+    }
+
+    function updateStats(){
+      el.visibleProcesses.textContent = state.filtered.length;
+      el.selectedProcesses.textContent = state.selectedIds.size;
+      el.noResults.style.display = state.filtered.length ? "none" : "block";
+    }
+
+    function renderProcessList(){
+      el.processList.innerHTML = "";
+      if(!state.filtered.length) return;
+
+      const groups = new Map();
+      for(const item of state.filtered){
+        const key = item.especialidad || "No specialty";
+        if(!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      }
+
+      [...groups.entries()]
+        .sort((a,b) => a[0].localeCompare(b[0], "en"))
+        .forEach(([spec, items]) => {
+          const group = document.createElement("div");
+          group.className = "process-group";
+
+          const title = document.createElement("div");
+          title.className = "process-group-title";
+          title.textContent = `${spec} · ${items.length}`;
+          group.appendChild(title);
+
+          const grid = document.createElement("div");
+          grid.className = "process-grid";
+
+          items.forEach(item => {
+            const selected = state.selectedIds.has(item.id);
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `process-item${selected ? " selected" : ""}`;
+            btn.innerHTML = `
+              <div class="p-title">${escapeHtml(item.proceso)}</div>
+              <div class="p-meta">
+                <span class="pill spec">${escapeHtml(item.especialidad)}</span>
+              </div>
+              <div class="p-count">${item.diagnosticos.length} differential diagnoses</div>
+            `;
+            btn.addEventListener("click", () => toggleSelection(item.id, !selected));
+            grid.appendChild(btn);
+          });
+
+          group.appendChild(grid);
+          el.processList.appendChild(group);
+        });
+    }
+
+    function toggleSelection(id, checked){
+      if(checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderGraph();
+    }
+
+    function renderSelectedPills(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.selectedWrap.innerHTML = `<span class="small">No processes selected.</span>`;
+        return;
+      }
+
+      el.selectedWrap.innerHTML = selected.map(p => `
+        <span class="selected-pill">
+          ${escapeHtml(p.proceso)}
+          <button type="button" data-remove="${p.id}" aria-label="Remove ${escapeHtmlAttr(p.proceso)}">×</button>
+        </span>
+      `).join("");
+
+      el.selectedWrap.querySelectorAll("[data-remove]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.selectedIds.delete(btn.dataset.remove);
+          applyFilters();
+        });
+      });
+    }
+
+    function renderLegend(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.legend.innerHTML = `<span class="small">The legend will appear after selecting processes.</span>`;
+        return;
+      }
+
+      el.legend.innerHTML = selected.map((p, i) => `
+        <span class="key">
+          <span class="dot" style="background:${PROCESS_COLORS[i % PROCESS_COLORS.length]}"></span>
+          ${escapeHtml(p.proceso)}
+        </span>
+      `).join("");
+    }
+
+    function buildGraphData(selected){
+      const processColorMap = new Map();
+      selected.forEach((p, i) => processColorMap.set(p.id, PROCESS_COLORS[i % PROCESS_COLORS.length]));
+
+      const diagnosisMap = new Map();
+
+      for(const proc of selected){
+        for(const diag of proc.diagnosticos){
+          const key = normalizeText(diag);
+          if(!diagnosisMap.has(key)){
+            diagnosisMap.set(key, {
+              id: `diag__${key}`,
+              label: diag,
+              members: [],
+              processNames: []
             });
-        svg.call(zoom);
+          }
+          const item = diagnosisMap.get(key);
+          item.members.push(proc.id);
+          item.processNames.push(proc.proceso);
+        }
+      }
 
-        // Fetch Data robusto
-        fetch('json/consultant_signs_canine.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.items) {
-                    fullData = data.items;
-                    initApp();
-                } else {
-                    throw new Error("Formato de JSON irreconocible. Se esperaba un array en 'items'.");
-                }
-            })
-            .catch(err => {
-                console.error("Error al cargar el JSON:", err);
-                document.getElementById('process-list').innerHTML = `
-                    <div class="error-message">
-                        <strong>⚠️ Error de carga:</strong><br>
-                        No se pudo cargar 'json/consultant_signs_canine.json'.<br><br>
-                        <em>Si estás abriendo este archivo localmente, asegúrate de usar un servidor local (ej. Live Server en VSCode) para evitar bloqueos de CORS.</em>
-                    </div>`;
-            });
+      let diagnosisEntries = [...diagnosisMap.values()];
+      if(selected.length > 1 && state.displayMode === "shared-only"){
+        diagnosisEntries = diagnosisEntries.filter(d => d.members.length > 1);
+      }
 
-        function initApp() {
-            populateSpecialties();
-            renderProcessList();
-            
-            // Listeners para búsqueda y filtros
-            document.getElementById('search-input').addEventListener('input', renderProcessList);
-            document.getElementById('specialty-filter').addEventListener('change', renderProcessList);
-            
-            // Listener para redimensionar la ventana
-            window.addEventListener('resize', updateSimulationCenter);
-            
-            // Seleccionar el primer elemento por defecto para mostrar algo al inicio
-            if (fullData.length > 0) {
-                toggleProcess(fullData[0].Proceso);
+      const nodes = [];
+      const edges = [];
+
+      selected.forEach((proc, i) => {
+        nodes.push({
+          data: {
+            id: proc.id,
+            label: proc.proceso,
+            kind: "process",
+            specialty: proc.especialidad,
+            color: PROCESS_COLORS[i % PROCESS_COLORS.length],
+            size: 54
+          }
+        });
+      });
+
+      diagnosisEntries.forEach(diag => {
+        const shared = diag.members.length > 1;
+        nodes.push({
+          data: {
+            id: diag.id,
+            label: diag.label,
+            kind: "diagnosis",
+            shared,
+            sharedCount: diag.members.length,
+            size: shared ? 34 + Math.min(diag.members.length * 4, 18) : 20
+          }
+        });
+
+        diag.members.forEach(procId => {
+          edges.push({
+            data: {
+              id: `${procId}__${diag.id}`,
+              source: procId,
+              target: diag.id,
+              shared
             }
-        }
+          });
+        });
+      });
 
-        function updateSimulationCenter() {
-            const w = graphContainer.clientWidth;
-            const h = graphContainer.clientHeight;
-            svg.attr("viewBox", [0, 0, w, h]);
-            simulation.force("center", d3.forceCenter(w / 2, h / 2));
-            simulation.alpha(0.3).restart();
-        }
+      const sharedItems = diagnosisEntries
+        .filter(d => d.members.length > 1)
+        .sort((a,b) => a.label.localeCompare(b.label, "en"));
 
-        function populateSpecialties() {
-            const specialties = [...new Set(fullData.map(item => item.especialidades))].sort();
-            const select = document.getElementById('specialty-filter');
-            specialties.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                select.appendChild(opt);
-            });
-        }
+      return { nodes, edges, sharedItems, processColorMap };
+    }
 
-        function renderProcessList() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const specialty = document.getElementById('specialty-filter').value;
-            const listElement = document.getElementById('process-list');
-            listElement.innerHTML = '';
+    function renderSharedPanels(sharedItems){
+      if(!sharedItems.length){
+        el.sharedSpotlight.innerHTML = `<div class="small">No shared diagnoses highlighted yet.</div>`;
+        el.sharedList.innerHTML = `<div class="small">There are no shared diagnoses between the selected processes.</div>`;
+        return;
+      }
 
-            const filtered = fullData.filter(item => {
-                const matchesSearch = item.Proceso.toLowerCase().includes(searchTerm);
-                const matchesSpecialty = !specialty || item.especialidades === specialty;
-                return matchesSearch && matchesSpecialty;
-            });
+      el.sharedSpotlight.innerHTML = sharedItems.slice(0, 8).map(item => `
+        <div class="spot-item">
+          ${escapeHtml(item.label)}
+          <small>${escapeHtml(item.processNames.join(" · "))}</small>
+        </div>
+      `).join("");
 
-            if (filtered.length === 0) {
-                listElement.innerHTML = '<div style="padding:10px; color:var(--text-muted);">No matching processes found.</div>';
-                return;
+      el.sharedList.innerHTML = sharedItems.map(item => `
+        <div class="shared-item">
+          <strong>${escapeHtml(item.label)}</strong>
+          <span>${escapeHtml(item.processNames.join(" · "))}</span>
+        </div>
+      `).join("");
+    }
+
+    function initCy(){
+      state.cy = cytoscape({
+        container: el.cy,
+        elements: [],
+        style: [
+          {
+            selector: "node",
+            style: {
+              "label": "data(label)",
+              "color": "#eef4ff",
+              "font-size": 11,
+              "text-wrap": "wrap",
+              "text-max-width": 120,
+              "text-valign": "center",
+              "text-halign": "center",
+              "text-outline-width": 2,
+              "text-outline-color": "#0b0f14",
+              "overlay-opacity": 0
             }
-
-            filtered.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `process-item ${selectedProcesses.has(item.Proceso) ? 'active' : ''}`;
-                div.innerHTML = `<strong>${item.Proceso}</strong> <br><span style="font-size:0.85em; opacity:0.8;">${item.especialidades}</span>`;
-                div.onclick = () => toggleProcess(item.Proceso);
-                listElement.appendChild(div);
-            });
-        }
-
-        function toggleProcess(processName) {
-            if (selectedProcesses.has(processName)) {
-                selectedProcesses.delete(processName);
-            } else {
-                selectedProcesses.add(processName);
+          },
+          {
+            selector: 'node[kind = "process"]',
+            style: {
+              "shape": "round-rectangle",
+              "width": "mapData(size, 20, 60, 70, 130)",
+              "height": "mapData(size, 20, 60, 36, 54)",
+              "padding": "10px",
+              "background-color": "data(color)",
+              "border-width": 2,
+              "border-color": "#ffffff66",
+              "font-size": 12,
+              "font-weight": 800,
+              "text-max-width": 140
             }
-            renderProcessList();
-            updateGraph();
+          },
+          {
+            selector: 'node[kind = "diagnosis"]',
+            style: {
+              "shape": "ellipse",
+              "width": "data(size)",
+              "height": "data(size)",
+              "background-color": "#294055",
+              "border-width": 1.5,
+              "border-color": "#9fb0c655",
+              "font-size": 10
+            }
+          },
+          {
+            selector: 'node[kind = "diagnosis"][shared > 0]',
+            style: {
+              "background-color": "#ff9900",
+              "border-color": "#fff3",
+              "border-width": 2,
+              "font-size": 11,
+              "font-weight": 700,
+              "text-max-width": 150
+            }
+          },
+          {
+            selector: "edge",
+            style: {
+              "curve-style": "bezier",
+              "width": 1.6,
+              "line-color": "#6d89a8",
+              "opacity": 0.34
+            }
+          },
+          {
+            selector: "edge[shared > 0]",
+            style: {
+              "line-color": "#ffb347",
+              "width": 2.4,
+              "opacity": 0.58
+            }
+          },
+          {
+            selector: ".dim",
+            style: {
+              "opacity": 0.16
+            }
+          },
+          {
+            selector: ".focus",
+            style: {
+              "opacity": 1
+            }
+          },
+          {
+            selector: ".selected-node",
+            style: {
+              "border-width": 4,
+              "border-color": "#ffffff",
+              "shadow-blur": 22,
+              "shadow-color": "#ff9900",
+              "shadow-opacity": 0.35
+            }
+          }
+        ],
+        layout: { name: "preset" },
+        wheelSensitivity: 0.18
+      });
+
+      state.cy.on("tap", "node", evt => {
+        const node = evt.target;
+        const neighborhood = node.closedNeighborhood();
+        state.cy.elements().addClass("dim").removeClass("focus selected-node");
+        neighborhood.removeClass("dim").addClass("focus");
+        node.addClass("selected-node");
+      });
+
+      state.cy.on("tap", evt => {
+        if(evt.target === state.cy){
+          state.cy.elements().removeClass("dim focus selected-node");
+        }
+      });
+    }
+
+    function runLayout(){
+      if(!state.cy) return;
+      const layout = state.cy.layout({
+        name: "cose",
+        animate: true,
+        animationDuration: 500,
+        fit: true,
+        padding: 40,
+        nodeRepulsion: 120000,
+        idealEdgeLength: edge => edge.data("shared") ? 110 : 85,
+        edgeElasticity: edge => edge.data("shared") ? 160 : 80,
+        gravity: 0.3,
+        numIter: 1200
+      });
+      layout.run();
+    }
+
+    function renderGraph(){
+      const selected = getSelectedProcesses();
+      const hasSelection = selected.length > 0;
+      el.emptyState.style.display = hasSelection ? "none" : "grid";
+
+      if(!hasSelection){
+        if(state.cy) state.cy.elements().remove();
+        el.graphSummary.textContent = "0 nodes · 0 edges";
+        renderSharedPanels([]);
+        return;
+      }
+
+      const { nodes, edges, sharedItems } = buildGraphData(selected);
+
+      if(!state.cy) initCy();
+      state.cy.elements().remove();
+      state.cy.add([...nodes, ...edges]);
+
+      el.graphSummary.textContent = `${nodes.length} nodes · ${edges.length} edges`;
+      renderSharedPanels(sharedItems);
+      runLayout();
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeHtmlAttr(str){
+      return escapeHtml(str).replaceAll('"', "&quot;");
+    }
+
+    el.searchInput.addEventListener("input", applyFilters);
+    el.specialtySelect.addEventListener("change", applyFilters);
+
+    el.clearBtn.addEventListener("click", () => {
+      state.selectedIds.clear();
+      applyFilters();
+    });
+
+    el.selectVisibleBtn.addEventListener("click", () => {
+      state.filtered.forEach(item => state.selectedIds.add(item.id));
+      applyFilters();
+    });
+
+    el.sharedOnlyBtn.addEventListener("click", () => {
+      state.displayMode = "shared-only";
+      el.sharedOnlyBtn.classList.add("primary");
+      el.sharedOnlyBtn.classList.remove("ghost");
+      el.sharedPlusUniqueBtn.classList.add("ghost");
+      el.sharedPlusUniqueBtn.classList.remove("primary");
+      renderGraph();
+    });
+
+    el.sharedPlusUniqueBtn.addEventListener("click", () => {
+      state.displayMode = "shared-plus-unique";
+      el.sharedPlusUniqueBtn.classList.add("primary");
+      el.sharedPlusUniqueBtn.classList.remove("ghost");
+      el.sharedOnlyBtn.classList.add("ghost");
+      el.sharedOnlyBtn.classList.remove("primary");
+      renderGraph();
+    });
+
+    el.fitGraphBtn.addEventListener("click", () => {
+      if(state.cy && state.cy.elements().length){
+        state.cy.fit(state.cy.elements(), 40);
+        state.cy.center();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if(state.cy){
+        state.cy.resize();
+        if(state.cy.elements().length) state.cy.fit(state.cy.elements(), 40);
+      }
+    });
+
+    loadData();
+  </script>
+
+  <script type="module">
+    const btn = document.getElementById("cosmosToggle");
+    const canvas = document.getElementById("cosmosCanvas");
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    function setCosmosInteractive(on){
+      document.body.classList.toggle("cosmos-interactive", on);
+      btn.setAttribute("aria-pressed", String(on));
+    }
+
+    btn.addEventListener("click", () => setCosmosInteractive(!document.body.classList.contains("cosmos-interactive")));
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Escape") setCosmosInteractive(false);
+    });
+
+    function hasWebGL(){
+      try{
+        const c = document.createElement("canvas");
+        return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl")));
+      }catch{
+        return false;
+      }
+    }
+
+    if(!hasWebGL()){
+      btn.style.display = "none";
+    }else{
+      try{
+        const THREE = await import("three");
+        const { OrbitControls } = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+        const { EffectComposer } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js");
+        const { RenderPass } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js");
+        const { UnrealBloomPass } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js");
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(new THREE.Color("#05070b"), 150, 720);
+
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
+        });
+        renderer.setClearColor(0x000000, 0);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+
+        const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+        camera.position.set(0, 40, 260);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.22));
+
+        const key = new THREE.PointLight(0xffcc66, 1.15, 900, 2);
+        key.position.set(140, 120, 140);
+        scene.add(key);
+
+        const rim = new THREE.PointLight(0x66b9ff, 0.85, 900, 2);
+        rim.position.set(-190, -60, 160);
+        scene.add(rim);
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), 1.15, 0.6, 0.15);
+        composer.addPass(bloom);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.rotateSpeed = 0.65;
+        controls.zoomSpeed = 0.9;
+        controls.panSpeed = 0.8;
+        controls.autoRotate = !reduceMotion;
+        controls.autoRotateSpeed = 0.35;
+        controls.target.set(0, 0, 0);
+
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 4200;
+        const pos = new Float32Array(starCount * 3);
+        for(let i=0;i<starCount;i++){
+          const k = i*3;
+          pos[k+0] = (Math.random()-0.5)*980;
+          pos[k+1] = (Math.random()-0.5)*560;
+          pos[k+2] = (Math.random()-0.5)*980;
+        }
+        starsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+        const starsMat = new THREE.PointsMaterial({
+          color: 0x9bbbe6,
+          size: 1.25,
+          sizeAttenuation: true,
+          transparent: true,
+          opacity: 0.42,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        const stars = new THREE.Points(starsGeo, starsMat);
+        scene.add(stars);
+
+        function resize(){
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          renderer.setSize(w, h, false);
+          composer.setSize(w, h);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          bloom.setSize(w, h);
         }
 
-        function updateGraph() {
-            const nodes = [];
-            const links = [];
-            const nodeSet = new Map(); // Guardamos el mapa para evitar duplicados
+        resize();
+        window.addEventListener("resize", resize);
 
-            // Filtrar objetos seleccionados
-            const selectedData = fullData.filter(d => selectedProcesses.has(d.Proceso));
+        let running = true;
+        document.addEventListener("visibilitychange", () => {
+          running = !document.hidden;
+        });
 
-            selectedData.forEach(p => {
-                // Nodo principal (Proceso)
-                if (!nodeSet.has(p.Proceso)) {
-                    const processNode = { id: p.Proceso, group: 'process', label: p.Proceso };
-                    nodes.push(processNode);
-                    nodeSet.set(p.Proceso, processNode);
-                }
+        const clock = new THREE.Clock();
 
-                // Nodos secundarios (Diagnósticos Diferenciales) y enlaces
-                p['Diagnósticos diferenciales'].forEach(ddx => {
-                    if (!nodeSet.has(ddx)) {
-                        const ddxNode = { id: ddx, group: 'ddx', label: ddx };
-                        nodes.push(ddxNode);
-                        nodeSet.set(ddx, ddxNode);
-                    }
-                    links.push({ source: p.Proceso, target: ddx });
-                });
-            });
+        function tick(){
+          requestAnimationFrame(tick);
+          if(!running) return;
 
-            // Actualizar Enlaces (Links)
-            const link = g.selectAll(".link")
-                .data(links, d => d.source.id + "-" + d.target.id);
+          const t = clock.getElapsedTime();
+          stars.rotation.y = t * 0.015;
+          stars.rotation.x = Math.sin(t * 0.05) * 0.02;
 
-            link.exit().transition().duration(300).style("stroke-opacity", 0).remove();
-            
-            const linkEnter = link.enter().append("line")
-                .attr("class", "link")
-                .style("stroke-opacity", 0);
-            
-            linkEnter.transition().duration(300).style("stroke-opacity", 0.6);
-
-            // Actualizar Nodos (Nodes)
-            const node = g.selectAll(".node")
-                .data(nodes, d => d.id);
-
-            node.exit().transition().duration(300).attr("r", 0).remove();
-            
-            const nodeEnter = node.enter().append("g")
-                .attr("class", "node")
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-
-            // Círculos de los nodos
-            nodeEnter.append("circle")
-                .attr("r", d => d.group === 'process' ? 14 : 7)
-                .attr("fill", d => d.group === 'process' ? "var(--accent-color)" : "var(--secondary-color)")
-                .on("mouseover", (event, d) => {
-                    d3.select(event.currentTarget).transition().duration(200).attr("r", d.group === 'process' ? 18 : 10);
-                    tooltip.transition().duration(200).style("opacity", 1);
-                    tooltip.html(`<strong>${d.group === 'process' ? 'Process' : 'DDx'}:</strong><br>${d.label}`)
-                        .style("left", (event.pageX + 15) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", (event, d) => {
-                    d3.select(event.currentTarget).transition().duration(200).attr("r", d.group === 'process' ? 14 : 7);
-                    tooltip.transition().duration(500).style("opacity", 0);
-                });
-
-            // Texto de los nodos principales
-            nodeEnter.append("text")
-                .attr("dx", 18)
-                .attr("dy", ".35em")
-                .text(d => d.group === 'process' ? d.label : "")
-                .style("font-weight", "bold");
-
-            // Unir selecciones
-            const allNodes = nodeEnter.merge(node);
-            const allLinks = linkEnter.merge(link);
-
-            // Reiniciar simulación con nuevos datos
-            simulation.nodes(nodes);
-            simulation.force("link").links(links);
-            simulation.alpha(1).restart();
-
-            // Actualizar posiciones en cada 'tick'
-            simulation.on("tick", () => {
-                allLinks
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-
-                allNodes
-                    .attr("transform", d => `translate(${d.x},${d.y})`);
-            });
+          controls.update();
+          composer.render();
         }
 
-        // Funciones de Arrastre (Drag)
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    </script>
+        tick();
+      }catch(err){
+        console.warn("Cosmos 3D unavailable:", err);
+        btn.style.display = "none";
+        setCosmosInteractive(false);
+      }
+    }
+  </script>
 </body>
 </html>
