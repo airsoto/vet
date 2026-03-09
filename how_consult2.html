@@ -2,16 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <title>Cómo está hecho el scraper (Cornell Consultant → JSON)</title>
-
+  <title>Scraper Cornell Consultant | Signs → Diagnósticos (Canine)</title>
   <style>
     :root{
       --bg:#0b0f14;
-      --bg2:#0f1724;
-      --panel:#0f1a2a;
-      --panel2:#101f33;
+      --panel:#101a2a;
+      --panel2:#0c1320;
       --text:#e9eef6;
       --muted:#9fb0c6;
       --line:rgba(255,255,255,.10);
@@ -19,306 +17,321 @@
       --accent:#ff9900;
       --accent2:#90caf9;
       --good:#27d17f;
-      --shadow: 0 20px 60px rgba(0,0,0,.55);
-      --shadow2: 0 10px 30px rgba(0,0,0,.40);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
-      --radius:18px;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      --radius:16px;
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
     }
-
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+    *{box-sizing:border-box}
     body{
       margin:0;
       font-family:var(--sans);
       color:var(--text);
       background:
-        radial-gradient(1100px 700px at 20% 10%, rgba(144,202,249,.14), transparent 60%),
-        radial-gradient(900px 600px at 80% 20%, rgba(255,153,0,.12), transparent 62%),
-        radial-gradient(900px 700px at 50% 100%, rgba(39,209,127,.10), transparent 60%),
-        linear-gradient(180deg, var(--bg), #070b10 70%);
-      line-height:1.6;
+        radial-gradient(1200px 600px at 20% -10%, rgba(255,153,0,.14), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(144,202,249,.14), transparent 55%),
+        radial-gradient(800px 600px at 60% 120%, rgba(39,209,127,.10), transparent 55%),
+        linear-gradient(180deg, var(--bg), #070a0f);
+      min-height:100vh;
     }
-
-    a{ color:var(--accent2); text-decoration:none; }
-    a:hover{ text-decoration:underline; }
-
-    .wrap{
-      max-width:1100px;
-      margin:0 auto;
-      padding:22px 18px 70px;
+    a{color:inherit}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px 18px 64px}
+    header{
+      display:flex;gap:14px;align-items:flex-start;justify-content:space-between;
+      margin-bottom:18px;
     }
-
-    .hero{
-      border:1px solid rgba(255,255,255,.10);
-      background: linear-gradient(180deg, rgba(16,27,43,.82), rgba(10,14,20,.68));
-      border-radius: calc(var(--radius) + 6px);
-      box-shadow: var(--shadow);
-      padding: 26px 22px;
-      position:relative;
-      overflow:hidden;
+    .brand{
+      display:flex;flex-direction:column;gap:10px;
     }
-    .hero:before{
-      content:"";
-      position:absolute; inset:-1px;
-      background:
-        radial-gradient(720px 260px at 20% 10%, rgba(255,153,0,.18), transparent 60%),
-        radial-gradient(720px 260px at 70% 0%, rgba(144,202,249,.16), transparent 62%),
-        radial-gradient(900px 360px at 50% 100%, rgba(39,209,127,.10), transparent 64%);
-      opacity:.9;
-      pointer-events:none;
+    .title{
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     }
-    .hero > *{ position:relative; }
-
-    .kicker{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.05);
-      color: var(--muted);
-      font-size:12px;
-      margin-bottom: 12px;
-    }
-    .dot{
-      width:9px;height:9px;border-radius:99px;
-      background: var(--accent);
-      box-shadow: 0 0 0 3px rgba(255,153,0,.14);
-    }
-
-    h1{
-      margin:0 0 8px;
-      font-size: 28px;
-      line-height:1.15;
-      letter-spacing:.2px;
-    }
-    .sub{
-      margin:0;
-      color:var(--muted);
-      font-size:14px;
-      max-width: 90ch;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .card{
-      border:1px solid rgba(255,255,255,.10);
-      border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(16,27,43,.78), rgba(10,14,20,.60));
-      box-shadow: var(--shadow2);
-      padding: 18px 16px;
-    }
-
-    .card h2{
-      margin:0 0 10px;
-      font-size: 14px;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      letter-spacing:.2px;
-    }
-    .dot.blue{ background: var(--accent2); box-shadow: 0 0 0 3px rgba(144,202,249,.14);}
-    .dot.green{ background: var(--good); box-shadow: 0 0 0 3px rgba(39,209,127,.14);}
-
-    .card p{ margin:0; color: var(--muted); font-size: 13.5px; }
-    .card ul{
-      margin: 10px 0 0;
-      padding-left: 18px;
-      color: var(--muted);
-      font-size: 13.5px;
-    }
-    .card li{ margin: 6px 0; }
-
-    .mono{ font-family: var(--mono); }
     .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-      font-size: 12px;
-      margin: 8px 8px 0 0;
-    }
-
-    .codewrap{
-      margin-top: 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(8,10,14,.78);
-      overflow:hidden;
-    }
-    .codebar{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .btn{
-      border:1px solid rgba(255,255,255,.12);
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: transform .06s ease, border-color .2s ease;
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      border:1px solid var(--soft);
+      box-shadow:0 10px 28px rgba(0,0,0,.30);
+      font-size:12px;color:var(--muted);
       user-select:none;
     }
-    .btn:hover{ border-color: rgba(255,255,255,.22); }
-    .btn:active{ transform: translateY(1px); }
-
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--accent)}
+    h1{
+      margin:0;
+      font-size:clamp(22px, 2.4vw, 32px);
+      letter-spacing:.2px;
+      line-height:1.15;
+    }
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      max-width:72ch;
+      line-height:1.5;
+      font-size:14.5px;
+    }
+    .right{
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;
+    }
+    .chip{
+      border:1px solid var(--soft);
+      background:rgba(255,255,255,.04);
+      padding:8px 10px;border-radius:999px;
+      color:var(--muted);
+      font-size:12px;
+      display:inline-flex;gap:8px;align-items:center;
+    }
+    .chip b{color:var(--text);font-weight:600}
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+      margin-top:16px;
+    }
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
+      header{flex-direction:column;align-items:stretch}
+      .right{justify-content:flex-start}
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--soft);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .card .head{
+      padding:14px 16px;
+      border-bottom:1px solid var(--soft);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    }
+    .card .head h2{
+      margin:0;font-size:14px;letter-spacing:.3px;text-transform:uppercase;
+      color:var(--muted);
+    }
+    .card .body{padding:14px 16px}
+    .kpi{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 2px;
+    }
+    .kpi .box{
+      border:1px solid var(--soft);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+    .kpi .box .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .kpi .box .value{font-size:13px;line-height:1.35}
+    .step{
+      display:flex;gap:12px;align-items:flex-start;
+      padding:12px 12px;
+      border:1px solid var(--soft);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;
+      margin:10px 0;
+    }
+    .num{
+      width:28px;height:28px;border-radius:10px;
+      display:grid;place-items:center;
+      background:rgba(255,153,0,.14);
+      border:1px solid rgba(255,153,0,.25);
+      color:var(--accent);
+      font-weight:700;
+      flex:0 0 auto;
+      font-size:13px;
+    }
+    .step h3{margin:0 0 4px;font-size:14px}
+    .step p{margin:0;color:var(--muted);line-height:1.5;font-size:13.5px}
+    .note{
+      margin-top:12px;
+      padding:12px 12px;
+      border-left:3px solid var(--accent2);
+      background:rgba(144,202,249,.08);
+      border-radius:12px;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:13.5px;
+    }
+    .note b{color:var(--text)}
     pre{
       margin:0;
-      padding: 14px 14px 16px;
+      padding:14px 14px;
+      background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.18));
+      border-top:1px solid var(--soft);
       overflow:auto;
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.55;
-      color: #dbe6ff;
-      white-space: pre;
-      tab-size: 2;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.45;
     }
-
-    .callout{
-      margin-top: 12px;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-      font-size: 12.8px;
+    code{font-family:var(--mono)}
+    .toolbar{
+      display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;
     }
-    .callout strong{ color: var(--text); }
-
+    button{
+      appearance:none;border:1px solid var(--soft);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:8px 10px;border-radius:12px;
+      cursor:pointer;
+      font-size:12px;
+      transition:transform .08s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}
+    button:active{transform:translateY(1px)}
+    .pill{
+      display:inline-flex;gap:8px;align-items:center;
+      padding:8px 10px;border-radius:12px;
+      border:1px solid rgba(39,209,127,.25);
+      background:rgba(39,209,127,.08);
+      color:var(--muted);
+      font-size:12.5px;
+      margin-top:10px;
+    }
+    .pill b{color:var(--good)}
     footer{
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 12px;
-      display:flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      opacity:.95;
+      margin-top:18px;
+      color:var(--muted);
+      font-size:12px;
+      text-align:center;
+      opacity:.9;
     }
-
-    @media (max-width: 680px){
-      h1{ font-size: 24px; }
-    }
+    .mono{font-family:var(--mono)}
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <header class="hero">
-      <div class="kicker">
-        <span class="dot blue" aria-hidden="true"></span>
-        Documentación — <span class="mono">Cornell Consultant → JSON</span>
+    <header>
+      <div class="brand">
+        <div class="title">
+          <span class="badge"><span class="dot"></span> Cornell Consultant • Scraper</span>
+          <h1>Signs → Diagnósticos diferenciales (Canine)</h1>
+        </div>
+        <p class="subtitle">
+          Este documento describe <b>cómo funciona</b> el script Python que genera un JSON a partir de una lista de signos
+          (código + nombre) y, para cada signo, extrae los “Possible Diagnoses” (enlaces <span class="mono">class="news"</span>)
+          desde la web de <span class="mono">consultant.vet.cornell.edu</span>.
+        </p>
       </div>
-      <h1>Cómo está hecho el programa</h1>
-      <p class="sub">
-        Este documento describe el flujo del scraper: cómo toma una lista de códigos de signos,
-        construye las URLs, extrae los diagnósticos diferenciales desde el HTML y genera un JSON.
-        <strong>No ejecuta nada</strong>: es solo explicación + el código Python visible en una “ventana”.
-      </p>
-      <div>
-        <span class="badge"><span class="dot" aria-hidden="true"></span> Entrada: <span class="mono">sings_link.txt</span></span>
-        <span class="badge"><span class="dot blue" aria-hidden="true"></span> URL: <span class="mono">...?signs=1-XXX</span></span>
-        <span class="badge"><span class="dot green" aria-hidden="true"></span> Salida: <span class="mono">consultant_signs_canine.json</span></span>
+
+      <div class="right">
+        <span class="chip">Entrada: <b class="mono">sings_link.txt</b></span>
+        <span class="chip">Salida: <b class="mono">consultant_signs_canine.json</b></span>
+        <span class="chip">Método: <b>POST</b> (simula botón)</span>
       </div>
     </header>
 
-    <main class="grid">
+    <div class="grid">
+      <!-- Cómo funciona -->
       <section class="card">
-        <h2><span class="dot" aria-hidden="true"></span>1) Fuente de códigos y “Proceso”</h2>
-        <p>
-          El programa parte de un archivo de texto (<span class="mono">sings_link.txt</span>) donde cada línea contiene:
-          <strong>código</strong> (tres caracteres tras <span class="mono">SX_</span>, p.ej. <span class="mono">A00</span>, <span class="mono">C0A</span>, <span class="mono">DE3</span>)
-          y, a continuación, el <strong>nombre del proceso</strong> (p.ej. “Deafness”). Ese texto se asigna directamente al campo
-          <span class="mono">"Proceso"</span> en el JSON.
-        </p>
-        <div class="callout">
-          <strong>Detalle:</strong> el script acepta separación por TAB (<span class="mono">\t</span>) y también por <strong>2+ espacios</strong> como respaldo.
+        <div class="head">
+          <h2>Cómo está hecho</h2>
         </div>
-      </section>
-
-      <section class="card">
-        <h2><span class="dot blue" aria-hidden="true"></span>2) Construcción de la URL de consulta</h2>
-        <p>
-          Para cada código, se genera una URL con el patrón:
-          <span class="mono">https://consultant.vet.cornell.edu/?Fun=F_Sign&amp;spc=Canine&amp;dxkw=&amp;sxkw=&amp;signs=1-XXX</span>.
-          El programa sustituye <span class="mono">XXX</span> por el código (por ejemplo, <span class="mono">A00</span>),
-          y descarga el HTML resultante.
-        </p>
-        <div class="callout">
-          <strong>Buenas prácticas:</strong> el script usa <span class="mono">requests.Session()</span> y una pausa (<span class="mono">sleep</span>) entre peticiones
-          para evitar saturar el servidor.
-        </div>
-      </section>
-
-      <section class="card">
-        <h2><span class="dot green" aria-hidden="true"></span>3) Extracción de “Diagnósticos diferenciales”</h2>
-        <p>
-          En la página, la lista de “Possible Diagnoses” se presenta como enlaces
-          <span class="mono">&lt;a class="news"&gt;...&lt;/a&gt;</span>.
-          El programa filtra únicamente los enlaces cuyo <span class="mono">href</span> contiene <span class="mono">Fun=Cause_</span>,
-          y guarda el texto visible de cada enlace como un elemento de la lista
-          <span class="mono">"Diagnósticos diferenciales"</span>.
-        </p>
-        <div class="callout">
-          <strong>Detalle:</strong> se eliminan duplicados conservando el orden para que el JSON sea estable.
-        </div>
-      </section>
-
-      <section class="card">
-        <h2><span class="dot" aria-hidden="true"></span>4) Campo “especialidades”</h2>
-        <p>
-          El campo <span class="mono">"especialidades"</span> se infiere de la primera letra del código:
-          A=Acoustic, C=Cardiovascular, D=Digestive, E=Ophthalmology, G=General, M=Musculoskeletal, N=Nervous,
-          P=Pain/Discomfort, R=Respiratory, S=Skin/Integumentary, T=Reproductive, U=Urinary.
-          Si no encaja, se usa <span class="mono">"All"</span>.
-        </p>
-      </section>
-
-      <section class="card">
-        <h2><span class="dot blue" aria-hidden="true"></span>Código Python (visible)</h2>
-        <p>
-          Aquí está el script completo, incrustado en una “ventana” para lectura. (Esta página no lo ejecuta.)
-        </p>
-
-        <div class="codewrap">
-          <div class="codebar">
-            <span class="mono">scrape_consultant_signs.py</span>
-            <button class="btn" id="copyPy" type="button">Copiar código</button>
+        <div class="body">
+          <div class="kpi">
+            <div class="box">
+              <div class="label">Objetivo</div>
+              <div class="value">Crear un <b>JSON</b> con cada signo como <b>Proceso</b>, su <b>sistema</b> (especialidad) y la lista de <b>diagnósticos</b> asociados.</div>
+            </div>
+            <div class="box">
+              <div class="label">Por qué POST y no GET</div>
+              <div class="value">La lista de diagnósticos aparece <b>solo después</b> de enviar el formulario y pulsar <b>“Search for Diagnoses”</b>.</div>
+            </div>
           </div>
-          <pre><code id="pyCode">#!/usr/bin/env python3
+
+          <div class="step">
+            <div class="num">1</div>
+            <div>
+              <h3>Lee el archivo de entrada</h3>
+              <p>
+                El script abre <span class="mono">sings_link.txt</span>, donde cada línea contiene:
+                <b>código</b> (ej. <span class="mono">A00</span>, <span class="mono">C0A</span>, <span class="mono">DE3</span>) y, tras tabulador o espacios, el <b>nombre del proceso</b>
+                (ej. “Deafness”).
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">2</div>
+            <div>
+              <h3>Construye la URL por signo</h3>
+              <p>
+                Para cada código, genera la URL:
+                <span class="mono">https://consultant.vet.cornell.edu/?Fun=F_Sign&spc=Canine&dxkw=&sxkw=&signs=1-XXX</span>
+                sustituyendo <span class="mono">XXX</span> por el código.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">3</div>
+            <div>
+              <h3>Simula la pulsación del botón “Search for Diagnoses”</h3>
+              <p>
+                En lugar de un <b>GET</b>, hace un <b>POST</b> al mismo endpoint con un payload que imita el formulario:
+                <span class="mono">SubBut="Search for Diagnoses"</span> y el checkbox
+                <span class="mono">SX_XXX="SX_XXX"</span>. Así el servidor devuelve la página con el listado de diagnósticos.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">4</div>
+            <div>
+              <h3>Extrae diagnósticos diferenciales</h3>
+              <p>
+                Una vez obtenida la página “post-submit”, parsea el HTML con BeautifulSoup y recoge los enlaces
+                <span class="mono">&lt;a class="news"&gt;</span> cuyo <span class="mono">href</span> contiene <span class="mono">Fun=Cause_</span>.
+                El texto del enlace se almacena como elemento de <b>“Diagnósticos diferenciales”</b>.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">5</div>
+            <div>
+              <h3>Asigna especialidad por letra inicial</h3>
+              <p>
+                La <b>especialidad</b> se infiere por la primera letra del código (A→Acoustic, C→Cardiovascular, D→Digestive…),
+                reflejando el selector de “System” de la web.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">6</div>
+            <div>
+              <h3>Guarda el JSON final</h3>
+              <p>
+                Genera un JSON con los campos: <b>Proceso</b>, <b>especialidades</b>, <b>Diagnósticos diferenciales</b> y una sección <span class="mono">meta</span>
+                con el código y URL usada.
+              </p>
+            </div>
+          </div>
+
+          <div class="note">
+            <b>Detalle clave:</b> “Proceso” se toma del <span class="mono">TXT</span> (no de la página),
+            mientras que los diagnósticos se extraen de la página resultante tras el <b>POST</b>.
+            Esto evita discrepancias y respeta tu fuente principal para el nombre del proceso.
+          </div>
+
+          <div class="pill"><b>✔</b> Con este enfoque, el scraper ve los enlaces <span class="mono">class="news"</span> que no aparecen con un simple “copiar enlace”.</div>
+        </div>
+      </section>
+
+      <!-- Script -->
+      <section class="card" id="codigo">
+        <div class="head">
+          <h2>Código Python (versión funcional)</h2>
+          <div class="toolbar">
+            <button type="button" id="copyBtn">Copiar</button>
+            <button type="button" id="toggleBtn">Contraer/Expandir</button>
+          </div>
+        </div>
+
+        <pre id="codeBlock"><code>#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-"""
-Scraper Cornell Consultant: Signs -> Possible Diagnoses (Canine)
-
-Input:  sings_link.txt  (CODE<TAB>PROCESS)  e.g. "A00\tDeafness"
-Output: consultant_signs_canine.json
-
-Notes:
-- "Proceso" is taken from the txt (per instruction), not from the page.
-- "especialidades" is inferred from the first character of the code.
-- "Diagnósticos diferenciales" are extracted from <a class="news"> whose href contains "Fun=Cause_".
-"""
 
 import json
 import re
@@ -329,9 +342,8 @@ from typing import Dict, List, Tuple
 import requests
 from bs4 import BeautifulSoup
 
-
 BASE_URL = "https://consultant.vet.cornell.edu/"
-URL_TMPL = BASE_URL + "?Fun=F_Sign&spc=Canine&dxkw=&sxkw=&signs=1-{code}"
+URL_TMPL = BASE_URL + "?Fun=F_Sign&amp;spc=Canine&amp;dxkw=&amp;sxkw=&amp;signs=1-{code}"
 
 INPUT_TXT = "sings_link.txt"
 OUTPUT_JSON = "consultant_signs_canine.json"
@@ -361,7 +373,7 @@ class SignRow:
     proceso: str
 
 
-def read_signs_txt(path: str) -> List[SignRow]:
+def read_signs_txt(path: str) -&gt; List[SignRow]:
     rows: List[SignRow] = []
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         for raw in f:
@@ -369,88 +381,91 @@ def read_signs_txt(path: str) -> List[SignRow]:
             if not line:
                 continue
             parts = re.split(r"\t+", line, maxsplit=1)
-            if len(parts) < 2:
+            if len(parts) &lt; 2:
                 parts = re.split(r"\s{2,}", line, maxsplit=1)
-            if len(parts) < 2:
+            if len(parts) &lt; 2:
                 continue
             code = parts[0].strip()
             proceso = parts[1].strip()
-            if not code or not proceso:
-                continue
-            rows.append(SignRow(code=code, proceso=proceso))
+            if code and proceso:
+                rows.append(SignRow(code=code, proceso=proceso))
     return rows
 
 
-def infer_system(code: str) -> str:
-    if not code:
-        return "All"
-    return SYSTEM_MAP.get(code[0].upper(), "All")
+def infer_system(code: str) -&gt; str:
+    return SYSTEM_MAP.get(code[:1].upper(), "All") if code else "All"
 
 
-def fetch_html(session: requests.Session, url: str, retries: int = 3) -> str:
-    last_err = None
-    for attempt in range(1, retries + 1):
-        try:
-            r = session.get(url, timeout=TIMEOUT)
-            r.raise_for_status()
-            r.encoding = r.apparent_encoding or "utf-8"
-            return r.text
-        except Exception as e:
-            last_err = e
-            time.sleep(0.8 * attempt)
-    raise RuntimeError(f"Failed to fetch after {retries} attempts: {url}\nLast error: {last_err}")
-
-
-def extract_diagnoses(html: str) -> List[str]:
+def extract_diagnoses(html: str) -&gt; List[str]:
     soup = BeautifulSoup(html, "html.parser")
-    anchors = soup.select("a.news")
-
     diags: List[str] = []
     seen = set()
 
-    for a in anchors:
+    for a in soup.select("a.news"):
         href = a.get("href", "") or ""
         if "Fun=Cause_" not in href:
             continue
         text = a.get_text(" ", strip=True)
-        if not text:
-            continue
-        if text in seen:
-            continue
-        seen.add(text)
-        diags.append(text)
+        if text and text not in seen:
+            seen.add(text)
+            diags.append(text)
 
     return diags
 
 
-def main() -> None:
+def fetch_page_after_submit(session: requests.Session, code: str) -&gt; str:
+    """
+    IMPORTANT: The diagnoses list appears after submitting the form (POST),
+    not just by opening the URL (GET).
+    """
+    url = URL_TMPL.format(code=code)
+
+    # Simulate "Search for Diagnoses" submit + checked checkbox.
+    data = {
+        "SPC": "Canine",
+        "kw": "",
+        "SubBut": "Search for Diagnoses",
+        f"SX_{code}": f"SX_{code}",
+    }
+
+    r = session.post(url, data=data, timeout=TIMEOUT)
+    r.raise_for_status()
+    r.encoding = r.apparent_encoding or "utf-8"
+    return r.text
+
+
+def main() -&gt; None:
     signs = read_signs_txt(INPUT_TXT)
     if not signs:
         raise SystemExit(f"No valid rows found in {INPUT_TXT}")
 
     session = requests.Session()
     session.headers.update({
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) CornellConsultantScraper/1.0 (+non-commercial research)",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) CornellConsultantScraper/1.1",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Connection": "keep-alive",
+        "Referer": BASE_URL,
     })
 
     out: List[dict] = []
     errors: List[Tuple[str, str]] = []
 
     for i, row in enumerate(signs, start=1):
-        url = URL_TMPL.format(code=row.code)
         try:
-            html = fetch_html(session, url)
+            html = fetch_page_after_submit(session, row.code)
             diags = extract_diagnoses(html)
-            entry = {
+
+            out.append({
                 "Proceso": row.proceso,
                 "especialidades": infer_system(row.code),
                 "Diagnósticos diferenciales": diags,
-                "meta": {"sign_code": row.code, "url": url},
-            }
-            out.append(entry)
+                "meta": {
+                    "sign_code": row.code,
+                    "url": URL_TMPL.format(code=row.code),
+                    "method": "POST(SubBut=Search for Diagnoses)"
+                }
+            })
         except Exception as e:
             errors.append((row.code, str(e)))
 
@@ -474,39 +489,54 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()</code></pre>
-        </div>
-
-        <div class="callout">
-          <strong>Nota:</strong> esta página solo documenta el enfoque y muestra el código.
-          No hay formularios, ni scraping, ni “proceso” ejecutándose aquí.
-        </div>
+    main()
+</code></pre>
       </section>
-    </main>
+    </div>
 
     <footer>
-      <div>
-        Flujo resumido:
-        <span class="mono">TXT (código+proceso) → URL → HTML → a.news(Fun=Cause_) → JSON</span>
-      </div>
-      <div>Diseño dark · una sola página HTML</div>
+      Documento explicativo (modo dark). Incluye el script funcional y describe por qué es necesario el POST para obtener los diagnósticos.
     </footer>
   </div>
 
   <script>
-    // Solo UX (copiar). No ejecuta scraping ni hace peticiones.
-    document.getElementById('copyPy').addEventListener('click', async () => {
-      const text = document.getElementById('pyCode').innerText.trim();
+    const pre = document.getElementById('codeBlock');
+    const copyBtn = document.getElementById('copyBtn');
+    const toggleBtn = document.getElementById('toggleBtn');
+
+    function getCodeText(){
+      // Extrae texto "limpio" del <code>
+      return pre.innerText.replace(/\u00a0/g, ' ');
+    }
+
+    copyBtn.addEventListener('click', async () => {
       try{
-        await navigator.clipboard.writeText(text);
-        const btn = document.getElementById('copyPy');
-        const old = btn.textContent;
-        btn.textContent = '✅ Copiado';
-        setTimeout(()=> btn.textContent = old, 1200);
+        await navigator.clipboard.writeText(getCodeText());
+        copyBtn.textContent = 'Copiado ✓';
+        setTimeout(()=> copyBtn.textContent = 'Copiar', 1200);
       }catch(e){
-        alert("No se pudo copiar. En archivos locales algunos navegadores bloquean el portapapeles.");
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = getCodeText();
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        copyBtn.textContent = 'Copiado ✓';
+        setTimeout(()=> copyBtn.textContent = 'Copiar', 1200);
       }
     });
+
+    let collapsed = false;
+    toggleBtn.addEventListener('click', () => {
+      collapsed = !collapsed;
+      pre.style.maxHeight = collapsed ? '260px' : '';
+      pre.style.overflow = collapsed ? 'auto' : 'auto';
+      toggleBtn.textContent = collapsed ? 'Expandir' : 'Contraer/Expandir';
+      if(!collapsed) toggleBtn.textContent = 'Contraer/Expandir';
+    });
+
+    // estado inicial: no colapsado
   </script>
 </body>
 </html>
