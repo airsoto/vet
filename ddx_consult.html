@@ -1282,21 +1282,36 @@
 function parseData(input){
   let arr = input;
 
-  if (!Array.isArray(arr)) {
-    if (Array.isArray(input.data)) arr = input.data;
-    else if (Array.isArray(input.items)) arr = input.items;
+  // Caso 1: raíz = array de procesos directamente
+  if (Array.isArray(arr) && arr.length && arr[0]?.Proceso) {
+    // usar tal cual
+  }
+
+  // Caso 2: raíz = array con un objeto contenedor que tiene .items
+  else if (Array.isArray(arr) && arr.length && Array.isArray(arr[0]?.items)) {
+    arr = arr[0].items;
+  }
+
+  // Caso 3: raíz = objeto con .items, .data, .results o .signs
+  else if (!Array.isArray(arr)) {
+    if (Array.isArray(input.items)) arr = input.items;
+    else if (Array.isArray(input.data)) arr = input.data;
     else if (Array.isArray(input.results)) arr = input.results;
     else if (Array.isArray(input.signs)) arr = input.signs;
     else {
       console.error("Unexpected JSON structure:", input);
-      throw new Error("The JSON root is not an array.");
+      throw new Error("The JSON root does not contain a valid items array.");
     }
+  }
+
+  else {
+    console.error("Unexpected JSON structure:", input);
+    throw new Error("The JSON structure is not supported.");
   }
 
   return arr.map((item, idx) => {
     const diagnoses = safeArray(
       item["Diagnósticos diferenciales"] ??
-      item["diagnosticos diferenciales"] ??
       item["Differential diagnoses"]
     ).map(d => String(d).trim()).filter(Boolean);
 
