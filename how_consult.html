@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Scraper Cornell Consultant → JSON (Signs → Diagnoses)</title>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --bg2:#0f1724;
+      --panel:#0f1a2a;
+      --panel2:#101f33;
+      --text:#e9eef6;
+      --muted:#9fb0c6;
+      --line:rgba(255,255,255,.10);
+      --soft:rgba(255,255,255,.06);
+      --accent:#ff9900;
+      --accent2:#90caf9;
+      --good:#27d17f;
+      --bad:#ff5c7a;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+      --radius:16px;
+      --shadow: 0 20px 60px rgba(0,0,0,.55);
+      --shadow2: 0 10px 30px rgba(0,0,0,.40);
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(144,202,249,.14), transparent 60%),
+        radial-gradient(900px 600px at 80% 20%, rgba(255,153,0,.12), transparent 62%),
+        radial-gradient(900px 700px at 50% 100%, rgba(39,209,127,.10), transparent 60%),
+        linear-gradient(180deg, var(--bg), #070b10 70%);
+      line-height: 1.55;
+    }
+
+    a{ color: var(--accent2); text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 18px 80px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--soft);
+      background: linear-gradient(180deg, rgba(17,24,38,.86), rgba(10,14,20,.70));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 14px;
+      z-index: 10;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 220px;
+    }
+
+    .logo{
+      width:40px;height:40px;border-radius: 12px;
+      background:
+        radial-gradient(18px 18px at 30% 35%, rgba(255,153,0,.95), rgba(255,153,0,.25) 60%, transparent 70%),
+        radial-gradient(22px 22px at 70% 65%, rgba(144,202,249,.85), rgba(144,202,249,.20) 60%, transparent 75%),
+        linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+    }
+
+    .brand h1{
+      font-size: 14px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .brand p{
+      margin:0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .actions{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn{
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform .06s ease, border-color .2s ease, background .2s ease;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      user-select:none;
+    }
+    .btn:hover{ border-color: rgba(255,255,255,.22); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      border-color: rgba(255,153,0,.35);
+      background: linear-gradient(180deg, rgba(255,153,0,.20), rgba(255,153,0,.08));
+    }
+    .pill{
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--muted);
+    }
+
+    header.hero{
+      margin-top: 18px;
+      border-radius: calc(var(--radius) + 6px);
+      border: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(16,27,43,.82), rgba(10,14,20,.68));
+      box-shadow: var(--shadow);
+      padding: 26px 22px;
+      position: relative;
+      overflow:hidden;
+    }
+    header.hero:before{
+      content:"";
+      position:absolute; inset:-1px;
+      background:
+        radial-gradient(700px 220px at 20% 10%, rgba(255,153,0,.18), transparent 60%),
+        radial-gradient(700px 260px at 70% 0%, rgba(144,202,249,.16), transparent 62%),
+        radial-gradient(900px 360px at 50% 100%, rgba(39,209,127,.10), transparent 64%);
+      pointer-events:none;
+      opacity: .9;
+    }
+    header.hero > *{ position:relative; }
+
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .hero h2{
+      margin:0 0 10px;
+      font-size: 26px;
+      letter-spacing: .2px;
+      line-height: 1.15;
+    }
+    .hero p{
+      margin:0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 82ch;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+      .actions{ justify-content: flex-start; }
+      .brand{ min-width: unset; }
+    }
+
+    .card{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(16,27,43,.78), rgba(10,14,20,.60));
+      box-shadow: var(--shadow2);
+      padding: 18px 16px;
+      overflow:hidden;
+    }
+    .card h3{
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .dot{
+      width: 9px;height:9px;border-radius: 99px;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.14);
+    }
+    .dot.blue{ background: var(--accent2); box-shadow: 0 0 0 3px rgba(144,202,249,.14);}
+    .dot.green{ background: var(--good); box-shadow: 0 0 0 3px rgba(39,209,127,.14);}
+    .dot.red{ background: var(--bad); box-shadow: 0 0 0 3px rgba(255,92,122,.14);}
+
+    .card p{ margin: 0; color: var(--muted); font-size: 13px; }
+    .card ul{
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .card li{ margin: 6px 0; }
+
+    .callout{
+      margin-top: 12px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .callout strong{ color: var(--text); }
+
+    .codewrap{
+      margin-top: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(8,10,14,.75);
+      overflow:hidden;
+    }
+    .codebar{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      color: var(--muted);
+      font-size: 12px;
+    }
+    pre{
+      margin:0;
+      padding: 14px 14px 16px;
+      overflow:auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      color: #dbe6ff;
+      white-space: pre;
+      tab-size: 2;
+    }
+    code{ font-family: var(--mono); }
+
+    .legend{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tag{
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+
+    footer{
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      opacity:.95;
+    }
+
+    .mono{ font-family: var(--mono); }
+    .muted{ color: var(--muted); }
+    .hr{
+      height:1px; background: rgba(255,255,255,.08);
+      margin: 12px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Scraper Cornell Consultant → JSON</h1>
+          <p>Signs/Symptoms (Canine) → Lista de diagnósticos por signo</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="pill">modo: dark</span>
+        <button class="btn" id="copyCmd" title="Copia los comandos de uso">
+          <span aria-hidden="true">📋</span> Copiar comandos
+        </button>
+        <button class="btn primary" id="copyPy" title="Copia el script Python">
+          <span aria-hidden="true">⚡</span> Copiar Python
+        </button>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="kicker">
+        <span class="dot blue" aria-hidden="true"></span>
+        Automatización de extracción: <span class="mono">Sign → Possible Diagnoses</span>
+      </div>
+
+      <h2>Objetivo del programa</h2>
+      <p>
+        Este programa genera un <strong>JSON estructurado</strong> a partir del buscador de signos de Cornell Consultant,
+        para que cada signo (proceso) quede asociado a su lista de <strong>diagnósticos diferenciales</strong>.
+        La clave es que el código del signo (<span class="mono">XXX</span>) se toma de un archivo de texto y se inserta en la URL de consulta:
+        <span class="mono">...?signs=1-XXX</span>.
+      </p>
+
+      <div class="legend">
+        <span class="tag">Entrada: <span class="mono">sings_link.txt</span> (código + proceso)</span>
+        <span class="tag">Salida: <span class="mono">consultant_signs_canine.json</span></span>
+        <span class="tag">Extracción: enlaces <span class="mono">&lt;a class="news"&gt;</span> con <span class="mono">Fun=Cause_</span></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h3><span class="dot" aria-hidden="true"></span>Cómo funciona (paso a paso)</h3>
+        <ul>
+          <li>
+            El archivo <span class="mono">sings_link.txt</span> contiene, en cada línea, el
+            <strong>código</strong> del signo (p.ej. <span class="mono">A00</span>, <span class="mono">C0A</span>, <span class="mono">DE3</span>)
+            y, a continuación, el <strong>proceso</strong> (texto que irá en el campo <span class="mono">"Proceso"</span>).
+          </li>
+          <li>
+            Para cada código, el script construye la URL:
+            <span class="mono">https://consultant.vet.cornell.edu/?Fun=F_Sign&amp;spc=Canine&amp;dxkw=&amp;sxkw=&amp;signs=1-XXX</span>
+          </li>
+          <li>
+            Descarga el HTML y extrae los diagnósticos diferenciales desde los enlaces:
+            <span class="mono">&lt;a class="news"&gt;</span> cuyo <span class="mono">href</span> contiene <span class="mono">Fun=Cause_</span>.
+          </li>
+          <li>
+            Opcionalmente, asigna <span class="mono">"especialidades"</span> inferida por la primera letra del código
+            (A=Acoustic, C=Cardiovascular, D=Digestive, etc.).
+          </li>
+          <li>
+            Escribe un JSON final con objetos del tipo:
+            <span class="mono">{ "Proceso": "...", "especialidades": "...", "Diagnósticos diferenciales": [...] }</span>
+          </li>
+        </ul>
+
+        <div class="callout">
+          <strong>Nota:</strong> el campo <span class="mono">"Proceso"</span> se toma del TXT (no del HTML),
+          exactamente como pediste: “el proceso será el nombre que aparece un espacio detrás del código”.
+        </div>
+
+        <div class="hr"></div>
+
+        <h3><span class="dot green" aria-hidden="true"></span>Comandos rápidos</h3>
+        <div class="codewrap" id="cmdBox">
+          <div class="codebar">
+            <span>Terminal</span>
+            <span class="muted">pip / ejecución</span>
+          </div>
+          <pre><code>pip install requests beautifulsoup4
+python3 scrape_consultant_signs.py</code></pre>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3><span class="dot blue" aria-hidden="true"></span>Formato de entrada esperado</h3>
+        <p>Ejemplos de líneas válidas en <span class="mono">sings_link.txt</span>:</p>
+        <div class="codewrap">
+          <div class="codebar">
+            <span>sings_link.txt</span>
+            <span class="muted">CODE&lt;TAB&gt;PROCESS</span>
+          </div>
+          <pre><code>A00	Deafness
+C0A	Atrial, supraventricular, premature beat
+DE3	Gagging, retching</code></pre>
+        </div>
+
+        <div class="callout">
+          Si en tu archivo no hay tabulador, el script también acepta separación por <strong>2+ espacios</strong>.
+        </div>
+
+        <div class="hr"></div>
+
+        <h3><span class="dot red" aria-hidden="true"></span>Salida JSON</h3>
+        <p>Ejemplo de un elemento:</p>
+        <div class="codewrap">
+          <div class="codebar">
+            <span>consultant_signs_canine.json</span>
+            <span class="muted">estructura</span>
+          </div>
+          <pre><code>{
+  "Proceso": "Deafness",
+  "especialidades": "Acoustic",
+  "Diagnósticos diferenciales": [
+    "Anaphylaxis, overdose, drug, vaccine, radiation, reaction, side effects, toxicity",
+    "Beta mannosidosis canine"
+  ]
+}</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Importante:</strong> el script filtra enlaces <span class="mono">class="news"</span> con <span class="mono">Fun=Cause_</span>,
+          que en la página corresponden a “Possible Diagnoses”.
+        </div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <h3><span class="dot" aria-hidden="true"></span>Script Python</h3>
+      <p>Este es el código completo del scraper. Puedes copiarlo tal cual a <span class="mono">scrape_consultant_signs.py</span>.</p>
+
+      <div class="codewrap" id="pyBox">
+        <div class="codebar">
+          <span class="mono">scrape_consultant_signs.py</span>
+          <span class="muted">requests + BeautifulSoup</span>
+        </div>
+        <pre><code id="pyCode">#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Scraper Cornell Consultant: Signs -&gt; Possible Diagnoses (Canine)
+
+Input:  sings_link.txt  (CODE&lt;TAB&gt;PROCESS)  e.g. "A00\tDeafness"
+Output: consultant_signs_canine.json
+
+Notes:
+- "Proceso" is taken from the txt (per your instruction), not from the page.
+- "especialidades" is inferred from the first character of the code.
+- "Diagnósticos diferenciales" are extracted from &lt;a class="news"&gt; whose href contains "Fun=Cause_".
+"""
+
+import json
+import re
+import time
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+import requests
+from bs4 import BeautifulSoup
+
+
+BASE_URL = "https://consultant.vet.cornell.edu/"
+URL_TMPL = BASE_URL + "?Fun=F_Sign&spc=Canine&dxkw=&sxkw=&signs=1-{code}"
+
+INPUT_TXT = "sings_link.txt"
+OUTPUT_JSON = "consultant_signs_canine.json"
+
+# Map first char of code -&gt; system/specialty (as per your system dropdown)
+SYSTEM_MAP: Dict[str, str] = {
+    "A": "Acoustic",
+    "C": "Cardiovascular",
+    "D": "Digestive",
+    "E": "Ophthalmology",
+    "G": "General",
+    "M": "Musculoskeletal",
+    "N": "Nervous",
+    "P": "Pain/Discomfort",
+    "R": "Respiratory",
+    "S": "Skin/Integumentary",
+    "T": "Reproductive",
+    "U": "Urinary",
+}
+
+# polite scraping
+SLEEP_SECONDS = 0.6
+TIMEOUT = 25
+
+
+@dataclass
+class SignRow:
+    code: str       # e.g. "A00", "C0A", "DE3"
+    proceso: str    # e.g. "Deafness"
+
+
+def read_signs_txt(path: str) -&gt; List[SignRow]:
+    rows: List[SignRow] = []
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line:
+                continue
+            # expected: CODE&lt;TAB&gt;PROCESS (but accept multiple spaces too)
+            parts = re.split(r"\t+", line, maxsplit=1)
+            if len(parts) &lt; 2:
+                parts = re.split(r"\s{2,}", line, maxsplit=1)  # fallback: 2+ spaces
+            if len(parts) &lt; 2:
+                # skip malformed lines
+                continue
+            code = parts[0].strip()
+            proceso = parts[1].strip()
+            if not code or not proceso:
+                continue
+            rows.append(SignRow(code=code, proceso=proceso))
+    return rows
+
+
+def infer_system(code: str) -&gt; str:
+    if not code:
+        return "All"
+    return SYSTEM_MAP.get(code[0].upper(), "All")
+
+
+def fetch_html(session: requests.Session, url: str, retries: int = 3) -&gt; str:
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            r.raise_for_status()
+            r.encoding = r.apparent_encoding or "utf-8"
+            return r.text
+        except Exception as e:
+            last_err = e
+            # backoff
+            time.sleep(0.8 * attempt)
+    raise RuntimeError(f"Failed to fetch after {retries} attempts: {url}\nLast error: {last_err}")
+
+
+def extract_diagnoses(html: str) -&gt; List[str]:
+    soup = BeautifulSoup(html, "html.parser")
+
+    # anchor targets look like:
+    # &lt;a href="/?Fun=Cause_1589&amp;spc=Canine&amp;dxkw=&amp;sxkw=&amp;signs=1-A00"&amp;" class=news&gt;...&lt;/a&gt;
+    # We'll keep those with class "news" and href containing "Fun=Cause_"
+    anchors = soup.select("a.news")
+
+    diags: List[str] = []
+    seen = set()
+
+    for a in anchors:
+        href = a.get("href", "") or ""
+        if "Fun=Cause_" not in href:
+            continue
+        text = a.get_text(" ", strip=True)
+        if not text:
+            continue
+        if text in seen:
+            continue
+        seen.add(text)
+        diags.append(text)
+
+    return diags
+
+
+def main() -&gt; None:
+    signs = read_signs_txt(INPUT_TXT)
+    if not signs:
+        raise SystemExit(f"No valid rows found in {INPUT_TXT}")
+
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) CornellConsultantScraper/1.0 (+non-commercial research)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
+    })
+
+    out: List[dict] = []
+    errors: List[Tuple[str, str]] = []
+
+    for i, row in enumerate(signs, start=1):
+        url = URL_TMPL.format(code=row.code)
+        try:
+            html = fetch_html(session, url)
+            diags = extract_diagnoses(html)
+            entry = {
+                "Proceso": row.proceso,
+                "especialidades": infer_system(row.code),
+                "Diagnósticos diferenciales": diags,
+                "meta": {
+                    "sign_code": row.code,
+                    "url": url,
+                }
+            }
+            out.append(entry)
+        except Exception as e:
+            errors.append((row.code, str(e)))
+
+        # polite delay
+        time.sleep(SLEEP_SECONDS)
+
+        # optional progress
+        if i % 25 == 0:
+            print(f"Progress: {i}/{len(signs)}")
+
+    payload = {
+        "source": "consultant.vet.cornell.edu",
+        "species": "Canine",
+        "generated_from": INPUT_TXT,
+        "count": len(out),
+        "items": out,
+        "errors": [{"code": c, "error": msg} for c, msg in errors],
+    }
+
+    with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    print(f"Saved: {OUTPUT_JSON}  (items={len(out)}, errors={len(errors)})")
+
+
+if __name__ == "__main__":
+    main()</code></pre>
+      </div>
+
+      <div class="callout">
+        <strong>Consejo práctico:</strong> si quieres que el JSON final sea <em>solo</em> una lista (sin <span class="mono">meta/count/errors</span>),
+        basta con guardar <span class="mono">out</span> directamente en <span class="mono">OUTPUT_JSON</span>.
+      </div>
+    </section>
+
+    <footer>
+      <div>
+        <span class="muted">Hecho para documentar el flujo:</span>
+        <span class="mono">TXT (código+proceso) → URL → HTML → &lt;a.news Fun=Cause_&gt; → JSON</span>
+      </div>
+      <div class="muted">
+        Diseño: dark mode · sin librerías · listo para pegar en tu web
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    function copyText(text){
+      return navigator.clipboard.writeText(text);
+    }
+
+    const btnCmd = document.getElementById('copyCmd');
+    const btnPy  = document.getElementById('copyPy');
+
+    btnCmd.addEventListener('click', async () => {
+      const text = document.querySelector('#cmdBox pre code').innerText.trim();
+      try{
+        await copyText(text);
+        btnCmd.innerHTML = "✅ Comandos copiados";
+        setTimeout(()=> btnCmd.innerHTML = "📋 Copiar comandos", 1200);
+      }catch(e){
+        alert("No se pudo copiar. Tu navegador puede bloquear el portapapeles en archivos locales.");
+      }
+    });
+
+    btnPy.addEventListener('click', async () => {
+      const text = document.getElementById('pyCode').innerText.trim();
+      try{
+        await copyText(text);
+        btnPy.innerHTML = "✅ Python copiado";
+        setTimeout(()=> btnPy.innerHTML = "⚡ Copiar Python", 1200);
+      }catch(e){
+        alert("No se pudo copiar. Tu navegador puede bloquear el portapapeles en archivos locales.");
+      }
+    });
+  </script>
+</body>
+</html>
