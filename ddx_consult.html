@@ -1279,42 +1279,63 @@
       return `${idx}__${normalizeText(item.Proceso || "process")}`;
     }
 
-    function parseData(arr){
-      return arr.map((item, idx) => {
-        const diagnoses = safeArray(item["Diagnósticos diferenciales"]).map(d => String(d).trim()).filter(Boolean);
-        return {
-          id: uidFromProcess(item, idx),
-          idx,
-          proceso: item.Proceso || `Process ${idx + 1}`,
-          especialidad: item.especialidades || "No specialty",
-          mnemotecnia: item["mnemotécnica"] || "",
-          diagnosticos: diagnoses,
-          meta: item.meta || {}
-        };
-      });
-    }
+function parseData(input){
+  let arr = input;
 
-    async function loadData(){
-      try{
-        const res = await fetch(JSON_URL, { cache: "no-store" });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        state.raw = parseData(json);
-        el.loadStatus.textContent = "JSON loaded";
-        populateSpecialties();
-        applyFilters();
-      }catch(err){
-        console.error(err);
-        el.loadStatus.textContent = "Error loading JSON";
-        el.processList.innerHTML = `
-          <div class="shared-item" style="border-color:rgba(255,107,107,.25); background:rgba(255,107,107,.06);">
-            <strong>Could not load ${JSON_URL}</strong>
-            <span>
-              Check that the file exists at <code>json/consultant_signs_canine.json</code> and that the JSON is valid.
-            </span>
-          </div>`;
-      }
+  // Si el JSON viene envuelto en una propiedad
+  if (!Array.isArray(arr)) {
+    if (Array.isArray(input.data)) arr = input.data;
+    else if (Array.isArray(input.items)) arr = input.items;
+    else if (Array.isArray(input.results)) arr = input.results;
+    else if (Array.isArray(input.signs)) arr = input.signs;
+    else {
+      console.error("Unexpected JSON structure:", input);
+      throw new Error("The JSON root is not an array.");
     }
+  }
+
+  return arr.map((item, idx) => {
+    const diagnoses = safeArray(item["Diagnósticos diferenciales"])
+      .map(d => String(d).trim())
+      .filter(Boolean);
+
+    return {
+      id: uidFromProcess(item, idx),
+      idx,
+      proceso: item.Proceso || `Process ${idx + 1}`,
+      especialidad: item.especialidades || "No specialty",
+      mnemotecnia: item["mnemotécnica"] || "",
+      diagnosticos: diagnoses,
+      meta: item.meta || {}
+    };
+  });
+}
+
+async function loadData(){
+  try{
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json();
+    console.log("Loaded JSON:", json);
+
+    state.raw = parseData(json);
+
+    el.loadStatus.textContent = "JSON loaded";
+    populateSpecialties();
+    applyFilters();
+  }catch(err){
+    console.error("JSON load error:", err);
+    el.loadStatus.textContent = "Error loading JSON";
+    el.processList.innerHTML = `
+      <div class="shared-item" style="border-color:rgba(255,107,107,.25); background:rgba(255,107,107,.06);">
+        <strong>Could not load ${JSON_URL}</strong>
+        <span>
+          Check that the file exists at <code>json/consultant_signs_canine.json</code> and that the JSON root is an array or contains one in <code>data</code>, <code>items</code>, <code>results</code>, or <code>signs</code>.
+        </span>
+      </div>`;
+  }
+}
 
     function populateSpecialties(){
       const specs = [...new Set(state.raw.map(x => x.especialidad).filter(Boolean))].sort((a,b)=>a.localeCompare(b, 'en'));
