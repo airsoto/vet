@@ -1,1 +1,2234 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="color-scheme" content="dark" />
+  <title>Diagrama de Venn DDx | Ángel Soto</title>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --bg2:#0f1724;
+      --panel:#111826;
+      --panel2:#0d1420;
+      --text:#e9eef6;
+      --muted:#9fb0c6;
+      --line:rgba(255,255,255,.10);
+      --softline:rgba(255,255,255,.06);
+      --accent:#ff9900;
+      --accent2:#90caf9;
+      --good:#27d17f;
+      --warn:#ffb347;
+      --danger:#ff6b6b;
+      --shadow:0 18px 42px rgba(0,0,0,.38);
+      --shadow2:0 10px 22px rgba(0,0,0,.35);
+      --shadowSoft:0 10px 30px rgba(0,0,0,.22);
+      --radius:18px;
+      --tap:46px;
+      --maxw:1500px;
+      --circle-stroke:rgba(255,255,255,.42);
+      --chip-bg:rgba(8,14,24,.78);
+      --chip-bd:rgba(255,255,255,.14);
+      --chip-shadow:0 10px 28px rgba(0,0,0,.30);
+      --glass:rgba(255,255,255,.045);
+      --glass2:rgba(255,255,255,.03);
+      --ring:0 0 0 4px rgba(144,202,249,.12);
+      --ring2:0 0 0 4px rgba(255,153,0,.12);
+      --grad-border: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)) 1;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html,body{
+      margin:0;
+      padding:0;
+      min-height:100%;
+      background:
+        radial-gradient(circle at top left, rgba(30,136,229,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(255,153,0,.10), transparent 28%),
+        linear-gradient(180deg, #0b0f14 0%, #0d121a 100%);
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      text-rendering:optimizeLegibility;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    ::selection{
+      background: rgba(255,153,0,.24);
+      color:#fff;
+    }
+
+    #cosmosCanvas{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:0;
+      pointer-events:none;
+      opacity:.85;
+    }
+
+    #noiseLayer{
+      position:fixed;
+      inset:0;
+      z-index:1;
+      pointer-events:none;
+      opacity:.055;
+      mix-blend-mode:overlay;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+      background-size:220px 220px;
+    }
+
+    #vignetteLayer{
+      position:fixed;
+      inset:0;
+      z-index:1;
+      pointer-events:none;
+      background: radial-gradient(circle at 50% 45%, rgba(0,0,0,0) 0%, rgba(0,0,0,.28) 55%, rgba(0,0,0,.62) 100%);
+    }
+
+    body.cosmos-interactive #cosmosCanvas{
+      pointer-events:auto;
+      opacity:1;
+    }
+
+    body.cosmos-interactive .wrap{
+      pointer-events:none;
+      filter: blur(.6px) saturate(.95) brightness(.78);
+      transform: translateZ(0);
+    }
+
+    a{
+      color:var(--accent2);
+      text-decoration:none;
+    }
+
+    a:hover{
+      text-decoration:underline;
+    }
+
+    .wrap{
+      position:relative;
+      z-index:2;
+      width:min(var(--maxw), calc(100% - 24px));
+      margin:20px auto 34px;
+    }
+
+    *{
+      scrollbar-color: rgba(144,202,249,.35) rgba(255,255,255,.05);
+      scrollbar-width: thin;
+    }
+
+    ::-webkit-scrollbar{
+      width:10px;
+      height:10px;
+    }
+
+    ::-webkit-scrollbar-thumb{
+      background: linear-gradient(180deg, rgba(144,202,249,.30), rgba(255,153,0,.22));
+      border:2px solid rgba(10,14,22,.75);
+      border-radius:999px;
+    }
+
+    ::-webkit-scrollbar-track{
+      background: rgba(255,255,255,.03);
+      border-radius:999px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+      border:1px solid transparent;
+      border-image: var(--grad-border);
+      border-radius:26px;
+      padding:22px 22px 18px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -140px -140px auto;
+      width:320px;
+      height:320px;
+      background:radial-gradient(circle, rgba(255,153,0,.18), transparent 62%);
+      pointer-events:none;
+      filter:blur(12px);
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(144,202,249,.08), transparent 42%),
+        radial-gradient(circle at 82% 28%, rgba(255,153,0,.08), transparent 45%);
+      pointer-events:none;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(26px, 4.4vw, 44px);
+      line-height:1.05;
+      letter-spacing:-.02em;
+      text-shadow:0 10px 30px rgba(0,0,0,.35);
+      position:relative;
+      z-index:1;
+    }
+
+    .subtitle{
+      position:relative;
+      z-index:1;
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:clamp(14px, 2vw, 16px);
+      max-width:950px;
+      line-height:1.55;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap:18px;
+      margin-top:18px;
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.010));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      box-shadow:var(--shadowSoft);
+      backdrop-filter: blur(10px);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .card:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.14);
+      box-shadow: var(--shadow2);
+    }
+
+    .sidebar{
+      padding:16px;
+      position:sticky;
+      top:14px;
+      align-self:start;
+      max-height:calc(100vh - 28px);
+      overflow:auto;
+    }
+
+    .section-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin:2px 0 12px;
+    }
+
+    .section-title h2{
+      margin:0;
+      font-size:16px;
+      letter-spacing:.01em;
+    }
+
+    .small{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .searchbox, .select, .btn{
+      width:100%;
+      min-height:var(--tap);
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      color:var(--text);
+      outline:none;
+      transition:.18s ease;
+    }
+
+    .searchbox, .select{
+      padding:0 14px;
+      font-size:15px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+
+    .searchbox{
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+        radial-gradient(circle at 12px 50%, rgba(144,202,249,.10), transparent 35%);
+      padding-left:44px;
+      background-repeat:no-repeat;
+      background-position:14px 50%;
+      background-size:18px 18px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239fb0c6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E");
+    }
+
+    .searchbox::placeholder{
+      color: rgba(159,176,198,.72);
+    }
+
+    .select{
+      appearance:none;
+      cursor:pointer;
+    }
+
+    .searchbox:focus, .select:focus{
+      border-color:rgba(144,202,249,.55);
+      box-shadow: var(--ring);
+    }
+
+    .controls{
+      display:grid;
+      gap:10px;
+    }
+
+    .quick-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .btn{
+      cursor:pointer;
+      font-weight:800;
+      font-size:14px;
+      padding:0 14px;
+      letter-spacing:.01em;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+      transform: translateZ(0);
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,255,255,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+    }
+
+    .btn:active{
+      transform:translateY(0px) scale(.99);
+      box-shadow: 0 8px 18px rgba(0,0,0,.26);
+    }
+
+    .btn:focus-visible{
+      outline:none;
+      box-shadow: var(--ring);
+    }
+
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(255,153,0,.22), rgba(255,153,0,.10));
+      border-color:rgba(255,153,0,.35);
+      color:#fff;
+      box-shadow: 0 12px 28px rgba(255,153,0,.10), 0 14px 30px rgba(0,0,0,.26);
+    }
+
+    .btn.primary:focus-visible{
+      box-shadow: var(--ring2);
+    }
+
+    .btn.ghost{
+      background: linear-gradient(180deg, rgba(144,202,249,.12), rgba(144,202,249,.05));
+      border-color:rgba(144,202,249,.25);
+    }
+
+    .btn.slim{
+      min-height:38px;
+      font-size:12px;
+      padding:0 12px;
+      width:auto;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .stat{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--softline);
+      border-radius:14px;
+      padding:10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .stat .n{
+      display:block;
+      font-size:22px;
+      font-weight:900;
+      line-height:1;
+      margin-bottom:4px;
+      letter-spacing:-.02em;
+    }
+
+    .stat .l{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .process-list{
+      margin-top:16px;
+      display:grid;
+      gap:10px;
+    }
+
+    .process-item{
+      position:relative;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.022);
+      border-radius:16px;
+      padding:12px 12px 12px 46px;
+      cursor:pointer;
+      transition:.18s ease;
+      user-select:none;
+      overflow:hidden;
+    }
+
+    .process-item::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:3px;
+      background: linear-gradient(180deg, rgba(144,202,249,.0), rgba(144,202,249,.55), rgba(255,153,0,.55), rgba(255,153,0,0));
+      opacity:.0;
+      transition: opacity .18s ease;
+    }
+
+    .process-item:hover{
+      border-color:rgba(255,255,255,.18);
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.04);
+    }
+
+    .process-item:has(input:checked){
+      border-color: rgba(255,153,0,.28);
+      background: radial-gradient(circle at 14% 20%, rgba(255,153,0,.10), transparent 40%), linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+      box-shadow: 0 12px 28px rgba(255,153,0,.08), 0 12px 30px rgba(0,0,0,.26);
+    }
+
+    .process-item:has(input:checked)::before{
+      opacity:1;
+    }
+
+    .process-item input{
+      position:absolute;
+      left:12px;
+      top:14px;
+      width:20px;
+      height:20px;
+      accent-color:#ff9900;
+      cursor:pointer;
+    }
+
+    .process-item .p-title{
+      font-weight:850;
+      line-height:1.25;
+      margin:0 0 6px;
+      letter-spacing:-.01em;
+    }
+
+    .process-item .p-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:7px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      white-space:nowrap;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .pill.spec{
+      color:#d5e7ff;
+      background:rgba(144,202,249,.09);
+      border-color:rgba(144,202,249,.18);
+    }
+
+    .pill.mnemo{
+      color:#ffe4b5;
+      background:rgba(255,153,0,.09);
+      border-color:rgba(255,153,0,.18);
+    }
+
+    .process-item .p-count{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .main{
+      display:grid;
+      gap:18px;
+    }
+
+    .toolbar{
+      padding:14px;
+      display:grid;
+      gap:12px;
+    }
+
+    .toolbar-top{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .selected-wrap{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .selected-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      background: linear-gradient(180deg, rgba(255,153,0,.14), rgba(255,153,0,.07));
+      border:1px solid rgba(255,153,0,.20);
+      border-radius:999px;
+      font-size:13px;
+      color:#fff;
+      box-shadow: 0 12px 26px rgba(255,153,0,.08);
+    }
+
+    .selected-pill button{
+      all:unset;
+      cursor:pointer;
+      font-weight:900;
+      color:#ffe0b3;
+      line-height:1;
+      width:18px;
+      height:18px;
+      display:grid;
+      place-items:center;
+      border-radius:999px;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.14);
+      transition:.15s ease;
+    }
+
+    .selected-pill button:hover{
+      background: rgba(0,0,0,.34);
+      border-color: rgba(255,255,255,.22);
+      transform: scale(1.04);
+    }
+
+    .selected-pill button:focus-visible{
+      box-shadow: var(--ring2);
+    }
+
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+
+    .legend .key{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .dot{
+      width:12px;
+      height:12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      flex:0 0 12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+    }
+
+    .diagram-card{
+      padding:14px;
+    }
+
+    .diagram-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    .diagram-head h2{
+      margin:0;
+      font-size:18px;
+      letter-spacing:-.01em;
+    }
+
+    .diagram-head p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.55;
+    }
+
+    .diagram-stage{
+      position:relative;
+      width:100%;
+      min-height:740px;
+      border-radius:22px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.12);
+      background:
+        radial-gradient(circle at 50% 38%, rgba(144,202,249,.08), transparent 24%),
+        radial-gradient(circle at 50% 72%, rgba(255,153,0,.05), transparent 28%),
+        linear-gradient(180deg, #0c131e 0%, #0a1018 52%, #091018 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.03),
+        inset 0 -70px 120px rgba(0,0,0,.24),
+        0 30px 80px rgba(0,0,0,.28);
+      perspective: 1200px;
+      transform-style: preserve-3d;
+    }
+
+    .diagram-stage::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:24px 24px;
+      mask-image:radial-gradient(circle at center, black 48%, transparent 98%);
+      pointer-events:none;
+      opacity:.95;
+      transform: perspective(1200px) rotateX(73deg) scale(1.35) translateY(180px);
+      transform-origin:center bottom;
+      filter: blur(.2px);
+    }
+
+    .diagram-stage::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(144,202,249,.08), transparent 35%),
+        radial-gradient(circle at 82% 36%, rgba(255,153,0,.07), transparent 38%),
+        radial-gradient(ellipse at 50% 88%, rgba(0,0,0,.34), transparent 55%);
+      pointer-events:none;
+    }
+
+    svg#vennSvg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:1;
+      transform: perspective(1200px) rotateX(7deg) translateY(-4px);
+      transform-style: preserve-3d;
+      filter: drop-shadow(0 30px 50px rgba(0,0,0,.35));
+    }
+
+    .chip-layer{
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
+      transform: perspective(1200px) rotateX(5deg) translateZ(18px);
+      transform-style: preserve-3d;
+    }
+
+    .diag-chip{
+      position:absolute;
+      transform:translate(-50%, -50%) translateZ(28px);
+      max-width:240px;
+      padding:8px 11px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.03) 38%, rgba(255,255,255,.015)),
+        rgba(8,14,24,.72);
+      backdrop-filter:blur(14px);
+      color:#f6f9ff;
+      font-size:12.5px;
+      line-height:1.25;
+      text-align:center;
+      box-shadow:
+        0 4px 0 rgba(255,255,255,.05) inset,
+        0 16px 34px rgba(0,0,0,.42),
+        0 28px 46px rgba(0,0,0,.22);
+      pointer-events:auto;
+      cursor:default;
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, filter .18s ease;
+      transform-style: preserve-3d;
+    }
+
+    .diag-chip::before{
+      content:"";
+      position:absolute;
+      inset:1px 1px auto 1px;
+      height:42%;
+      border-radius:12px 12px 18px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0));
+      pointer-events:none;
+      opacity:.85;
+    }
+
+    .diag-chip::after{
+      content:"";
+      position:absolute;
+      left:8%;
+      right:8%;
+      bottom:-18px;
+      height:22px;
+      border-radius:50%;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,.28), rgba(0,0,0,0) 72%);
+      pointer-events:none;
+      filter: blur(4px);
+    }
+
+    .diag-chip:hover{
+      transform:translate(-50%, -50%) translateZ(40px) scale(1.045);
+      box-shadow:
+        0 4px 0 rgba(255,255,255,.07) inset,
+        0 20px 40px rgba(0,0,0,.48),
+        0 34px 54px rgba(0,0,0,.24);
+      border-color:rgba(255,255,255,.24);
+      filter: brightness(1.03);
+    }
+
+    .diag-chip.shared{
+      border-color:rgba(255,153,0,.34);
+      background:
+        linear-gradient(180deg, rgba(255,153,0,.18), rgba(255,255,255,.03) 42%, rgba(255,255,255,.015)),
+        rgba(8,14,24,.76);
+      box-shadow:
+        0 4px 0 rgba(255,255,255,.05) inset,
+        0 16px 36px rgba(255,153,0,.10),
+        0 18px 38px rgba(0,0,0,.42);
+    }
+
+    .diag-chip em{
+      display:block;
+      margin-top:4px;
+      color:#ffddad;
+      font-style:normal;
+      font-size:11px;
+      opacity:.92;
+    }
+
+    .circle-group{
+      cursor:grab;
+    }
+
+    .circle-group.dragging{
+      cursor:grabbing;
+    }
+
+    .circle-fill{
+      fill-opacity:.24;
+      stroke:var(--circle-stroke);
+      stroke-width:2.2;
+      transition:fill-opacity .2s ease, stroke-width .2s ease, filter .2s ease;
+      filter:
+        drop-shadow(0 18px 24px rgba(0,0,0,.24))
+        drop-shadow(0 34px 46px rgba(0,0,0,.14));
+    }
+
+    .circle-group:hover .circle-fill{
+      fill-opacity:.31;
+      stroke-width:2.8;
+      filter:
+        drop-shadow(0 20px 28px rgba(0,0,0,.28))
+        drop-shadow(0 40px 60px rgba(0,0,0,.16));
+    }
+
+    .circle-label{
+      font-size:15px;
+      fill:#fff;
+      font-weight:900;
+      text-anchor:middle;
+      pointer-events:none;
+      paint-order:stroke fill;
+      stroke:rgba(0,0,0,.36);
+      stroke-width:3px;
+      letter-spacing:.01em;
+    }
+
+    .circle-sub{
+      font-size:11px;
+      fill:#d7e5f5;
+      opacity:.92;
+      text-anchor:middle;
+      pointer-events:none;
+      paint-order:stroke fill;
+      stroke:rgba(0,0,0,.30);
+      stroke-width:2px;
+    }
+
+    .empty-state{
+      min-height:680px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:30px;
+      color:var(--muted);
+      position:relative;
+      z-index:3;
+    }
+
+    .empty-box{
+      max-width:620px;
+      padding:26px;
+      border-radius:24px;
+      border:1px dashed rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+      backdrop-filter: blur(10px);
+    }
+
+    .empty-box h3{
+      margin:0 0 8px;
+      color:#fff;
+      font-size:22px;
+      letter-spacing:-.01em;
+    }
+
+    .empty-box p{
+      margin:0;
+      line-height:1.55;
+    }
+
+    .bottom-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+    }
+
+    .info-card{
+      padding:16px;
+    }
+
+    .info-card h3{
+      margin:0 0 10px;
+      font-size:16px;
+      letter-spacing:-.01em;
+    }
+
+    .shared-list{
+      display:grid;
+      gap:10px;
+      max-height:340px;
+      overflow:auto;
+      padding-right:2px;
+    }
+
+    .shared-item{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.02);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .shared-item strong{
+      display:block;
+      margin-bottom:4px;
+    }
+
+    .shared-item span{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .help-list{
+      margin:0;
+      padding-left:18px;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:18px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      box-shadow:var(--shadowSoft);
+      color:var(--muted);
+      font-size:14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .footer p, .footer h4{
+      margin:10px 0;
+    }
+
+    .footer strong{
+      color:#fff;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .no-results{
+      margin-top:12px;
+      padding:14px;
+      border-radius:14px;
+      border:1px dashed rgba(255,255,255,.16);
+      color:var(--muted);
+      text-align:center;
+      display:none;
+      background: rgba(255,255,255,.02);
+    }
+
+    .fab{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      z-index:9999;
+      min-height:44px;
+      padding:0 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      color:#fff;
+      font-weight:900;
+      letter-spacing:.01em;
+      cursor:pointer;
+      box-shadow: 0 14px 34px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      user-select:none;
+    }
+
+    .fab:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.20);
+    }
+
+    .fab:active{
+      transform: translateY(0) scale(.99);
+    }
+
+    .fab:focus-visible{
+      outline:none;
+      box-shadow: var(--ring);
+    }
+
+    .cosmos-hint{
+      position:fixed;
+      right:16px;
+      bottom:68px;
+      z-index:9999;
+      max-width:min(420px, calc(100% - 32px));
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(8,14,24,.72);
+      color: rgba(233,238,246,.92);
+      box-shadow: 0 14px 34px rgba(0,0,0,.32);
+      backdrop-filter: blur(12px);
+      font-size:12.5px;
+      line-height:1.35;
+      opacity:0;
+      transform: translateY(6px);
+      pointer-events:none;
+      transition: .18s ease;
+    }
+
+    body.cosmos-interactive .cosmos-hint{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1180px){
+      .layout{ grid-template-columns:1fr; }
+      .sidebar{
+        position:relative;
+        top:0;
+        max-height:none;
+      }
+    }
+
+    @media (max-width: 820px){
+      .diagram-stage{ min-height:660px; }
+      .bottom-grid{ grid-template-columns:1fr; }
+      .stats{ grid-template-columns:1fr 1fr 1fr; }
+    }
+
+    @media (max-width: 580px){
+      .wrap{ width:min(var(--maxw), calc(100% - 14px)); }
+      .hero{
+        padding:18px 14px 14px;
+        border-radius:20px;
+      }
+      .sidebar, .toolbar, .diagram-card, .info-card{ padding:14px; }
+      .diagram-stage{
+        min-height:620px;
+        border-radius:18px;
+      }
+      .stats{ grid-template-columns:1fr; }
+      .quick-actions{ grid-template-columns:1fr; }
+      .diag-chip{
+        max-width:180px;
+        font-size:11.5px;
+        padding:7px 10px;
+      }
+      .fab{
+        right:12px;
+        bottom:12px;
+      }
+      .cosmos-hint{ right:12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{
+        transition:none !important;
+        animation:none !important;
+      }
+      .card:hover, .btn:hover, .process-item:hover, .fab:hover{
+        transform:none !important;
+      }
+      #noiseLayer{ opacity:.03; }
+      svg#vennSvg,
+      .chip-layer,
+      .diagram-stage::before{
+        transform:none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="cosmosCanvas" aria-hidden="true"></canvas>
+  <div id="noiseLayer" aria-hidden="true"></div>
+  <div id="vignetteLayer" aria-hidden="true"></div>
+
+  <button id="cosmosToggle" class="fab" type="button" aria-pressed="false" title="Activar/desactivar modo 3D">
+    ✨ 3D <span style="color:rgba(159,176,198,.9); font-weight:800; font-size:12px;">bloom</span>
+  </button>
+
+  <div id="cosmosHint" class="cosmos-hint" role="status" aria-live="polite">
+    <strong style="color:#fff;">Modo 3D activo.</strong> Arrastra para orbitar · rueda para zoom · click derecho/ctrl+arrastre para pan · <strong>ESC</strong> para salir.
+  </div>
+
+  <div class="wrap">
+    <section class="hero">
+      <h1>Diagramas de Venn de diagnósticos diferenciales</h1>
+      <p class="subtitle">
+        Selecciona uno o varios procesos, filtra por especialidad y visualiza qué diagnósticos diferenciales son exclusivos o compartidos entre procesos. Puedes arrastrar los círculos para explorar mejor las intersecciones.
+      </p>
+
+      <div style="margin:10px 0 0 0; position:relative; z-index:1;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:700;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="card sidebar">
+        <div class="section-title">
+          <h2>Selección de procesos</h2>
+          <span class="small" id="loadStatus">Cargando JSON…</span>
+        </div>
+
+        <div class="controls">
+          <input id="searchInput" class="searchbox" type="text" placeholder="Buscar proceso, mnemotécnica o diagnóstico…" />
+          <select id="specialtySelect" class="select">
+            <option value="">Todas las especialidades</option>
+          </select>
+
+          <div class="quick-actions">
+            <button class="btn primary" id="selectVisibleBtn">Seleccionar visibles</button>
+            <button class="btn ghost" id="clearBtn">Limpiar selección</button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <span class="n" id="totalProcesses">0</span>
+            <span class="l">Procesos</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="visibleProcesses">0</span>
+            <span class="l">Visibles</span>
+          </div>
+          <div class="stat">
+            <span class="n" id="selectedProcesses">0</span>
+            <span class="l">Seleccionados</span>
+          </div>
+        </div>
+
+        <div class="process-list" id="processList"></div>
+        <div class="no-results" id="noResults">No hay procesos que coincidan con la búsqueda o el filtro.</div>
+      </aside>
+
+      <main class="main">
+        <section class="card toolbar">
+          <div class="toolbar-top">
+            <div>
+              <strong>Procesos activos</strong>
+              <div class="small">Máximo recomendado visual: 2–5 procesos para una lectura cómoda.</div>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn slim ghost" id="autoLayoutBtn">Autoordenar círculos</button>
+              <button class="btn slim ghost" id="fitBtn">Reajustar chips</button>
+            </div>
+          </div>
+
+          <div class="selected-wrap" id="selectedWrap"></div>
+          <div class="legend" id="legend"></div>
+        </section>
+
+        <section class="card diagram-card">
+          <div class="diagram-head">
+            <div>
+              <h2>Vista Venn interactiva</h2>
+              <p>Arrastra cada círculo. Los diagnósticos compartidos se colocan en el centro geométrico de los procesos que los contienen.</p>
+            </div>
+            <div class="small" id="diagSummary">0 diagnósticos mostrados</div>
+          </div>
+
+          <div class="diagram-stage" id="diagramStage">
+            <svg id="vennSvg" viewBox="0 0 1200 760" preserveAspectRatio="none" aria-label="Diagrama de Venn"></svg>
+            <div class="chip-layer" id="chipLayer"></div>
+
+            <div class="empty-state" id="emptyState">
+              <div class="empty-box">
+                <h3>Selecciona uno o varios procesos</h3>
+                <p>
+                  Al elegir procesos en la columna izquierda, aparecerán círculos interactivos con sus diagnósticos diferenciales. Si un diagnóstico está presente en varios procesos, se mostrará en la zona compartida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bottom-grid">
+          <section class="card info-card">
+            <h3>Diagnósticos compartidos</h3>
+            <div class="shared-list" id="sharedList">
+              <div class="muted">Aquí aparecerán los diagnósticos que se repiten entre procesos seleccionados.</div>
+            </div>
+          </section>
+
+          <section class="card info-card">
+            <h3>Cómo usar la vista</h3>
+            <ul class="help-list">
+              <li>Busca por nombre del proceso, mnemotécnica o cualquier diagnóstico diferencial.</li>
+              <li>Filtra por especialidad para reducir la lista.</li>
+              <li>Marca varios procesos para comparar solapamientos.</li>
+              <li>Arrastra los círculos para despejar zonas y ver mejor los diagnósticos.</li>
+              <li>Usa “Autoordenar círculos” para recolocar todo automáticamente.</li>
+            </ul>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto. Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const JSON_URL = "json/consultant_signs_canine.json";
+
+    const COLORS = [
+      { fill: "rgba(255, 153, 0, 0.95)", solid: "#ff9900" },
+      { fill: "rgba(144, 202, 249, 0.95)", solid: "#90caf9" },
+      { fill: "rgba(39, 209, 127, 0.95)", solid: "#27d17f" },
+      { fill: "rgba(173, 133, 255, 0.95)", solid: "#ad85ff" },
+      { fill: "rgba(255, 107, 107, 0.95)", solid: "#ff6b6b" },
+      { fill: "rgba(255, 179, 71, 0.95)", solid: "#ffb347" },
+      { fill: "rgba(89, 194, 255, 0.95)", solid: "#59c2ff" },
+      { fill: "rgba(255, 130, 196, 0.95)", solid: "#ff82c4" }
+    ];
+
+    const state = {
+      raw: [],
+      filtered: [],
+      selectedIds: new Set(),
+      circles: [],
+      drag: null,
+      viewBox: { w: 1200, h: 760 },
+      renderedItems: [],
+      diagnosisMap: new Map()
+    };
+
+    const el = {
+      processList: document.getElementById("processList"),
+      noResults: document.getElementById("noResults"),
+      specialtySelect: document.getElementById("specialtySelect"),
+      searchInput: document.getElementById("searchInput"),
+      selectedWrap: document.getElementById("selectedWrap"),
+      legend: document.getElementById("legend"),
+      vennSvg: document.getElementById("vennSvg"),
+      chipLayer: document.getElementById("chipLayer"),
+      diagramStage: document.getElementById("diagramStage"),
+      emptyState: document.getElementById("emptyState"),
+      totalProcesses: document.getElementById("totalProcesses"),
+      visibleProcesses: document.getElementById("visibleProcesses"),
+      selectedProcesses: document.getElementById("selectedProcesses"),
+      loadStatus: document.getElementById("loadStatus"),
+      diagSummary: document.getElementById("diagSummary"),
+      sharedList: document.getElementById("sharedList"),
+      selectVisibleBtn: document.getElementById("selectVisibleBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      autoLayoutBtn: document.getElementById("autoLayoutBtn"),
+      fitBtn: document.getElementById("fitBtn")
+    };
+
+    function normalizeText(str){
+      return (str || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function safeArray(v){
+      return Array.isArray(v) ? v : [];
+    }
+
+    function uidFromProcess(item, idx){
+      return `${idx}__${normalizeText(item.Proceso || "proceso")}`;
+    }
+
+    function parseData(arr){
+      return arr.map((item, idx) => {
+        const diagnoses = safeArray(item["Diagnósticos diferenciales"]).map(d => String(d).trim()).filter(Boolean);
+        return {
+          id: uidFromProcess(item, idx),
+          idx,
+          proceso: item.Proceso || `Proceso ${idx + 1}`,
+          especialidad: item.especialidades || "Sin especialidad",
+          mnemotecnia: item["mnemotécnica"] || "",
+          diagnosticos: diagnoses
+        };
+      });
+    }
+
+    async function loadData(){
+      try{
+        const res = await fetch(JSON_URL, { cache: "no-store" });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        state.raw = parseData(json);
+        el.loadStatus.textContent = "JSON cargado";
+        populateSpecialties();
+        applyFilters();
+      }catch(err){
+        console.error(err);
+        el.loadStatus.textContent = "Error cargando JSON";
+        el.processList.innerHTML = `
+          <div class="shared-item" style="border-color:rgba(255,107,107,.25); background:rgba(255,107,107,.06);">
+            <strong>No se pudo cargar ${JSON_URL}</strong>
+            <span>
+              Comprueba que el archivo existe en <code>json/ddx_game.json</code> y que el JSON es válido.
+            </span>
+          </div>`;
+      }
+    }
+
+    function populateSpecialties(){
+      const specs = [...new Set(state.raw.map(x => x.especialidad).filter(Boolean))].sort((a,b)=>a.localeCompare(b, 'es'));
+      el.specialtySelect.innerHTML = `<option value="">Todas las especialidades</option>`;
+      for(const spec of specs){
+        const op = document.createElement("option");
+        op.value = spec;
+        op.textContent = spec;
+        el.specialtySelect.appendChild(op);
+      }
+      el.totalProcesses.textContent = state.raw.length;
+    }
+
+    function applyFilters(){
+      const q = normalizeText(el.searchInput.value);
+      const spec = el.specialtySelect.value;
+
+      state.filtered = state.raw.filter(item => {
+        const matchSpec = !spec || item.especialidad === spec;
+        if(!matchSpec) return false;
+        if(!q) return true;
+
+        const hay = [
+          item.proceso,
+          item.especialidad,
+          item.mnemotecnia,
+          ...item.diagnosticos
+        ].map(normalizeText).join(" | ");
+
+        return hay.includes(q);
+      });
+
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderDiagram();
+    }
+
+    function updateStats(){
+      el.visibleProcesses.textContent = state.filtered.length;
+      el.selectedProcesses.textContent = state.selectedIds.size;
+      el.noResults.style.display = state.filtered.length ? "none" : "block";
+    }
+
+    function renderProcessList(){
+      el.processList.innerHTML = "";
+      for(const item of state.filtered){
+        const checked = state.selectedIds.has(item.id);
+        const div = document.createElement("label");
+        div.className = "process-item";
+        div.innerHTML = `
+          <input type="checkbox" ${checked ? "checked" : ""} data-id="${item.id}" />
+          <div class="p-title">${escapeHtml(item.proceso)}</div>
+          <div class="p-meta">
+            <span class="pill spec">${escapeHtml(item.especialidad)}</span>
+            ${item.mnemotecnia ? `<span class="pill mnemo">${escapeHtml(item.mnemotecnia)}</span>` : ""}
+          </div>
+          <div class="p-count">${item.diagnosticos.length} diagnósticos diferenciales</div>
+        `;
+        const input = div.querySelector("input");
+        input.addEventListener("change", () => {
+          toggleSelection(item.id, input.checked);
+        });
+        el.processList.appendChild(div);
+      }
+    }
+
+    function toggleSelection(id, checked){
+      if(checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+
+      renderProcessList();
+      renderSelectedPills();
+      renderLegend();
+      updateStats();
+      renderDiagram();
+    }
+
+    function renderSelectedPills(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.selectedWrap.innerHTML = `<span class="small">No hay procesos seleccionados.</span>`;
+        return;
+      }
+
+      el.selectedWrap.innerHTML = selected.map(p => `
+        <span class="selected-pill">
+          ${escapeHtml(p.proceso)}
+          <button type="button" data-remove="${p.id}" aria-label="Quitar ${escapeHtmlAttr(p.proceso)}">×</button>
+        </span>
+      `).join("");
+
+      el.selectedWrap.querySelectorAll("[data-remove]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.selectedIds.delete(btn.dataset.remove);
+          applyFilters();
+        });
+      });
+    }
+
+    function renderLegend(){
+      const selected = getSelectedProcesses();
+      if(!selected.length){
+        el.legend.innerHTML = `<span class="small">La leyenda aparecerá al seleccionar procesos.</span>`;
+        return;
+      }
+
+      el.legend.innerHTML = selected.map((p, i) => `
+        <span class="key">
+          <span class="dot" style="background:${COLORS[i % COLORS.length].solid}"></span>
+          ${escapeHtml(p.proceso)}
+        </span>
+      `).join("");
+    }
+
+    function getSelectedProcesses(){
+      return state.raw.filter(x => state.selectedIds.has(x.id));
+    }
+
+    function autoLayoutCircles(selected){
+      const n = selected.length;
+      const { w, h } = state.viewBox;
+      const cx = w / 2;
+      const cy = h / 2 + 6;
+
+      let radius;
+      if(n <= 2) radius = 200;
+      else if(n === 3) radius = 180;
+      else if(n === 4) radius = 158;
+      else radius = 142;
+
+      let spread;
+      if(n === 1) spread = 0;
+      else if(n === 2) spread = 150;
+      else if(n === 3) spread = 155;
+      else if(n === 4) spread = 180;
+      else spread = 205;
+
+      const arr = [];
+      for(let i=0;i<n;i++){
+        let x, y;
+        if(n === 1){
+          x = cx;
+          y = cy;
+        }else if(n === 2){
+          x = cx + (i === 0 ? -spread : spread);
+          y = cy;
+        }else{
+          const angle = (-Math.PI / 2) + (i * (Math.PI * 2 / n));
+          x = cx + Math.cos(angle) * spread;
+          y = cy + Math.sin(angle) * (spread * 0.78);
+        }
+        arr.push({ id: selected[i].id, x, y, r: radius });
+      }
+      state.circles = arr;
+    }
+
+    function ensureCircleState(selected){
+      const ids = new Set(selected.map(s => s.id));
+      state.circles = state.circles.filter(c => ids.has(c.id));
+      const missing = selected.filter(s => !state.circles.some(c => c.id === s.id));
+      if(missing.length) autoLayoutCircles(selected);
+      if(state.circles.length !== selected.length) autoLayoutCircles(selected);
+    }
+
+    function buildDiagnosisMembership(selected){
+      const map = new Map();
+      for(const proc of selected){
+        for(const diag of proc.diagnosticos){
+          const key = normalizeText(diag);
+          if(!map.has(key)){
+            map.set(key, { label: diag, members: [], processNames: [] });
+          }
+          const item = map.get(key);
+          item.members.push(proc.id);
+          item.processNames.push(proc.proceso);
+        }
+      }
+      return map;
+    }
+
+    function groupByMembership(diagMap){
+      const groups = new Map();
+      for(const [, item] of diagMap){
+        const signature = [...item.members].sort().join("||");
+        if(!groups.has(signature)){
+          groups.set(signature, { memberIds: [...item.members].sort(), items: [] });
+        }
+        groups.get(signature).items.push(item);
+      }
+      return groups;
+    }
+
+    function positionGroupItems(groups){
+      const circleById = Object.fromEntries(state.circles.map(c => [c.id, c]));
+      const allPositions = [];
+
+      for(const [, group] of groups){
+        const memberCircles = group.memberIds.map(id => circleById[id]).filter(Boolean);
+        if(!memberCircles.length) continue;
+
+        const centroid = {
+          x: memberCircles.reduce((a,c)=>a+c.x,0) / memberCircles.length,
+          y: memberCircles.reduce((a,c)=>a+c.y,0) / memberCircles.length
+        };
+
+        const count = group.items.length;
+        const isShared = group.memberIds.length > 1;
+
+        let spread = 0;
+        if(count <= 1) spread = 0;
+        else if(isShared) spread = Math.min(72, 22 + count * 8);
+        else spread = Math.min(85, 28 + count * 7);
+
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const cellX = isShared ? 118 : 122;
+        const cellY = isShared ? 54 : 58;
+        const startX = centroid.x - ((cols - 1) * cellX) / 2;
+        const startY = centroid.y - ((rows - 1) * cellY) / 2;
+
+        group.items.forEach((item, index) => {
+          let x, y;
+          if(count === 1){
+            x = centroid.x;
+            y = centroid.y;
+          }else if(count <= 3){
+            const ang = (-Math.PI / 2) + (index * ((Math.PI * 2) / count));
+            x = centroid.x + Math.cos(ang) * spread;
+            y = centroid.y + Math.sin(ang) * spread * 0.75;
+          }else{
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            x = startX + col * cellX;
+            y = startY + row * cellY;
+          }
+
+          x = clamp(x, 60, state.viewBox.w - 60);
+          y = clamp(y, 72, state.viewBox.h - 54);
+
+          allPositions.push({
+            ...item,
+            x,
+            y,
+            shared: isShared,
+            signature: group.memberIds.join("||")
+          });
+        });
+      }
+
+      relaxCollisions(allPositions);
+      return allPositions;
+    }
+
+    function relaxCollisions(items){
+      const iterations = 120;
+      const padX = 18;
+      const padY = 12;
+
+      for(let iter=0; iter<iterations; iter++){
+        for(let i=0; i<items.length; i++){
+          for(let j=i+1; j<items.length; j++){
+            const a = items[i];
+            const b = items[j];
+            const aw = estimateChipWidth(a.label);
+            const bw = estimateChipWidth(b.label);
+            const ah = estimateChipHeight(a.label);
+            const bh = estimateChipHeight(b.label);
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const minDx = (aw + bw)/2 + padX;
+            const minDy = (ah + bh)/2 + padY;
+
+            if(Math.abs(dx) < minDx && Math.abs(dy) < minDy){
+              const pushX = (minDx - Math.abs(dx)) * 0.16 * (dx === 0 ? (Math.random() > .5 ? 1 : -1) : Math.sign(dx));
+              const pushY = (minDy - Math.abs(dy)) * 0.16 * (dy === 0 ? (Math.random() > .5 ? 1 : -1) : Math.sign(dy));
+              a.x -= pushX;
+              b.x += pushX;
+              a.y -= pushY;
+              b.y += pushY;
+              a.x = clamp(a.x, 60, state.viewBox.w - 60);
+              b.x = clamp(b.x, 60, state.viewBox.w - 60);
+              a.y = clamp(a.y, 70, state.viewBox.h - 54);
+              b.y = clamp(b.y, 70, state.viewBox.h - 54);
+            }
+          }
+        }
+      }
+    }
+
+    function estimateChipWidth(label){
+      return clamp(70 + Math.min(label.length * 4.2, 150), 90, 230);
+    }
+
+    function estimateChipHeight(label){
+      const lines = Math.ceil(label.length / 26);
+      return 26 + (lines - 1) * 14;
+    }
+
+    function emitCosmosSnapshot(selected, diagMap){
+      const nodes = (selected || []).map((p, i) => ({
+        id: p.id,
+        name: p.proceso,
+        spec: p.especialidad,
+        mnemo: p.mnemotecnia || "",
+        color: COLORS[i % COLORS.length].solid,
+        diagCount: (p.diagnosticos || []).length
+      }));
+
+      const weights = new Map();
+      if(diagMap && diagMap.size){
+        for(const [, d] of diagMap){
+          const members = [...new Set(d.members || [])];
+          if(members.length < 2) continue;
+          for(let i=0;i<members.length;i++){
+            for(let j=i+1;j<members.length;j++){
+              const a = members[i], b = members[j];
+              const key = a < b ? `${a}||${b}` : `${b}||${a}`;
+              weights.set(key, (weights.get(key) || 0) + 1);
+            }
+          }
+        }
+      }
+
+      const links = [...weights.entries()].map(([key, count]) => {
+        const [a,b] = key.split("||");
+        return { a, b, count };
+      });
+
+      const snap = { nodes, links, ts: Date.now() };
+      window.__ddxCosmosSnapshot = snap;
+      window.dispatchEvent(new CustomEvent("ddx:cosmos", { detail: snap }));
+    }
+
+    function renderDiagram(){
+      const selected = getSelectedProcesses();
+      el.emptyState.style.display = selected.length ? "none" : "grid";
+      el.vennSvg.innerHTML = "";
+      el.chipLayer.innerHTML = "";
+
+      if(!selected.length){
+        el.diagSummary.textContent = "0 diagnósticos mostrados";
+        renderSharedList([]);
+        emitCosmosSnapshot([], new Map());
+        return;
+      }
+
+      ensureCircleState(selected);
+      const diagMap = buildDiagnosisMembership(selected);
+      state.diagnosisMap = diagMap;
+      const groups = groupByMembership(diagMap);
+      const positioned = positionGroupItems(groups);
+      state.renderedItems = positioned;
+
+      renderCircles(selected);
+      renderChips(positioned);
+      renderSharedList(positioned.filter(x => x.shared));
+      el.diagSummary.textContent = `${positioned.length} diagnósticos mostrados`;
+
+      emitCosmosSnapshot(selected, diagMap);
+    }
+
+    function renderCircles(selected){
+      const frag = document.createDocumentFragment();
+
+      selected.forEach((proc, index) => {
+        const circle = state.circles.find(c => c.id === proc.id);
+        if(!circle) return;
+
+        const g = svgEl("g", { class: "circle-group", "data-id": proc.id });
+        const color = COLORS[index % COLORS.length];
+
+        const defsId = `grad_${proc.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        const defs = svgEl("defs");
+        const grad = svgEl("radialGradient", {
+          id: defsId,
+          cx: "35%",
+          cy: "28%",
+          r: "75%"
+        });
+
+        grad.appendChild(svgEl("stop", {
+          offset: "0%",
+          "stop-color": "#ffffff",
+          "stop-opacity": "0.22"
+        }));
+
+        grad.appendChild(svgEl("stop", {
+          offset: "18%",
+          "stop-color": color.solid,
+          "stop-opacity": "0.34"
+        }));
+
+        grad.appendChild(svgEl("stop", {
+          offset: "62%",
+          "stop-color": color.solid,
+          "stop-opacity": "0.20"
+        }));
+
+        grad.appendChild(svgEl("stop", {
+          offset: "100%",
+          "stop-color": color.solid,
+          "stop-opacity": "0.08"
+        }));
+
+        defs.appendChild(grad);
+        g.appendChild(defs);
+
+        const ring = svgEl("circle", {
+          cx: circle.x,
+          cy: circle.y,
+          r: circle.r,
+          class: "circle-fill",
+          fill: `url(#${defsId})`
+        });
+
+        const label = svgEl("text", {
+          x: circle.x,
+          y: circle.y - circle.r - 18,
+          class: "circle-label"
+        });
+        label.textContent = proc.proceso;
+
+        const sub = svgEl("text", {
+          x: circle.x,
+          y: circle.y - circle.r - 2,
+          class: "circle-sub"
+        });
+        sub.textContent = `${proc.especialidad}${proc.mnemotecnia ? " · " + proc.mnemotecnia : ""}`;
+
+        g.appendChild(ring);
+        g.appendChild(label);
+        g.appendChild(sub);
+        attachDrag(g, proc.id);
+        frag.appendChild(g);
+      });
+
+      el.vennSvg.appendChild(frag);
+    }
+
+    function renderChips(items){
+      const stageRect = el.diagramStage.getBoundingClientRect();
+      const sx = stageRect.width / state.viewBox.w;
+      const sy = stageRect.height / state.viewBox.h;
+      const frag = document.createDocumentFragment();
+
+      for(const item of items){
+        const div = document.createElement("div");
+        div.className = `diag-chip${item.shared ? " shared" : ""}`;
+        div.style.left = `${item.x * sx}px`;
+        div.style.top = `${item.y * sy}px`;
+
+        const memberNames = item.processNames.join(" · ");
+        div.innerHTML = `
+          ${escapeHtml(item.label)}
+          ${item.shared ? `<em>Compartido: ${escapeHtml(memberNames)}</em>` : ""}
+        `;
+        frag.appendChild(div);
+      }
+
+      el.chipLayer.appendChild(frag);
+    }
+
+    function renderSharedList(sharedItems){
+      if(!sharedItems.length){
+        el.sharedList.innerHTML = `<div class="muted">No hay diagnósticos compartidos entre los procesos seleccionados.</div>`;
+        return;
+      }
+
+      const unique = new Map();
+      for(const item of sharedItems){
+        const key = normalizeText(item.label) + "||" + item.signature;
+        if(!unique.has(key)) unique.set(key, item);
+      }
+
+      el.sharedList.innerHTML = [...unique.values()]
+        .sort((a,b)=> a.label.localeCompare(b.label, 'es'))
+        .map(item => `
+          <div class="shared-item">
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${escapeHtml(item.processNames.join(" · "))}</span>
+          </div>
+        `).join("");
+    }
+
+    function attachDrag(group, id){
+      const onPointerDown = (e) => {
+        e.preventDefault();
+        group.classList.add("dragging");
+        const pt = eventToSvgPoint(e);
+        const circle = state.circles.find(c => c.id === id);
+        if(!circle) return;
+
+        state.drag = {
+          id,
+          offsetX: pt.x - circle.x,
+          offsetY: pt.y - circle.y
+        };
+
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp, { once:true });
+      };
+
+      const onPointerMove = (e) => {
+        if(!state.drag || state.drag.id !== id) return;
+        const pt = eventToSvgPoint(e);
+        const circle = state.circles.find(c => c.id === id);
+        if(!circle) return;
+
+        circle.x = clamp(pt.x - state.drag.offsetX, circle.r + 24, state.viewBox.w - circle.r - 24);
+        circle.y = clamp(pt.y - state.drag.offsetY, circle.r + 48, state.viewBox.h - circle.r - 24);
+        renderDiagram();
+      };
+
+      const onPointerUp = () => {
+        state.drag = null;
+        group.classList.remove("dragging");
+        window.removeEventListener("pointermove", onPointerMove);
+      };
+
+      group.addEventListener("pointerdown", onPointerDown);
+    }
+
+    function eventToSvgPoint(e){
+      const rect = el.vennSvg.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * state.viewBox.w;
+      const y = ((e.clientY - rect.top) / rect.height) * state.viewBox.h;
+      return { x, y };
+    }
+
+    function svgEl(tag, attrs = {}){
+      const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for(const [k,v] of Object.entries(attrs)) node.setAttribute(k, v);
+      return node;
+    }
+
+    function clamp(v, min, max){
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeHtmlAttr(str){
+      return escapeHtml(str).replaceAll('"', "&quot;");
+    }
+
+    el.searchInput.addEventListener("input", applyFilters);
+    el.specialtySelect.addEventListener("change", applyFilters);
+
+    el.clearBtn.addEventListener("click", () => {
+      state.selectedIds.clear();
+      applyFilters();
+    });
+
+    el.selectVisibleBtn.addEventListener("click", () => {
+      state.filtered.forEach(item => state.selectedIds.add(item.id));
+      applyFilters();
+    });
+
+    el.autoLayoutBtn.addEventListener("click", () => {
+      const selected = getSelectedProcesses();
+      if(!selected.length) return;
+      autoLayoutCircles(selected);
+      renderDiagram();
+    });
+
+    el.fitBtn.addEventListener("click", () => {
+      renderDiagram();
+    });
+
+    window.addEventListener("resize", () => {
+      if(getSelectedProcesses().length) renderDiagram();
+    });
+
+    loadData();
+  </script>
+
+  <script type="module">
+    const btn = document.getElementById("cosmosToggle");
+    const canvas = document.getElementById("cosmosCanvas");
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    function setCosmosInteractive(on){
+      document.body.classList.toggle("cosmos-interactive", on);
+      btn.setAttribute("aria-pressed", String(on));
+    }
+
+    btn.addEventListener("click", () => setCosmosInteractive(!document.body.classList.contains("cosmos-interactive")));
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Escape") setCosmosInteractive(false);
+    });
+
+    function hasWebGL(){
+      try{
+        const c = document.createElement("canvas");
+        return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl")));
+      }catch{
+        return false;
+      }
+    }
+
+    if(!hasWebGL()){
+      btn.style.display = "none";
+    }else{
+      (async () => {
+        try{
+          const THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
+          const { OrbitControls } = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+          const { EffectComposer } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js");
+          const { RenderPass } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js");
+          const { UnrealBloomPass } = await import("https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js");
+
+          const scene = new THREE.Scene();
+          scene.fog = new THREE.Fog(new THREE.Color("#05070b"), 150, 720);
+
+          const renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance"
+          });
+          renderer.setClearColor(0x000000, 0);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+
+          const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+          camera.position.set(0, 40, 260);
+
+          scene.add(new THREE.AmbientLight(0xffffff, 0.22));
+
+          const key = new THREE.PointLight(0xffcc66, 1.15, 900, 2);
+          key.position.set(140, 120, 140);
+          scene.add(key);
+
+          const rim = new THREE.PointLight(0x66b9ff, 0.85, 900, 2);
+          rim.position.set(-190, -60, 160);
+          scene.add(rim);
+
+          const composer = new EffectComposer(renderer);
+          composer.addPass(new RenderPass(scene, camera));
+          const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), 1.15, 0.6, 0.15);
+          composer.addPass(bloom);
+
+          const controls = new OrbitControls(camera, renderer.domElement);
+          controls.enableDamping = true;
+          controls.dampingFactor = 0.08;
+          controls.rotateSpeed = 0.65;
+          controls.zoomSpeed = 0.9;
+          controls.panSpeed = 0.8;
+          controls.autoRotate = !reduceMotion;
+          controls.autoRotateSpeed = 0.35;
+          controls.target.set(0, 0, 0);
+
+          const starsGeo = new THREE.BufferGeometry();
+          const starCount = 4200;
+          const pos = new Float32Array(starCount * 3);
+
+          for(let i=0;i<starCount;i++){
+            const k = i*3;
+            pos[k+0] = (Math.random()-0.5)*980;
+            pos[k+1] = (Math.random()-0.5)*560;
+            pos[k+2] = (Math.random()-0.5)*980;
+          }
+
+          starsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+          const starsMat = new THREE.PointsMaterial({
+            color: 0x9bbbe6,
+            size: 1.25,
+            sizeAttenuation: true,
+            transparent: true,
+            opacity: 0.42,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          });
+
+          const stars = new THREE.Points(starsGeo, starsMat);
+          scene.add(stars);
+
+          const graphRoot = new THREE.Group();
+          const nodesGroup = new THREE.Group();
+          const linksGroup = new THREE.Group();
+          const labelsGroup = new THREE.Group();
+          graphRoot.add(linksGroup, nodesGroup, labelsGroup);
+          scene.add(graphRoot);
+
+          const nodeGeo = new THREE.SphereGeometry(2.6, 20, 20);
+          const baseNodeMat = new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0.12 });
+          const nodesById = new Map();
+          let dashLines = [];
+
+          function disposeObject(obj){
+            obj.traverse?.(o => {
+              if(o.geometry) o.geometry.dispose?.();
+              if(o.material){
+                if(Array.isArray(o.material)) o.material.forEach(m=>m.dispose?.());
+                else o.material.dispose?.();
+              }
+              if(o.material?.map) o.material.map.dispose?.();
+            });
+          }
+
+          function clearGroup(group){
+            while(group.children.length){
+              const c = group.children.pop();
+              disposeObject(c);
+            }
+          }
+
+          function clamp(v, a, b){
+            return Math.max(a, Math.min(b, v));
+          }
+
+          function makeLabelSprite(text, colorHex){
+            const padX = 22;
+            const font = "700 34px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+            const c = document.createElement("canvas");
+            const ctx = c.getContext("2d");
+            ctx.font = font;
+            const m = ctx.measureText(text);
+            const w = Math.ceil(m.width + padX*2);
+            const h = 80;
+            c.width = w;
+            c.height = h;
+
+            ctx.fillStyle = "rgba(8,14,24,0.72)";
+            ctx.strokeStyle = "rgba(255,255,255,0.18)";
+            ctx.lineWidth = 2;
+            const r = 22;
+
+            ctx.beginPath();
+            ctx.moveTo(r, 10);
+            ctx.arcTo(w-10, 10, w-10, h-10, r);
+            ctx.arcTo(w-10, h-10, 10, h-10, r);
+            ctx.arcTo(10, h-10, 10, 10, r);
+            ctx.arcTo(10, 10, w-10, 10, r);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = colorHex;
+            ctx.beginPath();
+            ctx.arc(22, h/2, 8, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.font = font;
+            ctx.fillStyle = "rgba(233,238,246,0.95)";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, 42, h/2);
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+
+            const mat = new THREE.SpriteMaterial({
+              map: tex,
+              transparent: true,
+              depthWrite: false
+            });
+
+            const sp = new THREE.Sprite(mat);
+            sp.scale.set(w * 0.18, h * 0.18, 1);
+            return sp;
+          }
+
+          function buildCurvePoints(a, b, weight){
+            const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+            const lift = 16 + clamp(Math.log2(weight+1) * 10, 0, 34);
+            mid.y += lift;
+            const side = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3(0,1,0)).normalize();
+            mid.addScaledVector(side, (Math.random()-0.5) * 12);
+            const curve = new THREE.CatmullRomCurve3([a.clone(), mid, b.clone()]);
+            return curve.getPoints(34);
+          }
+
+          function fitCameraToCount(n){
+            const dist = 240 + n * 20;
+            camera.position.set(0, 40, dist);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            bloom.strength = n ? 1.2 : 1.05;
+          }
+
+          function rebuildGraph(snapshot){
+            clearGroup(nodesGroup);
+            clearGroup(linksGroup);
+            clearGroup(labelsGroup);
+            nodesById.clear();
+            dashLines = [];
+
+            const nodes = snapshot?.nodes || [];
+            const links = snapshot?.links || [];
+            const n = nodes.length;
+
+            fitCameraToCount(n);
+
+            if(!n){
+              const m = new THREE.Mesh(nodeGeo, baseNodeMat.clone());
+              m.material.color = new THREE.Color("#2a3446");
+              m.material.emissive = new THREE.Color("#101722");
+              m.material.emissiveIntensity = 0.35;
+              m.scale.setScalar(1.25);
+              m.userData.pulse = true;
+              nodesGroup.add(m);
+              return;
+            }
+
+            const ringR = 110 + n * 18;
+
+            nodes.forEach((nd, i) => {
+              const col = new THREE.Color(nd.color || "#ff9900");
+              const mat = baseNodeMat.clone();
+              mat.color = col;
+              mat.emissive = col.clone();
+              mat.emissiveIntensity = 1.05;
+
+              const mesh = new THREE.Mesh(nodeGeo, mat);
+              const ang = (-Math.PI/2) + (i * (Math.PI*2 / n));
+
+              mesh.position.set(
+                Math.cos(ang) * ringR,
+                (Math.sin(ang*1.4) * 10) + ((i%2)? 6 : -6),
+                Math.sin(ang) * ringR
+              );
+
+              mesh.userData.phase = Math.random()*Math.PI*2;
+              mesh.userData.base = 0.95 + Math.random()*0.35;
+              mesh.userData.weight = clamp((nd.diagCount || 1)/18, 0.8, 2.0);
+              nodesById.set(nd.id, mesh);
+              nodesGroup.add(mesh);
+
+              const label = makeLabelSprite(nd.name, nd.color || "#ff9900");
+              label.position.copy(mesh.position).add(new THREE.Vector3(0, 9, 0));
+              labelsGroup.add(label);
+            });
+
+            links.forEach((lk) => {
+              const A = nodesById.get(lk.a);
+              const B = nodesById.get(lk.b);
+              if(!A || !B) return;
+
+              const w = lk.count || 1;
+              const pts = buildCurvePoints(A.position, B.position, w);
+              const geo = new THREE.BufferGeometry().setFromPoints(pts);
+              const op = clamp(0.10 + Math.log2(w+1)*0.07, 0.14, 0.45);
+              const dash = clamp(2.0 + Math.log2(w+1)*0.9, 2.2, 6.8);
+              const gap = clamp(5.0 - Math.log2(w+1)*0.55, 2.2, 5.2);
+
+              const mat = new THREE.LineDashedMaterial({
+                color: 0xffb347,
+                transparent: true,
+                opacity: op,
+                dashSize: dash,
+                gapSize: gap,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+              });
+
+              const line = new THREE.Line(geo, mat);
+              line.computeLineDistances();
+              line.userData.speed = 0.35 + clamp(Math.log2(w+1)*0.12, 0, 0.9);
+              linksGroup.add(line);
+              dashLines.push(line);
+            });
+          }
+
+          function syncLabelVisibility(){
+            const on = document.body.classList.contains("cosmos-interactive");
+            labelsGroup.visible = on;
+            linksGroup.visible = true;
+          }
+
+          let lastTs = 0;
+
+          function onSnap(snap){
+            if(!snap || !snap.ts) return;
+            if(snap.ts === lastTs) return;
+            lastTs = snap.ts;
+            rebuildGraph(snap);
+          }
+
+          window.addEventListener("ddx:cosmos", (e) => onSnap(e.detail));
+
+          if(window.__ddxCosmosSnapshot) onSnap(window.__ddxCosmosSnapshot);
+          else rebuildGraph({ nodes: [], links: [], ts: Date.now() });
+
+          function resize(){
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            renderer.setSize(w, h, false);
+            composer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            bloom.setSize(w, h);
+          }
+
+          resize();
+          window.addEventListener("resize", resize);
+
+          let running = true;
+          document.addEventListener("visibilitychange", () => {
+            running = !document.hidden;
+          });
+
+          const clock = new THREE.Clock();
+
+          function tick(){
+            requestAnimationFrame(tick);
+            if(!running) return;
+
+            const dt = clock.getDelta();
+            const t = clock.getElapsedTime();
+
+            stars.rotation.y = t * 0.015;
+            stars.rotation.x = Math.sin(t * 0.05) * 0.02;
+
+            nodesGroup.children.forEach(n => {
+              if(n.userData?.pulse){
+                const s = 1.22 + Math.sin(t*0.9)*0.06;
+                n.scale.setScalar(s);
+                return;
+              }
+              const base = n.userData.base || 1;
+              const w = n.userData.weight || 1;
+              const s = (base + Math.sin(t*0.9 + (n.userData.phase||0))*0.10) * (0.92 + 0.10*w);
+              n.scale.setScalar(s);
+              if(n.material) n.material.emissiveIntensity = 1.0 + Math.sin(t*0.9 + (n.userData.phase||0))*0.22;
+            });
+
+            for(const line of dashLines){
+              const m = line.material;
+              if("dashOffset" in m) m.dashOffset -= dt * (line.userData.speed || 0.4);
+            }
+
+            syncLabelVisibility();
+            controls.update();
+            composer.render();
+          }
+
+          tick();
+        }catch(err){
+          console.warn("Cosmos 3D no disponible:", err);
+          btn.style.display = "none";
+          setCosmosInteractive(false);
+        }
+      })();
+    }
+  </script>
+</body>
+</html>
