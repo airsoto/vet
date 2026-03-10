@@ -218,7 +218,9 @@
         <p id="resultadoTexto" class="result-text">Todavía no has enviado ninguna respuesta.</p>
       </div>
 
-      <p class="footer-note">La búsqueda detecta coincidencias dentro del texto escrito.</p>
+      <p class="footer-note">
+        La respuesta solo se mostrará si escribes al menos dos palabras que coincidan con la solución.
+      </p>
     </section>
   </main>
 
@@ -236,7 +238,19 @@
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
         .trim();
+    }
+
+    function obtenerPalabras(texto) {
+      const limpio = normalizarTexto(texto);
+      if (!limpio) return [];
+      return limpio.split(" ").filter(Boolean);
+    }
+
+    function obtenerSolucion(item) {
+      return item.solucion ?? item.contestacion ?? "";
     }
 
     async function cargarJSON() {
@@ -251,23 +265,36 @@
       }
     }
 
-    function obtenerSolucion(item) {
-      // Prioridad: campo 'solucion'. Compatibilidad: 'contestacion'
-      return item.solucion ?? item.contestacion ?? "";
+    function contarCoincidenciasPalabras(textoUsuario, solucion) {
+      const palabrasUsuario = [...new Set(obtenerPalabras(textoUsuario))];
+      const palabrasSolucion = [...new Set(obtenerPalabras(solucion))];
+
+      let coincidencias = 0;
+
+      for (const palabra of palabrasUsuario) {
+        if (palabrasSolucion.includes(palabra)) {
+          coincidencias++;
+        }
+      }
+
+      return coincidencias;
     }
 
     function buscarCoincidencia(textoUsuario) {
-      const textoNormalizado = normalizarTexto(textoUsuario);
+      let mejorMatch = null;
+      let maxCoincidencias = 0;
 
       for (const item of datosEnigma) {
         const solucion = obtenerSolucion(item);
-        const solucionNormalizada = normalizarTexto(solucion);
+        const coincidencias = contarCoincidenciasPalabras(textoUsuario, solucion);
 
-        if (solucionNormalizada && textoNormalizado.includes(solucionNormalizada)) {
-          return item;
+        if (coincidencias >= 2 && coincidencias > maxCoincidencias) {
+          mejorMatch = item;
+          maxCoincidencias = coincidencias;
         }
       }
-      return null;
+
+      return mejorMatch;
     }
 
     form.addEventListener("submit", async (e) => {
@@ -289,7 +316,7 @@
 
       if (match) {
         resultado.className = "result ok";
-        resultadoTexto.textContent = match.respuesta || ;
+        resultadoTexto.textContent = match.respuesta || "Coincidencia encontrada, pero falta el campo respuesta en el JSON.";
       } else {
         resultado.className = "result err";
         resultadoTexto.textContent = "Respuesta incorrecta. Vuelve a intentarlo.";
