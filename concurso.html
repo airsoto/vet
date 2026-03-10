@@ -218,7 +218,7 @@
       </div>
 
       <p class="footer-note">
-        Si la solución tiene una sola palabra, debe coincidir esa palabra. Si tiene varias, deben coincidir al menos dos.
+        Solo se mostrará la respuesta si escribes 2 o más elementos del campo contestacion, en cualquier orden.
       </p>
     </section>
   </main>
@@ -247,8 +247,8 @@
       return limpio ? limpio.split(" ").filter(Boolean) : [];
     }
 
-    function obtenerSolucion(item) {
-      return item.solucion ?? item.contestacion ?? "";
+    function obtenerContestacion(item) {
+      return item.contestacion ?? item.solucion ?? "";
     }
 
     async function cargarJSON() {
@@ -264,23 +264,19 @@
       }
     }
 
-    function evaluarCoincidencia(textoUsuario, item) {
-      const solucion = obtenerSolucion(item);
+    function contarCoincidencias(textoUsuario, textoContestacion) {
       const palabrasUsuario = [...new Set(obtenerPalabras(textoUsuario))];
-      const palabrasSolucion = [...new Set(obtenerPalabras(solucion))];
+      const palabrasContestacion = [...new Set(obtenerPalabras(textoContestacion))];
 
-      if (!palabrasSolucion.length) return 0;
+      let total = 0;
 
-      let coincidencias = 0;
-      for (const palabra of palabrasSolucion) {
-        if (palabrasUsuario.includes(palabra)) coincidencias++;
+      for (const palabra of palabrasContestacion) {
+        if (palabrasUsuario.includes(palabra)) {
+          total++;
+        }
       }
 
-      if (palabrasSolucion.length === 1) {
-        return coincidencias === 1 ? 1 : 0;
-      }
-
-      return coincidencias >= 2 ? coincidencias : 0;
+      return total;
     }
 
     function buscarCoincidencia(textoUsuario) {
@@ -288,10 +284,11 @@
       let mejorPuntuacion = 0;
 
       for (const item of datosEnigma) {
-        const puntuacion = evaluarCoincidencia(textoUsuario, item);
+        const contestacion = obtenerContestacion(item);
+        const coincidencias = contarCoincidencias(textoUsuario, contestacion);
 
-        if (puntuacion > mejorPuntuacion) {
-          mejorPuntuacion = puntuacion;
+        if (coincidencias >= 2 && coincidencias > mejorPuntuacion) {
+          mejorPuntuacion = coincidencias;
           mejorMatch = item;
         }
       }
