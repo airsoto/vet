@@ -183,7 +183,6 @@
     <section class="card">
       <h1>Enigma</h1>
 
-      <!-- BLOQUE DESARROLLADO POR + HOME -->
       <div style="margin:10px 0 0 0;">
         <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
           <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
@@ -219,7 +218,7 @@
       </div>
 
       <p class="footer-note">
-        La respuesta solo se mostrará si escribes al menos dos palabras que coincidan con la solución.
+        Si la solución tiene una sola palabra, debe coincidir esa palabra. Si tiene varias, deben coincidir al menos dos.
       </p>
     </section>
   </main>
@@ -245,8 +244,7 @@
 
     function obtenerPalabras(texto) {
       const limpio = normalizarTexto(texto);
-      if (!limpio) return [];
-      return limpio.split(" ").filter(Boolean);
+      return limpio ? limpio.split(" ").filter(Boolean) : [];
     }
 
     function obtenerSolucion(item) {
@@ -257,7 +255,8 @@
       try {
         const res = await fetch("json/enigma.json", { cache: "no-store" });
         if (!res.ok) throw new Error("No se pudo cargar json/enigma.json");
-        datosEnigma = await res.json();
+        const data = await res.json();
+        datosEnigma = Array.isArray(data) ? data : [];
       } catch (error) {
         console.error(error);
         resultado.className = "result err";
@@ -265,32 +264,35 @@
       }
     }
 
-    function contarCoincidenciasPalabras(textoUsuario, solucion) {
+    function evaluarCoincidencia(textoUsuario, item) {
+      const solucion = obtenerSolucion(item);
       const palabrasUsuario = [...new Set(obtenerPalabras(textoUsuario))];
       const palabrasSolucion = [...new Set(obtenerPalabras(solucion))];
 
-      let coincidencias = 0;
+      if (!palabrasSolucion.length) return 0;
 
-      for (const palabra of palabrasUsuario) {
-        if (palabrasSolucion.includes(palabra)) {
-          coincidencias++;
-        }
+      let coincidencias = 0;
+      for (const palabra of palabrasSolucion) {
+        if (palabrasUsuario.includes(palabra)) coincidencias++;
       }
 
-      return coincidencias;
+      if (palabrasSolucion.length === 1) {
+        return coincidencias === 1 ? 1 : 0;
+      }
+
+      return coincidencias >= 2 ? coincidencias : 0;
     }
 
     function buscarCoincidencia(textoUsuario) {
       let mejorMatch = null;
-      let maxCoincidencias = 0;
+      let mejorPuntuacion = 0;
 
       for (const item of datosEnigma) {
-        const solucion = obtenerSolucion(item);
-        const coincidencias = contarCoincidenciasPalabras(textoUsuario, solucion);
+        const puntuacion = evaluarCoincidencia(textoUsuario, item);
 
-        if (coincidencias >= 2 && coincidencias > maxCoincidencias) {
+        if (puntuacion > mejorPuntuacion) {
+          mejorPuntuacion = puntuacion;
           mejorMatch = item;
-          maxCoincidencias = coincidencias;
         }
       }
 
