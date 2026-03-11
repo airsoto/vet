@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscador de Dinosaurios | Ángel Soto</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#121821;
+      --panel-2:#0f141c;
+      --text:#f3f4f6;
+      --muted:#9ca3af;
+      --line:#1f2937;
+      --accent:#ff9900;
+      --accent-soft:rgba(255,153,0,.14);
+      --accent-2:#90caf9;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --radius:22px;
+      --maxw:1200px;
+    }
+
+    *{box-sizing:border-box}
+
+    html,body{
+      margin:0;
+      padding:0;
+      background:
+        radial-gradient(circle at top right, rgba(255,153,0,.08), transparent 24%),
+        radial-gradient(circle at top left, rgba(144,202,249,.08), transparent 18%),
+        linear-gradient(180deg,#091018 0%, #0b0f14 100%);
+      color:var(--text);
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    }
+
+    a{
+      color:var(--accent-2);
+      text-decoration:none;
+    }
+
+    a:hover{
+      text-decoration:underline;
+    }
+
+    .page{
+      width:min(calc(100% - 28px), var(--maxw));
+      margin:28px auto 40px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--line);
+      border-radius:30px;
+      padding:28px 22px 22px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -60px -60px auto;
+      width:220px;
+      height:220px;
+      background:radial-gradient(circle, rgba(255,153,0,.14), transparent 70%);
+      pointer-events:none;
+      filter:blur(8px);
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(28px, 5vw, 46px);
+      line-height:1.05;
+      letter-spacing:-.03em;
+    }
+
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:clamp(14px,2vw,17px);
+      line-height:1.6;
+      max-width:900px;
+    }
+
+    .home a{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      color:#dbeafe;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:22px;
+      margin-top:22px;
+    }
+
+    @media (max-width: 980px){
+      .layout{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
+      border:1px solid var(--line);
+      border-radius:26px;
+      box-shadow:var(--shadow);
+    }
+
+    .sidebar{
+      padding:18px;
+      position:sticky;
+      top:20px;
+      align-self:start;
+    }
+
+    @media (max-width: 980px){
+      .sidebar{
+        position:static;
+      }
+    }
+
+    .label{
+      display:block;
+      margin:0 0 8px;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+    }
+
+    .search-wrap{
+      position:relative;
+      margin-bottom:14px;
+    }
+
+    .search{
+      width:100%;
+      background:#0b1220;
+      color:var(--text);
+      border:1px solid #263142;
+      border-radius:18px;
+      padding:15px 16px;
+      font-size:15px;
+      outline:none;
+      transition:.2s ease;
+    }
+
+    .search:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 4px rgba(255,153,0,.12);
+    }
+
+    .filters{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    @media (max-width: 560px){
+      .filters{
+        grid-template-columns:1fr;
+      }
+    }
+
+    select{
+      width:100%;
+      background:#0b1220;
+      color:var(--text);
+      border:1px solid #263142;
+      border-radius:16px;
+      padding:12px 14px;
+      font-size:14px;
+      outline:none;
+    }
+
+    .stats{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:8px 0 16px;
+    }
+
+    .pill{
+      background:var(--accent-soft);
+      color:#ffd59a;
+      border:1px solid rgba(255,153,0,.25);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .result-list{
+      max-height:65vh;
+      overflow:auto;
+      border-top:1px solid rgba(255,255,255,.06);
+      padding-top:12px;
+    }
+
+    .result-item{
+      width:100%;
+      text-align:left;
+      background:transparent;
+      color:var(--text);
+      border:1px solid transparent;
+      border-radius:18px;
+      padding:12px 12px;
+      margin:0 0 10px;
+      cursor:pointer;
+      transition:.18s ease;
+      display:block;
+    }
+
+    .result-item:hover{
+      background:rgba(255,255,255,.03);
+      border-color:rgba(255,255,255,.08);
+      transform:translateY(-1px);
+    }
+
+    .result-item.active{
+      background:linear-gradient(180deg, rgba(255,153,0,.12), rgba(255,153,0,.05));
+      border-color:rgba(255,153,0,.35);
+    }
+
+    .result-item .name{
+      font-size:17px;
+      font-weight:800;
+      text-transform:capitalize;
+      margin-bottom:5px;
+    }
+
+    .result-item .meta{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .content{
+      padding:18px;
+    }
+
+    .empty{
+      padding:26px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed rgba(255,255,255,.1);
+      border-radius:20px;
+      background:rgba(255,255,255,.02);
+    }
+
+    .card{
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:22px;
+      align-items:start;
+    }
+
+    @media (max-width: 900px){
+      .card{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .media{
+      background:linear-gradient(180deg, #0b1220, #0d1521);
+      border:1px solid var(--line);
+      border-radius:24px;
+      overflow:hidden;
+      min-height:320px;
+      position:relative;
+    }
+
+    .media img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+      min-height:320px;
+      background:#0b1220;
+    }
+
+    .media .placeholder{
+      min-height:320px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:26px;
+      text-align:center;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    .badge-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .badge{
+      border:1px solid rgba(144,202,249,.22);
+      background:rgba(144,202,249,.10);
+      color:#d9efff;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .title{
+      margin:0 0 10px;
+      font-size:clamp(28px,4.2vw,42px);
+      text-transform:capitalize;
+      line-height:1.05;
+      letter-spacing:-.03em;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:12px;
+      margin-top:16px;
+    }
+
+    @media (max-width: 760px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .field{
+      background:rgba(255,255,255,.025);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:18px;
+      padding:14px 15px;
+    }
+
+    .field h3{
+      margin:0 0 8px;
+      font-size:12px;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+
+    .field p{
+      margin:0;
+      font-size:15px;
+      line-height:1.55;
+      word-break:break-word;
+    }
+
+    .taxonomy{
+      margin-top:14px;
+      background:linear-gradient(180deg, rgba(255,153,0,.06), rgba(255,153,0,.02));
+      border:1px solid rgba(255,153,0,.18);
+      border-radius:18px;
+      padding:14px 15px;
+    }
+
+    .taxonomy h3{
+      margin:0 0 8px;
+      font-size:12px;
+      color:#ffd59a;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+
+    .taxonomy p{
+      margin:0;
+      line-height:1.6;
+      color:#f7f3ec;
+    }
+
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:12px 16px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.1);
+      background:#111827;
+      color:var(--text);
+      font-weight:700;
+      transition:.18s ease;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      text-decoration:none;
+      border-color:rgba(255,153,0,.25);
+    }
+
+    .btn.primary{
+      background:linear-gradient(180deg, #ffae2b, #ff9900);
+      color:#111827;
+      border-color:transparent;
+    }
+
+    .loading{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .dot{
+      width:9px;
+      height:9px;
+      border-radius:999px;
+      background:var(--accent);
+      box-shadow:0 0 18px rgba(255,153,0,.55);
+      animation:pulse 1.1s infinite ease-in-out;
+    }
+
+    @keyframes pulse{
+      0%,100%{ transform:scale(.9); opacity:.55; }
+      50%{ transform:scale(1.2); opacity:1; }
+    }
+
+    .footer{
+      margin-top:28px;
+      padding:24px 20px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      box-shadow:var(--shadow);
+      color:var(--muted);
+      line-height:1.65;
+    }
+
+    .footer p,
+    .footer h4{
+      margin:8px 0;
+    }
+
+    .footer a{
+      color:#ffd59a;
+    }
+
+    .small-note{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.55;
+    }
+
+    .error{
+      color:#fecaca;
+      background:rgba(239,68,68,.08);
+      border:1px solid rgba(239,68,68,.2);
+      padding:12px 14px;
+      border-radius:14px;
+      margin-top:12px;
+      font-size:14px;
+    }
+
+    .ok{
+      color:#bbf7d0;
+      background:rgba(34,197,94,.08);
+      border:1px solid rgba(34,197,94,.2);
+      padding:12px 14px;
+      border-radius:14px;
+      margin-top:12px;
+      font-size:14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero panel">
+      <h1>Buscador de dinosaurios</h1>
+      <p class="subtitle">
+        Explora dinosaurios desde un archivo JSON local, filtra en tiempo real y visualiza sus características principales en una ficha detallada.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="sidebar panel">
+        <label class="label" for="searchInput">Buscar dinosaurio</label>
+        <div class="search-wrap">
+          <input
+            id="searchInput"
+            class="search"
+            type="text"
+            placeholder="Nombre, dieta, período, país, tipo..."
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="filters">
+          <select id="dietFilter">
+            <option value="">Todas las dietas</option>
+          </select>
+
+          <select id="typeFilter">
+            <option value="">Todos los tipos</option>
+          </select>
+        </div>
+
+        <div class="stats">
+          <span class="pill" id="countPill">0 resultados</span>
+          <span class="pill" id="jsonPill">Cargando JSON...</span>
+        </div>
+
+        <div id="statusBox" class="loading">
+          <span class="dot"></span>
+          <span>Cargando dinosaurios...</span>
+        </div>
+
+        <div id="list" class="result-list"></div>
+
+        <div class="small-note">
+          La imagen se intenta extraer automáticamente desde la página enlazada en el campo <code>link</code>. 
+          Si no se puede obtener, se mostrará un aviso y el botón para abrir la fuente original.
+        </div>
+      </aside>
+
+      <main class="content panel">
+        <div id="detail">
+          <div class="empty">
+            Escribe en el buscador o selecciona un dinosaurio para ver su ficha.
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const JSON_URL = "json/dinosaurs.json";
+
+    const state = {
+      dinosaurs: [],
+      filtered: [],
+      selectedIndex: 0,
+      imageCache: new Map()
+    };
+
+    const els = {
+      searchInput: document.getElementById("searchInput"),
+      dietFilter: document.getElementById("dietFilter"),
+      typeFilter: document.getElementById("typeFilter"),
+      countPill: document.getElementById("countPill"),
+      jsonPill: document.getElementById("jsonPill"),
+      statusBox: document.getElementById("statusBox"),
+      list: document.getElementById("list"),
+      detail: document.getElementById("detail")
+    };
+
+    function normalize(text){
+      return (text || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function escapeHtml(str){
+      return (str || "").toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function fieldText(dino){
+      return [
+        dino.name,
+        dino.diet,
+        dino.period,
+        dino.lived_in,
+        dino.type,
+        dino.length,
+        dino.taxonomy,
+        dino.named_by,
+        dino.species
+      ].join(" | ");
+    }
+
+    async function loadDinosaurs(){
+      try{
+        const res = await fetch(JSON_URL, { cache: "no-store" });
+        if(!res.ok) throw new Error(`No se pudo cargar ${JSON_URL} (${res.status})`);
+
+        const data = await res.json();
+
+        let dinosaurs = data;
+        if (!Array.isArray(dinosaurs)) {
+          if (data && Array.isArray(data.dinosaurs)) dinosaurs = data.dinosaurs;
+          else throw new Error("El JSON no contiene un array válido de dinosaurios.");
+        }
+
+        state.dinosaurs = dinosaurs.filter(Boolean);
+        els.jsonPill.textContent = `${state.dinosaurs.length} dinosaurios`;
+        els.statusBox.innerHTML = '<div class="ok">JSON cargado correctamente.</div>';
+
+        buildFilters();
+        applyFilters(true);
+      }catch(error){
+        console.error(error);
+        els.statusBox.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+        els.detail.innerHTML = `
+          <div class="empty">
+            No se ha podido cargar <code>${escapeHtml(JSON_URL)}</code>.<br><br>
+            Comprueba que el archivo existe y que contiene un array JSON válido.
+          </div>
+        `;
+      }
+    }
+
+    function buildFilters(){
+      const diets = [...new Set(state.dinosaurs.map(d => (d.diet || "").trim()).filter(Boolean))].sort();
+      const types = [...new Set(state.dinosaurs.map(d => (d.type || "").trim()).filter(Boolean))].sort();
+
+      els.dietFilter.innerHTML = `<option value="">Todas las dietas</option>` +
+        diets.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
+      els.typeFilter.innerHTML = `<option value="">Todos los tipos</option>` +
+        types.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    }
+
+    function applyFilters(resetSelection = false){
+      const q = normalize(els.searchInput.value);
+      const diet = normalize(els.dietFilter.value);
+      const type = normalize(els.typeFilter.value);
+
+      state.filtered = state.dinosaurs.filter(dino => {
+        const matchesText = !q || normalize(fieldText(dino)).includes(q);
+        const matchesDiet = !diet || normalize(dino.diet) === diet;
+        const matchesType = !type || normalize(dino.type) === type;
+        return matchesText && matchesDiet && matchesType;
+      });
+
+      if(resetSelection) state.selectedIndex = 0;
+      if(state.selectedIndex >= state.filtered.length) state.selectedIndex = 0;
+
+      renderList();
+      renderDetail();
+      els.countPill.textContent = `${state.filtered.length} resultado${state.filtered.length === 1 ? "" : "s"}`;
+    }
+
+    function renderList(){
+      if(!state.filtered.length){
+        els.list.innerHTML = `
+          <div class="empty" style="padding:20px; margin-top:8px;">
+            No hay dinosaurios que coincidan con la búsqueda.
+          </div>
+        `;
+        return;
+      }
+
+      els.list.innerHTML = state.filtered.map((dino, index) => `
+        <button class="result-item ${index === state.selectedIndex ? "active" : ""}" data-index="${index}">
+          <div class="name">${escapeHtml(dino.name || "Sin nombre")}</div>
+          <div class="meta">
+            ${escapeHtml(dino.type || "Tipo no disponible")} ·
+            ${escapeHtml(dino.diet || "Dieta no disponible")}<br>
+            ${escapeHtml(dino.lived_in || "Lugar desconocido")}
+          </div>
+        </button>
+      `).join("");
+
+      els.list.querySelectorAll(".result-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.selectedIndex = Number(btn.dataset.index);
+          renderList();
+          renderDetail();
+        });
+      });
+    }
+
+    function renderDetail(){
+      if(!state.filtered.length){
+        els.detail.innerHTML = `
+          <div class="empty">
+            No hay datos para mostrar.
+          </div>
+        `;
+        return;
+      }
+
+      const dino = state.filtered[state.selectedIndex];
+
+      els.detail.innerHTML = `
+        <article class="card">
+          <div class="media" id="mediaBox">
+            <div class="placeholder">
+              Cargando imagen del dinosaurio...
+            </div>
+          </div>
+
+          <div>
+            <div class="badge-row">
+              <span class="badge">${escapeHtml(dino.diet || "Dieta desconocida")}</span>
+              <span class="badge">${escapeHtml(dino.type || "Tipo desconocido")}</span>
+              <span class="badge">${escapeHtml(dino.lived_in || "Origen desconocido")}</span>
+            </div>
+
+            <h2 class="title">${escapeHtml(dino.name || "Sin nombre")}</h2>
+
+            <div class="grid">
+              <div class="field">
+                <h3>Período</h3>
+                <p>${escapeHtml(dino.period || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Longitud</h3>
+                <p>${escapeHtml(dino.length || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Dieta</h3>
+                <p>${escapeHtml(dino.diet || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Tipo</h3>
+                <p>${escapeHtml(dino.type || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Vivió en</h3>
+                <p>${escapeHtml(dino.lived_in || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Especie</h3>
+                <p>${escapeHtml(dino.species || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Nombrado por</h3>
+                <p>${escapeHtml(dino.named_by || "No disponible")}</p>
+              </div>
+
+              <div class="field">
+                <h3>Enlace</h3>
+                <p>
+                  ${dino.link
+                    ? `<a href="${escapeHtml(dino.link)}" target="_blank" rel="noopener">Abrir ficha original</a>`
+                    : "No disponible"}
+                </p>
+              </div>
+            </div>
+
+            <div class="taxonomy">
+              <h3>Taxonomía</h3>
+              <p>${escapeHtml(dino.taxonomy || "No disponible")}</p>
+            </div>
+
+            <div class="actions">
+              ${dino.link ? `<a class="btn primary" href="${escapeHtml(dino.link)}" target="_blank" rel="noopener">Ver página original</a>` : ""}
+              <button class="btn" id="reloadImageBtn" type="button">Reintentar imagen</button>
+            </div>
+
+            <div class="small-note">
+              La imagen se intenta obtener automáticamente desde la URL del museo indicada en el JSON.
+            </div>
+          </div>
+        </article>
+      `;
+
+      const reloadBtn = document.getElementById("reloadImageBtn");
+      if(reloadBtn){
+        reloadBtn.addEventListener("click", () => loadDinoImage(dino, true));
+      }
+
+      loadDinoImage(dino);
+    }
+
+    async function loadDinoImage(dino, forceReload = false){
+      const mediaBox = document.getElementById("mediaBox");
+      if(!mediaBox) return;
+
+      if(!dino.link){
+        mediaBox.innerHTML = `
+          <div class="placeholder">
+            No hay enlace disponible para intentar recuperar una imagen.
+          </div>
+        `;
+        return;
+      }
+
+      const cacheKey = dino.link;
+
+      if(!forceReload && state.imageCache.has(cacheKey)){
+        const cached = state.imageCache.get(cacheKey);
+        mediaBox.innerHTML = cached;
+        return;
+      }
+
+      mediaBox.innerHTML = `
+        <div class="placeholder">
+          Intentando obtener imagen desde la página enlazada...
+        </div>
+      `;
+
+      try{
+        const imageUrl = await extractImageFromLink(dino.link);
+
+        if(imageUrl){
+          const html = `
+            <img
+              src="${escapeHtml(imageUrl)}"
+              alt="Imagen de ${escapeHtml(dino.name || "dinosaurio")}"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              onerror="this.closest('.media').innerHTML = \`
+                <div class='placeholder'>
+                  No se pudo cargar la imagen remota.<br><br>
+                  <a href='${escapeHtml(dino.link)}' target='_blank' rel='noopener'>Abrir página original</a>
+                </div>\`;"
+            />
+          `;
+          state.imageCache.set(cacheKey, html);
+          mediaBox.innerHTML = html;
+        }else{
+          const fallback = `
+            <div class="placeholder">
+              No se ha encontrado una imagen utilizable en la página.<br><br>
+              <a href="${escapeHtml(dino.link)}" target="_blank" rel="noopener">Abrir página original</a>
+            </div>
+          `;
+          state.imageCache.set(cacheKey, fallback);
+          mediaBox.innerHTML = fallback;
+        }
+      }catch(err){
+        console.error("Error extrayendo imagen:", err);
+        const fallback = `
+          <div class="placeholder">
+            No se ha podido obtener la imagen automáticamente.<br><br>
+            <a href="${escapeHtml(dino.link)}" target="_blank" rel="noopener">Abrir página original</a>
+          </div>
+        `;
+        state.imageCache.set(cacheKey, fallback);
+        mediaBox.innerHTML = fallback;
+      }
+    }
+
+    async function extractImageFromLink(url){
+      const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxiedUrl, { cache: "no-store" });
+      if(!res.ok) throw new Error("No se pudo leer la página enlazada.");
+
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+
+      const candidates = [
+        doc.querySelector('meta[property="og:image"]')?.getAttribute("content"),
+        doc.querySelector('meta[name="twitter:image"]')?.getAttribute("content"),
+        doc.querySelector('main img')?.getAttribute("src"),
+        doc.querySelector('article img')?.getAttribute("src"),
+        doc.querySelector('img')?.getAttribute("src")
+      ].filter(Boolean);
+
+      if(!candidates.length) return null;
+
+      const raw = candidates.find(src =>
+        !src.startsWith("data:") &&
+        !src.includes("logo") &&
+        !src.includes("icon")
+      ) || candidates[0];
+
+      return new URL(raw, url).href;
+    }
+
+    els.searchInput.addEventListener("input", () => applyFilters(true));
+    els.dietFilter.addEventListener("change", () => applyFilters(true));
+    els.typeFilter.addEventListener("change", () => applyFilters(true));
+
+    loadDinosaurs();
+  </script>
+</body>
+</html>
