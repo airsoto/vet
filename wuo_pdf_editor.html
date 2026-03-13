@@ -26,6 +26,7 @@
     }
 
     *{box-sizing:border-box}
+
     body{
       margin:0;
       font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
@@ -70,6 +71,7 @@
       color:#d7e8ff;
       text-decoration:none;
     }
+
     .home a:hover{
       text-decoration:underline;
     }
@@ -139,7 +141,10 @@
       box-shadow:0 8px 22px rgba(255,153,0,.22);
     }
 
-    button:hover{ transform:translateY(-1px); }
+    button:hover{
+      transform:translateY(-1px);
+    }
+
     button:disabled{
       opacity:.45;
       cursor:not-allowed;
@@ -292,6 +297,7 @@
       color:#ffd08a;
       text-decoration:none;
     }
+
     .footer a:hover{
       text-decoration:underline;
     }
@@ -403,13 +409,13 @@
     const cropCountEl = document.getElementById('cropCount');
     const deleteCountEl = document.getElementById('deleteCount');
 
-    let originalBytes = null;
+    let originalPdfBytes = null;
     let pdfJsDoc = null;
-    let pageStates = []; // { crop: false, delete: false }
+    let pageStates = [];
 
     const CM_TO_PT = 28.3464566929;
-    const CROP_TOP = 4 * CM_TO_PT;   // 4 cm arriba
-    const CROP_LEFT = 2 * CM_TO_PT;  // 2 cm izquierda
+    const CROP_TOP = 4 * CM_TO_PT;
+    const CROP_LEFT = 3 * CM_TO_PT;
 
     function setStatus(msg) {
       statusBox.textContent = msg;
@@ -434,7 +440,7 @@
     }
 
     function resetAll() {
-      originalBytes = null;
+      originalPdfBytes = null;
       pdfJsDoc = null;
       pageStates = [];
       thumbGrid.innerHTML = '';
@@ -479,8 +485,13 @@
 
       try {
         setStatus('Cargando PDF...');
-        originalBytes = await file.arrayBuffer();
-        pdfJsDoc = await pdfjsLib.getDocument({ data: originalBytes }).promise;
+
+        const arrayBuffer = await file.arrayBuffer();
+        originalPdfBytes = new Uint8Array(arrayBuffer).slice();
+
+        pdfJsDoc = await pdfjsLib.getDocument({
+          data: originalPdfBytes.slice()
+        }).promise;
 
         pageStates = Array.from({ length: pdfJsDoc.numPages }, () => ({
           crop: false,
@@ -495,7 +506,6 @@
 
         for (let pageNum = 1; pageNum <= pdfJsDoc.numPages; pageNum++) {
           const page = await pdfJsDoc.getPage(pageNum);
-
           const viewport = page.getViewport({ scale: 0.35 });
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
@@ -563,7 +573,7 @@
     });
 
     exportBtn.addEventListener('click', async () => {
-      if (!originalBytes || !pageStates.length) {
+      if (!originalPdfBytes || !pageStates.length) {
         setStatus('Primero debes cargar un PDF.');
         return;
       }
@@ -571,7 +581,7 @@
       try {
         setStatus('Procesando PDF y aplicando modificaciones...');
 
-        const srcPdf = await PDFLib.PDFDocument.load(originalBytes);
+        const srcPdf = await PDFLib.PDFDocument.load(originalPdfBytes.slice());
         const outPdf = await PDFLib.PDFDocument.create();
 
         const keptIndexes = pageStates
@@ -584,10 +594,9 @@
         }
 
         for (const item of keptIndexes) {
-          const index = item.index;
-          const [embeddedPage] = await outPdf.embedPages([srcPdf.getPage(index)]);
-          const srcPage = srcPdf.getPage(index);
+          const srcPage = srcPdf.getPage(item.index);
           const { width, height } = srcPage.getSize();
+          const [embeddedPage] = await outPdf.embedPages([srcPage]);
 
           if (item.crop) {
             const newWidth = Math.max(10, width - CROP_LEFT);
@@ -622,7 +631,7 @@
         a.click();
         a.remove();
 
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         setStatus('PDF exportado correctamente.');
       } catch (error) {
         console.error(error);
