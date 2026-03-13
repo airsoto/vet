@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor de PDF | Ángel Soto</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#111826;
+      --panel-2:#0d1420;
+      --text:#e9eef6;
+      --muted:#9fb0c6;
+      --line:rgba(255,255,255,.08);
+      --accent:#ff9900;
+      --accent-2:#7cc7ff;
+      --danger:#ef4444;
+      --ok:#22c55e;
+      --shadow:0 18px 45px rgba(0,0,0,.32);
+      --radius:20px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(255,153,0,.08), transparent 25%),
+        radial-gradient(circle at top left, rgba(124,199,255,.08), transparent 25%),
+        var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .container{
+      width:min(1200px, calc(100% - 28px));
+      margin:24px auto 40px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border:1px solid var(--line);
+      border-radius:26px;
+      padding:24px 22px;
+      box-shadow:var(--shadow);
+      margin-bottom:20px;
+    }
+
+    h1{
+      margin:0 0 8px 0;
+      font-size:clamp(1.8rem, 3.2vw, 2.5rem);
+      line-height:1.1;
+      letter-spacing:-0.02em;
+    }
+
+    .subtitle{
+      margin:10px 0 0 0;
+      color:var(--muted);
+      max-width:900px;
+      line-height:1.55;
+      font-size:1rem;
+    }
+
+    .home a{
+      color:#d7e8ff;
+      text-decoration:none;
+    }
+    .home a:hover{
+      text-decoration:underline;
+    }
+
+    .panel{
+      background:linear-gradient(180deg, var(--panel), var(--panel-2));
+      border:1px solid var(--line);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      padding:18px;
+      margin-bottom:18px;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns:1.25fr 1fr 1fr;
+      gap:14px;
+      align-items:end;
+    }
+
+    .control-block{
+      background:rgba(255,255,255,.025);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .label{
+      display:block;
+      font-size:.92rem;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+
+    .help{
+      color:var(--muted);
+      font-size:.92rem;
+      line-height:1.45;
+    }
+
+    input[type="file"]{
+      width:100%;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:#0a1019;
+      color:var(--text);
+    }
+
+    .btn-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius:14px;
+      padding:12px 16px;
+      font-weight:700;
+      color:#071018;
+      background:var(--accent);
+      transition:transform .12s ease, opacity .2s ease, box-shadow .2s ease;
+      box-shadow:0 8px 22px rgba(255,153,0,.22);
+    }
+
+    button:hover{ transform:translateY(-1px); }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+      box-shadow:none;
+    }
+
+    .btn-secondary{
+      background:var(--accent-2);
+      box-shadow:0 8px 22px rgba(124,199,255,.18);
+    }
+
+    .btn-danger{
+      background:var(--danger);
+      color:#fff;
+      box-shadow:0 8px 22px rgba(239,68,68,.18);
+    }
+
+    .stats{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .pill{
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      color:var(--text);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:.92rem;
+    }
+
+    .pill strong{
+      color:var(--accent);
+    }
+
+    #thumbGrid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+      gap:16px;
+      margin-top:16px;
+    }
+
+    .thumb-card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:12px;
+      box-shadow:var(--shadow);
+      position:relative;
+    }
+
+    .thumb-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .page-title{
+      font-weight:800;
+      font-size:.98rem;
+    }
+
+    .badge{
+      font-size:.78rem;
+      color:var(--muted);
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:4px 8px;
+      white-space:nowrap;
+    }
+
+    .thumb-wrap{
+      background:#fff;
+      border-radius:14px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.06);
+      aspect-ratio:0.707 / 1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .thumb-wrap canvas{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+      background:#fff;
+    }
+
+    .options{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .check{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#0b1119;
+      border:1px solid var(--line);
+      font-size:.94rem;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    .check input{
+      width:18px;
+      height:18px;
+      accent-color:var(--accent);
+      cursor:pointer;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .status{
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      line-height:1.45;
+      white-space:pre-line;
+    }
+
+    .footer{
+      margin-top:26px;
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:20px;
+      color:var(--muted);
+      line-height:1.6;
+      box-shadow:var(--shadow);
+    }
+
+    .footer a{
+      color:#ffd08a;
+      text-decoration:none;
+    }
+    .footer a:hover{
+      text-decoration:underline;
+    }
+
+    @media (max-width: 900px){
+      .controls{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <section class="hero">
+      <h1>Editor de PDF</h1>
+      <p class="subtitle">
+        Sube un PDF, visualiza miniaturas de sus páginas, selecciona cuáles quieres recortar
+        (4 cm por arriba y 2 cm por la izquierda), marca las que deseas eliminar y exporta el
+        PDF final ya modificado.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <div class="control-block">
+          <label class="label" for="pdfInput">Seleccionar PDF</label>
+          <input type="file" id="pdfInput" accept="application/pdf" />
+          <div class="help" style="margin-top:10px;">
+            El recorte aplicado a las páginas seleccionadas será:
+            <strong>4 cm arriba</strong> y <strong>2 cm a la izquierda</strong>.
+          </div>
+        </div>
+
+        <div class="control-block">
+          <span class="label">Acciones rápidas</span>
+          <div class="btn-row">
+            <button id="selectAllCropBtn" type="button" disabled>Marcar todas para recorte</button>
+            <button id="clearCropBtn" class="btn-secondary" type="button" disabled>Quitar todos los recortes</button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <span class="label">Exportación</span>
+          <div class="btn-row">
+            <button id="exportBtn" type="button" disabled>Exportar PDF modificado</button>
+            <button id="resetBtn" class="btn-danger" type="button" disabled>Reiniciar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats" id="stats" style="display:none;">
+        <div class="pill">Páginas totales: <strong id="totalPages">0</strong></div>
+        <div class="pill">Marcadas para recorte: <strong id="cropCount">0</strong></div>
+        <div class="pill">Marcadas para eliminar: <strong id="deleteCount">0</strong></div>
+      </div>
+
+      <div class="status" id="status">Carga un PDF para empezar.</div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin:0 0 10px 0; font-size:1.15rem;">Páginas del PDF</h2>
+      <p class="muted" style="margin-top:0;">
+        Cada miniatura permite elegir si esa página debe recortarse o eliminarse.
+      </p>
+      <div id="thumbGrid"></div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const pdfInput = document.getElementById('pdfInput');
+    const thumbGrid = document.getElementById('thumbGrid');
+    const statusBox = document.getElementById('status');
+    const exportBtn = document.getElementById('exportBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const selectAllCropBtn = document.getElementById('selectAllCropBtn');
+    const clearCropBtn = document.getElementById('clearCropBtn');
+
+    const stats = document.getElementById('stats');
+    const totalPagesEl = document.getElementById('totalPages');
+    const cropCountEl = document.getElementById('cropCount');
+    const deleteCountEl = document.getElementById('deleteCount');
+
+    let originalBytes = null;
+    let pdfJsDoc = null;
+    let pageStates = []; // { crop: false, delete: false }
+
+    const CM_TO_PT = 28.3464566929;
+    const CROP_TOP = 4 * CM_TO_PT;   // 4 cm arriba
+    const CROP_LEFT = 2 * CM_TO_PT;  // 2 cm izquierda
+
+    function setStatus(msg) {
+      statusBox.textContent = msg;
+    }
+
+    function updateStats() {
+      const total = pageStates.length;
+      const cropCount = pageStates.filter(p => p.crop && !p.delete).length;
+      const deleteCount = pageStates.filter(p => p.delete).length;
+
+      totalPagesEl.textContent = total;
+      cropCountEl.textContent = cropCount;
+      deleteCountEl.textContent = deleteCount;
+      stats.style.display = total ? 'flex' : 'none';
+    }
+
+    function enableButtons(enabled) {
+      exportBtn.disabled = !enabled;
+      resetBtn.disabled = !enabled;
+      selectAllCropBtn.disabled = !enabled;
+      clearCropBtn.disabled = !enabled;
+    }
+
+    function resetAll() {
+      originalBytes = null;
+      pdfJsDoc = null;
+      pageStates = [];
+      thumbGrid.innerHTML = '';
+      pdfInput.value = '';
+      enableButtons(false);
+      updateStats();
+      setStatus('Carga un PDF para empezar.');
+    }
+
+    resetBtn.addEventListener('click', resetAll);
+
+    selectAllCropBtn.addEventListener('click', () => {
+      pageStates.forEach((state, i) => {
+        if (!state.delete) {
+          state.crop = true;
+          const checkbox = document.querySelector(`#crop-${i}`);
+          if (checkbox) checkbox.checked = true;
+        }
+      });
+      updateStats();
+      setStatus('Se han marcado todas las páginas no eliminadas para aplicar el recorte.');
+    });
+
+    clearCropBtn.addEventListener('click', () => {
+      pageStates.forEach((state, i) => {
+        state.crop = false;
+        const checkbox = document.querySelector(`#crop-${i}`);
+        if (checkbox) checkbox.checked = false;
+      });
+      updateStats();
+      setStatus('Se han quitado todas las marcas de recorte.');
+    });
+
+    pdfInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.type !== 'application/pdf') {
+        setStatus('El archivo seleccionado no es un PDF válido.');
+        return;
+      }
+
+      try {
+        setStatus('Cargando PDF...');
+        originalBytes = await file.arrayBuffer();
+        pdfJsDoc = await pdfjsLib.getDocument({ data: originalBytes }).promise;
+
+        pageStates = Array.from({ length: pdfJsDoc.numPages }, () => ({
+          crop: false,
+          delete: false
+        }));
+
+        thumbGrid.innerHTML = '';
+        enableButtons(true);
+        updateStats();
+
+        setStatus(`PDF cargado correctamente. Total de páginas: ${pdfJsDoc.numPages}. Generando miniaturas...`);
+
+        for (let pageNum = 1; pageNum <= pdfJsDoc.numPages; pageNum++) {
+          const page = await pdfJsDoc.getPage(pageNum);
+
+          const viewport = page.getViewport({ scale: 0.35 });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          await page.render({
+            canvasContext: ctx,
+            viewport
+          }).promise;
+
+          const card = document.createElement('div');
+          card.className = 'thumb-card';
+
+          card.innerHTML = `
+            <div class="thumb-header">
+              <div class="page-title">Página ${pageNum}</div>
+              <div class="badge">#${pageNum}</div>
+            </div>
+            <div class="thumb-wrap"></div>
+            <div class="options">
+              <label class="check">
+                <input type="checkbox" id="crop-${pageNum - 1}" />
+                <span>Aplicar recorte (4 cm arriba + 2 cm izquierda)</span>
+              </label>
+              <label class="check">
+                <input type="checkbox" id="delete-${pageNum - 1}" />
+                <span>Eliminar esta página</span>
+              </label>
+            </div>
+          `;
+
+          card.querySelector('.thumb-wrap').appendChild(canvas);
+          thumbGrid.appendChild(card);
+
+          const cropCheckbox = card.querySelector(`#crop-${pageNum - 1}`);
+          const deleteCheckbox = card.querySelector(`#delete-${pageNum - 1}`);
+
+          cropCheckbox.addEventListener('change', () => {
+            pageStates[pageNum - 1].crop = cropCheckbox.checked;
+            updateStats();
+          });
+
+          deleteCheckbox.addEventListener('change', () => {
+            pageStates[pageNum - 1].delete = deleteCheckbox.checked;
+
+            if (deleteCheckbox.checked) {
+              pageStates[pageNum - 1].crop = false;
+              cropCheckbox.checked = false;
+              cropCheckbox.disabled = true;
+            } else {
+              cropCheckbox.disabled = false;
+            }
+
+            updateStats();
+          });
+        }
+
+        setStatus('Miniaturas generadas. Ya puedes seleccionar páginas para recortar o eliminar.');
+      } catch (error) {
+        console.error(error);
+        setStatus('Ha ocurrido un error al cargar o procesar el PDF.');
+      }
+    });
+
+    exportBtn.addEventListener('click', async () => {
+      if (!originalBytes || !pageStates.length) {
+        setStatus('Primero debes cargar un PDF.');
+        return;
+      }
+
+      try {
+        setStatus('Procesando PDF y aplicando modificaciones...');
+
+        const srcPdf = await PDFLib.PDFDocument.load(originalBytes);
+        const outPdf = await PDFLib.PDFDocument.create();
+
+        const keptIndexes = pageStates
+          .map((state, index) => ({ ...state, index }))
+          .filter(p => !p.delete);
+
+        if (!keptIndexes.length) {
+          setStatus('No puede exportarse un PDF vacío. Debe quedar al menos una página sin eliminar.');
+          return;
+        }
+
+        for (const item of keptIndexes) {
+          const index = item.index;
+          const [embeddedPage] = await outPdf.embedPages([srcPdf.getPage(index)]);
+          const srcPage = srcPdf.getPage(index);
+          const { width, height } = srcPage.getSize();
+
+          if (item.crop) {
+            const newWidth = Math.max(10, width - CROP_LEFT);
+            const newHeight = Math.max(10, height - CROP_TOP);
+
+            const newPage = outPdf.addPage([newWidth, newHeight]);
+            newPage.drawPage(embeddedPage, {
+              x: -CROP_LEFT,
+              y: 0,
+              width,
+              height
+            });
+          } else {
+            const newPage = outPdf.addPage([width, height]);
+            newPage.drawPage(embeddedPage, {
+              x: 0,
+              y: 0,
+              width,
+              height
+            });
+          }
+        }
+
+        const pdfBytes = await outPdf.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'pdf_modificado.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        URL.revokeObjectURL(url);
+        setStatus('PDF exportado correctamente.');
+      } catch (error) {
+        console.error(error);
+        setStatus('Ha ocurrido un error al exportar el PDF.');
+      }
+    });
+  </script>
+</body>
+</html>
