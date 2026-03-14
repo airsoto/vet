@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analizador de rasgos de grafía | Ángel Soto</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --bg2:#111827;
+      --panel:#121a24;
+      --panel2:#0f1720;
+      --text:#eef2f7;
+      --muted:#9aa6b2;
+      --line:#243140;
+      --accent:#ff9900;
+      --accent2:#6fb3ff;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --shadow:0 18px 50px rgba(0,0,0,.38);
+      --radius:22px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(255,153,0,.10), transparent 22%),
+        radial-gradient(circle at top left, rgba(111,179,255,.08), transparent 20%),
+        linear-gradient(180deg,var(--bg),#0a0f15 60%, #091018);
+      color:var(--text);
+      min-height:100vh;
+      line-height:1.5;
+    }
+
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    .container{
+      width:min(1200px, 94vw);
+      margin:0 auto;
+      padding:28px 0 40px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(18,26,36,.95), rgba(15,23,32,.96));
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:28px;
+      box-shadow:var(--shadow);
+      padding:28px;
+      margin-bottom:22px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -60px -60px auto;
+      width:200px;
+      height:200px;
+      background:radial-gradient(circle, rgba(255,153,0,.16), transparent 68%);
+      pointer-events:none;
+    }
+
+    h1{
+      margin:0 0 8px 0;
+      font-size:clamp(1.8rem, 3.2vw, 2.8rem);
+      line-height:1.08;
+      letter-spacing:-.03em;
+    }
+
+    .subtitle{
+      margin:0 0 14px 0;
+      color:var(--muted);
+      max-width:900px;
+      font-size:clamp(0.96rem,1.6vw,1.05rem);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:22px;
+      align-items:start;
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(18,26,36,.98), rgba(13,19,28,.98));
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+
+    .card h2, .card h3{
+      margin:0 0 10px;
+      line-height:1.15;
+    }
+
+    .small{
+      color:var(--muted);
+      font-size:.93rem;
+    }
+
+    .dropzone{
+      border:2px dashed rgba(255,153,0,.34);
+      border-radius:20px;
+      padding:24px;
+      text-align:center;
+      background:
+        linear-gradient(180deg, rgba(255,153,0,.06), rgba(255,153,0,.02));
+      transition:.2s ease;
+      cursor:pointer;
+    }
+
+    .dropzone:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,153,0,.55);
+      background:linear-gradient(180deg, rgba(255,153,0,.10), rgba(255,153,0,.03));
+    }
+
+    .dropzone.dragover{
+      border-color:var(--accent2);
+      background:linear-gradient(180deg, rgba(111,179,255,.10), rgba(111,179,255,.03));
+    }
+
+    .dropzone strong{
+      display:block;
+      font-size:1.05rem;
+      margin-bottom:6px;
+    }
+
+    input[type="file"]{display:none}
+
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:16px;
+    }
+
+    .field{
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:16px;
+      padding:12px 14px;
+    }
+
+    .field label{
+      display:block;
+      font-size:.9rem;
+      color:var(--muted);
+      margin-bottom:7px;
+    }
+
+    .field input[type="range"]{
+      width:100%;
+      accent-color:var(--accent);
+    }
+
+    .field .value{
+      font-size:.92rem;
+      color:var(--text);
+      margin-top:4px;
+    }
+
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      font-weight:700;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .btn-primary{
+      background:linear-gradient(180deg, #ffad33, #ff9900);
+      color:#151515;
+    }
+
+    .btn-primary:hover{transform:translateY(-1px)}
+    .btn-secondary{
+      background:#182230;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .btn-secondary:hover{background:#1d2a3a}
+
+    .preview-wrap{
+      display:grid;
+      gap:14px;
+    }
+
+    .canvas-wrap{
+      width:100%;
+      border-radius:18px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.06);
+      background:#0b1017;
+    }
+
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+      max-height:520px;
+      background:
+        linear-gradient(180deg,#0a0f15,#111827);
+    }
+
+    .meter{
+      margin-top:14px;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .meter-track{
+      height:14px;
+      border-radius:999px;
+      background:linear-gradient(90deg,
+        rgba(111,179,255,.28) 0%,
+        rgba(111,179,255,.18) 32%,
+        rgba(255,255,255,.08) 50%,
+        rgba(255,153,0,.18) 68%,
+        rgba(255,153,0,.30) 100%);
+      position:relative;
+      overflow:hidden;
+      margin:10px 0 8px;
+    }
+
+    .meter-pointer{
+      position:absolute;
+      top:50%;
+      width:18px;
+      height:18px;
+      border-radius:50%;
+      background:#fff;
+      border:3px solid #111827;
+      box-shadow:0 0 0 3px rgba(255,255,255,.12);
+      transform:translate(-50%,-50%);
+      left:50%;
+    }
+
+    .meter-scale{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      color:var(--muted);
+      font-size:.84rem;
+    }
+
+    .metric{
+      margin-bottom:14px;
+    }
+
+    .metric-top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:7px;
+      font-size:.95rem;
+    }
+
+    .bar{
+      height:11px;
+      border-radius:999px;
+      background:rgba(255,255,255,.07);
+      overflow:hidden;
+    }
+
+    .bar > span{
+      display:block;
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--accent2), var(--accent));
+      width:0%;
+      transition:width .35s ease;
+    }
+
+    .summary{
+      margin-top:14px;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.06);
+    }
+
+    .summary strong{
+      color:#fff;
+    }
+
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .chip{
+      background:rgba(255,153,0,.12);
+      color:#ffd08a;
+      border:1px solid rgba(255,153,0,.25);
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:.88rem;
+    }
+
+    .warn{
+      margin-top:14px;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(245,158,11,.08);
+      color:#ffd9a0;
+      border:1px solid rgba(245,158,11,.22);
+      font-size:.94rem;
+    }
+
+    .sources{
+      margin-top:22px;
+    }
+
+    .sources ol{
+      margin:10px 0 0 20px;
+      padding:0;
+    }
+
+    .sources li{
+      margin-bottom:10px;
+      color:#dde4ec;
+    }
+
+    .footer{
+      margin-top:26px;
+      padding:24px 18px;
+      border-top:1px solid rgba(255,255,255,.08);
+      color:var(--muted);
+      font-size:.95rem;
+    }
+
+    .footer p, .footer h4{
+      margin:10px 0;
+    }
+
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
+      .controls{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <section class="hero">
+      <h1>Analizador de rasgos de grafía manuscrita</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Sube una imagen con escritura manuscrita y obtén un análisis visual de rasgos del trazo:
+        densidad, regularidad, inclinación estimada, angularidad y limpieza. La salida final muestra
+        un <strong>índice orientativo de parecido con patrones descritos en la literatura</strong>,
+        sin identificar el sexo real de una persona.
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Subida y preprocesado</h2>
+        <p class="small">
+          Funciona mejor con fondo claro, texto oscuro y una sola muestra manuscrita por imagen.
+        </p>
+
+        <label class="dropzone" id="dropzone" for="imageInput">
+          <strong>Haz clic o arrastra una imagen aquí</strong>
+          <span class="small">Formatos recomendados: JPG, PNG, WEBP</span>
+        </label>
+        <input type="file" id="imageInput" accept="image/*" />
+
+        <div class="controls">
+          <div class="field">
+            <label for="threshold">Umbral binario</label>
+            <input type="range" id="threshold" min="40" max="230" value="155" />
+            <div class="value"><span id="thresholdVal">155</span></div>
+          </div>
+
+          <div class="field">
+            <label for="contrast">Contraste</label>
+            <input type="range" id="contrast" min="50" max="200" value="120" />
+            <div class="value"><span id="contrastVal">120</span>%</div>
+          </div>
+
+          <div class="field">
+            <label for="brightness">Brillo</label>
+            <input type="range" id="brightness" min="50" max="170" value="100" />
+            <div class="value"><span id="brightnessVal">100</span>%</div>
+          </div>
+
+          <div class="field">
+            <label for="blur">Suavizado previo</label>
+            <input type="range" id="blur" min="0" max="4" step="0.5" value="0.5" />
+            <div class="value"><span id="blurVal">0.5</span> px</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="analyzeBtn">Analizar muestra</button>
+          <button class="btn-secondary" id="resetBtn">Restablecer</button>
+        </div>
+
+        <div class="warn">
+          Este prototipo es <strong>demostrativo</strong>. No debe usarse para inferir atributos personales reales.
+          Muestra solo un <strong>perfil de rasgos gráficos</strong> y un índice orientativo basado en literatura previa.
+        </div>
+      </div>
+
+      <div class="card preview-wrap">
+        <h2>Vista previa</h2>
+        <div class="canvas-wrap">
+          <canvas id="canvas"></canvas>
+        </div>
+        <p class="small" id="status">Sin imagen cargada.</p>
+      </div>
+    </section>
+
+    <section class="grid" style="margin-top:22px;">
+      <div class="card">
+        <h2>Métricas extraídas</h2>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Densidad de tinta</span>
+            <strong id="inkVal">0%</strong>
+          </div>
+          <div class="bar"><span id="inkBar"></span></div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Regularidad del trazado</span>
+            <strong id="regularityVal">0%</strong>
+          </div>
+          <div class="bar"><span id="regularityBar"></span></div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Limpieza visual</span>
+            <strong id="cleanVal">0%</strong>
+          </div>
+          <div class="bar"><span id="cleanBar"></span></div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Angularidad estimada</span>
+            <strong id="angularVal">0%</strong>
+          </div>
+          <div class="bar"><span id="angularBar"></span></div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Inclinación dominante</span>
+            <strong id="slantVal">0°</strong>
+          </div>
+          <div class="bar"><span id="slantBar"></span></div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>Ritmo/apresuramiento visual</span>
+            <strong id="hurriedVal">0%</strong>
+          </div>
+          <div class="bar"><span id="hurriedBar"></span></div>
+        </div>
+
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="card">
+        <h2>Índice orientativo de parecido</h2>
+        <p class="small">
+          Escala basada en rasgos descritos por algunos trabajos: de un polo más
+          <em>regular / cuidadoso / limpio</em> a otro más <em>apresurado / irregular / descuidado</em>.
+        </p>
+
+        <div class="meter">
+          <div><strong id="scoreLabel">Sin resultado</strong></div>
+          <div class="meter-track">
+            <div class="meter-pointer" id="pointer"></div>
+          </div>
+          <div class="meter-scale">
+            <span>Más regular / cuidado</span>
+            <span>Mixto / indeterminado</span>
+            <span>Más apresurado / irregular</span>
+          </div>
+        </div>
+
+        <div class="summary" id="summary">
+          Carga una imagen y pulsa <strong>Analizar muestra</strong>.
+        </div>
+      </div>
+    </section>
+
+    <section class="card sources">
+      <h2>Fuentes citadas en esta página</h2>
+      <ol>
+        <li>
+          Burr V. (2002). <em>Judging Gender From Samples of Adult Handwriting: Accuracy and Use of Cues</em>.
+          The Journal of Social Psychology, 142(6), 691–700.
+        </li>
+        <li>
+          Alaei F, Alaei A. (2023). <em>Review of age and gender detection methods based on handwriting analysis</em>.
+          Neural Computing and Applications, 35, 23909–23925.
+        </li>
+        <li>
+          Kim Y.-S., Otaiba S. A., Wanzek J., Gatlin B. (2015).
+          <em>Toward an Understanding of Dimensions, Predictors, and the Gender Gap in Written Composition</em>.
+          Journal of Educational Psychology, 107(1), 79–95.
+        </li>
+      </ol>
+
+      <p class="small">
+        Nota: la tercera referencia se incluye como contexto sobre diferencias de rendimiento escrito entre niños y niñas,
+        no como prueba de rasgos morfológicos directos de la grafía adulta.
+      </p>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const dropzone = document.getElementById('dropzone');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const statusEl = document.getElementById('status');
+
+    const threshold = document.getElementById('threshold');
+    const contrast = document.getElementById('contrast');
+    const brightness = document.getElementById('brightness');
+    const blur = document.getElementById('blur');
+
+    const thresholdVal = document.getElementById('thresholdVal');
+    const contrastVal = document.getElementById('contrastVal');
+    const brightnessVal = document.getElementById('brightnessVal');
+    const blurVal = document.getElementById('blurVal');
+
+    const pointer = document.getElementById('pointer');
+    const scoreLabel = document.getElementById('scoreLabel');
+    const summary = document.getElementById('summary');
+    const chips = document.getElementById('chips');
+
+    let originalImage = null;
+    let originalBitmap = null;
+
+    const metricMap = {
+      ink: ['inkVal', 'inkBar'],
+      regularity: ['regularityVal', 'regularityBar'],
+      clean: ['cleanVal', 'cleanBar'],
+      angular: ['angularVal', 'angularBar'],
+      slant: ['slantVal', 'slantBar'],
+      hurried: ['hurriedVal', 'hurriedBar']
+    };
+
+    function setMetric(key, value, textOverride = null) {
+      const [valId, barId] = metricMap[key];
+      document.getElementById(valId).textContent = textOverride ?? `${Math.round(value)}%`;
+      document.getElementById(barId).style.width = `${Math.max(0, Math.min(100, value))}%`;
+    }
+
+    function updateSliderLabels(){
+      thresholdVal.textContent = threshold.value;
+      contrastVal.textContent = contrast.value;
+      brightnessVal.textContent = brightness.value;
+      blurVal.textContent = blur.value;
+      if (originalImage) drawPreview();
+    }
+
+    [threshold, contrast, brightness, blur].forEach(el => {
+      el.addEventListener('input', updateSliderLabels);
+    });
+
+    function resetAll(){
+      originalImage = null;
+      originalBitmap = null;
+      canvas.width = 1000;
+      canvas.height = 500;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#0c1118';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '20px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Vista previa de la imagen', canvas.width / 2, canvas.height / 2);
+      statusEl.textContent = 'Sin imagen cargada.';
+      setMetric('ink', 0);
+      setMetric('regularity', 0);
+      setMetric('clean', 0);
+      setMetric('angular', 0);
+      setMetric('slant', 0, '0°');
+      setMetric('hurried', 0);
+      pointer.style.left = '50%';
+      scoreLabel.textContent = 'Sin resultado';
+      summary.innerHTML = 'Carga una imagen y pulsa <strong>Analizar muestra</strong>.';
+      chips.innerHTML = '';
+    }
+
+    function handleFile(file){
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = async () => {
+          originalImage = img;
+          drawPreview();
+          statusEl.textContent = `Imagen cargada: ${file.name}`;
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    imageInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+    dropzone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    function drawPreview(){
+      if (!originalImage) return;
+
+      const maxW = 1100;
+      const maxH = 700;
+      let w = originalImage.width;
+      let h = originalImage.height;
+      const scale = Math.min(maxW / w, maxH / h, 1);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+
+      canvas.width = w;
+      canvas.height = h;
+
+      ctx.save();
+      ctx.clearRect(0,0,w,h);
+      ctx.filter = `contrast(${contrast.value}%) brightness(${brightness.value}%) blur(${blur.value}px)`;
+      ctx.drawImage(originalImage, 0, 0, w, h);
+      ctx.restore();
+
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const thr = parseInt(threshold.value, 10);
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+        const v = gray < thr ? 0 : 255;
+        data[i] = v;
+        data[i+1] = v;
+        data[i+2] = v;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function analyzeImage(){
+      if (!originalImage) {
+        statusEl.textContent = 'Primero debes cargar una imagen.';
+        return;
+      }
+
+      drawPreview();
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const imgData = ctx.getImageData(0,0,w,h);
+      const data = imgData.data;
+
+      let darkPixels = 0;
+      let edgeCount = 0;
+      let diagonal1 = 0;
+      let diagonal2 = 0;
+      let transitions = 0;
+      let totalRowTransitions = 0;
+      let rowInk = [];
+      let bbox = {minX:w, minY:h, maxX:0, maxY:0};
+
+      function isDarkAt(x,y){
+        const i = (y*w + x) * 4;
+        return data[i] < 128;
+      }
+
+      for(let y=0; y<h; y++){
+        let rowCount = 0;
+        let prev = false;
+
+        for(let x=0; x<w; x++){
+          const i = (y*w + x) * 4;
+          const dark = data[i] < 128;
+
+          if (dark){
+            darkPixels++;
+            rowCount++;
+            if (x < bbox.minX) bbox.minX = x;
+            if (y < bbox.minY) bbox.minY = y;
+            if (x > bbox.maxX) bbox.maxX = x;
+            if (y > bbox.maxY) bbox.maxY = y;
+          }
+
+          if (x > 0 && dark !== prev) {
+            transitions++;
+            totalRowTransitions++;
+          }
+          prev = dark;
+        }
+        rowInk.push(rowCount);
+      }
+
+      if (darkPixels === 0){
+        statusEl.textContent = 'No se detectó texto oscuro suficiente. Ajusta el umbral.';
+        return;
+      }
+
+      // Bordes y diagonales
+      for(let y=1; y<h-1; y++){
+        for(let x=1; x<w-1; x++){
+          if (!isDarkAt(x,y)) continue;
+
+          const n = isDarkAt(x, y-1);
+          const s = isDarkAt(x, y+1);
+          const e = isDarkAt(x+1, y);
+          const o = isDarkAt(x-1, y);
+          const ne = isDarkAt(x+1, y-1);
+          const no = isDarkAt(x-1, y-1);
+          const se = isDarkAt(x+1, y+1);
+          const so = isDarkAt(x-1, y+1);
+
+          const neighbors = [n,s,e,o,ne,no,se,so].filter(Boolean).length;
+          if (neighbors <= 3) edgeCount++;
+
+          if ((ne || so) && !(no || se)) diagonal1++;
+          if ((no || se) && !(ne || so)) diagonal2++;
+        }
+      }
+
+      const area = w * h;
+      const inkDensity = (darkPixels / area) * 100;
+
+      const meanRowInk = rowInk.reduce((a,b) => a+b, 0) / rowInk.length;
+      const variance = rowInk.reduce((a,b) => a + Math.pow(b - meanRowInk, 2), 0) / rowInk.length;
+      const stdDev = Math.sqrt(variance);
+      const regularity = 100 - Math.min(100, (stdDev / Math.max(1, meanRowInk)) * 95);
+
+      const bboxW = Math.max(1, bbox.maxX - bbox.minX + 1);
+      const bboxH = Math.max(1, bbox.maxY - bbox.minY + 1);
+      const fillRatio = darkPixels / (bboxW * bboxH);
+
+      const clean = Math.max(0, Math.min(100, 100 - ((transitions / Math.max(1, darkPixels)) * 900)));
+      const angular = Math.max(0, Math.min(100, (edgeCount / Math.max(1, darkPixels)) * 240));
+      const slantRaw = diagonal1 - diagonal2;
+      const slantNorm = Math.max(-1, Math.min(1, slantRaw / Math.max(1, diagonal1 + diagonal2)));
+      const slantDeg = Math.round(slantNorm * 28);
+
+      const hurried = Math.max(0, Math.min(100,
+        ((100 - regularity) * 0.45) +
+        ((100 - clean) * 0.30) +
+        (angular * 0.15) +
+        (Math.min(100, inkDensity * 2.2) * 0.10)
+      ));
+
+      // Índice orientativo
+      // Polo izquierdo: regular/cuidado/limpio
+      // Polo derecho: apresurado/irregular/descuidado
+      let profileScore =
+        (regularity * 0.34) +
+        (clean * 0.28) +
+        ((100 - hurried) * 0.20) +
+        ((100 - angular) * 0.10) +
+        (Math.max(0, 100 - Math.abs(slantDeg * 2.2)) * 0.08);
+
+      profileScore = Math.max(0, Math.min(100, profileScore));
+
+      const rightPoleScore = 100 - profileScore;
+      pointer.style.left = `${profileScore}%`;
+
+      let label = '';
+      let interpretation = '';
+      let chipList = [];
+
+      if (profileScore >= 70){
+        label = 'Perfil más regular / cuidado';
+        interpretation = 'La muestra muestra un patrón visual relativamente más limpio, homogéneo y regular, con menor impresión de apresuramiento.';
+        chipList = ['regularidad alta', 'trazo más limpio', 'menor apresuramiento visual'];
+      } else if (profileScore >= 55){
+        label = 'Perfil moderadamente regular';
+        interpretation = 'Predominan rasgos de orden visual y cierta consistencia, aunque con elementos mixtos.';
+        chipList = ['perfil mixto', 'regularidad media-alta', 'limpieza razonable'];
+      } else if (profileScore >= 45){
+        label = 'Perfil mixto / indeterminado';
+        interpretation = 'La muestra no se alinea claramente con ninguno de los polos y combina rasgos de orden con otros de mayor variabilidad.';
+        chipList = ['indeterminado', 'rasgos mezclados', 'variabilidad intermedia'];
+      } else if (profileScore >= 30){
+        label = 'Perfil moderadamente irregular / apresurado';
+        interpretation = 'La muestra presenta más variación espacial, mayor sensación de rapidez gráfica o menor limpieza global.';
+        chipList = ['irregularidad media', 'apresuramiento visual', 'menor limpieza'];
+      } else {
+        label = 'Perfil más irregular / apresurado';
+        interpretation = 'Predominan rasgos de variabilidad, menor regularidad y una apariencia visual más rápida o menos cuidada.';
+        chipList = ['irregularidad alta', 'trazo más abrupto', 'mayor apresuramiento visual'];
+      }
+
+      scoreLabel.textContent = `${label} · ${Math.round(profileScore)} / 100`;
+
+      summary.innerHTML = `
+        <strong>Resultado orientativo:</strong> ${interpretation}<br><br>
+        <strong>Importante:</strong> este valor no identifica el sexo de una persona. Solo resume
+        el parecido de la imagen con un continuo de rasgos gráficos descritos en la literatura.
+      `;
+
+      chips.innerHTML = chipList.map(t => `<span class="chip">${t}</span>`).join('');
+
+      setMetric('ink', Math.min(100, inkDensity * 2.4));
+      setMetric('regularity', regularity);
+      setMetric('clean', clean);
+      setMetric('angular', angular);
+      setMetric('slant', Math.min(100, Math.abs(slantDeg) * 3.2), `${slantDeg}°`);
+      setMetric('hurried', hurried);
+
+      statusEl.textContent = `Análisis completado. Área útil detectada: ${bboxW} × ${bboxH}px · fill ratio ${(fillRatio*100).toFixed(1)}%`;
+    }
+
+    analyzeBtn.addEventListener('click', analyzeImage);
+    resetBtn.addEventListener('click', resetAll);
+
+    resetAll();
+  </script>
+</body>
+</html>
