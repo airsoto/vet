@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+  <script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Juego STAR DRIFT | Ángel Soto</title>
+  <meta name="theme-color" content="#081120" />
+  <style>
+    :root{
+      --bg1:#050914;
+      --bg2:#0b1530;
+      --bg3:#13264d;
+      --panel:rgba(10,16,32,.56);
+      --line:rgba(255,255,255,.08);
+      --text:#eef4ff;
+      --muted:#9cb2d7;
+      --accent:#ff9900;
+      --accent2:#7dd3fc;
+      --danger:#fb7185;
+      --ok:#34d399;
+      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+      --safe-left:env(safe-area-inset-left,0px);
+      --safe-right:env(safe-area-inset-right,0px);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0;touch-action:none;-webkit-tap-highlight-color:transparent}
+    html,body{
+      width:100%;height:100%;overflow:hidden;
+      background:linear-gradient(180deg,var(--bg3),var(--bg1));
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-user-select:none;user-select:none;
+    }
+
+    #app{position:fixed;inset:0;overflow:hidden}
+    canvas{display:block;width:100%;height:100%}
+
+    .hud{position:absolute;inset:0;pointer-events:none;z-index:5}
+    .topbar{
+      position:absolute;
+      top:max(14px, calc(var(--safe-top) + 10px));
+      left:max(12px, calc(var(--safe-left) + 8px));
+      right:max(12px, calc(var(--safe-right) + 8px));
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+    }
+    .pill{
+      pointer-events:auto;
+      background:var(--panel);
+      border:1px solid var(--line);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+    }
+    .scorebox{padding:12px 14px;min-width:132px}
+    .scorebig{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.03em}
+    .scoresub{margin-top:4px;color:var(--muted);font-size:12px;font-weight:700}
+    .smallstack{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+    .iconbtn{
+      width:46px;height:46px;border:none;color:var(--text);background:var(--panel);
+      border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);font-size:20px;
+      display:grid;place-items:center;pointer-events:auto;
+    }
+    .iconbtn:active{transform:scale(.96)}
+
+    .bottom{
+      position:absolute;
+      left:max(12px, calc(var(--safe-left) + 8px));
+      right:max(12px, calc(var(--safe-right) + 8px));
+      bottom:max(16px, calc(var(--safe-bottom) + 12px));
+      display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+    }
+    .status{padding:12px 14px;min-width:142px;max-width:58%}
+    .status .label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .status .value{margin-top:5px;font-size:18px;font-weight:800;letter-spacing:-.02em}
+    .meter{
+      flex:1;height:14px;padding:2px;border-radius:999px;border:1px solid var(--line);
+      background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);min-width:120px;
+    }
+    .meter-fill{
+      height:100%;width:0%;border-radius:999px;
+      background:linear-gradient(90deg,var(--accent),#ffd166,var(--accent2));
+      transition:width .05s linear;
+    }
+
+    .modal-wrap{
+      position:absolute;inset:0;display:grid;place-items:center;z-index:20;
+      background:rgba(2,8,20,.38);opacity:0;pointer-events:none;transition:opacity .24s ease;
+      padding:24px;
+    }
+    .modal-wrap.show{opacity:1;pointer-events:auto}
+    .card{
+      width:min(92vw,390px);background:rgba(10,16,32,.9);border:1px solid var(--line);
+      border-radius:28px;padding:26px 22px 20px;backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);box-shadow:var(--shadow);
+      transform:translateY(14px) scale(.98);transition:transform .28s ease;
+      text-align:center;
+    }
+    .modal-wrap.show .card{transform:translateY(0) scale(1)}
+    .eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+    .card h2{margin-top:8px;font-size:28px;line-height:1.05;letter-spacing:-.04em}
+    .card p{margin-top:10px;font-size:15px;line-height:1.5;color:var(--muted)}
+    .btnrow{display:grid;gap:10px;margin-top:18px}
+    .btn{border:none;border-radius:16px;padding:14px 16px;font-weight:800;font-size:15px}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),#ffb84d);color:#111827}
+    .btn.secondary{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+
+    .settings-list{display:grid;gap:10px;margin-top:16px;text-align:left}
+    .row{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+    }
+    .row .k{font-size:14px;font-weight:700}
+    .row .v{font-size:13px;color:var(--muted)}
+    .toggle{width:54px;height:30px;border-radius:999px;background:#334155;border:none;position:relative}
+    .toggle::after{
+      content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:white;transition:.18s ease;
+    }
+    .toggle.on{background:var(--accent)}
+    .toggle.on::after{transform:translateX(24px)}
+
+    .footer-note{margin-top:14px;font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="topbar">
+        <div class="pill scorebox">
+          <div id="score" class="scorebig">0</div>
+          <div class="scoresub">meteoritos superados</div>
+        </div>
+        <div class="smallstack">
+          <button id="btnPause" class="iconbtn" aria-label="Pausa">⏸</button>
+          <button id="btnSettings" class="iconbtn" aria-label="Ajustes">⚙️</button>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="pill status">
+          <div class="label">Estado</div>
+          <div id="statusText" class="value">Esquiva meteoritos</div>
+        </div>
+        <div class="meter pill"><div id="progressFill" class="meter-fill"></div></div>
+      </div>
+    </div>
+
+    <div id="startModal" class="modal-wrap show">
+      <div class="card">
+        <div class="eyebrow">Star Drift</div>
+        <h2>Esquiva meteoritos estelares</h2>
+        <p>Desplaza al muñeco con flechas o con el dedo para esquivar meteoritos en un paisaje nocturno con luna y estrellas. La partida empieza al tocar Empezar y el control responde con más suavidad.</p>
+        <div class="btnrow">
+          <button id="btnStart" class="btn primary">Empezar</button>
+        </div>
+        <div class="footer-note">Paisaje estrellado dinámico, luna visible y control táctil más suave.</div>
+      </div>
+    </div>
+
+    <div id="gameOverModal" class="modal-wrap">
+      <div class="card">
+        <div class="eyebrow">Fin de partida</div>
+        <h2 id="overTitle">Has chocado</h2>
+        <p id="overText">Has sobrepasado 0 meteoritos.</p>
+        <div class="btnrow">
+          <button id="btnRetry" class="btn primary">Jugar otra vez</button>
+          <button id="btnCloseOver" class="btn secondary">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsModal" class="modal-wrap">
+      <div class="card">
+        <div class="eyebrow">Ajustes</div>
+        <h2>Opciones</h2>
+        <div class="settings-list">
+          <div class="row">
+            <div>
+              <div class="k">Sonido</div>
+              <div class="v">Efectos simples generados con Web Audio</div>
+            </div>
+            <button id="toggleSound" class="toggle on" aria-label="Sonido"></button>
+          </div>
+          <div class="row">
+            <div>
+              <div class="k">Vibración</div>
+              <div class="v">Respuesta háptica al choque o al esquivar</div>
+            </div>
+            <button id="toggleVibration" class="toggle on" aria-label="Vibración"></button>
+          </div>
+        </div>
+        <div class="btnrow">
+          <button id="btnCloseSettings" class="btn primary">Listo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const ui = {
+      score: document.getElementById('score'),
+      status: document.getElementById('statusText'),
+      progressFill: document.getElementById('progressFill'),
+      startModal: document.getElementById('startModal'),
+      gameOverModal: document.getElementById('gameOverModal'),
+      settingsModal: document.getElementById('settingsModal'),
+      overTitle: document.getElementById('overTitle'),
+      overText: document.getElementById('overText'),
+      btnStart: document.getElementById('btnStart'),
+      btnRetry: document.getElementById('btnRetry'),
+      btnCloseOver: document.getElementById('btnCloseOver'),
+      btnPause: document.getElementById('btnPause'),
+      btnSettings: document.getElementById('btnSettings'),
+      btnCloseSettings: document.getElementById('btnCloseSettings'),
+      toggleSound: document.getElementById('toggleSound'),
+      toggleVibration: document.getElementById('toggleVibration'),
+    };
+
+    let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let lastTime = 0;
+    let running = false;
+    let paused = false;
+    let state = 'ready';
+    let touchActive = false;
+
+    const settings = loadSettings();
+    syncToggle(ui.toggleSound, settings.sound);
+    syncToggle(ui.toggleVibration, settings.vibration);
+
+    const game = {
+      score: 0,
+      targetScore: 1000,
+      best: Number(localStorage.getItem('stardrift_best') || 0),
+      crash: null,
+      bgOffset: 0,
+      spawnCrystalTimer: 0,
+      spawnRockTimer: 0,
+      stars: [],
+      nebulae: [],
+      mountains: [],
+      particles: [],
+      crystals: [],
+      rocks: [],
+      player: null,
+      input: { up:false, down:false, left:false, right:false, targetX:null, targetY:null }
+    };
+
+    function loadSettings(){
+      try {
+        const raw = JSON.parse(localStorage.getItem('stardrift_settings') || '{}');
+        return { sound: raw.sound !== false, vibration: raw.vibration !== false };
+      } catch {
+        return { sound: true, vibration: true };
+      }
+    }
+    function saveSettings(){
+      localStorage.setItem('stardrift_settings', JSON.stringify(settings));
+    }
+    function syncToggle(btn, on){ btn.classList.toggle('on', !!on); }
+
+    function resize(){
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = Math.round(W * DPR);
+      canvas.height = Math.round(H * DPR);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      seedBackground();
+      if (game.player) {
+        game.player.x = clamp(game.player.x, W * 0.12, W * 0.88);
+        game.player.y = clamp(game.player.y, H * 0.14, H * 0.86);
+      }
+    }
+
+    function seedBackground(){
+      game.stars = Array.from({length: Math.max(80, Math.floor(W / 8))}, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.8 + 0.4,
+        a: Math.random() * 0.8 + 0.2,
+        t: Math.random() * Math.PI * 2
+      }));
+      game.nebulae = Array.from({length: 5}, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H * 0.7,
+        r: 80 + Math.random() * 120,
+        hue: 200 + Math.random() * 60,
+        a: 0.08 + Math.random() * 0.08
+      }));
+      game.mountains = [
+        { y: H * 0.78, h: H * 0.18, color: '#14274f', shift: 0.18 },
+        { y: H * 0.85, h: H * 0.14, color: '#0d1d3b', shift: 0.28 },
+        { y: H * 0.91, h: H * 0.12, color: '#081120', shift: 0.38 },
+      ];
+    }
+
+    function resetGame(){
+      game.score = 0;
+      game.bgOffset = 0;
+      game.spawnCrystalTimer = 0;
+      game.spawnRockTimer = 0;
+      game.particles = [];
+      game.crystals = [];
+      game.rocks = [];
+      game.crash = null;
+      game.input = { up:false, down:false, left:false, right:false, targetX:null, targetY:null };
+      touchActive = false;
+      state = 'alive';
+      paused = false;
+      game.player = {
+        x: W * 0.24,
+        y: H * 0.5,
+        w: 40,
+        h: 40,
+        speed: Math.max(320, H * 0.6)
+      };
+      updateHUD();
+    }
+
+    function updateHUD(){
+      ui.score.textContent = game.score;
+      if (state === 'dead') ui.status.textContent = 'Choque';
+      else if (paused) ui.status.textContent = 'Pausado';
+      else ui.status.textContent = 'Esquiva meteoritos';
+      ui.progressFill.style.width = Math.min(100, (game.score / game.targetScore) * 100).toFixed(1) + '%';
+      ui.btnPause.textContent = paused ? '▶️' : '⏸';
+    }
+
+    function startGame(){
+      resetGame();
+      running = true;
+      paused = false;
+      ui.startModal.classList.remove('show');
+      ui.gameOverModal.classList.remove('show');
+      ui.settingsModal.classList.remove('show');
+      lastTime = performance.now();
+      audioInit();
+      cancelAnimationFrame(game.raf || 0);
+      game.raf = requestAnimationFrame(loop);
+    }
+
+    function gameOver(){
+      state = 'dead';
+      running = false;
+      if (settings.vibration && navigator.vibrate) navigator.vibrate([60, 40, 90]);
+      playFailSound();
+      game.best = Math.max(game.best, game.score);
+      localStorage.setItem('stardrift_best', String(game.best));
+      ui.overTitle.textContent = 'Has chocado';
+      ui.overText.innerHTML = `Has sobrepasado <strong>${game.score}</strong> meteoritos.<br>Mejor marca: <strong>${game.best}</strong>.`;
+      ui.gameOverModal.classList.add('show');
+      updateHUD();
+    }
+
+    function spawnCrystal(){
+      game.crystals.push({
+        x: W + 30,
+        y: lerp(H * 0.14, H * 0.86, Math.random()),
+        r: 10 + Math.random() * 4,
+        speed: 200 + Math.random() * 70 + Math.min(180, game.score * 2),
+        spin: Math.random() * Math.PI * 2
+      });
+    }
+
+    function spawnRock(){
+      const progress = Math.min(1, game.score / game.targetScore);
+      const s = 18 + Math.random() * 18 + progress * 8;
+      game.rocks.push({
+        x: W + s * 2 + Math.random() * 40,
+        y: lerp(H * 0.12, H * 0.88, Math.random()),
+        r: s,
+        speed: 240 + Math.random() * 90 + progress * 320,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * (2.8 + progress * 1.6),
+        passed: false
+      });
+    }
+
+    function spawnBurst(x, y, count, color){
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 30 + Math.random() * 170;
+        game.particles.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          r: 2 + Math.random() * 3,
+          color,
+          t: 0,
+          life: 0.4 + Math.random() * 0.45,
+        });
+      }
+    }
+
+    function update(dt){
+      if (paused) return;
+      game.bgOffset += 80 * dt;
+
+      const progress = Math.min(1, game.score / game.targetScore);
+
+      for (const s of game.stars) {
+        s.t += dt * (0.7 + s.r * 0.3);
+      }
+
+      game.particles = game.particles.filter(p => {
+        p.t += dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        return p.t < p.life;
+      });
+
+      const pl = game.player;
+      const maxStep = pl.speed * dt * (1 + progress * 0.12);
+      if (touchActive && game.input.targetY !== null && game.input.targetX !== null) {
+        pl.x += clamp(game.input.targetX - pl.x, -maxStep * 1.35, maxStep * 1.35);
+        pl.y += clamp(game.input.targetY - pl.y, -maxStep * 1.35, maxStep * 1.35);
+      } else {
+        if (game.input.up) pl.y -= maxStep;
+        if (game.input.down) pl.y += maxStep;
+        if (game.input.left) pl.x -= maxStep;
+        if (game.input.right) pl.x += maxStep;
+      }
+      pl.x = clamp(pl.x, W * 0.1, W * 0.9);
+      pl.y = clamp(pl.y, H * 0.1, H * 0.9);
+
+      game.spawnCrystalTimer += dt;
+      game.spawnRockTimer += dt;
+      const crystalEvery = Math.max(0.55, 0.95 - progress * 0.25);
+      const rockEvery = Math.max(0.14, 0.92 - progress * 0.72);
+      while (game.spawnCrystalTimer >= crystalEvery) {
+        game.spawnCrystalTimer -= crystalEvery;
+        spawnCrystal();
+      }
+      while (game.spawnRockTimer >= rockEvery) {
+        game.spawnRockTimer -= rockEvery;
+        spawnRock();
+      }
+
+      for (const c of game.crystals) {
+        c.x -= c.speed * dt;
+        c.spin += dt * 5;
+        if (Math.hypot(c.x - pl.x, c.y - pl.y) < c.r + pl.w * 0.35) {
+          spawnBurst(c.x, c.y, 12, '#7dd3fc');
+          playPointSound();
+          c.hit = true;
+        }
+      }
+
+      for (const r of game.rocks) {
+        const prevRight = r.x + r.r;
+        r.x -= r.speed * dt;
+        r.rot += r.vr * dt;
+
+        if (!r.passed && prevRight >= pl.x - pl.w * 0.5 && (r.x + r.r) < pl.x - pl.w * 0.5) {
+          r.passed = true;
+          game.score += 1;
+          spawnBurst(pl.x + 10, pl.y, 8, '#fbbf24');
+          if (game.score % 4 === 0) playPointSound();
+          if (settings.vibration && navigator.vibrate && game.score % 12 === 0) navigator.vibrate(10);
+        }
+
+        if (Math.hypot(r.x - pl.x, r.y - pl.y) < r.r * 0.78 + pl.w * 0.34) {
+          game.crash = { x: pl.x, y: pl.y, t: 0, life: 0.55 };
+          spawnBurst(pl.x, pl.y, 22, '#fb7185');
+          gameOver();
+          return;
+        }
+      }
+
+      game.crystals = game.crystals.filter(c => !c.hit && c.x > -40);
+      game.rocks = game.rocks.filter(r => r.x + r.r > -50);
+      if (game.crash) {
+        game.crash.t += dt;
+        if (game.crash.t >= game.crash.life) game.crash = null;
+      }
+      updateHUD();
+    }
+
+    function draw(){
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      drawCrystals();
+      drawRocks();
+      drawParticles();
+      drawPlayer();
+      drawCrash();
+      drawHint();
+    }
+
+    function drawBackground(){
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#13264d');
+      grad.addColorStop(0.55, '#0b1530');
+      grad.addColorStop(1, '#050914');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      for (const n of game.nebulae) {
+        const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+        g.addColorStop(0, `hsla(${n.hue}, 90%, 70%, ${n.a})`);
+        g.addColorStop(1, `hsla(${n.hue}, 90%, 70%, 0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (const s of game.stars) {
+        ctx.globalAlpha = s.a * (0.7 + Math.sin(s.t) * 0.3);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      const moonX = W * 0.82;
+      const moonY = H * 0.18;
+      const mg = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 70);
+      mg.addColorStop(0, 'rgba(255,245,200,.92)');
+      mg.addColorStop(0.45, 'rgba(255,235,170,.28)');
+      mg.addColorStop(1, 'rgba(255,235,170,0)');
+      ctx.fillStyle = mg;
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, 70, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff4ca';
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, 24, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (const m of game.mountains) {
+        const shift = -(game.bgOffset * m.shift % (W * 1.4));
+        ctx.fillStyle = m.color;
+        ctx.beginPath();
+        ctx.moveTo(-30, H);
+        for (let rep = -1; rep <= 2; rep++) {
+          const startX = shift + rep * W * 1.4;
+          for (let i = 0; i <= 5; i++) {
+            const x = startX + (i / 5) * W * 1.4;
+            const peak = m.y - Math.sin(i * 1.18 + rep) * m.h * 0.6;
+            ctx.lineTo(x, peak);
+          }
+        }
+        ctx.lineTo(W + 30, H);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    function drawCrystals(){
+      for (const c of game.crystals) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.spin);
+        const g = ctx.createLinearGradient(0, -c.r, 0, c.r);
+        g.addColorStop(0, '#e0f2fe');
+        g.addColorStop(1, '#38bdf8');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, -c.r);
+        ctx.lineTo(c.r * 0.75, 0);
+        ctx.lineTo(0, c.r);
+        ctx.lineTo(-c.r * 0.75, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawRocks(){
+      for (const r of game.rocks) {
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        ctx.rotate(r.rot);
+        ctx.fillStyle = '#7c879e';
+        ctx.beginPath();
+        for (let i = 0; i < 7; i++) {
+          const a = (Math.PI * 2 / 7) * i;
+          const rr = r.r * (0.78 + (i % 2) * 0.22);
+          const x = Math.cos(a) * rr;
+          const y = Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawPlayer(){
+      const pl = game.player;
+      if (game.crash && game.crash.t < game.crash.life * 0.7) return;
+      const x = pl.x;
+      const y = pl.y - pl.h / 2;
+      ctx.save();
+      ctx.translate(x, y + pl.h / 2);
+      ctx.scale(1, 1 + Math.abs((game.input.targetY ?? pl.y) - pl.y) / 280 * 0.08);
+      ctx.translate(-x, -(y + pl.h / 2));
+
+      const g = ctx.createLinearGradient(x, y, x, y + pl.h);
+      g.addColorStop(0, '#ffb84d');
+      g.addColorStop(1, '#ff8a00');
+      ctx.fillStyle = g;
+      roundRect(x - pl.w / 2, y, pl.w, pl.h, 12, true);
+
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(x - 8, y + 14, 5.5, 0, Math.PI * 2);
+      ctx.arc(x + 8, y + 14, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#1f2937';
+      ctx.beginPath();
+      ctx.arc(x - 7, y + 14.5, 2.8, 0, Math.PI * 2);
+      ctx.arc(x + 9, y + 14.5, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#7c2d12';
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - 8, y + 28);
+      ctx.lineTo(x + 8, y + 28);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCrash(){
+      if (!game.crash) return;
+      const c = game.crash;
+      const p = c.t / c.life;
+      const r1 = 10 + p * 42;
+      const r2 = 4 + p * 22;
+      ctx.save();
+      ctx.globalAlpha = 1 - p;
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 6 * (1 - p * 0.6);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#fb7185';
+      ctx.lineWidth = 4 * (1 - p * 0.5);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r2, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        const a = (Math.PI * 2 / 8) * i + p * 0.8;
+        const x1 = c.x + Math.cos(a) * (16 + p * 10);
+        const y1 = c.y + Math.sin(a) * (16 + p * 10);
+        const x2 = c.x + Math.cos(a) * (28 + p * 30);
+        const y2 = c.y + Math.sin(a) * (28 + p * 30);
+        ctx.strokeStyle = i % 2 ? '#fbbf24' : '#ffffff';
+        ctx.lineWidth = 3 * (1 - p * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawParticles(){
+      for (const p of game.particles) {
+        ctx.globalAlpha = 1 - p.t / p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHint(){
+      ctx.globalAlpha = 0.14;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 18px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`Meteoritos: ${game.score}`, W - 18, H - 24);
+      ctx.globalAlpha = 1;
+    }
+
+    function roundRect(x, y, w, h, r, fill){
+      if (w <= 0 || h <= 0) return;
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      if (fill) ctx.fill(); else ctx.stroke();
+    }
+    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+    function lerp(a,b,t){ return a + (b-a)*t; }
+
+    function loop(ts){
+      if (!running) return;
+      const dt = Math.min(0.033, (ts - lastTime) / 1000 || 0.016);
+      lastTime = ts;
+      update(dt);
+      draw();
+      if (running) game.raf = requestAnimationFrame(loop);
+    }
+
+    let audioCtx = null;
+    function audioInit(){
+      if (!settings.sound) return;
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    function tone(freq, dur=.12, type='sine', vol=.06, delay=0){
+      if (!settings.sound || !audioCtx) return;
+      const t = audioCtx.currentTime + delay;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + dur + .02);
+    }
+    function playPointSound(){ tone(520, .08, 'triangle', .05); }
+    function playFailSound(){ tone(220, .18, 'sawtooth', .08); tone(150, .28, 'triangle', .06, .08); }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'ArrowUp') { e.preventDefault(); game.input.up = true; }
+      if (e.code === 'ArrowDown') { e.preventDefault(); game.input.down = true; }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); game.input.left = true; }
+      if (e.code === 'ArrowRight') { e.preventDefault(); game.input.right = true; }
+    });
+    document.addEventListener('keyup', e => {
+      if (e.code === 'ArrowUp') { e.preventDefault(); game.input.up = false; }
+      if (e.code === 'ArrowDown') { e.preventDefault(); game.input.down = false; }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); game.input.left = false; }
+      if (e.code === 'ArrowRight') { e.preventDefault(); game.input.right = false; }
+    });
+
+    function updateTouchTarget(clientX, clientY){
+      const rect = canvas.getBoundingClientRect();
+      game.input.targetX = clamp(clientX - rect.left, W * 0.1, W * 0.9);
+      game.input.targetY = clamp(clientY - rect.top, H * 0.1, H * 0.9);
+    }
+
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      touchActive = true;
+      audioInit();
+      updateTouchTarget(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive:false });
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!touchActive) return;
+      updateTouchTarget(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive:false });
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      touchActive = false;
+      game.input.targetX = null;
+      game.input.targetY = null;
+    }, { passive:false });
+    canvas.addEventListener('touchcancel', e => {
+      e.preventDefault();
+      touchActive = false;
+      game.input.targetX = null;
+      game.input.targetY = null;
+    }, { passive:false });
+
+    canvas.addEventListener('mousedown', e => {
+      touchActive = true;
+      audioInit();
+      updateTouchTarget(e.clientX, e.clientY);
+    });
+    window.addEventListener('mousemove', e => {
+      if (!touchActive) return;
+      updateTouchTarget(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+      touchActive = false;
+      game.input.targetX = null;
+      game.input.targetY = null;
+    });
+
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+
+    ui.btnStart.addEventListener('click', startGame);
+    ui.btnRetry.addEventListener('click', () => {
+      ui.gameOverModal.classList.remove('show');
+      startGame();
+    });
+    ui.btnCloseOver.addEventListener('click', () => ui.gameOverModal.classList.remove('show'));
+    ui.btnPause.addEventListener('click', () => {
+      if (!running && state !== 'dead') return;
+      paused = !paused;
+      updateHUD();
+      if (paused) return;
+      lastTime = performance.now();
+      if (running) {
+        cancelAnimationFrame(game.raf || 0);
+        game.raf = requestAnimationFrame(loop);
+      }
+    });
+    ui.btnSettings.addEventListener('click', () => {
+      paused = true;
+      updateHUD();
+      ui.settingsModal.classList.add('show');
+    });
+    ui.btnCloseSettings.addEventListener('click', () => {
+      ui.settingsModal.classList.remove('show');
+      paused = false;
+      updateHUD();
+      if (running) {
+        lastTime = performance.now();
+        cancelAnimationFrame(game.raf || 0);
+        game.raf = requestAnimationFrame(loop);
+      }
+    });
+    ui.toggleSound.addEventListener('click', () => {
+      settings.sound = !settings.sound;
+      syncToggle(ui.toggleSound, settings.sound);
+      saveSettings();
+      audioInit();
+    });
+    ui.toggleVibration.addEventListener('click', () => {
+      settings.vibration = !settings.vibration;
+      syncToggle(ui.toggleVibration, settings.vibration);
+      saveSettings();
+    });
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+    resize();
+    resetGame();
+    draw();
+  </script>
+</body>
+</html>
