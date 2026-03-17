@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Estimador de kcal/kg de pienso</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#121a2b;
+      --panel-2:#182338;
+      --text:#eef4ff;
+      --muted:#9fb0cc;
+      --accent:#ff9900;
+      --accent-2:#7dd3fc;
+      --ok:#34d399;
+      --warn:#fbbf24;
+      --danger:#fb7185;
+      --line:rgba(255,255,255,.08);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(125,211,252,.08), transparent 25%),
+        radial-gradient(circle at top left, rgba(255,153,0,.08), transparent 22%),
+        linear-gradient(180deg, #09111f 0%, #0b1220 100%);
+      color:var(--text);
+      min-height:100vh;
+      line-height:1.5;
+    }
+
+    .wrap{
+      width:min(1120px, 92%);
+      margin:24px auto 40px;
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .hero{
+      padding:24px 22px 16px;
+      margin-bottom:18px;
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(26px, 4vw, 38px);
+      line-height:1.1;
+      letter-spacing:.2px;
+    }
+
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:clamp(14px, 2.2vw, 16px);
+      max-width:950px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1.15fr .95fr;
+      gap:18px;
+    }
+
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .panel{
+      padding:20px;
+    }
+
+    .panel h2{
+      margin:0 0 14px;
+      font-size:1.15rem;
+    }
+
+    label{
+      display:block;
+      font-weight:700;
+      margin:12px 0 6px;
+      color:#fff;
+    }
+
+    textarea, input, select{
+      width:100%;
+      background:var(--panel-2);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px 14px;
+      font-size:15px;
+      outline:none;
+      transition:.2s ease;
+    }
+
+    textarea{
+      min-height:320px;
+      resize:vertical;
+      font-family:Consolas, Monaco, monospace;
+      line-height:1.45;
+    }
+
+    textarea:focus, input:focus, select:focus{
+      border-color:rgba(125,211,252,.45);
+      box-shadow:0 0 0 4px rgba(125,211,252,.08);
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    @media (max-width: 640px){
+      .row{grid-template-columns:1fr}
+    }
+
+    .btns{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    button{
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      transition:transform .08s ease, opacity .2s ease, box-shadow .2s ease;
+    }
+
+    button:hover{opacity:.96}
+    button:active{transform:translateY(1px) scale(.99)}
+
+    .primary{
+      background:linear-gradient(135deg, var(--accent), #ffb84d);
+      color:#181818;
+      box-shadow:0 8px 24px rgba(255,153,0,.25);
+    }
+
+    .secondary{
+      background:#22314d;
+      color:#eaf2ff;
+      border:1px solid var(--line);
+    }
+
+    .danger{
+      background:#3a1d2a;
+      color:#ffd6df;
+      border:1px solid rgba(251,113,133,.22);
+    }
+
+    .result-box{
+      background:linear-gradient(180deg, rgba(125,211,252,.08), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:16px;
+      margin-bottom:14px;
+    }
+
+    .big{
+      font-size:clamp(28px, 5vw, 44px);
+      font-weight:800;
+      margin:6px 0 2px;
+      color:#fff;
+    }
+
+    .muted{color:var(--muted)}
+
+    .mini{
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .badge{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      background:rgba(255,153,0,.12);
+      color:#ffd28d;
+      border:1px solid rgba(255,153,0,.22);
+      font-size:12px;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+
+    .calc-list{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .calc-item{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      font-size:14px;
+    }
+
+    .status{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      font-size:14px;
+      border:1px solid transparent;
+    }
+
+    .ok{
+      background:rgba(52,211,153,.08);
+      color:#b8ffe5;
+      border-color:rgba(52,211,153,.2);
+    }
+
+    .warn{
+      background:rgba(251,191,36,.08);
+      color:#ffe6a3;
+      border-color:rgba(251,191,36,.2);
+    }
+
+    .error{
+      background:rgba(251,113,133,.08);
+      color:#ffd7e0;
+      border-color:rgba(251,113,133,.2);
+    }
+
+    .help{
+      margin-top:14px;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .help code{
+      background:#0d1628;
+      padding:2px 6px;
+      border-radius:8px;
+      color:#cce8ff;
+      border:1px solid var(--line);
+    }
+
+    .footer{
+      margin-top:20px;
+      padding:22px;
+      text-align:center;
+      color:var(--muted);
+      background:rgba(255,255,255,.025);
+      border:1px solid var(--line);
+      border-radius:18px;
+    }
+
+    .footer a{
+      color:#9ddcff;
+      text-decoration:none;
+    }
+
+    .footer a:hover{text-decoration:underline}
+
+    .table-like{
+      display:grid;
+      gap:8px;
+      margin-top:14px;
+    }
+
+    .table-row{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      font-size:14px;
+    }
+
+    .hint{
+      margin-top:10px;
+      padding:10px 12px;
+      border-left:4px solid var(--accent);
+      background:rgba(255,153,0,.06);
+      border-radius:12px;
+      color:#ffe0ae;
+      font-size:14px;
+    }
+
+    .small-note{
+      margin-top:12px;
+      font-size:13px;
+      color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero card">
+      <h1>Estimador de kcal/kg de pienso</h1>
+      <p class="subtitle">
+        Pega el bloque de <strong>Componentes analíticos</strong> y la herramienta reconocerá distintas
+        denominaciones de proteína, grasa, fibra y materia inorgánica/cenizas. La estimación se hará
+        usando solo esos componentes, asumiendo una humedad típica de pienso seco del 8–9%.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel card">
+        <h2>Entrada de datos</h2>
+
+        <label for="inputText">Pega aquí los componentes analíticos</label>
+        <textarea id="inputText" placeholder="Ejemplo:
+Componentes analíticos:
+Proteína 25 %
+Contenido de grasa 14 %
+Fibras brutas 2 %
+Materia inorgánica 6 %
+
+También reconoce:
+- proteína bruta
+- proteínas
+- crude protein
+- grasa bruta
+- aceites y grasas brutos
+- contenido graso
+- crude oils and fats
+- cenizas brutas
+- ash
+- fibra bruta
+- crude fibre"></textarea>
+
+        <div class="row">
+          <div>
+            <label for="humiditySelect">Humedad asumida del pienso seco</label>
+            <select id="humiditySelect">
+              <option value="8">8 %</option>
+              <option value="8.5" selected>8.5 %</option>
+              <option value="9">9 %</option>
+            </select>
+          </div>
+          <div>
+            <label for="customHumidity">O humedad personalizada (%)</label>
+            <input id="customHumidity" type="number" step="0.1" min="0" max="100" placeholder="Opcional">
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="calcBtn">Calcular kcal/kg</button>
+          <button class="secondary" id="exampleBtn">Cargar ejemplo</button>
+          <button class="danger" id="clearBtn">Limpiar</button>
+        </div>
+
+        <div class="help">
+          El cálculo se hace <strong>solo</strong> con:
+          <code>proteína</code>, <code>grasa</code>, <code>fibra</code> y <code>materia inorgánica/ceniza</code>.
+          Los carbohidratos se estiman como:
+          <code>100 - proteína - grasa - fibra - ceniza - humedad</code>.
+        </div>
+      </div>
+
+      <div class="panel card">
+        <h2>Resultado</h2>
+
+        <div class="result-box">
+          <div class="badge">Estimación energética</div>
+          <div class="mini" id="basisInfo">Esperando datos…</div>
+          <div class="big" id="kcalResult">—</div>
+          <div class="muted" id="kcalSub">Introduce los componentes analíticos para calcular.</div>
+        </div>
+
+        <div class="calc-list" id="calcList"></div>
+        <div id="statusBox"></div>
+
+        <div class="hint">
+          Método:
+          <strong>ELN = 100 - proteína - grasa - fibra - ceniza - humedad</strong><br>
+          <strong>EM (kcal/100 g) = proteína × 3.5 + grasa × 8.5 + ELN × 3.5</strong>
+        </div>
+
+        <div class="table-like" id="parsedTable"></div>
+
+        <div class="small-note">
+          Esta es una estimación práctica para pienso seco. El valor real del fabricante puede variar algo.
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const inputText = document.getElementById('inputText');
+    const humiditySelect = document.getElementById('humiditySelect');
+    const customHumidity = document.getElementById('customHumidity');
+    const calcBtn = document.getElementById('calcBtn');
+    const exampleBtn = document.getElementById('exampleBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const kcalResult = document.getElementById('kcalResult');
+    const kcalSub = document.getElementById('kcalSub');
+    const basisInfo = document.getElementById('basisInfo');
+    const calcList = document.getElementById('calcList');
+    const statusBox = document.getElementById('statusBox');
+    const parsedTable = document.getElementById('parsedTable');
+
+    const EXAMPLE_TEXT = `Componentes analíticos:
+Proteína bruta 25.3 %
+Contenido de grasa 15.8 %
+Fibras brutas 1.7 %
+Materia inorgánica 5.7 %`;
+
+    const SYNONYMS = {
+      protein: [
+        'proteina bruta',
+        'proteina',
+        'proteinas',
+        'protein',
+        'crude protein',
+        'raw protein',
+        'proteine',
+        'proteines'
+      ],
+      fat: [
+        'contenido de grasa',
+        'grasa bruta',
+        'grasa',
+        'grasas',
+        'contenido graso',
+        'aceites y grasas brutos',
+        'aceites y grasas',
+        'aceites brutos y grasas',
+        'oils and fats',
+        'crude oils and fats',
+        'fat',
+        'crude fat',
+        'lipidos'
+      ],
+      fiber: [
+        'fibras brutas',
+        'fibra bruta',
+        'fibras',
+        'fibra',
+        'crude fibre',
+        'crude fiber',
+        'fibre',
+        'fiber'
+      ],
+      ash: [
+        'materia inorganica',
+        'materias inorganicas',
+        'ceniza bruta',
+        'cenizas brutas',
+        'ceniza',
+        'cenizas',
+        'ash',
+        'crude ash',
+        'inorganic matter',
+        'minerales'
+      ]
+    };
+
+    function normalizeText(text){
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .replace(/[|•·;]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .trim();
+    }
+
+    function parseSpanishNumber(str){
+      if(str == null) return null;
+      let s = String(str).trim();
+      s = s.replace(/\s/g, '');
+
+      if (s.includes(',') && s.includes('.')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if (s.includes(',')) {
+        s = s.replace(',', '.');
+      }
+
+      const num = parseFloat(s);
+      return Number.isFinite(num) ? num : null;
+    }
+
+    function escapeRegExp(str){
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function findValueForSynonyms(text, synonymList){
+      const rawLines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+
+      for(const rawLine of rawLines){
+        const line = normalizeText(rawLine);
+
+        for(const syn of synonymList){
+          const synNorm = normalizeText(syn);
+
+          if(line.includes(synNorm)){
+            const after = line.slice(line.indexOf(synNorm) + synNorm.length);
+            let match = after.match(/([-+]?\d+(?:[.,]\d+)?)/);
+
+            if(!match){
+              match = line.match(/([-+]?\d+(?:[.,]\d+)?)/);
+            }
+
+            if(match){
+              const value = parseSpanishNumber(match[1]);
+              if(value != null) return value;
+            }
+          }
+        }
+      }
+
+      const textNorm = normalizeText(text);
+
+      for(const syn of synonymList){
+        const synNorm = normalizeText(syn);
+        const regex = new RegExp(escapeRegExp(synNorm) + '\\s*[:=\\-]?\\s*([-+]?\\d+(?:[.,]\\d+)?)', 'i');
+        const match = textNorm.match(regex);
+        if(match){
+          const value = parseSpanishNumber(match[1]);
+          if(value != null) return value;
+        }
+      }
+
+      return null;
+    }
+
+    function parseAnalyticalComponents(rawText){
+      return {
+        protein: findValueForSynonyms(rawText, SYNONYMS.protein),
+        fat: findValueForSynonyms(rawText, SYNONYMS.fat),
+        fiber: findValueForSynonyms(rawText, SYNONYMS.fiber),
+        ash: findValueForSynonyms(rawText, SYNONYMS.ash)
+      };
+    }
+
+    function formatPct(val){
+      return (val == null || isNaN(val)) ? '—' : `${val.toFixed(2)} %`;
+    }
+
+    function formatKcal(val){
+      return (val == null || isNaN(val)) ? '—' : `${Math.round(val).toLocaleString('es-ES')} kcal/kg`;
+    }
+
+    function setStatus(message, type='warn'){
+      statusBox.innerHTML = `<div class="status ${type}">${message}</div>`;
+    }
+
+    function clearStatus(){
+      statusBox.innerHTML = '';
+    }
+
+    function renderParsedTable(data, moisture, nfe){
+      const rows = [
+        ['Proteína reconocida', formatPct(data.protein)],
+        ['Grasa reconocida', formatPct(data.fat)],
+        ['Fibra reconocida', formatPct(data.fiber)],
+        ['Materia inorgánica / ceniza reconocida', formatPct(data.ash)],
+        ['Humedad asumida', formatPct(moisture)],
+        ['Carbohidratos estimados (ELN)', formatPct(nfe)]
+      ];
+
+      parsedTable.innerHTML = rows.map(r => `
+        <div class="table-row">
+          <div>${r[0]}</div>
+          <div><strong>${r[1]}</strong></div>
+        </div>
+      `).join('');
+    }
+
+    function calculate(){
+      clearStatus();
+      calcList.innerHTML = '';
+      parsedTable.innerHTML = '';
+
+      const raw = inputText.value.trim();
+
+      if(!raw){
+        kcalResult.textContent = '—';
+        kcalSub.textContent = 'Pega primero los componentes analíticos.';
+        basisInfo.textContent = 'Sin datos';
+        setStatus('No has introducido ningún texto.', 'error');
+        return;
+      }
+
+      const data = parseAnalyticalComponents(raw);
+
+      const moisture = parseSpanishNumber(customHumidity.value) ?? parseSpanishNumber(humiditySelect.value);
+
+      const missing = [];
+      if(data.protein == null) missing.push('proteína');
+      if(data.fat == null) missing.push('grasa');
+      if(data.fiber == null) missing.push('fibra');
+      if(data.ash == null) missing.push('materia inorgánica/ceniza');
+
+      if(missing.length){
+        kcalResult.textContent = '—';
+        kcalSub.textContent = 'No se pudo completar el cálculo.';
+        basisInfo.textContent = 'Faltan datos reconocibles';
+        renderParsedTable(data, moisture, null);
+        setStatus(`No he podido reconocer correctamente: <strong>${missing.join(', ')}</strong>.`, 'error');
+        return;
+      }
+
+      let nfe = 100 - data.protein - data.fat - data.fiber - data.ash - moisture;
+      let notes = [];
+
+      if(nfe < 0){
+        notes.push('La suma de componentes supera el 100%. Revisa los porcentajes o la humedad asumida.');
+        nfe = 0;
+      }
+
+      const kcalPer100g = (data.protein * 3.5) + (data.fat * 8.5) + (nfe * 3.5);
+      const kcalPerKg = kcalPer100g * 10;
+
+      renderParsedTable(data, moisture, nfe);
+
+      basisInfo.textContent = 'Cálculo en base “tal cual”, asumiendo humedad típica de pienso seco.';
+      kcalResult.textContent = formatKcal(kcalPerKg);
+      kcalSub.textContent = `Estimación basada solo en proteína, grasa, fibra, materia inorgánica y humedad asumida.`;
+
+      const items = [
+        ['Proteína', `${data.protein.toFixed(2)} %`],
+        ['Grasa', `${data.fat.toFixed(2)} %`],
+        ['Fibra', `${data.fiber.toFixed(2)} %`],
+        ['Materia inorgánica / ceniza', `${data.ash.toFixed(2)} %`],
+        ['Humedad asumida', `${moisture.toFixed(2)} %`],
+        ['Carbohidratos estimados (ELN)', `${nfe.toFixed(2)} %`],
+        ['kcal / 100 g', `${kcalPer100g.toFixed(1)} kcal`],
+        ['kcal / kg', `${Math.round(kcalPerKg).toLocaleString('es-ES')} kcal/kg`]
+      ];
+
+      calcList.innerHTML = items.map(([label, value]) => `
+        <div class="calc-item">
+          <span>${label}</span>
+          <strong>${value}</strong>
+        </div>
+      `).join('');
+
+      if(notes.length){
+        setStatus(notes.join('<br>'), 'warn');
+      } else {
+        setStatus('Cálculo realizado correctamente.', 'ok');
+      }
+    }
+
+    calcBtn.addEventListener('click', calculate);
+
+    exampleBtn.addEventListener('click', () => {
+      inputText.value = EXAMPLE_TEXT;
+      humiditySelect.value = '8.5';
+      customHumidity.value = '';
+      calculate();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      inputText.value = '';
+      customHumidity.value = '';
+      humiditySelect.value = '8.5';
+      kcalResult.textContent = '—';
+      kcalSub.textContent = 'Introduce los componentes analíticos para calcular.';
+      basisInfo.textContent = 'Esperando datos…';
+      calcList.innerHTML = '';
+      parsedTable.innerHTML = '';
+      clearStatus();
+    });
+
+    inputText.addEventListener('keydown', (e) => {
+      if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+        calculate();
+      }
+    });
+  </script>
+</body>
+</html>
