@@ -71,12 +71,17 @@
       box-shadow:var(--shadow);
     }
 
-    .scorebox{padding:12px 14px;min-width:180px}
+    .scorebox{padding:12px 14px;min-width:190px}
     .scorebig{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.03em}
     .scoresub{margin-top:4px;color:var(--muted);font-size:12px;font-weight:700}
     .scoremini{margin-top:6px;font-size:12px;color:var(--accent2);font-weight:800}
 
-    .smallstack{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+    .smallstack{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      align-items:flex-end;
+    }
 
     .iconbtn{
       width:46px;
@@ -120,14 +125,14 @@
       font-weight:800;
       letter-spacing:.08em;
       text-transform:uppercase;
-      color:var(--muted)
+      color:var(--muted);
     }
 
     .status .value{
       margin-top:5px;
       font-size:18px;
       font-weight:800;
-      letter-spacing:-.02em
+      letter-spacing:-.02em;
     }
 
     .meter{
@@ -188,7 +193,7 @@
       font-weight:800;
       letter-spacing:.12em;
       text-transform:uppercase;
-      color:var(--accent)
+      color:var(--accent);
     }
 
     .card h2{margin-top:8px;font-size:28px;line-height:1.05;letter-spacing:-.04em}
@@ -200,7 +205,7 @@
       border-radius:16px;
       padding:14px 16px;
       font-weight:800;
-      font-size:15px
+      font-size:15px;
     }
 
     .btn.primary{background:linear-gradient(135deg,var(--accent),#ffb84d);color:#111827}
@@ -228,7 +233,7 @@
       border-radius:999px;
       background:#334155;
       border:none;
-      position:relative
+      position:relative;
     }
 
     .toggle::after{
@@ -248,13 +253,12 @@
 
     .footer-note{margin-top:14px;font-size:12px;color:var(--muted)}
 
-    /* Joystick móvil */
     .joystick-wrap{
       position:absolute;
-      left:max(12px, calc(var(--safe-left) + 8px));
-      bottom:max(90px, calc(var(--safe-bottom) + 86px));
-      width:124px;
-      height:124px;
+      left:max(14px, calc(var(--safe-left) + 10px));
+      bottom:max(104px, calc(var(--safe-bottom) + 92px));
+      width:138px;
+      height:138px;
       z-index:12;
       pointer-events:auto;
       touch-action:none;
@@ -275,10 +279,10 @@
       position:absolute;
       left:50%;
       top:50%;
-      width:54px;
-      height:54px;
-      margin-left:-27px;
-      margin-top:-27px;
+      width:60px;
+      height:60px;
+      margin-left:-30px;
+      margin-top:-30px;
       border-radius:50%;
       background:linear-gradient(135deg,#ffb84d,#ff9900);
       border:2px solid rgba(255,255,255,.35);
@@ -318,6 +322,7 @@
           <div class="scoresub">meteoritos grandes sorteados</div>
           <div id="scoreSmall" class="scoremini">0 pequeños interceptados</div>
         </div>
+
         <div class="smallstack">
           <button id="btnPause" class="iconbtn" aria-label="Pausa">⏸</button>
           <button id="btnSettings" class="iconbtn" aria-label="Ajustes">⚙️</button>
@@ -345,12 +350,12 @@
         <h2>Esquiva meteoritos estelares</h2>
         <p>
           Esquiva los meteoritos grandes y toca los pequeños para interceptarlos sin morir.
-          En móvil puedes mover al personaje cómodamente con el joystick de la esquina inferior izquierda.
+          En móvil puedes mover al personaje con joystick, con toque para ir a un punto, o arrastrando directamente.
         </p>
         <div class="btnrow">
           <button id="btnStart" class="btn primary">Empezar</button>
         </div>
-        <div class="footer-note">Paisaje estrellado dinámico, luna visible, joystick móvil y recuento separado.</div>
+        <div class="footer-note">Joystick suavizado + tap-to-move + arrastre directo.</div>
       </div>
     </div>
 
@@ -453,9 +458,12 @@
         right:false,
         targetX:null,
         targetY:null,
+        tapMove:false,
         joyX:0,
         joyY:0,
-        joyActive:false
+        joyActive:false,
+        smoothJoyX:0,
+        smoothJoyY:0
       }
     };
 
@@ -535,9 +543,12 @@
         right:false,
         targetX:null,
         targetY:null,
+        tapMove:false,
         joyX:0,
         joyY:0,
-        joyActive:false
+        joyActive:false,
+        smoothJoyX:0,
+        smoothJoyY:0
       };
       dragActive = false;
       resetJoystick();
@@ -666,12 +677,33 @@
       const pl = game.player;
       const maxStep = pl.speed * dt * (1 + progress * 0.12);
 
+      game.input.smoothJoyX += (game.input.joyX - game.input.smoothJoyX) * JOY_SMOOTHING;
+      game.input.smoothJoyY += (game.input.joyY - game.input.smoothJoyY) * JOY_SMOOTHING;
+
       if (game.input.joyActive) {
-        pl.x += game.input.joyX * maxStep * 1.25;
-        pl.y += game.input.joyY * maxStep * 1.25;
+        pl.x += game.input.smoothJoyX * maxStep * 1.45;
+        pl.y += game.input.smoothJoyY * maxStep * 1.45;
+
+      } else if (game.input.tapMove && game.input.targetY !== null && game.input.targetX !== null) {
+        const dx = game.input.targetX - pl.x;
+        const dy = game.input.targetY - pl.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist <= TAP_REACH) {
+          game.input.tapMove = false;
+        } else {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const factor = clamp(dist / 120, 0.35, 1);
+
+          pl.x += nx * maxStep * 1.3 * factor;
+          pl.y += ny * maxStep * 1.3 * factor;
+        }
+
       } else if (dragActive && game.input.targetY !== null && game.input.targetX !== null) {
-        pl.x += clamp(game.input.targetX - pl.x, -maxStep * 1.35, maxStep * 1.35);
-        pl.y += clamp(game.input.targetY - pl.y, -maxStep * 1.35, maxStep * 1.35);
+        pl.x += clamp(game.input.targetX - pl.x, -maxStep * 1.15, maxStep * 1.15);
+        pl.y += clamp(game.input.targetY - pl.y, -maxStep * 1.15, maxStep * 1.15);
+
       } else {
         if (game.input.up) pl.y -= maxStep;
         if (game.input.down) pl.y += maxStep;
@@ -715,7 +747,6 @@
         r.x -= r.speed * dt;
         r.rot += r.vr * dt;
 
-        /* Cuenta el meteorito grande cuando su centro ya ha pasado claramente al jugador */
         if (!r.counted && r.x < pl.x - pl.w * 0.35) {
           r.counted = true;
           game.dodgeScore += 1;
@@ -879,7 +910,10 @@
       ctx.save();
       ctx.translate(x, y + pl.h / 2);
 
-      const stretchRefY = (dragActive && game.input.targetY !== null) ? game.input.targetY : pl.y + game.input.joyY * 50;
+      const stretchRefY = (dragActive && game.input.targetY !== null)
+        ? game.input.targetY
+        : pl.y + game.input.joyY * 50;
+
       ctx.scale(1, 1 + Math.abs(stretchRefY - pl.y) / 280 * 0.08);
       ctx.translate(-x, -(y + pl.h / 2));
 
@@ -1044,55 +1078,58 @@
       game.input.targetY = clamp(clientY - rect.top, H * 0.12, H * 0.88);
     }
 
-    /* Arrastre libre fuera del joystick */
     canvas.addEventListener('touchstart', e => {
       if (e.target.closest('#joystick')) return;
       e.preventDefault();
-      dragActive = true;
       audioInit();
+
+      dragActive = false;
       updateDragTarget(e.touches[0].clientX, e.touches[0].clientY);
+      game.input.tapMove = true;
     }, { passive:false });
 
     canvas.addEventListener('touchmove', e => {
-      if (!dragActive) return;
+      if (e.target.closest('#joystick')) return;
       e.preventDefault();
+
+      dragActive = true;
+      game.input.tapMove = false;
       updateDragTarget(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive:false });
 
     canvas.addEventListener('touchend', e => {
       e.preventDefault();
       dragActive = false;
-      game.input.targetX = null;
-      game.input.targetY = null;
     }, { passive:false });
 
     canvas.addEventListener('touchcancel', e => {
       e.preventDefault();
       dragActive = false;
-      game.input.targetX = null;
-      game.input.targetY = null;
     }, { passive:false });
 
     canvas.addEventListener('mousedown', e => {
-      dragActive = true;
       audioInit();
+      dragActive = false;
       updateDragTarget(e.clientX, e.clientY);
+      game.input.tapMove = true;
     });
 
     window.addEventListener('mousemove', e => {
-      if (!dragActive) return;
+      if (e.buttons !== 1) return;
+      dragActive = true;
+      game.input.tapMove = false;
       updateDragTarget(e.clientX, e.clientY);
     });
 
     window.addEventListener('mouseup', () => {
       dragActive = false;
-      game.input.targetX = null;
-      game.input.targetY = null;
     });
 
-    /* Joystick */
     let joyPointerId = null;
     const JOY_RADIUS = 38;
+    const JOY_DEADZONE = 0.18;
+    const JOY_SMOOTHING = 0.14;
+    const TAP_REACH = 10;
 
     function setJoystickFromPoint(clientX, clientY){
       const rect = ui.joystick.getBoundingClientRect();
@@ -1108,9 +1145,26 @@
         dy = dy / dist * JOY_RADIUS;
       }
 
-      game.input.joyX = dx / JOY_RADIUS;
-      game.input.joyY = dy / JOY_RADIUS;
+      let nx = dx / JOY_RADIUS;
+      let ny = dy / JOY_RADIUS;
+      let mag = Math.hypot(nx, ny);
+
+      if (mag < JOY_DEADZONE) {
+        nx = 0;
+        ny = 0;
+        mag = 0;
+      } else {
+        const scaled = (mag - JOY_DEADZONE) / (1 - JOY_DEADZONE);
+        const curved = scaled * scaled;
+        const inv = mag === 0 ? 0 : (curved / mag);
+        nx *= inv;
+        ny *= inv;
+      }
+
+      game.input.joyX = nx;
+      game.input.joyY = ny;
       game.input.joyActive = true;
+      game.input.tapMove = false;
 
       ui.joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
     }
@@ -1119,8 +1173,8 @@
       game.input.joyX = 0;
       game.input.joyY = 0;
       game.input.joyActive = false;
-      ui.joystickKnob.style.transform = `translate(0px, 0px)`;
       joyPointerId = null;
+      ui.joystickKnob.style.transform = `translate(0px, 0px)`;
     }
 
     ui.joystick.addEventListener('pointerdown', e => {
