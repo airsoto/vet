@@ -68,6 +68,14 @@
     }
     .iconbtn:active{transform:scale(.96)}
 
+    .lifebox{
+      padding:8px 12px;
+      min-width:64px;
+      text-align:center;
+      font-weight:800;
+      font-size:18px;
+    }
+
     .bottom{
       position:absolute;
       left:max(12px, calc(var(--safe-left) + 8px));
@@ -150,6 +158,7 @@
           <div class="scoresub">plataformas</div>
         </div>
         <div class="smallstack">
+          <div id="livesBox" class="pill lifebox">🍎 0</div>
           <button id="btnPause" class="iconbtn" aria-label="Pausa">⏸</button>
           <button id="btnSettings" class="iconbtn" aria-label="Ajustes">⚙️</button>
         </div>
@@ -172,7 +181,7 @@
         <div class="btnrow">
           <button id="btnStart" class="btn primary">Empezar</button>
         </div>
-        <div class="footer-note"></div>
+        <div class="footer-note">Manzanas extra en las plataformas 15, 30, 45, 60, 75 y 90.</div>
       </div>
     </div>
 
@@ -223,6 +232,7 @@
       score: document.getElementById('score'),
       status: document.getElementById('statusText'),
       powerFill: document.getElementById('powerFill'),
+      livesBox: document.getElementById('livesBox'),
       startModal: document.getElementById('startModal'),
       gameOverModal: document.getElementById('gameOverModal'),
       settingsModal: document.getElementById('settingsModal'),
@@ -242,8 +252,10 @@
     let lastTime = 0;
     let running = false;
     let paused = false;
-    let state = 'ready'; // ready, charging, jumping, dead
+    let state = 'ready';
     let inputLocked = false;
+
+    const APPLE_PLATFORMS = new Set([15, 30, 45, 60, 75, 90]);
 
     const settings = loadSettings();
     syncToggle(ui.toggleSound, settings.sound);
@@ -272,6 +284,7 @@
       landedCount: 0,
       extraLives: 0,
       checkpoint: null,
+      checkpointNumber: null,
       checkpointPlatform: null,
       platformCounter: 0,
     };
@@ -334,6 +347,7 @@
       game.landedCount = 0;
       game.extraLives = 0;
       game.checkpoint = null;
+      game.checkpointNumber = null;
       game.checkpointPlatform = null;
       game.platformCounter = 0;
       state = 'ready';
@@ -341,8 +355,12 @@
       inputLocked = false;
 
       const baseY = H * 0.72;
-      game.platforms.push({ x: 40, y: baseY, w: 132, h: 16, hue: 0, hasApple: false, isCheckpoint: false, number: 0 });
-      while (game.platforms.length < 10) addPlatform();
+      game.platforms.push({
+        x: 40, y: baseY, w: 132, h: 16,
+        hue: 0, hasApple: false, isCheckpoint: false, number: 0
+      });
+
+      while (game.platforms.length < 12) addPlatform();
 
       const p = game.platforms[0];
       game.player = {
@@ -370,7 +388,6 @@
 
       game.platformCounter += 1;
       const platformNumber = game.platformCounter;
-      const hasApple = [15, 30, 45, 60, 75, 90].includes(platformNumber);
 
       game.platforms.push({
         x: prev.x + prev.w + gap,
@@ -378,7 +395,7 @@
         w,
         h: 16,
         hue: Math.random() * 20,
-        hasApple,
+        hasApple: APPLE_PLATFORMS.has(platformNumber),
         isCheckpoint: false,
         number: platformNumber
       });
@@ -386,11 +403,14 @@
 
     function updateHUD(){
       ui.score.textContent = game.score;
+      ui.livesBox.textContent = `🍎 ${game.extraLives}`;
+
       if (state === 'charging') ui.status.textContent = 'Cargando salto';
       else if (state === 'jumping') ui.status.textContent = 'En el aire';
       else if (state === 'dead') ui.status.textContent = 'Caída';
       else if (paused) ui.status.textContent = 'Pausado';
       else ui.status.textContent = 'Mantén pulsado';
+
       ui.powerFill.style.width = (game.charge * 100).toFixed(1) + '%';
       ui.btnPause.textContent = paused ? '▶️' : '⏸';
     }
@@ -413,7 +433,7 @@
       game.best = Math.max(game.best, game.score);
       localStorage.setItem('skyhop_best', String(game.best));
       ui.overTitle.textContent = game.score > 0 ? 'Has caído' : 'Primer intento';
-      ui.overText.innerHTML = `Tu puntuación ha sido <strong>${game.score}</strong>.<br>Mejor marca: <strong>${game.best}</strong>.`;
+      ui.overText.innerHTML = `Tu puntuación ha sido <strong>${game.score}</strong>.<br>Vidas guardadas: <strong>${game.extraLives}</strong>.<br>Mejor marca: <strong>${game.best}</strong>.`;
       ui.gameOverModal.classList.add('show');
       updateHUD();
     }
@@ -451,18 +471,21 @@
 
       game.extraLives += 1;
       game.checkpointPlatform = platform;
+      game.checkpointNumber = platform.number;
       game.checkpoint = {
         x: platform.x + Math.min(platform.w * 0.34, platform.w - 14),
         y: platform.y,
         platformX: platform.x,
         platformY: platform.y,
         platformW: platform.w,
-        platformH: platform.h
+        platformH: platform.h,
+        number: platform.number
       };
 
       spawnMessage('🍎 +1 vida', platform.x + platform.w / 2, platform.y - 42, '#ff6b6b');
       spawnBurst(platform.x + platform.w / 2, platform.y - 10, 16, '#ff6b6b');
       if (settings.vibration && navigator.vibrate) navigator.vibrate([14, 30, 14]);
+      updateHUD();
     }
 
     function respawnFromCheckpoint(){
@@ -478,12 +501,15 @@
       pl.squash = 0;
       pl.face = 'normal';
 
-      const checkpointIndex = game.platforms.findIndex(p => p === game.checkpointPlatform);
+      let checkpointIndex = game.platforms.findIndex(p => p.number === game.checkpointNumber);
+
       if (checkpointIndex >= 0) {
+        game.checkpointPlatform = game.platforms[checkpointIndex];
+        game.checkpointPlatform.isCheckpoint = true;
         pl.currentPlatform = checkpointIndex;
         game.nextPlatformIndex = checkpointIndex + 1;
       } else {
-        game.platforms.unshift({
+        const recreated = {
           x: cp.platformX,
           y: cp.platformY,
           w: cp.platformW,
@@ -491,11 +517,12 @@
           hue: 0,
           hasApple: false,
           isCheckpoint: true,
-          number: -1
-        });
+          number: cp.number
+        };
+        game.platforms.unshift(recreated);
+        game.checkpointPlatform = recreated;
         pl.currentPlatform = 0;
-        game.nextPlatformIndex = 1;
-        game.checkpointPlatform = game.platforms[0];
+        game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex + 1);
       }
 
       game.cameraX = Math.max(0, pl.x - W * 0.35);
@@ -542,6 +569,7 @@
       }
 
       const pl = game.player;
+
       if (state === 'jumping') {
         pl.vy += game.gravity * dt;
         pl.x += pl.vx * dt;
@@ -562,16 +590,28 @@
         }
 
         if (pl.y > H + 120) handleDeath();
-      } else if (state !== 'dead') {
+      } else if (state !== 'dead' && game.platforms[pl.currentPlatform]) {
         pl.y = game.platforms[pl.currentPlatform].y;
       }
 
-      while (game.platforms.length < 16) addPlatform();
-     while (game.platforms[1] && game.platforms[1].x + game.platforms[1].w - game.cameraX < -120) {
-  game.platforms.shift();
-  game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex - 1);
-  pl.currentPlatform = Math.max(0, pl.currentPlatform - 1);
-}
+      while (game.platforms.length < 18) addPlatform();
+
+      while (
+        game.platforms.length > 12 &&
+        game.platforms[0] &&
+        game.platforms[0].x + game.platforms[0].w - game.cameraX < -220
+      ) {
+        if (pl.currentPlatform === 0) break;
+
+        const removed = game.platforms.shift();
+
+        if (removed === game.checkpointPlatform) {
+          game.checkpointPlatform = null;
+        }
+
+        game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex - 1);
+        pl.currentPlatform = Math.max(0, pl.currentPlatform - 1);
+      }
 
       updateHUD();
     }
@@ -753,6 +793,7 @@
       const x = pl.x - game.cameraX;
       const y = pl.y - pl.h;
 
+      const platformRef = game.platforms[pl.currentPlatform] || game.platforms[0];
       const squashX = state === 'charging' ? 1 + pl.squash * 0.38 : (state === 'jumping' && pl.vy > 0 ? 1.08 : 1);
       const squashY = state === 'charging' ? 1 - pl.squash * 0.32 : (state === 'jumping' && pl.vy < 0 ? 1.12 : 1);
 
@@ -761,7 +802,7 @@
       ctx.scale(squashX, squashY);
       ctx.translate(-x, -(y + pl.h));
 
-      const shadowW = 18 + Math.max(0, Math.min(1, (pl.y - game.platforms[pl.currentPlatform].y + 20) / 70)) * 12;
+      const shadowW = 18 + Math.max(0, Math.min(1, (pl.y - platformRef.y + 20) / 70)) * 12;
       ctx.fillStyle = 'rgba(0,0,0,.16)';
       ctx.beginPath();
       ctx.ellipse(x, pl.y + 8, shadowW, 7, 0, 0, Math.PI * 2);
@@ -790,9 +831,15 @@
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      if (pl.face === 'happy') ctx.quadraticCurveTo(x, y + 22, x + 7, y + 19), ctx.moveTo(x - 7, y + 19), ctx.quadraticCurveTo(x, y + 24, x + 7, y + 19);
-      else if (state === 'jumping') { ctx.arc(x, y + 20, 3.2, 0, Math.PI * 2); }
-      else { ctx.moveTo(x - 6, y + 20); ctx.lineTo(x + 6, y + 20); }
+      if (pl.face === 'happy') {
+        ctx.moveTo(x - 7, y + 19);
+        ctx.quadraticCurveTo(x, y + 24, x + 7, y + 19);
+      } else if (state === 'jumping') {
+        ctx.arc(x, y + 20, 3.2, 0, Math.PI * 2);
+      } else {
+        ctx.moveTo(x - 6, y + 20);
+        ctx.lineTo(x + 6, y + 20);
+      }
       ctx.stroke();
 
       ctx.restore();
@@ -854,6 +901,7 @@
       }
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     }
+
     function tone(freq, dur=.12, type='sine', vol=.06, delay=0){
       if (!settings.sound || !audioCtx) return;
       const t = audioCtx.currentTime + delay;
@@ -866,6 +914,7 @@
       o.connect(g); g.connect(audioCtx.destination);
       o.start(t); o.stop(t + dur + .02);
     }
+
     function playJumpSound(power){ tone(320 + power * 220, .14, 'triangle', .08); }
     function playLandSound(){ tone(240, .08, 'sine', .05); }
     function playPerfectSound(){ tone(520, .16, 'triangle', .08); tone(760, .18, 'sine', .05, .05); }
@@ -891,7 +940,10 @@
     });
 
     ui.btnStart.addEventListener('click', startGame);
-    ui.btnRetry.addEventListener('click', () => { ui.gameOverModal.classList.remove('show'); startGame(); });
+    ui.btnRetry.addEventListener('click', () => {
+      ui.gameOverModal.classList.remove('show');
+      startGame();
+    });
     ui.btnCloseOver.addEventListener('click', () => ui.gameOverModal.classList.remove('show'));
 
     ui.btnPause.addEventListener('click', () => {
@@ -908,6 +960,7 @@
       updateHUD();
       ui.settingsModal.classList.add('show');
     });
+
     ui.btnCloseSettings.addEventListener('click', () => {
       ui.settingsModal.classList.remove('show');
       paused = false;
@@ -924,6 +977,7 @@
       saveSettings();
       audioInit();
     });
+
     ui.toggleVibration.addEventListener('click', () => {
       settings.vibration = !settings.vibration;
       syncToggle(ui.toggleVibration, settings.vibration);
