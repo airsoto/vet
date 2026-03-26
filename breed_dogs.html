@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Buscador de Razas y Enfermedades Caninas | Ángel Soto</title>
+
+  <style>
+    :root{
+      --bg:#070b14;
+      --bg2:#0d1322;
+      --panel:#121a2b;
+      --panel-2:#182237;
+      --text:#edf3ff;
+      --muted:#9db0d3;
+      --line:#26324d;
+      --accent:#ff9900;
+      --accent-2:#6ec1ff;
+      --ok:#66d17a;
+      --danger:#ff6b6b;
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
+      --radius: 20px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html,body{
+      margin:0;
+      padding:0;
+      background:
+        radial-gradient(circle at top left, rgba(255,153,0,.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(110,193,255,.10), transparent 24%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      color:var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height:100%;
+    }
+
+    a{
+      color:var(--accent-2);
+      text-decoration:none;
+    }
+    a:hover{ text-decoration:underline; }
+
+    .wrap{
+      width:min(1200px, calc(100% - 28px));
+      margin:0 auto;
+      padding:24px 0 40px;
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        linear-gradient(135deg, rgba(255,153,0,.12), rgba(110,193,255,.08)),
+        rgba(18,26,43,.72);
+      backdrop-filter: blur(12px);
+      border-radius:28px;
+      box-shadow:var(--shadow);
+      padding:24px 20px 18px;
+      margin-bottom:20px;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -40px -40px auto;
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(255,153,0,.18), transparent 70%);
+      pointer-events:none;
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(28px, 5vw, 44px);
+      line-height:1.08;
+      letter-spacing:-0.02em;
+    }
+
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:clamp(14px, 2.6vw, 16px);
+      max-width:820px;
+    }
+
+    .home a{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      color:#ffd08a;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .stat{
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      border-radius:18px;
+      padding:14px 14px 12px;
+    }
+
+    .stat .k{
+      display:block;
+      font-size:clamp(18px, 3.5vw, 24px);
+      font-weight:800;
+      color:#fff;
+    }
+
+    .stat .v{
+      color:var(--muted);
+      font-size:13px;
+      margin-top:4px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:18px;
+    }
+
+    .panel{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(18,26,43,.82);
+      backdrop-filter: blur(10px);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .panel-head{
+      padding:18px 18px 8px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+    }
+
+    .panel-head h2{
+      margin:0;
+      font-size:clamp(18px, 3vw, 22px);
+    }
+
+    .panel-head p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .panel-body{
+      padding:18px;
+    }
+
+    .search-box{
+      display:grid;
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .search-row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+    }
+
+    .input-wrap{
+      position:relative;
+    }
+
+    input[type="search"], input[type="text"]{
+      width:100%;
+      border:1px solid var(--line);
+      background:#0c1322;
+      color:var(--text);
+      border-radius:16px;
+      padding:14px 14px 14px 44px;
+      font-size:15px;
+      outline:none;
+      transition:.18s ease;
+    }
+
+    input:focus{
+      border-color:var(--accent-2);
+      box-shadow:0 0 0 4px rgba(110,193,255,.12);
+    }
+
+    .icon{
+      position:absolute;
+      left:14px;
+      top:50%;
+      transform:translateY(-50%);
+      opacity:.75;
+      pointer-events:none;
+      font-size:16px;
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, #ffad33, #ff9900);
+      color:#1d1300;
+      font-weight:800;
+      border-radius:16px;
+      padding:0 16px;
+      cursor:pointer;
+      min-height:48px;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    button:hover{ filter:brightness(1.04); }
+    button:active{ transform:translateY(1px); }
+
+    .ghost{
+      background:#0f1728;
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .chip{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:#dce8ff;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      transition:.15s ease;
+    }
+
+    .chip:hover{
+      background:rgba(255,153,0,.14);
+      border-color:rgba(255,153,0,.35);
+      color:#fff3df;
+    }
+
+    .result-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      margin-bottom:14px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      border-radius:999px;
+      padding:7px 10px;
+      background:rgba(110,193,255,.10);
+      border:1px solid rgba(110,193,255,.18);
+      color:#d5eeff;
+    }
+
+    .breed-card{
+      border:1px solid rgba(255,255,255,.07);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:20px;
+      overflow:hidden;
+    }
+
+    .breed-top{
+      padding:18px 18px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(135deg, rgba(255,153,0,.14), rgba(110,193,255,.08));
+    }
+
+    .breed-name{
+      margin:0;
+      font-size:clamp(22px, 4vw, 30px);
+      letter-spacing:.02em;
+    }
+
+    .breed-sub{
+      margin:8px 0 0;
+      color:#d8e4fb;
+      font-size:14px;
+    }
+
+    .conditions{
+      padding:16px;
+      display:grid;
+      gap:12px;
+    }
+
+    .condition{
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .condition h3{
+      margin:0 0 8px;
+      font-size:16px;
+      color:#ffd08a;
+    }
+
+    .condition p{
+      margin:0;
+      color:#e6efff;
+      line-height:1.55;
+      white-space:pre-wrap;
+    }
+
+    .list{
+      display:grid;
+      gap:12px;
+    }
+
+    .disease-item{
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      border-radius:18px;
+      padding:14px;
+      transition:.15s ease;
+    }
+
+    .disease-item:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,153,0,.24);
+    }
+
+    .disease-title{
+      margin:0 0 8px;
+      font-size:16px;
+      color:#ffd08a;
+    }
+
+    .disease-desc{
+      margin:0;
+      color:#e6efff;
+      line-height:1.55;
+      white-space:pre-wrap;
+    }
+
+    .tagline{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .tiny{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .empty, .loading, .error{
+      padding:22px;
+      border:1px dashed rgba(255,255,255,.10);
+      border-radius:18px;
+      color:var(--muted);
+      background:rgba(255,255,255,.02);
+      text-align:center;
+    }
+
+    .loading{ color:#d9ecff; }
+    .error{
+      color:#ffd4d4;
+      border-color:rgba(255,107,107,.25);
+      background:rgba(255,107,107,.05);
+    }
+
+    .footer{
+      margin-top:24px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(18,26,43,.82);
+      border-radius:24px;
+      padding:24px 18px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      box-shadow:var(--shadow);
+    }
+
+    .footer p, .footer h4{
+      margin:8px 0;
+    }
+
+    .footer a{
+      color:#ffd08a;
+    }
+
+    .mini-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+
+    @media (max-width: 980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width: 720px){
+      .stats{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+      .search-row{
+        grid-template-columns:1fr;
+      }
+      .mini-grid{
+        grid-template-columns:1fr;
+      }
+      .wrap{
+        width:min(100% - 16px, 1200px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <section class="hero">
+      <h1>Buscador de Razas y Enfermedades Caninas</h1>
+      <p class="subtitle">
+        Consulta predisposiciones por raza y realiza búsquedas rápidas de enfermedades
+        desde dos bases de datos JSON alojadas en tu GitHub Pages.
+      </p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="k" id="breedCount">—</span>
+          <span class="v">Razas cargadas</span>
+        </div>
+        <div class="stat">
+          <span class="k" id="diseaseCount">—</span>
+          <span class="v">Entradas de enfermedades</span>
+        </div>
+        <div class="stat">
+          <span class="k" id="filteredBreedCount">—</span>
+          <span class="v">Coincidencias por raza</span>
+        </div>
+        <div class="stat">
+          <span class="k" id="filteredDiseaseCount">—</span>
+          <span class="v">Coincidencias por enfermedad</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+
+      <!-- PANEL RAZAS -->
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Buscar por raza</h2>
+          <p>
+            Busca una raza y visualiza las enfermedades o predisposiciones recogidas en
+            <code>/json/breed_dogs_extracted.json</code>.
+          </p>
+        </div>
+
+        <div class="panel-body">
+          <div class="search-box">
+            <div class="search-row">
+              <div class="input-wrap">
+                <span class="icon">🐶</span>
+                <input
+                  id="breedSearch"
+                  type="search"
+                  placeholder="Ej.: Beagle, Boxer, Labrador Retriever..."
+                  autocomplete="off"
+                  list="breedSuggestions"
+                />
+                <datalist id="breedSuggestions"></datalist>
+              </div>
+              <button id="breedBtn">Buscar raza</button>
+            </div>
+
+            <div class="mini-grid">
+              <button class="ghost" id="randomBreedBtn">Raza aleatoria</button>
+              <button class="ghost" id="clearBreedBtn">Limpiar búsqueda</button>
+            </div>
+
+            <div>
+              <div class="tiny">Sugerencias rápidas</div>
+              <div class="chips" id="breedQuickChips"></div>
+            </div>
+          </div>
+
+          <div class="result-meta">
+            <span class="pill">📂 Fuente: /json/breed_dogs_extracted.json</span>
+            <span id="breedStatus" class="tiny">Cargando datos...</span>
+          </div>
+
+          <div id="breedResult">
+            <div class="loading">Cargando base de razas...</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PANEL ENFERMEDADES -->
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Buscador accesorio de enfermedades</h2>
+          <p>
+            Busca por nombre de enfermedad, proceso o texto libre dentro del archivo
+            <code>/json/salida_diseases.json</code>.
+          </p>
+        </div>
+
+        <div class="panel-body">
+          <div class="search-box">
+            <div class="search-row">
+              <div class="input-wrap">
+                <span class="icon">🩺</span>
+                <input
+                  id="diseaseSearch"
+                  type="search"
+                  placeholder="Ej.: cataract, mitral valve disease, pancreatitis..."
+                  autocomplete="off"
+                />
+              </div>
+              <button id="diseaseBtn">Buscar enfermedad</button>
+            </div>
+
+            <div class="mini-grid">
+              <button class="ghost" id="clearDiseaseBtn">Limpiar búsqueda</button>
+              <button class="ghost" id="showAllDiseaseBtn">Mostrar primeras entradas</button>
+            </div>
+
+            <div>
+              <div class="tiny">Búsquedas sugeridas</div>
+              <div class="chips" id="diseaseQuickChips"></div>
+            </div>
+          </div>
+
+          <div class="result-meta">
+            <span class="pill">📂 Fuente: /json/salida_diseases.json</span>
+            <span id="diseaseStatus" class="tiny">Cargando datos...</span>
+          </div>
+
+          <div id="diseaseResult">
+            <div class="loading">Cargando base de enfermedades...</div>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const BREED_URL = "./json/breed_dogs_extracted.json";
+    const DISEASE_URL = "./json/salida_diseases.json";
+
+    const state = {
+      breedsRaw: [],
+      breedsIndex: [],
+      diseasesRaw: [],
+      diseasesIndex: []
+    };
+
+    const els = {
+      breedSearch: document.getElementById("breedSearch"),
+      breedBtn: document.getElementById("breedBtn"),
+      breedResult: document.getElementById("breedResult"),
+      breedStatus: document.getElementById("breedStatus"),
+      breedSuggestions: document.getElementById("breedSuggestions"),
+      breedQuickChips: document.getElementById("breedQuickChips"),
+      clearBreedBtn: document.getElementById("clearBreedBtn"),
+      randomBreedBtn: document.getElementById("randomBreedBtn"),
+
+      diseaseSearch: document.getElementById("diseaseSearch"),
+      diseaseBtn: document.getElementById("diseaseBtn"),
+      diseaseResult: document.getElementById("diseaseResult"),
+      diseaseStatus: document.getElementById("diseaseStatus"),
+      diseaseQuickChips: document.getElementById("diseaseQuickChips"),
+      clearDiseaseBtn: document.getElementById("clearDiseaseBtn"),
+      showAllDiseaseBtn: document.getElementById("showAllDiseaseBtn"),
+
+      breedCount: document.getElementById("breedCount"),
+      diseaseCount: document.getElementById("diseaseCount"),
+      filteredBreedCount: document.getElementById("filteredBreedCount"),
+      filteredDiseaseCount: document.getElementById("filteredDiseaseCount")
+    };
+
+    function normalizeText(value) {
+      return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[‐-‒–—]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function titleCaseLoose(str) {
+      return String(str ?? "")
+        .toLowerCase()
+        .replace(/\b\w/g, ch => ch.toUpperCase());
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`No se pudo cargar ${url} (${res.status})`);
+      return await res.json();
+    }
+
+    function buildBreedsIndex(data) {
+      if (!Array.isArray(data)) return [];
+
+      return data.map((item, index) => {
+        const raza = item?.raza || item?.breed || item?.name || `Raza ${index + 1}`;
+        const enfermedades = Array.isArray(item?.enfermedades)
+          ? item.enfermedades
+          : Array.isArray(item?.conditions)
+            ? item.conditions
+            : item?.enfermedad
+              ? [item.enfermedad]
+              : [];
+
+        const flatText = enfermedades.map(v => String(v)).join("\n\n");
+
+        return {
+          id: index,
+          raza,
+          enfermedades,
+          normRaza: normalizeText(raza),
+          searchable: normalizeText(`${raza} ${flatText}`)
+        };
+      });
+    }
+
+    function extractDiseaseEntries(data) {
+      const results = [];
+
+      function pushEntry(title, desc, extra = {}) {
+        const safeTitle = String(title || extra.title || extra.name || "Sin título").trim();
+        const safeDesc = String(desc || extra.description || extra.descripcion || "").trim();
+
+        if (!safeTitle && !safeDesc) return;
+
+        results.push({
+          title: safeTitle || "Sin título",
+          description: safeDesc,
+          raw: extra
+        });
+      }
+
+      function walk(node) {
+        if (Array.isArray(node)) {
+          node.forEach(walk);
+          return;
+        }
+
+        if (!node || typeof node !== "object") return;
+
+        const keys = Object.keys(node);
+        const lowerKeys = keys.map(k => k.toLowerCase());
+
+        const possibleTitleKey = keys.find(k =>
+          ["enfermedad","disease","disease_name","name","title","proceso","process","diagnosis"]
+            .includes(k.toLowerCase())
+        );
+
+        const possibleDescKey = keys.find(k =>
+          ["descripcion","description","desc","summary","details","texto","content"]
+            .includes(k.toLowerCase())
+        );
+
+        if (possibleTitleKey || possibleDescKey) {
+          pushEntry(node[possibleTitleKey], node[possibleDescKey], node);
+        }
+
+        // soporte para objetos tipo { "Abnormal dentition": "texto..." }
+        const simplePairs = keys.filter(k => {
+          const val = node[k];
+          return typeof val === "string" && k.length > 1;
+        });
+
+        if (!possibleTitleKey && !possibleDescKey && simplePairs.length > 0 && simplePairs.length <= 5) {
+          simplePairs.forEach(k => pushEntry(k, node[k], node));
+        }
+
+        keys.forEach(k => {
+          const val = node[k];
+          if (typeof val === "object" && val !== null) walk(val);
+        });
+      }
+
+      walk(data);
+
+      // deduplicado simple
+      const seen = new Set();
+      return results.filter(item => {
+        const key = normalizeText(item.title + " || " + item.description);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function buildDiseaseIndex(data) {
+      const entries = extractDiseaseEntries(data);
+
+      return entries.map((item, index) => ({
+        id: index,
+        title: item.title,
+        description: item.description,
+        searchable: normalizeText(`${item.title} ${item.description}`),
+        raw: item.raw
+      }));
+    }
+
+    function renderBreedSuggestions(list) {
+      els.breedSuggestions.innerHTML = list
+        .slice(0, 500)
+        .map(item => `<option value="${escapeHtml(item.raza)}"></option>`)
+        .join("");
+    }
+
+    function renderQuickBreedChips(list) {
+      const picks = [
+        "Labrador Retriever",
+        "Golden Retriever",
+        "Beagle",
+        "Boxer",
+        "French Bulldog",
+        "German Shepherd Dog",
+        "Cavalier King Charles Spaniel",
+        "Dachshund"
+      ];
+
+      const found = picks
+        .map(name => list.find(item => normalizeText(item.raza).includes(normalizeText(name))))
+        .filter(Boolean);
+
+      els.breedQuickChips.innerHTML = found.map(item => `
+        <button class="chip" data-breed="${escapeHtml(item.raza)}">${escapeHtml(item.raza)}</button>
+      `).join("");
+
+      els.breedQuickChips.querySelectorAll("[data-breed]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          els.breedSearch.value = btn.dataset.breed;
+          searchBreed();
+        });
+      });
+    }
+
+    function renderQuickDiseaseChips() {
+      const suggestions = [
+        "cataract",
+        "mitral valve disease",
+        "pancreatitis",
+        "epilepsy",
+        "glaucoma",
+        "lymphoma",
+        "hip dysplasia",
+        "atopic dermatitis"
+      ];
+
+      els.diseaseQuickChips.innerHTML = suggestions.map(q => `
+        <button class="chip" data-disease="${escapeHtml(q)}">${escapeHtml(q)}</button>
+      `).join("");
+
+      els.diseaseQuickChips.querySelectorAll("[data-disease]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          els.diseaseSearch.value = btn.dataset.disease;
+          searchDisease();
+        });
+      });
+    }
+
+    function renderBreedMatch(item) {
+      const conditionsHtml = item.enfermedades.length
+        ? item.enfermedades.map((cond, idx) => {
+            const txt = String(cond ?? "");
+            const lines = txt.split("\n").filter(Boolean);
+            const title = lines[0] || `Entrada ${idx + 1}`;
+            const desc = lines.slice(1).join("\n") || txt;
+            return `
+              <div class="condition">
+                <h3>${escapeHtml(title)}</h3>
+                <p>${escapeHtml(desc)}</p>
+              </div>
+            `;
+          }).join("")
+        : `<div class="empty">No hay enfermedades listadas para esta raza.</div>`;
+
+      return `
+        <div class="breed-card">
+          <div class="breed-top">
+            <h2 class="breed-name">${escapeHtml(item.raza)}</h2>
+            <p class="breed-sub">
+              ${item.enfermedades.length} ${item.enfermedades.length === 1 ? "entrada encontrada" : "entradas encontradas"}
+            </p>
+          </div>
+          <div class="conditions">
+            ${conditionsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function searchBreed() {
+      const q = normalizeText(els.breedSearch.value);
+      if (!state.breedsIndex.length) return;
+
+      if (!q) {
+        els.filteredBreedCount.textContent = "0";
+        els.breedResult.innerHTML = `
+          <div class="empty">
+            Escribe una raza para mostrar su ficha. Puedes usar también las sugerencias rápidas.
+          </div>
+        `;
+        return;
+      }
+
+      const exact = state.breedsIndex.find(item => item.normRaza === q);
+      const starts = state.breedsIndex.filter(item => item.normRaza.startsWith(q));
+      const includes = state.breedsIndex.filter(item => item.normRaza.includes(q) || item.searchable.includes(q));
+
+      let results = [];
+      if (exact) {
+        results = [exact];
+      } else {
+        const map = new Map();
+        [...starts, ...includes].forEach(item => {
+          if (!map.has(item.id)) map.set(item.id, item);
+        });
+        results = [...map.values()].slice(0, 8);
+      }
+
+      els.filteredBreedCount.textContent = String(results.length);
+
+      if (!results.length) {
+        els.breedResult.innerHTML = `
+          <div class="empty">
+            No se encontraron coincidencias para <strong>${escapeHtml(els.breedSearch.value)}</strong>.
+          </div>
+        `;
+        return;
+      }
+
+      els.breedResult.innerHTML = results.map(renderBreedMatch).join("");
+    }
+
+    function renderDiseaseResults(items, query = "") {
+      els.filteredDiseaseCount.textContent = String(items.length);
+
+      if (!items.length) {
+        els.diseaseResult.innerHTML = `
+          <div class="empty">
+            No se encontraron resultados para <strong>${escapeHtml(query)}</strong>.
+          </div>
+        `;
+        return;
+      }
+
+      els.diseaseResult.innerHTML = `
+        <div class="list">
+          ${items.map(item => `
+            <article class="disease-item">
+              <h3 class="disease-title">${escapeHtml(item.title)}</h3>
+              <p class="disease-desc">${escapeHtml(item.description || "Sin descripción disponible.")}</p>
+            </article>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function searchDisease() {
+      const q = normalizeText(els.diseaseSearch.value);
+
+      if (!state.diseasesIndex.length) return;
+
+      if (!q) {
+        renderDiseaseResults(state.diseasesIndex.slice(0, 12), "");
+        return;
+      }
+
+      const scored = state.diseasesIndex.map(item => {
+        let score = 0;
+        const t = normalizeText(item.title);
+        const d = normalizeText(item.description);
+
+        if (t === q) score += 100;
+        if (t.startsWith(q)) score += 60;
+        if (t.includes(q)) score += 35;
+        if (d.includes(q)) score += 15;
+
+        const words = q.split(" ").filter(Boolean);
+        words.forEach(w => {
+          if (t.includes(w)) score += 10;
+          if (d.includes(w)) score += 4;
+        });
+
+        return { ...item, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a,b) => b.score - a.score || a.title.localeCompare(b.title))
+      .slice(0, 20);
+
+      renderDiseaseResults(scored, els.diseaseSearch.value);
+    }
+
+    function showRandomBreed() {
+      if (!state.breedsIndex.length) return;
+      const item = state.breedsIndex[Math.floor(Math.random() * state.breedsIndex.length)];
+      els.breedSearch.value = item.raza;
+      searchBreed();
+    }
+
+    async function init() {
+      renderQuickDiseaseChips();
+
+      try {
+        const breedData = await fetchJson(BREED_URL);
+        state.breedsRaw = breedData;
+        state.breedsIndex = buildBreedsIndex(breedData);
+
+        els.breedCount.textContent = String(state.breedsIndex.length);
+        els.breedStatus.textContent = "Base de razas cargada correctamente.";
+        renderBreedSuggestions(state.breedsIndex);
+        renderQuickBreedChips(state.breedsIndex);
+        els.filteredBreedCount.textContent = "0";
+
+        els.breedResult.innerHTML = `
+          <div class="empty">
+            Base de razas cargada. Escribe una raza para ver sus predisposiciones.
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        els.breedStatus.textContent = "Error al cargar la base de razas.";
+        els.breedResult.innerHTML = `
+          <div class="error">
+            No se pudo cargar <code>${escapeHtml(BREED_URL)}</code>.<br>
+            Revisa la ruta y el nombre del archivo.
+          </div>
+        `;
+        els.breedCount.textContent = "0";
+      }
+
+      try {
+        const diseaseData = await fetchJson(DISEASE_URL);
+        state.diseasesRaw = diseaseData;
+        state.diseasesIndex = buildDiseaseIndex(diseaseData);
+
+        els.diseaseCount.textContent = String(state.diseasesIndex.length);
+        els.filteredDiseaseCount.textContent = "0";
+        els.diseaseStatus.textContent = "Base de enfermedades cargada correctamente.";
+
+        renderDiseaseResults(state.diseasesIndex.slice(0, 12));
+      } catch (err) {
+        console.error(err);
+        els.diseaseStatus.textContent = "Error al cargar la base de enfermedades.";
+        els.diseaseResult.innerHTML = `
+          <div class="error">
+            No se pudo cargar <code>${escapeHtml(DISEASE_URL)}</code>.<br>
+            La interfaz es compatible con distintos formatos, pero el archivo debe existir y contener JSON válido.
+          </div>
+        `;
+        els.diseaseCount.textContent = "0";
+      }
+    }
+
+    els.breedBtn.addEventListener("click", searchBreed);
+    els.breedSearch.addEventListener("keydown", e => {
+      if (e.key === "Enter") searchBreed();
+    });
+    els.clearBreedBtn.addEventListener("click", () => {
+      els.breedSearch.value = "";
+      searchBreed();
+      els.breedSearch.focus();
+    });
+    els.randomBreedBtn.addEventListener("click", showRandomBreed);
+
+    els.diseaseBtn.addEventListener("click", searchDisease);
+    els.diseaseSearch.addEventListener("keydown", e => {
+      if (e.key === "Enter") searchDisease();
+    });
+    els.clearDiseaseBtn.addEventListener("click", () => {
+      els.diseaseSearch.value = "";
+      searchDisease();
+      els.diseaseSearch.focus();
+    });
+    els.showAllDiseaseBtn.addEventListener("click", () => {
+      els.diseaseSearch.value = "";
+      renderDiseaseResults(state.diseasesIndex.slice(0, 12));
+      els.filteredDiseaseCount.textContent = String(Math.min(12, state.diseasesIndex.length));
+    });
+
+    init();
+  </script>
+</body>
+</html>
