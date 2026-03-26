@@ -46,6 +46,15 @@
     }
     a:hover{ text-decoration:underline; }
 
+    code{
+      color:#ffd8a3;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      padding:2px 6px;
+      border-radius:8px;
+      font-size:.95em;
+    }
+
     .wrap{
       width:min(1200px, calc(100% - 28px));
       margin:0 auto;
@@ -202,6 +211,7 @@
       opacity:.75;
       pointer-events:none;
       font-size:16px;
+      z-index:2;
     }
 
     button{
@@ -214,6 +224,7 @@
       cursor:pointer;
       min-height:48px;
       transition:transform .15s ease, filter .15s ease;
+      font-size:14px;
     }
 
     button:hover{ filter:brightness(1.04); }
@@ -343,14 +354,14 @@
 
     .disease-title{
       margin:0 0 8px;
-      font-size:16px;
+      font-size:17px;
       color:#ffd08a;
     }
 
     .disease-desc{
       margin:0;
       color:#e6efff;
-      line-height:1.55;
+      line-height:1.6;
       white-space:pre-wrap;
     }
 
@@ -408,6 +419,91 @@
       gap:12px;
     }
 
+    .disease-combobox-wrap{
+      position:relative;
+    }
+
+    .disease-combobox-wrap input{
+      padding-right:52px;
+    }
+
+    .combo-toggle{
+      position:absolute;
+      right:8px;
+      top:50%;
+      transform:translateY(-50%);
+      width:34px;
+      height:34px;
+      min-height:auto;
+      padding:0;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.08);
+      background:#162033;
+      color:#eaf2ff;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      z-index:3;
+    }
+
+    .combo-toggle:hover{
+      background:#1c2942;
+    }
+
+    .combo-dropdown{
+      position:absolute;
+      left:0;
+      right:0;
+      top:calc(100% + 8px);
+      z-index:30;
+      max-height:320px;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#0c1322;
+      box-shadow:0 18px 40px rgba(0,0,0,.45);
+      padding:8px;
+    }
+
+    .combo-dropdown.hidden{
+      display:none;
+    }
+
+    .combo-option{
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      border:1px solid transparent;
+      transition:.15s ease;
+    }
+
+    .combo-option:hover,
+    .combo-option.active{
+      background:rgba(255,153,0,.12);
+      border-color:rgba(255,153,0,.20);
+    }
+
+    .combo-option-title{
+      color:#fff2dc;
+      font-weight:700;
+      font-size:14px;
+      line-height:1.35;
+    }
+
+    .combo-option-desc{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:4px;
+      line-height:1.35;
+    }
+
+    mark{
+      background:rgba(255,153,0,.24);
+      color:#fff7ea;
+      padding:0 .12em;
+      border-radius:4px;
+    }
+
     @media (max-width: 980px){
       .grid{
         grid-template-columns:1fr;
@@ -436,7 +532,7 @@
     <section class="hero">
       <h1>Buscador de Razas y Enfermedades Felinas</h1>
       <p class="subtitle">
-        Consulta predisposiciones por raza.
+       Predisposiciones por raza.
       </p>
 
       <!-- BLOQUE DESARROLLADO POR + HOME -->
@@ -479,7 +575,7 @@
           <h2>Buscar por raza</h2>
           <p>
             Busca una raza y visualiza las enfermedades o predisposiciones recogidas en
-            <code>/json/breed_dogs_extracted.json</code>.
+            <code>/json/breed_cats_extracted.json</code>.
           </p>
         </div>
 
@@ -491,7 +587,7 @@
                 <input
                   id="breedSearch"
                   type="search"
-                  placeholder="..."
+                  placeholder="Ej.: Beagle, Boxer, Labrador Retriever..."
                   autocomplete="off"
                   list="breedSuggestions"
                 />
@@ -527,7 +623,7 @@
         <div class="panel-head">
           <h2>Buscador accesorio de enfermedades</h2>
           <p>
-            Busca por nombre de enfermedad, proceso o texto libre dentro del archivo
+            Busca por nombre de enfermedad o proceso en
             <code>/json/salida_diseases.json</code>.
           </p>
         </div>
@@ -535,15 +631,21 @@
         <div class="panel-body">
           <div class="search-box">
             <div class="search-row">
-              <div class="input-wrap">
+              <div class="input-wrap disease-combobox-wrap">
                 <span class="icon">🩺</span>
                 <input
                   id="diseaseSearch"
                   type="search"
-                  placeholder="Ej.: cataract, mitral valve disease, pancreatitis..."
+                  placeholder="Ej.: Abnormal heart sounds, arrhythmia, dentition..."
                   autocomplete="off"
                 />
+                <button type="button" class="combo-toggle" id="toggleDiseaseMenu" aria-label="Mostrar lista">
+                  ▾
+                </button>
+
+                <div id="diseaseDropdown" class="combo-dropdown hidden"></div>
               </div>
+
               <button id="diseaseBtn">Buscar enfermedad</button>
             </div>
 
@@ -586,14 +688,19 @@
   </div>
 
   <script>
-    const BREED_URL = "./json/breed_dogs_extracted.json";
+    const BREED_URL = "./json/breed_cats_extracted.json";
     const DISEASE_URL = "./json/salida_diseases.json";
 
     const state = {
       breedsRaw: [],
-      breedsIndex: [],
-      diseasesRaw: [],
-      diseasesIndex: []
+      breedsIndex: []
+    };
+
+    const diseaseState = {
+      raw: [],
+      index: [],
+      activeDropdownIndex: -1,
+      lastDropdownMatches: []
     };
 
     const els = {
@@ -613,6 +720,8 @@
       diseaseQuickChips: document.getElementById("diseaseQuickChips"),
       clearDiseaseBtn: document.getElementById("clearDiseaseBtn"),
       showAllDiseaseBtn: document.getElementById("showAllDiseaseBtn"),
+      diseaseDropdown: document.getElementById("diseaseDropdown"),
+      toggleDiseaseMenu: document.getElementById("toggleDiseaseMenu"),
 
       breedCount: document.getElementById("breedCount"),
       diseaseCount: document.getElementById("diseaseCount"),
@@ -624,6 +733,7 @@
       return String(value ?? "")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
         .replace(/[‐-‒–—]/g, "-")
         .replace(/\s+/g, " ")
         .trim()
@@ -639,10 +749,20 @@
         .replaceAll("'", "&#039;");
     }
 
-    function titleCaseLoose(str) {
-      return String(str ?? "")
-        .toLowerCase()
-        .replace(/\b\w/g, ch => ch.toUpperCase());
+    function highlightText(text, query) {
+      const safeText = String(text ?? "");
+      if (!query || !query.trim()) return escapeHtml(safeText);
+
+      const q = query.trim();
+      const normalizedQ = normalizeText(q);
+      if (!normalizedQ) return escapeHtml(safeText);
+
+      const parts = safeText.split(/(\s+)/);
+      return parts.map(part => {
+        return normalizeText(part).includes(normalizedQ)
+          ? `<mark>${escapeHtml(part)}</mark>`
+          : escapeHtml(part);
+      }).join("");
     }
 
     async function fetchJson(url) {
@@ -676,85 +796,33 @@
       });
     }
 
-    function extractDiseaseEntries(data) {
-      const results = [];
-
-      function pushEntry(title, desc, extra = {}) {
-        const safeTitle = String(title || extra.title || extra.name || "Sin título").trim();
-        const safeDesc = String(desc || extra.description || extra.descripcion || "").trim();
-
-        if (!safeTitle && !safeDesc) return;
-
-        results.push({
-          title: safeTitle || "Sin título",
-          description: safeDesc,
-          raw: extra
-        });
-      }
-
-      function walk(node) {
-        if (Array.isArray(node)) {
-          node.forEach(walk);
-          return;
-        }
-
-        if (!node || typeof node !== "object") return;
-
-        const keys = Object.keys(node);
-        const lowerKeys = keys.map(k => k.toLowerCase());
-
-        const possibleTitleKey = keys.find(k =>
-          ["enfermedad","disease","disease_name","name","title","proceso","process","diagnosis"]
-            .includes(k.toLowerCase())
-        );
-
-        const possibleDescKey = keys.find(k =>
-          ["descripcion","description","desc","summary","details","texto","content"]
-            .includes(k.toLowerCase())
-        );
-
-        if (possibleTitleKey || possibleDescKey) {
-          pushEntry(node[possibleTitleKey], node[possibleDescKey], node);
-        }
-
-        // soporte para objetos tipo { "Abnormal dentition": "texto..." }
-        const simplePairs = keys.filter(k => {
-          const val = node[k];
-          return typeof val === "string" && k.length > 1;
-        });
-
-        if (!possibleTitleKey && !possibleDescKey && simplePairs.length > 0 && simplePairs.length <= 5) {
-          simplePairs.forEach(k => pushEntry(k, node[k], node));
-        }
-
-        keys.forEach(k => {
-          const val = node[k];
-          if (typeof val === "object" && val !== null) walk(val);
-        });
-      }
-
-      walk(data);
-
-      // deduplicado simple
-      const seen = new Set();
-      return results.filter(item => {
-        const key = normalizeText(item.title + " || " + item.description);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-
     function buildDiseaseIndex(data) {
-      const entries = extractDiseaseEntries(data);
+      if (!Array.isArray(data)) return [];
 
-      return entries.map((item, index) => ({
-        id: index,
-        title: item.title,
-        description: item.description,
-        searchable: normalizeText(`${item.title} ${item.description}`),
-        raw: item.raw
-      }));
+      return data
+        .map((item, index) => {
+          const title =
+            item["enfermedad/proceso"] ||
+            item.enfermedad ||
+            item.proceso ||
+            item.title ||
+            "";
+
+          const description =
+            item.descripcion ||
+            item.description ||
+            "";
+
+          return {
+            id: index,
+            title: String(title).trim(),
+            description: String(description).trim(),
+            normTitle: normalizeText(title),
+            normDescription: normalizeText(description),
+            searchable: normalizeText(`${title} ${description}`)
+          };
+        })
+        .filter(item => item.title);
     }
 
     function renderBreedSuggestions(list) {
@@ -766,14 +834,7 @@
 
     function renderQuickBreedChips(list) {
       const picks = [
-        "Labrador Retriever",
-        "Golden Retriever",
-        "Beagle",
-        "Boxer",
-        "French Bulldog",
-        "German Shepherd Dog",
-        "Cavalier King Charles Spaniel",
-        "Dachshund"
+        "AMERICAN SHORTHAIR","BRITISH SHORTHAIR (BSH)"
       ];
 
       const found = picks
@@ -788,30 +849,6 @@
         btn.addEventListener("click", () => {
           els.breedSearch.value = btn.dataset.breed;
           searchBreed();
-        });
-      });
-    }
-
-    function renderQuickDiseaseChips() {
-      const suggestions = [
-        "cataract",
-        "mitral valve disease",
-        "pancreatitis",
-        "epilepsy",
-        "glaucoma",
-        "lymphoma",
-        "hip dysplasia",
-        "atopic dermatitis"
-      ];
-
-      els.diseaseQuickChips.innerHTML = suggestions.map(q => `
-        <button class="chip" data-disease="${escapeHtml(q)}">${escapeHtml(q)}</button>
-      `).join("");
-
-      els.diseaseQuickChips.querySelectorAll("[data-disease]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          els.diseaseSearch.value = btn.dataset.disease;
-          searchDisease();
         });
       });
     }
@@ -890,6 +927,74 @@
       els.breedResult.innerHTML = results.map(renderBreedMatch).join("");
     }
 
+    function getDiseaseMatches(query, limit = 12) {
+      const q = normalizeText(query);
+      if (!q) return diseaseState.index.slice(0, limit);
+
+      return diseaseState.index
+        .map(item => {
+          let score = 0;
+
+          if (item.normTitle === q) score += 120;
+          if (item.normTitle.startsWith(q)) score += 80;
+          if (item.normTitle.includes(q)) score += 40;
+          if (item.normDescription.includes(q)) score += 15;
+
+          const words = q.split(" ").filter(Boolean);
+          for (const w of words) {
+            if (item.normTitle.includes(w)) score += 10;
+            if (item.normDescription.includes(w)) score += 3;
+          }
+
+          return { ...item, score };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+        .slice(0, limit);
+    }
+
+    function renderDiseaseDropdown(items) {
+      diseaseState.lastDropdownMatches = items;
+
+      if (!items.length) {
+        els.diseaseDropdown.innerHTML = `
+          <div class="combo-option">
+            <div class="combo-option-title">Sin coincidencias</div>
+          </div>
+        `;
+        els.diseaseDropdown.classList.remove("hidden");
+        diseaseState.activeDropdownIndex = -1;
+        return;
+      }
+
+      els.diseaseDropdown.innerHTML = items.map((item, i) => `
+        <div class="combo-option" data-index="${i}" data-id="${item.id}">
+          <div class="combo-option-title">${escapeHtml(item.title)}</div>
+          <div class="combo-option-desc">${escapeHtml((item.description || "").slice(0, 140))}${item.description.length > 140 ? "..." : ""}</div>
+        </div>
+      `).join("");
+
+      els.diseaseDropdown.classList.remove("hidden");
+      diseaseState.activeDropdownIndex = -1;
+
+      els.diseaseDropdown.querySelectorAll(".combo-option[data-id]").forEach(option => {
+        option.addEventListener("click", () => {
+          const diseaseId = Number(option.dataset.id);
+          const selected = diseaseState.index.find(d => d.id === diseaseId);
+          if (!selected) return;
+
+          els.diseaseSearch.value = selected.title;
+          hideDiseaseDropdown();
+          renderDiseaseResults([selected], selected.title);
+        });
+      });
+    }
+
+    function hideDiseaseDropdown() {
+      els.diseaseDropdown.classList.add("hidden");
+      diseaseState.activeDropdownIndex = -1;
+    }
+
     function renderDiseaseResults(items, query = "") {
       els.filteredDiseaseCount.textContent = String(items.length);
 
@@ -906,47 +1011,83 @@
         <div class="list">
           ${items.map(item => `
             <article class="disease-item">
-              <h3 class="disease-title">${escapeHtml(item.title)}</h3>
-              <p class="disease-desc">${escapeHtml(item.description || "Sin descripción disponible.")}</p>
+              <h3 class="disease-title">${highlightText(item.title, query)}</h3>
+              <p class="disease-desc">${highlightText(item.description || "Sin descripción disponible.", query)}</p>
             </article>
           `).join("")}
         </div>
       `;
     }
 
+    function updateDiseaseDropdownFromInput() {
+      const value = els.diseaseSearch.value.trim();
+      const matches = getDiseaseMatches(value, 10);
+      renderDiseaseDropdown(matches);
+    }
+
     function searchDisease() {
-      const q = normalizeText(els.diseaseSearch.value);
+      const query = els.diseaseSearch.value.trim();
 
-      if (!state.diseasesIndex.length) return;
-
-      if (!q) {
-        renderDiseaseResults(state.diseasesIndex.slice(0, 12), "");
+      if (!query) {
+        renderDiseaseResults(diseaseState.index.slice(0, 12), "");
+        hideDiseaseDropdown();
         return;
       }
 
-      const scored = state.diseasesIndex.map(item => {
-        let score = 0;
-        const t = normalizeText(item.title);
-        const d = normalizeText(item.description);
+      const matches = getDiseaseMatches(query, 20);
+      renderDiseaseResults(matches, query);
+      hideDiseaseDropdown();
+    }
 
-        if (t === q) score += 100;
-        if (t.startsWith(q)) score += 60;
-        if (t.includes(q)) score += 35;
-        if (d.includes(q)) score += 15;
+    function renderQuickDiseaseChips() {
+      const suggestions = [
+        "Abnormal dentition",
+        "Abnormal heart sounds",
+        "Accessory pathway arrhythmia",
+        "arrhythmia",
+        "dentition",
+        "heart sounds"
+      ];
 
-        const words = q.split(" ").filter(Boolean);
-        words.forEach(w => {
-          if (t.includes(w)) score += 10;
-          if (d.includes(w)) score += 4;
+      els.diseaseQuickChips.innerHTML = suggestions.map(q => `
+        <button class="chip" data-disease="${escapeHtml(q)}">${escapeHtml(q)}</button>
+      `).join("");
+
+      els.diseaseQuickChips.querySelectorAll("[data-disease]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          els.diseaseSearch.value = btn.dataset.disease;
+          searchDisease();
         });
+      });
+    }
 
-        return { ...item, score };
-      })
-      .filter(item => item.score > 0)
-      .sort((a,b) => b.score - a.score || a.title.localeCompare(b.title))
-      .slice(0, 20);
+    function moveDropdownSelection(direction) {
+      const options = [...els.diseaseDropdown.querySelectorAll(".combo-option[data-id]")];
+      if (!options.length) return;
 
-      renderDiseaseResults(scored, els.diseaseSearch.value);
+      diseaseState.activeDropdownIndex += direction;
+
+      if (diseaseState.activeDropdownIndex < 0) diseaseState.activeDropdownIndex = options.length - 1;
+      if (diseaseState.activeDropdownIndex >= options.length) diseaseState.activeDropdownIndex = 0;
+
+      options.forEach(opt => opt.classList.remove("active"));
+      const active = options[diseaseState.activeDropdownIndex];
+      if (active) {
+        active.classList.add("active");
+        active.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function chooseActiveDropdownOption() {
+      const options = [...els.diseaseDropdown.querySelectorAll(".combo-option[data-id]")];
+      if (!options.length) return false;
+
+      const idx = diseaseState.activeDropdownIndex >= 0 ? diseaseState.activeDropdownIndex : 0;
+      const option = options[idx];
+      if (!option) return false;
+
+      option.click();
+      return true;
     }
 
     function showRandomBreed() {
@@ -956,9 +1097,7 @@
       searchBreed();
     }
 
-    async function init() {
-      renderQuickDiseaseChips();
-
+    async function initBreeds() {
       try {
         const breedData = await fetchJson(BREED_URL);
         state.breedsRaw = breedData;
@@ -986,55 +1125,121 @@
         `;
         els.breedCount.textContent = "0";
       }
+    }
+
+    async function initDiseases() {
+      renderQuickDiseaseChips();
 
       try {
         const diseaseData = await fetchJson(DISEASE_URL);
-        state.diseasesRaw = diseaseData;
-        state.diseasesIndex = buildDiseaseIndex(diseaseData);
+        diseaseState.raw = diseaseData;
+        diseaseState.index = buildDiseaseIndex(diseaseData);
 
-        els.diseaseCount.textContent = String(state.diseasesIndex.length);
+        els.diseaseCount.textContent = String(diseaseState.index.length);
         els.filteredDiseaseCount.textContent = "0";
         els.diseaseStatus.textContent = "Base de enfermedades cargada correctamente.";
 
-        renderDiseaseResults(state.diseasesIndex.slice(0, 12));
+        renderDiseaseResults(diseaseState.index.slice(0, 12));
       } catch (err) {
         console.error(err);
         els.diseaseStatus.textContent = "Error al cargar la base de enfermedades.";
         els.diseaseResult.innerHTML = `
           <div class="error">
             No se pudo cargar <code>${escapeHtml(DISEASE_URL)}</code>.<br>
-            La interfaz es compatible con distintos formatos, pero el archivo debe existir y contener JSON válido.
+            Revisa la ruta y que el JSON tenga los campos
+            <code>enfermedad/proceso</code> y <code>descripcion</code>.
           </div>
         `;
         els.diseaseCount.textContent = "0";
       }
+
+      els.diseaseSearch.addEventListener("input", () => {
+        updateDiseaseDropdownFromInput();
+      });
+
+      els.diseaseSearch.addEventListener("focus", () => {
+        updateDiseaseDropdownFromInput();
+      });
+
+      els.diseaseSearch.addEventListener("keydown", (e) => {
+        if (!els.diseaseDropdown.classList.contains("hidden")) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            moveDropdownSelection(1);
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            moveDropdownSelection(-1);
+            return;
+          }
+          if (e.key === "Enter") {
+            if (chooseActiveDropdownOption()) {
+              e.preventDefault();
+              return;
+            }
+          }
+          if (e.key === "Escape") {
+            hideDiseaseDropdown();
+            return;
+          }
+        }
+
+        if (e.key === "Enter") {
+          searchDisease();
+        }
+      });
+
+      els.diseaseBtn.addEventListener("click", searchDisease);
+
+      els.clearDiseaseBtn.addEventListener("click", () => {
+        els.diseaseSearch.value = "";
+        renderDiseaseResults(diseaseState.index.slice(0, 12), "");
+        hideDiseaseDropdown();
+        els.diseaseSearch.focus();
+      });
+
+      els.showAllDiseaseBtn.addEventListener("click", () => {
+        els.diseaseSearch.value = "";
+        renderDiseaseResults(diseaseState.index.slice(0, 20), "");
+        hideDiseaseDropdown();
+        els.filteredDiseaseCount.textContent = String(Math.min(20, diseaseState.index.length));
+      });
+
+      els.toggleDiseaseMenu.addEventListener("click", () => {
+        if (els.diseaseDropdown.classList.contains("hidden")) {
+          updateDiseaseDropdownFromInput();
+        } else {
+          hideDiseaseDropdown();
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        const wrap = document.querySelector(".disease-combobox-wrap");
+        if (wrap && !wrap.contains(e.target)) {
+          hideDiseaseDropdown();
+        }
+      });
     }
 
-    els.breedBtn.addEventListener("click", searchBreed);
-    els.breedSearch.addEventListener("keydown", e => {
-      if (e.key === "Enter") searchBreed();
-    });
-    els.clearBreedBtn.addEventListener("click", () => {
-      els.breedSearch.value = "";
-      searchBreed();
-      els.breedSearch.focus();
-    });
-    els.randomBreedBtn.addEventListener("click", showRandomBreed);
+    function bindBreedEvents() {
+      els.breedBtn.addEventListener("click", searchBreed);
+      els.breedSearch.addEventListener("keydown", e => {
+        if (e.key === "Enter") searchBreed();
+      });
+      els.clearBreedBtn.addEventListener("click", () => {
+        els.breedSearch.value = "";
+        searchBreed();
+        els.breedSearch.focus();
+      });
+      els.randomBreedBtn.addEventListener("click", showRandomBreed);
+    }
 
-    els.diseaseBtn.addEventListener("click", searchDisease);
-    els.diseaseSearch.addEventListener("keydown", e => {
-      if (e.key === "Enter") searchDisease();
-    });
-    els.clearDiseaseBtn.addEventListener("click", () => {
-      els.diseaseSearch.value = "";
-      searchDisease();
-      els.diseaseSearch.focus();
-    });
-    els.showAllDiseaseBtn.addEventListener("click", () => {
-      els.diseaseSearch.value = "";
-      renderDiseaseResults(state.diseasesIndex.slice(0, 12));
-      els.filteredDiseaseCount.textContent = String(Math.min(12, state.diseasesIndex.length));
-    });
+    async function init() {
+      bindBreedEvents();
+      await initBreeds();
+      await initDiseases();
+    }
 
     init();
   </script>
