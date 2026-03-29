@@ -379,7 +379,7 @@
             🔗 Abrir URL original
           </a>
           <button id="loadTranslatedBtn" class="btn btn-secondary" disabled>
-            🌍 Cargar contenido traducido
+            🌍 Cargar contenido y traducirlo
           </button>
           <a id="openGoogleTranslateBtn" class="btn btn-secondary" href="#" target="_blank" rel="noopener" style="pointer-events:none; opacity:.55;">
             🈯 Abrir página traducida externamente
@@ -393,7 +393,7 @@
           </div>
           <div class="reader-content" id="readerContent">
             <span class="placeholder">
-              Pulsa en “Cargar contenido traducido” para intentar recuperar el texto del enlace y traducirlo al español.
+              Pulsa en “Cargar contenido y traducirlo” para intentar recuperar el texto del enlace y traducirlo al español.
             </span>
           </div>
         </div>
@@ -508,9 +508,9 @@
 
       items.forEach(item => {
         const title = getField(item, "título", "titulo", "title");
-        const clasificacion = getField(item, "clasificación", "clasificacion", "classification");
-        const subtitular = getField(item, "subtitular", "subtitle");
-        const author = getField(item, "autor", "author");
+        const clasificacion = getField(item, "clasificación", " clasificación", "clasificacion", "classification");
+        const subtitular = getField(item, "subtitular", " subtitular", "subtitle");
+        const author = getField(item, "autor", " autor", "author");
 
         const div = document.createElement("div");
         div.className = "item" + (selectedItem && getField(selectedItem, "título", "titulo", "title") === title ? " active" : "");
@@ -555,7 +555,7 @@
       const subtitular = getField(item, "subtitular", " subtitular");
       const autor = getField(item, "autor", " autor");
       const publicado = getField(item, "publicado", " publicado", "date");
-      const descripcion = getField(item, "Descripción", "descripcion", "Descripción ", " description");
+      const descripcion = getField(item, "Descripción", "descripcion", " Descripción", " description");
 
       detailTitle.textContent = title || "Sin título";
       detailDescription.textContent = descripcion || "Sin descripción disponible.";
@@ -589,30 +589,19 @@
       }
 
       readerStatus.textContent = "Sin cargar.";
-      readerContent.innerHTML = `<span class="placeholder">Pulsa en “Cargar contenido traducido” para intentar recuperar el texto del enlace y traducirlo al español.</span>`;
+      readerContent.innerHTML = `<span class="placeholder">Pulsa en “Cargar contenido y traducirlo” para intentar recuperar el texto del enlace y traducirlo al español.</span>`;
 
       titleSelect.value = title;
       renderList(filteredItems);
     }
 
-    async function translateText(text) {
-      const clean = (text || "").trim();
-      if (!clean) return "";
-
-      if ("ai" in self && self.ai && typeof self.ai.translator?.create === "function") {
-        try {
-          const translator = await self.ai.translator.create({
-            sourceLanguage: "en",
-            targetLanguage: "es"
-          });
-          const translated = await translator.translate(clean);
-          if (translated && translated.trim()) return translated.trim();
-        } catch (err) {
-          console.warn("No se pudo usar la traducción nativa del navegador:", err);
-        }
-      }
-
-      return clean;
+    function escapeHtml(str) {
+      return (str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     function htmlToText(html) {
@@ -650,8 +639,7 @@
     async function fetchPageAsText(url) {
       const attempts = [
         url,
-        `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`,
-        `https://r.jina.ai/http://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`
+        `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`
       ];
 
       let lastError = null;
@@ -684,6 +672,143 @@
       throw lastError || new Error("No se pudo recuperar el contenido.");
     }
 
+    async function getNativeTranslator(sourceLang = "en", targetLang = "es") {
+      if (typeof Translator === "undefined") return null;
+
+      try {
+        const config = {
+          sourceLanguage: sourceLang,
+          targetLanguage: targetLang
+        };
+
+        const availability = await Translator.availability(config);
+
+        if (availability === "unavailable" || availability == null) {
+          return null;
+        }
+
+        if (availability === "available") {
+          return await Translator.create(config);
+        }
+
+        return await Translator.create({
+          ...config,
+          monitor(monitor) {
+            monitor.addEventListener("downloadprogress", (e) => {
+              const total = e.total || 1;
+              const loaded = e.loaded || 0;
+              const pct = Math.floor((loaded / total) * 100);
+              readerStatus.innerHTML = `<span class="loading">Descargando modelo de traducción… ${pct}%</span>`;
+            });
+          }
+        });
+      } catch (err) {
+        console.warn("Translator API no disponible:", err);
+        return null;
+      }
+    }
+
+    async function detectLanguageIfPossible(text) {
+      if (typeof LanguageDetector === "undefined") return "en";
+
+      try {
+        const detector = await LanguageDetector.create({
+          expectedInputLanguages: ["en", "es"]
+        });
+
+        const results = await detector.detect(text.slice(0, 4000));
+        detector.destroy?.();
+
+        if (results && results.length && results[0].detectedLanguage) {
+          return results[0].detectedLanguage;
+        }
+      } catch (err) {
+        console.warn("No se pudo detectar idioma:", err);
+      }
+
+      return "en";
+    }
+
+    function splitTextIntoChunks(text, maxLen = 1800) {
+      const clean = (text || "").trim();
+      if (!clean) return [];
+
+      const paragraphs = clean.split(/\n\s*\n/);
+      const chunks = [];
+      let current = "";
+
+      for (const p of paragraphs) {
+        const candidate = current ? current + "\n\n" + p : p;
+
+        if (candidate.length <= maxLen) {
+          current = candidate;
+        } else {
+          if (current) chunks.push(current);
+
+          if (p.length <= maxLen) {
+            current = p;
+          } else {
+            const sentences = p.split(/(?<=[.!?])\s+/);
+            let sub = "";
+
+            for (const s of sentences) {
+              const subCandidate = sub ? sub + " " + s : s;
+              if (subCandidate.length <= maxLen) {
+                sub = subCandidate;
+              } else {
+                if (sub) chunks.push(sub);
+                sub = s;
+              }
+            }
+
+            current = sub;
+          }
+        }
+      }
+
+      if (current) chunks.push(current);
+      return chunks;
+    }
+
+    async function translateText(text) {
+      const clean = (text || "").trim();
+      if (!clean) return "";
+
+      const preview = clean.slice(0, 2500);
+      const detected = await detectLanguageIfPossible(preview);
+
+      if (detected && detected.toLowerCase().startsWith("es")) {
+        return clean;
+      }
+
+      const translator = await getNativeTranslator(
+        detected && detected !== "und" ? detected : "en",
+        "es"
+      );
+
+      if (!translator) {
+        return clean;
+      }
+
+      try {
+        const chunks = splitTextIntoChunks(clean, 1800);
+        const translatedChunks = [];
+
+        for (let i = 0; i < chunks.length; i++) {
+          readerStatus.innerHTML = `<span class="loading">Traduciendo al español… bloque ${i + 1}/${chunks.length}</span>`;
+          const translatedChunk = await translator.translate(chunks[i]);
+          translatedChunks.push(translatedChunk);
+        }
+
+        translator.destroy?.();
+        return translatedChunks.join("\n\n");
+      } catch (err) {
+        console.warn("Error traduciendo:", err);
+        try { translator.destroy?.(); } catch {}
+        return clean;
+      }
+    }
+
     async function loadTranslatedContent() {
       if (!selectedItem) return;
 
@@ -696,11 +821,19 @@
       try {
         const originalText = await fetchPageAsText(url);
 
-        readerStatus.innerHTML = `<span class="loading">Traduciendo al español…</span>`;
+        if (!originalText || originalText.trim().length < 80) {
+          throw new Error("Texto insuficiente para traducir.");
+        }
+
         const translated = await translateText(originalText);
 
-        readerContent.textContent = translated || originalText;
-        readerStatus.innerHTML = `<span class="ok">Contenido cargado.</span>`;
+        if (translated && translated !== originalText) {
+          readerContent.textContent = translated;
+          readerStatus.innerHTML = `<span class="ok">Contenido cargado y traducido.</span>`;
+        } else {
+          readerContent.textContent = originalText;
+          readerStatus.innerHTML = `<span class="loading">Contenido cargado, pero no se pudo traducir automáticamente en este navegador.</span>`;
+        }
       } catch (err) {
         console.error(err);
         readerStatus.innerHTML = `<span class="error">No se pudo cargar automáticamente.</span>`;
@@ -709,20 +842,11 @@
             No se ha podido recuperar el contenido de esa página desde el navegador.
           </div>
           <div class="small-note" style="margin-top:10px;">
-            Motivo probable: la web externa bloquea el acceso automático.
-            Puedes usar los botones de arriba para abrir la URL original o la versión traducida externamente.
+            La causa suele ser que la web externa bloquea el acceso automático por CORS.
+            Usa “Abrir URL original” o “Abrir página traducida externamente”.
           </div>
         `;
       }
-    }
-
-    function escapeHtml(str) {
-      return (str || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
     }
 
     async function loadData() {
@@ -741,12 +865,11 @@
         allItems = data
           .filter(Boolean)
           .sort((a, b) => {
-            const ta = getField(a, "título", "titulo", "title").localeCompare(
+            return getField(a, "título", "titulo", "title").localeCompare(
               getField(b, "título", "titulo", "title"),
               "es",
               { sensitivity: "base" }
             );
-            return ta;
           });
 
         filteredItems = [...allItems];
