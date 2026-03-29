@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XLSX a JSON | Ángel Soto</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --bg2:#11182d;
+      --panel:#18223d;
+      --panel2:#0f172a;
+      --text:#edf3ff;
+      --muted:#a7b4d4;
+      --line:#2b3a63;
+      --accent:#ff9900;
+      --accent2:#66c2ff;
+      --ok:#38d39f;
+      --danger:#ff6b6b;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(102,194,255,.12), transparent 25%),
+        linear-gradient(180deg, var(--bg), #060a16 100%);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .wrap{
+      width:min(1100px, 92%);
+      margin:0 auto;
+      padding:28px 0 42px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(24,34,61,.95), rgba(10,15,28,.95));
+      border:1px solid var(--line);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:26px 22px 20px;
+      margin-bottom:20px;
+    }
+
+    h1{
+      margin:0 0 8px 0;
+      font-size:clamp(28px, 5vw, 42px);
+      line-height:1.08;
+      letter-spacing:.2px;
+    }
+
+    .subtitle{
+      margin:10px 0 0 0;
+      color:var(--muted);
+      font-size:clamp(14px, 2.4vw, 16px);
+      line-height:1.55;
+      max-width:850px;
+    }
+
+    .home a{
+      color:#fff;
+      text-decoration:none;
+      opacity:.95;
+    }
+    .home a:hover{
+      color:var(--accent);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:20px;
+      align-items:start;
+    }
+
+    @media (max-width: 900px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(17,24,45,.95), rgba(10,14,26,.96));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+
+    .card h2{
+      margin:0 0 12px;
+      font-size:1.1rem;
+      color:#fff;
+    }
+
+    .dropzone{
+      border:2px dashed #41588f;
+      border-radius:18px;
+      min-height:240px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:24px;
+      background:
+        linear-gradient(180deg, rgba(255,153,0,.05), rgba(102,194,255,.04));
+      transition:.2s ease;
+      cursor:pointer;
+    }
+
+    .dropzone.dragover{
+      border-color:var(--accent);
+      background:
+        linear-gradient(180deg, rgba(255,153,0,.13), rgba(102,194,255,.09));
+      transform:translateY(-1px);
+    }
+
+    .drop-icon{
+      font-size:42px;
+      margin-bottom:10px;
+    }
+
+    .dropzone p{
+      margin:6px 0;
+      color:var(--muted);
+    }
+
+    .dropzone strong{
+      color:#fff;
+      font-size:1.05rem;
+    }
+
+    .btn-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    button, .fake-btn{
+      appearance:none;
+      border:none;
+      border-radius:12px;
+      padding:12px 16px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .btn-primary{
+      background:linear-gradient(180deg, #ffad33, #ff9900);
+      color:#1a1200;
+    }
+    .btn-primary:hover{transform:translateY(-1px)}
+
+    .btn-secondary{
+      background:#1a2747;
+      color:#edf3ff;
+      border:1px solid #334670;
+    }
+
+    .btn-secondary:hover{
+      background:#22345e;
+      transform:translateY(-1px);
+    }
+
+    .btn-danger{
+      background:#3a1820;
+      color:#ffd9df;
+      border:1px solid #6a2d39;
+    }
+
+    .btn-danger:hover{
+      background:#50212c;
+      transform:translateY(-1px);
+    }
+
+    input[type="file"]{
+      display:none;
+    }
+
+    .info-list{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .info{
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:14px;
+      padding:12px 14px;
+      font-size:14px;
+      color:var(--muted);
+    }
+
+    .info strong{color:#fff}
+
+    .sheet-select{
+      width:100%;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid #355081;
+      background:#0f1830;
+      color:#fff;
+      outline:none;
+      font-size:14px;
+      margin-top:10px;
+    }
+
+    .options{
+      display:grid;
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .option{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .option input{
+      transform:scale(1.15);
+      accent-color:var(--accent);
+    }
+
+    .status{
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:12px;
+      font-size:14px;
+      display:none;
+      white-space:pre-wrap;
+    }
+
+    .status.ok{
+      display:block;
+      background:rgba(56,211,159,.12);
+      border:1px solid rgba(56,211,159,.32);
+      color:#cbffe8;
+    }
+
+    .status.error{
+      display:block;
+      background:rgba(255,107,107,.12);
+      border:1px solid rgba(255,107,107,.30);
+      color:#ffd6d6;
+    }
+
+    .preview-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#13203c;
+      border:1px solid #31466f;
+      color:#dbe8ff;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .preview{
+      background:#06101f;
+      border:1px solid #223455;
+      border-radius:16px;
+      min-height:420px;
+      max-height:70vh;
+      overflow:auto;
+      padding:16px;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:13px;
+      line-height:1.55;
+      white-space:pre-wrap;
+      word-break:break-word;
+      color:#dce9ff;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .footer{
+      margin-top:28px;
+      background:linear-gradient(180deg, rgba(17,24,45,.95), rgba(10,14,26,.96));
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:22px 18px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
+    .footer a{
+      color:var(--accent2);
+      text-decoration:none;
+    }
+
+    .footer a:hover{
+      color:var(--accent);
+    }
+
+    .mini-note{
+      margin-top:12px;
+      font-size:12px;
+      color:#8ea0c8;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Convertidor de XLSX a JSON</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Abre un archivo Excel <strong>.xlsx</strong> desde tu equipo o arrástralo a la zona inferior.
+        La aplicación leerá la hoja seleccionada y generará un JSON listo para copiar o descargar.
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Archivo de entrada</h2>
+
+        <div id="dropzone" class="dropzone" tabindex="0">
+          <div class="drop-icon">📄</div>
+          <strong>Arrastra aquí tu archivo .xlsx</strong>
+          <p>o haz clic para seleccionarlo desde tu equipo</p>
+          <p class="muted">Formatos admitidos: .xlsx, .xls</p>
+          <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        </div>
+
+        <div class="btn-row">
+          <button id="selectBtn" class="btn-primary" type="button">Seleccionar archivo</button>
+          <button id="convertBtn" class="btn-secondary" type="button">Convertir a JSON</button>
+          <button id="downloadBtn" class="btn-secondary" type="button">Descargar JSON</button>
+          <button id="copyBtn" class="btn-secondary" type="button">Copiar JSON</button>
+          <button id="clearBtn" class="btn-danger" type="button">Limpiar</button>
+        </div>
+
+        <div class="info-list">
+          <div class="info"><strong>Archivo:</strong> <span id="fileName">Ninguno seleccionado</span></div>
+          <div class="info"><strong>Hojas detectadas:</strong> <span id="sheetCount">0</span></div>
+          <div class="info"><strong>Filas convertidas:</strong> <span id="rowCount">0</span></div>
+        </div>
+
+        <label for="sheetSelect" style="display:block; margin-top:14px; font-size:14px; color:#dbe8ff; font-weight:700;">
+          Hoja a convertir
+        </label>
+        <select id="sheetSelect" class="sheet-select" disabled>
+          <option value="">Primero carga un archivo</option>
+        </select>
+
+        <div class="options">
+          <label class="option">
+            <input type="checkbox" id="defvalCheck" checked />
+            Rellenar celdas vacías con cadena vacía
+          </label>
+          <label class="option">
+            <input type="checkbox" id="rawCheck" />
+            Mantener valores crudos de Excel
+          </label>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <p class="mini-note">
+          Nota: la primera fila de la hoja se usa como cabecera de claves JSON.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="preview-head">
+          <h2 style="margin:0;">Vista previa JSON</h2>
+          <div class="badge">🧩 <span id="jsonSize">0 caracteres</span></div>
+        </div>
+        <div id="preview" class="preview">[
+  // Aquí aparecerá el JSON generado
+]</div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const selectBtn = document.getElementById('selectBtn');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const fileNameEl = document.getElementById('fileName');
+    const sheetCountEl = document.getElementById('sheetCount');
+    const rowCountEl = document.getElementById('rowCount');
+    const sheetSelect = document.getElementById('sheetSelect');
+    const preview = document.getElementById('preview');
+    const statusBox = document.getElementById('status');
+    const jsonSize = document.getElementById('jsonSize');
+
+    const defvalCheck = document.getElementById('defvalCheck');
+    const rawCheck = document.getElementById('rawCheck');
+
+    let workbook = null;
+    let currentFile = null;
+    let currentJsonText = '[]';
+    let currentData = [];
+
+    function setStatus(message, type = 'ok'){
+      statusBox.className = 'status ' + type;
+      statusBox.textContent = message;
+    }
+
+    function clearStatus(){
+      statusBox.className = 'status';
+      statusBox.textContent = '';
+    }
+
+    function updatePreview(text){
+      preview.textContent = text;
+      jsonSize.textContent = `${text.length.toLocaleString('es-ES')} caracteres`;
+    }
+
+    function resetAll(){
+      workbook = null;
+      currentFile = null;
+      currentJsonText = '[]';
+      currentData = [];
+      fileInput.value = '';
+      fileNameEl.textContent = 'Ninguno seleccionado';
+      sheetCountEl.textContent = '0';
+      rowCountEl.textContent = '0';
+      sheetSelect.innerHTML = '<option value="">Primero carga un archivo</option>';
+      sheetSelect.disabled = true;
+      updatePreview('[\n  // Aquí aparecerá el JSON generado\n]');
+      clearStatus();
+    }
+
+    function populateSheetSelect(wb){
+      const sheets = wb.SheetNames || [];
+      sheetSelect.innerHTML = '';
+
+      if (!sheets.length){
+        sheetSelect.innerHTML = '<option value="">No se han encontrado hojas</option>';
+        sheetSelect.disabled = true;
+        return;
+      }
+
+      sheets.forEach((name, index) => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = `${index + 1}. ${name}`;
+        sheetSelect.appendChild(opt);
+      });
+
+      sheetSelect.disabled = false;
+      sheetCountEl.textContent = String(sheets.length);
+    }
+
+    function readWorkbook(file){
+      clearStatus();
+
+      if (!file) return;
+
+      const validExt = /\.(xlsx|xls)$/i.test(file.name);
+      if (!validExt){
+        setStatus('El archivo seleccionado no parece ser un .xlsx o .xls válido.', 'error');
+        return;
+      }
+
+      currentFile = file;
+      fileNameEl.textContent = file.name;
+
+      const reader = new FileReader();
+
+      reader.onload = function(e){
+        try{
+          const data = new Uint8Array(e.target.result);
+          workbook = XLSX.read(data, { type: 'array' });
+          populateSheetSelect(workbook);
+          setStatus(`Archivo cargado correctamente: ${file.name}\nHojas detectadas: ${workbook.SheetNames.length}`, 'ok');
+        }catch(err){
+          console.error(err);
+          setStatus('No se pudo leer el archivo Excel. Comprueba que no esté dañado.', 'error');
+        }
+      };
+
+      reader.onerror = function(){
+        setStatus('Ha ocurrido un error al leer el archivo.', 'error');
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function convertSelectedSheet(){
+      if (!workbook){
+        setStatus('Primero debes cargar un archivo Excel.', 'error');
+        return;
+      }
+
+      const sheetName = sheetSelect.value;
+      if (!sheetName){
+        setStatus('Selecciona una hoja antes de convertir.', 'error');
+        return;
+      }
+
+      try{
+        const sheet = workbook.Sheets[sheetName];
+        const options = {
+          defval: defvalCheck.checked ? '' : undefined,
+          raw: rawCheck.checked
+        };
+
+        const jsonData = XLSX.utils.sheet_to_json(sheet, options);
+        currentData = jsonData;
+        currentJsonText = JSON.stringify(jsonData, null, 2);
+
+        rowCountEl.textContent = String(jsonData.length);
+        updatePreview(currentJsonText);
+
+        setStatus(
+          `Conversión completada.\nHoja: ${sheetName}\nRegistros generados: ${jsonData.length}`,
+          'ok'
+        );
+      }catch(err){
+        console.error(err);
+        setStatus('No se pudo convertir la hoja seleccionada a JSON.', 'error');
+      }
+    }
+
+    function downloadJSON(){
+      if (!currentData.length && currentJsonText === '[]'){
+        setStatus('Todavía no hay JSON para descargar.', 'error');
+        return;
+      }
+
+      const baseName = currentFile
+        ? currentFile.name.replace(/\.(xlsx|xls)$/i, '')
+        : 'archivo';
+
+      const sheetName = sheetSelect.value ? '_' + sheetSelect.value.replace(/[^\w\-]+/g, '_') : '';
+      const filename = `${baseName}${sheetName}.json`;
+
+      const blob = new Blob([currentJsonText], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+      setStatus(`JSON descargado como: ${filename}`, 'ok');
+    }
+
+    async function copyJSON(){
+      if (!currentJsonText || currentJsonText.startsWith('[\n  // Aquí aparecerá')){
+        setStatus('Todavía no hay JSON para copiar.', 'error');
+        return;
+      }
+
+      try{
+        await navigator.clipboard.writeText(currentJsonText);
+        setStatus('JSON copiado al portapapeles.', 'ok');
+      }catch(err){
+        console.error(err);
+        setStatus('No se pudo copiar automáticamente. Prueba en un navegador compatible.', 'error');
+      }
+    }
+
+    selectBtn.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (file) readWorkbook(file);
+    });
+
+    convertBtn.addEventListener('click', convertSelectedSheet);
+    downloadBtn.addEventListener('click', downloadJSON);
+    copyBtn.addEventListener('click', copyJSON);
+    clearBtn.addEventListener('click', resetAll);
+
+    ['dragenter','dragover'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave','drop'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files?.[0];
+      if (file) readWorkbook(file);
+    });
+
+    dropzone.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    sheetSelect.addEventListener('change', () => {
+      rowCountEl.textContent = '0';
+      currentData = [];
+      currentJsonText = '[]';
+      updatePreview('[\n  // Pulsa "Convertir a JSON" para generar la vista previa\n]');
+    });
+
+    resetAll();
+  </script>
+</body>
+</html>
