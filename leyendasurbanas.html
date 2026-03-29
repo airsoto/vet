@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscador de Leyendas Urbanas</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --bg2:#111a2d;
+      --panel:#162238;
+      --panel2:#1b2a44;
+      --text:#edf4ff;
+      --muted:#aab8d1;
+      --accent:#ff9900;
+      --accent2:#66c2ff;
+      --ok:#36c275;
+      --danger:#ff6b6b;
+      --border:rgba(255,255,255,.12);
+      --shadow:0 12px 30px rgba(0,0,0,.28);
+      --radius:18px;
+      --maxw:1100px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(102,194,255,.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(255,153,0,.10), transparent 25%),
+        linear-gradient(180deg, var(--bg), #09101c 100%);
+      color:var(--text);
+      min-height:100vh;
+      line-height:1.5;
+    }
+
+    a{color:var(--accent2)}
+    .wrap{
+      width:min(100%, var(--maxw));
+      margin:0 auto;
+      padding:24px 16px 40px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:22px 18px;
+      margin-bottom:18px;
+      backdrop-filter: blur(8px);
+    }
+
+    h1{
+      margin:0 0 6px;
+      font-size:clamp(28px,4vw,42px);
+      line-height:1.1;
+      letter-spacing:-.02em;
+    }
+
+    .subtitle{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:clamp(14px,2.6vw,17px);
+    }
+
+    .home a{
+      text-decoration:none;
+      color:#dfefff;
+    }
+    .home a:hover{
+      color:var(--accent);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:18px;
+    }
+
+    @media (max-width: 920px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .card{
+      background:linear-gradient(180deg, var(--panel), var(--panel2));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+    }
+
+    .card h2, .card h3{
+      margin:0 0 12px;
+      line-height:1.2;
+    }
+
+    .search-box{
+      display:grid;
+      gap:10px;
+    }
+
+    .input, select, button, .btn{
+      width:100%;
+      border:none;
+      outline:none;
+      border-radius:14px;
+      font-size:15px;
+      padding:13px 14px;
+    }
+
+    .input, select{
+      background:#0d1627;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    .input::placeholder{
+      color:#8ea0bd;
+    }
+
+    .help{
+      color:var(--muted);
+      font-size:13px;
+      margin-top:2px;
+    }
+
+    .results-count{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--accent2);
+    }
+
+    .list{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+      max-height:420px;
+      overflow:auto;
+      padding-right:4px;
+    }
+
+    .item{
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:12px;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .item:hover{
+      transform:translateY(-1px);
+      border-color:rgba(255,153,0,.45);
+      background:rgba(255,153,0,.08);
+    }
+
+    .item.active{
+      border-color:rgba(102,194,255,.55);
+      background:rgba(102,194,255,.12);
+    }
+
+    .item-title{
+      font-weight:700;
+      font-size:15px;
+      margin-bottom:6px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:5px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.05);
+      margin-right:6px;
+      margin-bottom:6px;
+    }
+
+    .badge.false{ color:#ffd1d1; background:rgba(255,107,107,.12); border-color:rgba(255,107,107,.24); }
+    .badge.true{ color:#d7ffe8; background:rgba(54,194,117,.12); border-color:rgba(54,194,117,.24); }
+    .badge.mix{ color:#fff3c8; background:rgba(255,196,61,.12); border-color:rgba(255,196,61,.24); }
+
+    .meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:10px 0 14px;
+    }
+
+    .meta-pill{
+      background:#0d1627;
+      border:1px solid rgba(255,255,255,.08);
+      color:#dfe8f9;
+      border-radius:999px;
+      padding:8px 11px;
+      font-size:13px;
+    }
+
+    .description{
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:14px;
+      color:#f1f6ff;
+      margin-bottom:14px;
+      white-space:pre-wrap;
+    }
+
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    button, .btn{
+      cursor:pointer;
+      color:white;
+      font-weight:700;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      transition:.18s ease;
+    }
+
+    .btn-primary{
+      background:linear-gradient(180deg, #ffae33, #ff9900);
+      color:#221300;
+    }
+
+    .btn-secondary{
+      background:linear-gradient(180deg, #2b3f61, #223554);
+      color:#eef5ff;
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .btn-primary:hover,
+    .btn-secondary:hover,
+    button:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .reader{
+      margin-top:8px;
+      background:#09111f;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      overflow:hidden;
+    }
+
+    .reader-top{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+    }
+
+    .reader-status{
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .reader-content{
+      padding:16px;
+      min-height:260px;
+      max-height:620px;
+      overflow:auto;
+      white-space:pre-wrap;
+      font-size:15px;
+      color:#eef4ff;
+    }
+
+    .placeholder{
+      color:#98abc8;
+    }
+
+    .small-note{
+      margin-top:10px;
+      color:#9cb0ce;
+      font-size:13px;
+    }
+
+    .footer{
+      margin-top:26px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:20px 16px;
+      color:#e7eefc;
+    }
+
+    .footer a{
+      color:#8cd1ff;
+    }
+
+    .empty-state{
+      color:#9db1cf;
+      font-size:15px;
+      padding:8px 2px;
+    }
+
+    .loading{
+      color:#ffd89a;
+    }
+
+    .error{
+      color:#ffb2b2;
+    }
+
+    .ok{
+      color:#b9ffd4;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Buscador de Leyendas Urbanas</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Busca por título, selecciona una leyenda urbana y consulta su descripción. También podrás intentar leer el contenido del enlace traducido automáticamente al español.
+      </p>
+    </section>
+
+    <section class="grid">
+      <aside class="card">
+        <h2>Buscar</h2>
+        <div class="search-box">
+          <input id="searchInput" class="input" type="text" placeholder="Escribe parte del título..." />
+          <select id="titleSelect">
+            <option value="">Selecciona un título...</option>
+          </select>
+          <div class="help">El buscador filtra en tiempo real por el campo <strong>título</strong>.</div>
+          <div class="results-count" id="resultsCount">Cargando datos...</div>
+        </div>
+
+        <div class="list" id="resultsList"></div>
+      </aside>
+
+      <main class="card">
+        <h2 id="detailTitle">Selecciona una leyenda urbana</h2>
+
+        <div class="meta" id="detailMeta"></div>
+
+        <div class="description" id="detailDescription">
+          Aquí aparecerá la descripción del registro seleccionado.
+        </div>
+
+        <div class="actions">
+          <a id="openOriginalBtn" class="btn btn-primary" href="#" target="_blank" rel="noopener" style="pointer-events:none; opacity:.55;">
+            🔗 Abrir URL original
+          </a>
+          <button id="loadTranslatedBtn" class="btn btn-secondary" disabled>
+            🌍 Cargar contenido traducido
+          </button>
+          <a id="openGoogleTranslateBtn" class="btn btn-secondary" href="#" target="_blank" rel="noopener" style="pointer-events:none; opacity:.55;">
+            🈯 Abrir página traducida externamente
+          </a>
+        </div>
+
+        <div class="reader">
+          <div class="reader-top">
+            <strong>Contenido web en texto (traducido al español)</strong>
+            <span class="reader-status" id="readerStatus">Sin cargar.</span>
+          </div>
+          <div class="reader-content" id="readerContent">
+            <span class="placeholder">
+              Pulsa en “Cargar contenido traducido” para intentar recuperar el texto del enlace y traducirlo al español.
+            </span>
+          </div>
+        </div>
+
+        <p class="small-note">
+          Nota: algunas páginas pueden bloquear la lectura automática desde el navegador. Si ocurre, usa “Abrir URL original” o “Abrir página traducida externamente”.
+        </p>
+      </main>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const JSON_URL = "json/urbanlegends.json";
+
+    const searchInput = document.getElementById("searchInput");
+    const titleSelect = document.getElementById("titleSelect");
+    const resultsList = document.getElementById("resultsList");
+    const resultsCount = document.getElementById("resultsCount");
+
+    const detailTitle = document.getElementById("detailTitle");
+    const detailMeta = document.getElementById("detailMeta");
+    const detailDescription = document.getElementById("detailDescription");
+
+    const openOriginalBtn = document.getElementById("openOriginalBtn");
+    const loadTranslatedBtn = document.getElementById("loadTranslatedBtn");
+    const openGoogleTranslateBtn = document.getElementById("openGoogleTranslateBtn");
+
+    const readerStatus = document.getElementById("readerStatus");
+    const readerContent = document.getElementById("readerContent");
+
+    let allItems = [];
+    let filteredItems = [];
+    let selectedItem = null;
+
+    function normalizeText(str) {
+      return (str || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function safeTrim(value) {
+      return (value ?? "").toString().trim();
+    }
+
+    function getField(obj, ...keys) {
+      for (const k of keys) {
+        if (obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) {
+          return safeTrim(obj[k]);
+        }
+      }
+      return "";
+    }
+
+    function classBadgeClass(value) {
+      const v = normalizeText(value);
+      if (v.includes("falso")) return "false";
+      if (v.includes("verdadero")) return "true";
+      return "mix";
+    }
+
+    function createBadge(text, extraClass = "") {
+      const span = document.createElement("span");
+      span.className = `badge ${extraClass}`.trim();
+      span.textContent = text;
+      return span;
+    }
+
+    function createMetaPill(text) {
+      const span = document.createElement("span");
+      span.className = "meta-pill";
+      span.textContent = text;
+      return span;
+    }
+
+    function updateSelect(items) {
+      const current = selectedItem ? getField(selectedItem, "título", "titulo", "title") : "";
+      titleSelect.innerHTML = `<option value="">Selecciona un título...</option>`;
+
+      items.forEach(item => {
+        const title = getField(item, "título", "titulo", "title");
+        const opt = document.createElement("option");
+        opt.value = title;
+        opt.textContent = title;
+        if (title === current) opt.selected = true;
+        titleSelect.appendChild(opt);
+      });
+    }
+
+    function renderList(items) {
+      resultsList.innerHTML = "";
+      if (!items.length) {
+        resultsList.innerHTML = `<div class="empty-state">No hay resultados con ese filtro.</div>`;
+        return;
+      }
+
+      items.forEach(item => {
+        const title = getField(item, "título", "titulo", "title");
+        const clasificacion = getField(item, "clasificación", "clasificacion", "classification");
+        const subtitular = getField(item, "subtitular", "subtitle");
+        const author = getField(item, "autor", "author");
+
+        const div = document.createElement("div");
+        div.className = "item" + (selectedItem && getField(selectedItem, "título", "titulo", "title") === title ? " active" : "");
+
+        div.innerHTML = `
+          <div class="item-title">${escapeHtml(title)}</div>
+          <div>${clasificacion ? `<span class="badge ${classBadgeClass(clasificacion)}">${escapeHtml(clasificacion)}</span>` : ""}</div>
+          ${subtitular ? `<div style="color:#cdd8eb; font-size:13px; margin-top:6px;">${escapeHtml(subtitular)}</div>` : ""}
+          ${author ? `<div style="color:#8fa5c5; font-size:12px; margin-top:6px;">${escapeHtml(author)}</div>` : ""}
+        `;
+
+        div.addEventListener("click", () => {
+          selectItem(item);
+        });
+
+        resultsList.appendChild(div);
+      });
+    }
+
+    function renderCount(items) {
+      resultsCount.textContent = `${items.length} resultado(s)`;
+    }
+
+    function filterItems() {
+      const q = normalizeText(searchInput.value);
+      filteredItems = allItems.filter(item => {
+        const title = normalizeText(getField(item, "título", "titulo", "title"));
+        return !q || title.includes(q);
+      });
+
+      updateSelect(filteredItems);
+      renderList(filteredItems);
+      renderCount(filteredItems);
+    }
+
+    function selectItem(item) {
+      selectedItem = item;
+
+      const title = getField(item, "título", "titulo", "title");
+      const url = getField(item, "URL", " URL", "url");
+      const clasificacion = getField(item, "clasificación", " clasificación", "clasificacion");
+      const subtitular = getField(item, "subtitular", " subtitular");
+      const autor = getField(item, "autor", " autor");
+      const publicado = getField(item, "publicado", " publicado", "date");
+      const descripcion = getField(item, "Descripción", "descripcion", "Descripción ", " description");
+
+      detailTitle.textContent = title || "Sin título";
+      detailDescription.textContent = descripcion || "Sin descripción disponible.";
+      detailMeta.innerHTML = "";
+
+      if (clasificacion) detailMeta.appendChild(createBadge(`Clasificación: ${clasificacion}`, classBadgeClass(clasificacion)));
+      if (autor) detailMeta.appendChild(createMetaPill(`Autor: ${autor}`));
+      if (publicado) detailMeta.appendChild(createMetaPill(`Publicado: ${publicado}`));
+      if (subtitular) detailMeta.appendChild(createMetaPill(subtitular));
+
+      if (url) {
+        openOriginalBtn.href = url;
+        openOriginalBtn.style.pointerEvents = "auto";
+        openOriginalBtn.style.opacity = "1";
+
+        openGoogleTranslateBtn.href = `https://translate.google.com/translate?sl=auto&tl=es&u=${encodeURIComponent(url)}`;
+        openGoogleTranslateBtn.style.pointerEvents = "auto";
+        openGoogleTranslateBtn.style.opacity = "1";
+
+        loadTranslatedBtn.disabled = false;
+      } else {
+        openOriginalBtn.href = "#";
+        openOriginalBtn.style.pointerEvents = "none";
+        openOriginalBtn.style.opacity = ".55";
+
+        openGoogleTranslateBtn.href = "#";
+        openGoogleTranslateBtn.style.pointerEvents = "none";
+        openGoogleTranslateBtn.style.opacity = ".55";
+
+        loadTranslatedBtn.disabled = true;
+      }
+
+      readerStatus.textContent = "Sin cargar.";
+      readerContent.innerHTML = `<span class="placeholder">Pulsa en “Cargar contenido traducido” para intentar recuperar el texto del enlace y traducirlo al español.</span>`;
+
+      titleSelect.value = title;
+      renderList(filteredItems);
+    }
+
+    async function translateText(text) {
+      const clean = (text || "").trim();
+      if (!clean) return "";
+
+      if ("ai" in self && self.ai && typeof self.ai.translator?.create === "function") {
+        try {
+          const translator = await self.ai.translator.create({
+            sourceLanguage: "en",
+            targetLanguage: "es"
+          });
+          const translated = await translator.translate(clean);
+          if (translated && translated.trim()) return translated.trim();
+        } catch (err) {
+          console.warn("No se pudo usar la traducción nativa del navegador:", err);
+        }
+      }
+
+      return clean;
+    }
+
+    function htmlToText(html) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+
+      const selectorsToRemove = [
+        "script", "style", "noscript", "svg", "canvas", "img",
+        "header", "footer", "nav", "aside", "form", "button",
+        "iframe", "figure", "video", "audio"
+      ];
+
+      selectorsToRemove.forEach(sel => {
+        doc.querySelectorAll(sel).forEach(el => el.remove());
+      });
+
+      let article =
+        doc.querySelector("article") ||
+        doc.querySelector("main") ||
+        doc.querySelector("[role='main']") ||
+        doc.body;
+
+      let text = article ? article.innerText : "";
+      text = (text || "")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[ \t]{2,}/g, " ")
+        .trim();
+
+      if (text.length > 25000) {
+        text = text.slice(0, 25000) + "\n\n[Texto recortado por longitud]";
+      }
+
+      return text;
+    }
+
+    async function fetchPageAsText(url) {
+      const attempts = [
+        url,
+        `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`,
+        `https://r.jina.ai/http://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`
+      ];
+
+      let lastError = null;
+
+      for (const endpoint of attempts) {
+        try {
+          const res = await fetch(endpoint, {
+            method: "GET",
+            headers: {
+              "Accept": "text/html, text/plain"
+            }
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const text = await res.text();
+          if (!text || text.trim().length < 50) {
+            throw new Error("Contenido insuficiente");
+          }
+
+          const looksLikeHtml = /<html|<body|<article|<main|<!doctype/i.test(text);
+          return looksLikeHtml ? htmlToText(text) : text.trim();
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      throw lastError || new Error("No se pudo recuperar el contenido.");
+    }
+
+    async function loadTranslatedContent() {
+      if (!selectedItem) return;
+
+      const url = getField(selectedItem, "URL", " URL", "url");
+      if (!url) return;
+
+      readerStatus.innerHTML = `<span class="loading">Cargando contenido…</span>`;
+      readerContent.innerHTML = `<span class="placeholder">Recuperando texto de la web...</span>`;
+
+      try {
+        const originalText = await fetchPageAsText(url);
+
+        readerStatus.innerHTML = `<span class="loading">Traduciendo al español…</span>`;
+        const translated = await translateText(originalText);
+
+        readerContent.textContent = translated || originalText;
+        readerStatus.innerHTML = `<span class="ok">Contenido cargado.</span>`;
+      } catch (err) {
+        console.error(err);
+        readerStatus.innerHTML = `<span class="error">No se pudo cargar automáticamente.</span>`;
+        readerContent.innerHTML = `
+          <div class="error">
+            No se ha podido recuperar el contenido de esa página desde el navegador.
+          </div>
+          <div class="small-note" style="margin-top:10px;">
+            Motivo probable: la web externa bloquea el acceso automático.
+            Puedes usar los botones de arriba para abrir la URL original o la versión traducida externamente.
+          </div>
+        `;
+      }
+    }
+
+    function escapeHtml(str) {
+      return (str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function loadData() {
+      try {
+        resultsCount.textContent = "Cargando datos...";
+        const res = await fetch(JSON_URL);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          throw new Error("El JSON no contiene un array.");
+        }
+
+        allItems = data
+          .filter(Boolean)
+          .sort((a, b) => {
+            const ta = getField(a, "título", "titulo", "title").localeCompare(
+              getField(b, "título", "titulo", "title"),
+              "es",
+              { sensitivity: "base" }
+            );
+            return ta;
+          });
+
+        filteredItems = [...allItems];
+        updateSelect(filteredItems);
+        renderList(filteredItems);
+        renderCount(filteredItems);
+
+        if (filteredItems.length) {
+          selectItem(filteredItems[0]);
+        } else {
+          resultsList.innerHTML = `<div class="empty-state">No hay elementos en el JSON.</div>`;
+        }
+      } catch (err) {
+        console.error(err);
+        resultsCount.textContent = "Error al cargar el JSON.";
+        resultsList.innerHTML = `
+          <div class="empty-state error">
+            No se pudo cargar <strong>${JSON_URL}</strong>.<br><br>
+            Revisa que el archivo exista y que sea un array JSON válido.
+          </div>
+        `;
+      }
+    }
+
+    searchInput.addEventListener("input", filterItems);
+
+    titleSelect.addEventListener("change", () => {
+      const title = titleSelect.value;
+      const found = filteredItems.find(item => getField(item, "título", "titulo", "title") === title);
+      if (found) selectItem(found);
+    });
+
+    loadTranslatedBtn.addEventListener("click", loadTranslatedContent);
+
+    loadData();
+  </script>
+</body>
+</html>
