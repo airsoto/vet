@@ -5,20 +5,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Luna 3D Interactiva</title>
+
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
   <style>
     :root{
       --bg:#050814;
-      --bg2:#0b1227;
-      --panel:rgba(13,20,39,.82);
-      --panel2:rgba(20,31,57,.88);
-      --line:rgba(255,255,255,.12);
+      --bg2:#0c1730;
+      --panel:rgba(12,20,38,.82);
+      --line:rgba(255,255,255,.1);
       --text:#eef4ff;
-      --muted:#9db0d0;
+      --muted:#a8bad9;
       --accent:#ff9900;
-      --accent2:#70c6ff;
-      --ok:#79e2a7;
-      --shadow:0 20px 60px rgba(0,0,0,.45);
+      --accent2:#8bd3ff;
       --radius:22px;
+      --shadow:0 18px 50px rgba(0,0,0,.42);
     }
 
     *{box-sizing:border-box}
@@ -26,14 +27,12 @@
     html,body{
       margin:0;
       min-height:100%;
-      background:
-        radial-gradient(circle at 20% 15%, rgba(112,198,255,.15), transparent 18%),
-        radial-gradient(circle at 80% 20%, rgba(255,153,0,.11), transparent 16%),
-        radial-gradient(circle at 50% 120%, rgba(255,255,255,.06), transparent 30%),
-        linear-gradient(180deg, var(--bg), var(--bg2));
-      color:var(--text);
       font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      overflow-x:hidden;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 20% 15%, rgba(139,211,255,.12), transparent 18%),
+        radial-gradient(circle at 80% 20%, rgba(255,153,0,.1), transparent 16%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
     }
 
     body::before{
@@ -41,205 +40,114 @@
       position:fixed;
       inset:0;
       pointer-events:none;
+      opacity:.75;
       background-image:
         radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,.7), transparent 60%),
-        radial-gradient(1.5px 1.5px at 35% 70%, rgba(255,255,255,.55), transparent 60%),
-        radial-gradient(2px 2px at 78% 28%, rgba(255,255,255,.6), transparent 60%),
-        radial-gradient(1px 1px at 82% 74%, rgba(255,255,255,.45), transparent 60%),
-        radial-gradient(1px 1px at 56% 16%, rgba(255,255,255,.65), transparent 60%),
-        radial-gradient(1px 1px at 18% 84%, rgba(255,255,255,.55), transparent 60%);
-      opacity:.75;
+        radial-gradient(1px 1px at 30% 70%, rgba(255,255,255,.6), transparent 60%),
+        radial-gradient(2px 2px at 75% 25%, rgba(255,255,255,.7), transparent 60%),
+        radial-gradient(1px 1px at 84% 66%, rgba(255,255,255,.5), transparent 60%);
     }
 
     .wrap{
-      width:min(1200px, calc(100% - 24px));
-      margin:20px auto 36px;
+      width:min(1180px, calc(100% - 24px));
+      margin:18px auto 40px;
     }
 
     .hero{
-      display:grid;
-      gap:14px;
-      align-items:center;
-      justify-items:center;
       text-align:center;
-      padding:18px 14px 6px;
+      padding:10px 10px 4px;
     }
 
     h1{
       margin:0;
-      font-size:clamp(28px, 5vw, 52px);
-      line-height:1.03;
-      letter-spacing:.02em;
-      text-shadow:0 6px 24px rgba(0,0,0,.35);
+      font-size:clamp(30px, 5vw, 54px);
+      line-height:1.05;
     }
 
     .subtitle{
-      margin:0;
-      max-width:900px;
+      max-width:860px;
+      margin:12px auto 0;
       color:var(--muted);
-      font-size:clamp(14px, 2.1vw, 17px);
+      font-size:clamp(14px,2vw,17px);
     }
 
-    .shell{
-      margin-top:18px;
-      display:grid;
-      grid-template-columns: minmax(0,1fr) 320px;
-      gap:18px;
-    }
-
-    .viewer-card,
-    .side{
+    .card{
+      margin-top:20px;
       border:1px solid var(--line);
-      border-radius:var(--radius);
+      border-radius:28px;
+      background:linear-gradient(180deg, rgba(18,27,49,.9), rgba(9,15,29,.86));
       box-shadow:var(--shadow);
-      background:linear-gradient(180deg, var(--panel2), var(--panel));
+      overflow:hidden;
       backdrop-filter:blur(10px);
     }
 
-    .viewer-card{
-      position:relative;
-      min-height:72vh;
-      overflow:hidden;
-    }
-
-    #scene{
-      width:100%;
-      height:72vh;
-      display:block;
-      touch-action:none;
-      background:
-        radial-gradient(circle at 50% 40%, rgba(112,198,255,.06), transparent 22%),
-        radial-gradient(circle at 50% 50%, rgba(255,255,255,.04), transparent 35%),
-        transparent;
-    }
-
-    .hud{
-      position:absolute;
-      left:14px;
-      right:14px;
-      top:14px;
-      display:flex;
-      gap:10px;
-      justify-content:space-between;
-      align-items:flex-start;
-      pointer-events:none;
-    }
-
-    .chip-group{
+    .toolbar{
       display:flex;
       flex-wrap:wrap;
-      gap:8px;
-      max-width:65%;
+      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.03);
     }
 
-    .chip, .mini{
-      pointer-events:auto;
-      background:rgba(7,12,24,.72);
-      border:1px solid rgba(255,255,255,.12);
-      color:var(--text);
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .chip{
+      border:1px solid rgba(255,255,255,.1);
+      background:rgba(255,255,255,.05);
       border-radius:999px;
       padding:8px 12px;
       font-size:12px;
-      backdrop-filter:blur(8px);
-    }
-
-    .mini{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-    }
-
-    .status-dot{
-      width:9px;
-      height:9px;
-      border-radius:50%;
-      background:var(--ok);
-      box-shadow:0 0 14px rgba(121,226,167,.75);
-      flex:0 0 auto;
-    }
-
-    .overlay{
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-      background:
-        radial-gradient(circle at center, rgba(11,18,39,.35), rgba(5,8,20,.76));
-      z-index:3;
-      transition:opacity .35s ease, visibility .35s ease;
-    }
-
-    .overlay.hidden{
-      opacity:0;
-      visibility:hidden;
-      pointer-events:none;
-    }
-
-    .overlay-card{
-      width:min(560px, calc(100% - 28px));
-      padding:24px 22px;
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,.12);
-      background:linear-gradient(180deg, rgba(12,20,37,.92), rgba(9,15,30,.9));
-      box-shadow:var(--shadow);
-      text-align:center;
-    }
-
-    .overlay-card h3{
-      margin:0 0 8px;
-      font-size:clamp(22px,4vw,32px);
-    }
-
-    .overlay-card p{
-      margin:8px 0;
-      color:var(--muted);
-      line-height:1.5;
+      color:var(--text);
     }
 
     .actions{
       display:flex;
-      flex-wrap:wrap;
       gap:10px;
-      justify-content:center;
-      margin-top:16px;
+      flex-wrap:wrap;
     }
 
-    button, .btn{
+    .btn{
       appearance:none;
       border:none;
+      text-decoration:none;
       cursor:pointer;
       border-radius:14px;
-      padding:12px 16px;
+      padding:11px 15px;
       font-weight:700;
-      color:#08111d;
       background:linear-gradient(180deg, #ffc46b, #ff9900);
-      box-shadow:0 10px 26px rgba(255,153,0,.25);
-      transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease;
-      text-decoration:none;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
+      color:#101826;
+      box-shadow:0 10px 24px rgba(255,153,0,.25);
     }
 
-    button:hover, .btn:hover{ transform:translateY(-1px); }
-    button:active, .btn:active{ transform:translateY(0); }
-
     .btn.secondary{
-      color:var(--text);
       background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.12);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.1);
       box-shadow:none;
     }
 
-    .side{
-      padding:16px;
+    model-viewer{
+      width:100%;
+      height:72vh;
+      min-height:560px;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(139,211,255,.08), transparent 22%),
+        radial-gradient(circle at 50% 60%, rgba(255,255,255,.04), transparent 30%);
+      --poster-color: transparent;
+    }
+
+    .info{
       display:grid;
-      gap:14px;
-      align-content:start;
-      height:fit-content;
-      position:sticky;
-      top:16px;
+      grid-template-columns:1.2fr .8fr;
+      gap:16px;
+      padding:16px;
     }
 
     .panel{
@@ -255,107 +163,30 @@
     }
 
     .panel p, .panel li{
+      margin:0 0 8px;
       color:var(--muted);
-      font-size:14px;
       line-height:1.5;
+      font-size:14px;
     }
 
-    .panel ul{
-      margin:0;
-      padding-left:18px;
-    }
-
-    .range-wrap{
-      display:grid;
-      gap:8px;
-      margin-top:10px;
-    }
-
-    input[type="range"]{
-      width:100%;
-      accent-color:var(--accent);
-      cursor:pointer;
-    }
-
-    .stats{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-    }
-
-    .stat{
-      padding:12px;
-      border-radius:14px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
-    }
-
-    .stat .k{
-      color:var(--muted);
-      font-size:12px;
-      margin-bottom:4px;
-    }
-
-    .stat .v{
-      font-size:15px;
-      font-weight:700;
-    }
-
-    .home a,
-    .footer a{
-      color:#9ed0ff;
-    }
+    .home a, .footer a{ color:#9ed0ff; }
 
     .footer{
-      margin:22px auto 10px;
-      padding:18px 16px 28px;
+      margin:24px auto 0;
+      padding:18px 16px 26px;
       text-align:center;
       color:var(--muted);
       border-top:1px solid rgba(255,255,255,.08);
       max-width:1000px;
     }
 
-    .footer p, .footer h4{
-      margin:10px 0;
-    }
+    .footer p, .footer h4{ margin:10px 0; }
 
-    .legend{
-      font-size:12px;
-      color:var(--muted);
-    }
-
-    .pill-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-    }
-
-    .pill{
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-      font-size:12px;
-    }
-
-    @media (max-width: 980px){
-      .shell{
-        grid-template-columns:1fr;
-      }
-      .side{
-        position:static;
-      }
-      .viewer-card, #scene{
-        min-height:64vh;
+    @media (max-width: 860px){
+      .info{ grid-template-columns:1fr; }
+      model-viewer{
         height:64vh;
-      }
-      .chip-group{
-        max-width:100%;
-      }
-      .hud{
-        flex-direction:column;
-        align-items:flex-start;
+        min-height:420px;
       }
     }
   </style>
@@ -378,108 +209,62 @@
       </div>
 
       <p class="subtitle">
-        Explora un modelo 3D de la Luna con rotación suave, zoom, auto-giro, iluminación espacial y acceso directo al archivo USDZ.
+        Visor lunar 3D con rotación, zoom y soporte Apple Quick Look. Para web interactiva, usa GLB; para Apple, mantén también el USDZ.
       </p>
     </section>
 
-    <section class="shell">
-      <div class="viewer-card">
-        <canvas id="scene" aria-label="Visor 3D de la Luna"></canvas>
-
-        <div class="hud">
-          <div class="chip-group">
-            <div class="chip">🖱️ Arrastra para rotar</div>
-            <div class="chip">🔍 Rueda o pellizco para zoom</div>
-            <div class="chip">📱 Táctil compatible</div>
-          </div>
-          <div class="mini">
-            <span class="status-dot"></span>
-            <span id="statusText">Preparando escena…</span>
-          </div>
+    <section class="card">
+      <div class="toolbar">
+        <div class="chips">
+          <div class="chip">🖱️ Arrastra para rotar</div>
+          <div class="chip">🔍 Rueda o pellizco para zoom</div>
+          <div class="chip">🌕 Auto-rotación activa</div>
         </div>
 
-        <div class="overlay" id="overlay">
-          <div class="overlay-card">
-            <h3></h3>
-            <p>
-              Pulsa para cargar el modelo lunar en alta definición.
-            </p>
-            <p class="legend">
-              Ruta esperada: <strong>imagenes/Moon_NASA_LRO_23k_Flat.usdz</strong>
-            </p>
-            <div class="actions">
-              <button id="startBtn">Abrir visor lunar</button>
-              <a class="btn secondary" href="imagenes/Moon_NASA_LRO_Flat_Small.usdz" rel="noopener">
-                Descargar / abrir USDZ
-              </a>
-            </div>
-          </div>
+        <div class="actions">
+          <a class="btn secondary" href="imagenes/Moon_NASA_LRO_Flat_Small.usdz" rel="ar">Abrir USDZ en Apple</a>
+          <a class="btn secondary" href="imagenes/Moon_NASA_LRO_Flat_Small.usdz">Descargar USDZ</a>
         </div>
       </div>
 
-      <aside class="side">
+      <model-viewer
+        id="moonViewer"
+        src="imagenes/Moon_NASA_LRO_23k_Flat.glb"
+        ios-src="imagenes/Moon_NASA_LRO_Flat_Small.usdz"
+        alt="Modelo 3D de la Luna"
+        camera-controls
+        auto-rotate
+        interaction-prompt="auto"
+        shadow-intensity="1"
+        exposure="1.1"
+        environment-image="neutral"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+      >
+      </model-viewer>
+
+      <div class="info">
         <div class="panel">
-          <h3>Controles</h3>
-          <div class="actions" style="justify-content:flex-start; margin-top:0;">
-            <button id="resetBtn" type="button">Recentrar</button>
-            <button id="spinBtn" class="btn secondary" type="button">Auto-giro: ON</button>
-          </div>
-
-          <div class="range-wrap">
-            <label for="speedRange">Velocidad de giro automático</label>
-            <input id="speedRange" type="range" min="0" max="0.02" step="0.001" value="0.004" />
-          </div>
-
-          <div class="range-wrap">
-            <label for="lightRange">Intensidad de luz</label>
-            <input id="lightRange" type="range" min="0.2" max="3" step="0.1" value="1.6" />
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>Estado del modelo</h3>
-          <div class="stats">
-            <div class="stat">
-              <div class="k">Archivo</div>
-              <div class="v">USDZ</div>
-            </div>
-            <div class="stat">
-              <div class="k">Ruta</div>
-              <div class="v">imagenes/…</div>
-            </div>
-            <div class="stat">
-              <div class="k">Visor</div>
-              <div class="v">Three.js</div>
-            </div>
-            <div class="stat">
-              <div class="k">Navegación</div>
-              <div class="v">OrbitControls</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>Atajos útiles</h3>
-          <div class="pill-row">
-            <div class="pill">R = reiniciar vista</div>
-            <div class="pill">A = auto-giro</div>
-            <div class="pill">Q = Quick Look</div>
-          </div>
-          <p style="margin-top:10px;">
-            En iPhone/iPad/Safari puedes abrir el archivo USDZ directamente con Quick Look.
-          </p>
-          <a class="btn secondary" id="quickLookBtn" href="imagenes/Moon_NASA_LRO_23k_Flat.usdz" rel="ar">
-            🍎 Abrir en Quick Look
-          </a>
-        </div>
-
-        <div class="panel">
-          <h3>Nota</h3>
+          <h3>Importante</h3>
           <p>
-            Si el modelo no se ve bien, suele deberse a límites del soporte de USDZ en navegador. En Apple, el fallback más sólido sigue siendo Quick Look. :contentReference[oaicite:1]{index=1}
+            El archivo que se muestra en el visor web debe ser preferiblemente:
+            <strong>Moon_NASA_LRO_23k_Flat.glb</strong>
+          </p>
+          <p>
+            El archivo Apple/AR puede seguir siendo:
+            <strong>Moon_NASA_LRO_23k_Flat.usdz</strong>
+          </p>
+          <p>
+            Si solo tienes USDZ, en muchos navegadores no se mostrará correctamente dentro del visor.
           </p>
         </div>
-      </aside>
+
+        <div class="panel">
+          <h3>Estructura esperada</h3>
+          <p><strong>imagenes/Moon_NASA_LRO_Flat_Small.usdz/strong></p>
+          <p><strong>imagenes/Moon_NASA_LRO_Flat_Small.usdz</strong></p>
+        </div>
+      </div>
     </section>
 
     <!-- FOOTER -->
@@ -495,289 +280,5 @@
       <p>_______________________________________________</p>
     </footer>
   </div>
-
-  <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.180.0/build/three.module.js";
-    import { OrbitControls } from "https://unpkg.com/three@0.180.0/examples/jsm/controls/OrbitControls.js";
-    import { USDLoader } from "https://unpkg.com/three@0.180.0/examples/jsm/loaders/USDLoader.js";
-
-    const MODEL_URL = "imagenes/Moon_NASA_LRO_23k_Flat.usdz";
-
-    const canvas = document.getElementById("scene");
-    const overlay = document.getElementById("overlay");
-    const startBtn = document.getElementById("startBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const spinBtn = document.getElementById("spinBtn");
-    const statusText = document.getElementById("statusText");
-    const speedRange = document.getElementById("speedRange");
-    const lightRange = document.getElementById("lightRange");
-    const quickLookBtn = document.getElementById("quickLookBtn");
-
-    let renderer, scene, camera, controls;
-    let hemiLight, dirLight, rimLight;
-    let moonGroup = null;
-    let moonModel = null;
-    let autoRotate = true;
-    let autoRotateSpeed = parseFloat(speedRange.value);
-    let started = false;
-
-    function setStatus(msg){
-      statusText.textContent = msg;
-    }
-
-    function initScene(){
-      scene = new THREE.Scene();
-      scene.background = null;
-      scene.fog = new THREE.FogExp2(0x050814, 0.028);
-
-      const w = canvas.clientWidth || canvas.offsetWidth || window.innerWidth;
-      const h = canvas.clientHeight || window.innerHeight * 0.72;
-
-      camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 100);
-      camera.position.set(0, 0.2, 3.2);
-
-      renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias:true,
-        alpha:true,
-        powerPreference:"high-performance"
-      });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      renderer.setSize(w, h, false);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
-
-      controls = new OrbitControls(camera, canvas);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.minDistance = 0.8;
-      controls.maxDistance = 8;
-      controls.enablePan = false;
-      controls.autoRotate = false;
-      controls.target.set(0, 0, 0);
-
-      hemiLight = new THREE.HemisphereLight(0xaecfff, 0x0a0d17, 0.95);
-      scene.add(hemiLight);
-
-      dirLight = new THREE.DirectionalLight(0xffffff, parseFloat(lightRange.value));
-      dirLight.position.set(3, 2, 4);
-      scene.add(dirLight);
-
-      rimLight = new THREE.DirectionalLight(0x7ab8ff, 1.1);
-      rimLight.position.set(-4, -1.5, -3);
-      scene.add(rimLight);
-
-      const stars = createStars();
-      scene.add(stars);
-
-      const glowGeo = new THREE.SphereGeometry(1.25, 48, 48);
-      const glowMat = new THREE.ShaderMaterial({
-        transparent:true,
-        depthWrite:false,
-        blending:THREE.AdditiveBlending,
-        uniforms:{
-          c:{ value:0.22 },
-          p:{ value:2.4 },
-          glowColor:{ value:new THREE.Color(0x7ebfff) },
-          viewVector:{ value:camera.position }
-        },
-        vertexShader:`
-          uniform vec3 viewVector;
-          uniform float c;
-          uniform float p;
-          varying float intensity;
-          void main() {
-            vec3 vNormal = normalize(normalMatrix * normal);
-            vec3 vNormel = normalize(normalMatrix * viewVector);
-            intensity = pow(c - dot(vNormal, vNormel), p);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader:`
-          uniform vec3 glowColor;
-          varying float intensity;
-          void main() {
-            gl_FragColor = vec4(glowColor * intensity, intensity * 0.45);
-          }
-        `
-      });
-
-      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-      glowMesh.name = "moonGlow";
-      scene.add(glowMesh);
-
-      window.addEventListener("resize", onResize);
-      window.addEventListener("keydown", onKey);
-    }
-
-    function createStars(){
-      const count = 2500;
-      const positions = new Float32Array(count * 3);
-      for(let i=0;i<count;i++){
-        const r = 30 + Math.random() * 55;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos((Math.random() * 2) - 1);
-        positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
-        positions[i*3+1] = r * Math.cos(phi);
-        positions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
-      }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      const mat = new THREE.PointsMaterial({
-        size:0.07,
-        sizeAttenuation:true,
-        transparent:true,
-        opacity:0.9
-      });
-      return new THREE.Points(geo, mat);
-    }
-
-    async function loadMoon(){
-      setStatus("Cargando modelo USDZ…");
-
-      const loader = new USDLoader();
-      const loaded = await loader.loadAsync(MODEL_URL);
-
-      moonGroup = new THREE.Group();
-      moonModel = loaded;
-      moonGroup.add(moonModel);
-      scene.add(moonGroup);
-
-      normalizeModel(moonGroup);
-
-      const glow = scene.getObjectByName("moonGlow");
-      if(glow){
-        glow.scale.setScalar(0.95);
-      }
-
-      setStatus("Modelo cargado");
-    }
-
-    function normalizeModel(object){
-      const box = new THREE.Box3().setFromObject(object);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-
-      object.position.sub(center);
-
-      const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-      const targetSize = 2.0;
-      const scale = targetSize / maxAxis;
-      object.scale.setScalar(scale);
-
-      const box2 = new THREE.Box3().setFromObject(object);
-      const center2 = box2.getCenter(new THREE.Vector3());
-      object.position.sub(center2);
-
-      if (moonModel) {
-        moonModel.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = false;
-            child.receiveShadow = false;
-            if (child.material) {
-              child.material.needsUpdate = true;
-            }
-          }
-        });
-      }
-
-      controls.target.set(0, 0, 0);
-      camera.position.set(0, 0.15, 3);
-      controls.update();
-    }
-
-    function onResize(){
-      if(!renderer || !camera) return;
-      const w = canvas.clientWidth || canvas.offsetWidth || window.innerWidth;
-      const h = canvas.clientHeight || Math.max(420, window.innerHeight * 0.72);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
-    }
-
-    function onKey(e){
-      if(e.key.toLowerCase() === "r"){
-        resetView();
-      }else if(e.key.toLowerCase() === "a"){
-        toggleSpin();
-      }else if(e.key.toLowerCase() === "q"){
-        quickLookBtn.click();
-      }
-    }
-
-    function resetView(){
-      if(!camera || !controls) return;
-      camera.position.set(0, 0.15, 3);
-      controls.target.set(0, 0, 0);
-      controls.update();
-      setStatus("Vista reiniciada");
-    }
-
-    function toggleSpin(){
-      autoRotate = !autoRotate;
-      spinBtn.textContent = "Auto-giro: " + (autoRotate ? "ON" : "OFF");
-      if (!started) return;
-      setStatus(autoRotate ? "Auto-giro activado" : "Auto-giro pausado");
-    }
-
-    function animate(){
-      requestAnimationFrame(animate);
-
-      if(moonGroup && autoRotate){
-        moonGroup.rotation.y += autoRotateSpeed;
-      }
-
-      if(scene){
-        const glow = scene.getObjectByName("moonGlow");
-        if(glow && moonGroup){
-          glow.position.copy(moonGroup.position);
-        }
-      }
-
-      controls?.update();
-      renderer?.render(scene, camera);
-    }
-
-    async function startExperience(){
-      if(started) return;
-      started = true;
-      overlay.classList.add("hidden");
-
-      try{
-        initScene();
-        await loadMoon();
-        animate();
-      }catch(err){
-        console.error(err);
-        setStatus("Error al cargar el modelo");
-        overlay.classList.remove("hidden");
-        overlay.querySelector(".overlay-card").innerHTML = `
-          <h3>No se pudo cargar el archivo USDZ</h3>
-          <p>Comprueba que exista en <strong>${MODEL_URL}</strong>.</p>
-          <p style="color:#ffb4b4;">${String(err.message || err)}</p>
-          <div class="actions">
-            <button id="retryBtn">Reintentar</button>
-            <a class="btn secondary" href="${MODEL_URL}" rel="noopener">Abrir / descargar USDZ</a>
-          </div>
-        `;
-        document.getElementById("retryBtn")?.addEventListener("click", () => location.reload());
-      }
-    }
-
-    startBtn.addEventListener("click", startExperience);
-    resetBtn.addEventListener("click", resetView);
-    spinBtn.addEventListener("click", toggleSpin);
-
-    speedRange.addEventListener("input", () => {
-      autoRotateSpeed = parseFloat(speedRange.value);
-    });
-
-    lightRange.addEventListener("input", () => {
-      if (dirLight) dirLight.intensity = parseFloat(lightRange.value);
-    });
-
-    quickLookBtn.setAttribute("href", MODEL_URL);
-  </script>
 </body>
 </html>
