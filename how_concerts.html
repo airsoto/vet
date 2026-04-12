@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cómo funciona el scraper de Internet Archive</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#131a2e;
+      --panel-2:#1a2340;
+      --text:#eaf1ff;
+      --muted:#aab7d6;
+      --accent:#7cc4ff;
+      --accent-2:#8dffcf;
+      --line:#2a355e;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background: radial-gradient(circle at top, #162042 0%, var(--bg) 45%, #060914 100%);
+      color:var(--text);
+      line-height:1.6;
+    }
+
+    .container{
+      width:min(1100px, calc(100% - 32px));
+      margin:0 auto;
+      padding:28px 0 60px;
+    }
+
+    .hero{
+      background:linear-gradient(135deg, rgba(124,196,255,.16), rgba(141,255,207,.08));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:24px;
+      padding:28px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      margin-bottom:22px;
+    }
+
+    h1,h2,h3{margin-top:0}
+
+    h1{
+      font-size:clamp(2rem, 4vw, 3.2rem);
+      line-height:1.1;
+      margin-bottom:10px;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      font-size:1.05rem;
+      max-width:900px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(12,1fr);
+      gap:18px;
+    }
+
+    .card{
+      grid-column:span 12;
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:22px;
+      box-shadow:var(--shadow);
+    }
+
+    .card h2{
+      font-size:1.45rem;
+      margin-bottom:12px;
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:18px;
+    }
+
+    .pill{
+      display:inline-block;
+      padding:7px 11px;
+      border-radius:999px;
+      border:1px solid rgba(124,196,255,.32);
+      background:rgba(124,196,255,.1);
+      color:var(--accent);
+      font-size:.9rem;
+      margin:0 8px 8px 0;
+    }
+
+    .step{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      padding:14px 0;
+      border-bottom:1px dashed rgba(255,255,255,.08);
+    }
+
+    .step:last-child{border-bottom:none}
+
+    .num{
+      width:34px;
+      height:34px;
+      flex:0 0 34px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      color:#08111f;
+      font-weight:800;
+    }
+
+    .code-window{
+      background:#0a0f1d;
+      border:1px solid #263154;
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+    }
+
+    .window-bar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px 16px;
+      background:#12192b;
+      border-bottom:1px solid #253253;
+    }
+
+    .dots{
+      display:flex;
+      gap:8px;
+    }
+
+    .dot{
+      width:11px;
+      height:11px;
+      border-radius:50%;
+    }
+
+    .dot.red{background:#ff6b6b}
+    .dot.yellow{background:#ffd166}
+    .dot.green{background:#7bd88f}
+
+    .filename{
+      color:#c9d8ff;
+      font-size:.92rem;
+      opacity:.9;
+    }
+
+    pre{
+      margin:0;
+      padding:18px;
+      overflow:auto;
+      color:#dce7ff;
+      font-size:.92rem;
+      line-height:1.55;
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-family:"Fira Code","Cascadia Code","Consolas",monospace;
+    }
+
+    code.inline{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:8px;
+      padding:2px 8px;
+      font-family:monospace;
+      color:#bfe3ff;
+    }
+
+    .mini{
+      color:var(--muted);
+      font-size:.96rem;
+    }
+
+    .callout{
+      padding:14px 16px;
+      border-left:4px solid var(--accent-2);
+      background:rgba(141,255,207,.08);
+      border-radius:12px;
+      color:#dfffee;
+      margin:14px 0;
+    }
+
+    ul{padding-left:20px}
+    li{margin:6px 0}
+
+    .footer{
+      margin-top:18px;
+      color:var(--muted);
+      text-align:center;
+      font-size:.92rem;
+    }
+
+    @media (max-width: 860px){
+      .two-col{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <div class="pill">Python + scraping web</div>
+      <div class="pill">Internet Archive</div>
+      <div class="pill">JSON estructurado</div>
+      <h1>Cómo funciona el scraper de la colección AJC</h1>
+      <p class="subtitle">
+        Esta página explica de forma clara y entretenida qué hace el script en Python, cómo se diseñó,
+        cuál es su recorrido paso a paso y dónde encaja cada parte del código. También incluye una ventana
+        para mostrar el script completo dentro del propio HTML.
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>¿Qué problema resuelve este script?</h2>
+        <p>
+          El objetivo del script es recorrer una colección de <strong>Internet Archive</strong>, localizar todos los
+          enlaces cuyo identificador empieza por <code class="inline">ajc</code>, entrar en cada página de detalle
+          del concierto y extraer información estructurada para guardarla en formato <code class="inline">JSON</code>.
+        </p>
+        <div class="callout">
+          En vez de copiar datos a mano de cientos de páginas, el script automatiza el trabajo y genera archivos
+          fáciles de reutilizar después en una web, una base de datos o un buscador musical.
+        </div>
+        <ul>
+          <li><strong>Concierto:</strong> título principal del evento.</li>
+          <li><strong>Artista:</strong> texto anterior a la palabra <em>Live</em>.</li>
+          <li><strong>Fecha de publicación:</strong> fecha del concierto/publicación.</li>
+          <li><strong>Imagen del disco:</strong> enlace a una imagen descargable cuando exista.</li>
+          <li><strong>Canciones:</strong> nombre, duración y enlace MP3 de cada pista.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>El recorrido del programa</h2>
+        <div class="step">
+          <div class="num">1</div>
+          <div>
+            <strong>Busca todos los identificadores AJC</strong>
+            <div class="mini">Primero consulta la colección y reúne los items cuyo identificador empieza por <code class="inline">ajc</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div>
+            <strong>Entra en cada página de detalle</strong>
+            <div class="mini">Después abre cada URL del tipo <code class="inline">https://archive.org/details/ajc...</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div>
+            <strong>Localiza los metadatos útiles</strong>
+            <div class="mini">Lee el HTML buscando etiquetas como <code class="inline">og:title</code>, <code class="inline">datePublished</code> o bloques <code class="inline">AudioObject</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div>
+            <strong>Transforma los datos</strong>
+            <div class="mini">Extrae el artista a partir del título, convierte duraciones ISO y limpia textos antes de guardarlos.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <div>
+            <strong>Genera JSON</strong>
+            <div class="mini">Por último crea un JSON por concierto y, opcionalmente, un índice general con todos los conciertos.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="two-col">
+          <div>
+            <h2>Cómo se ha construido el Python</h2>
+            <p>
+              El script se planteó por bloques, para que cada parte tuviera una misión clara y fuera fácil de modificar.
+              Esa separación hace que el código sea más entendible y más robusto.
+            </p>
+            <ul>
+              <li><strong>Bloque de conexión:</strong> obtiene el HTML o el JSON desde la web.</li>
+              <li><strong>Bloque de descubrimiento:</strong> encuentra todos los identificadores válidos <code class="inline">ajc...</code>.</li>
+              <li><strong>Bloque de parsing:</strong> analiza cada página y localiza título, fecha, canciones e imagen.</li>
+              <li><strong>Bloque de transformación:</strong> adapta el texto bruto a campos útiles.</li>
+              <li><strong>Bloque de guardado:</strong> crea los archivos JSON finales.</li>
+            </ul>
+          </div>
+          <div>
+            <h2>Ideas clave del diseño</h2>
+            <ul>
+              <li>Separar funciones pequeñas en lugar de meter todo en un único bloque gigante.</li>
+              <li>Usar nombres de función claros para que el script se lea casi como una explicación.</li>
+              <li>Incluir pausas pequeñas entre peticiones para no saturar el servidor.</li>
+              <li>Añadir <em>fallbacks</em> por si una página no trae todos los datos.</li>
+              <li>Guardar también los enlaces MP3 para poder reutilizarlos luego en un reproductor o catálogo.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ventana con el contenido del script Python</h2>
+        <p class="mini">
+          Aquí puedes pegar el contenido exacto de tu archivo <code class="inline">scrap_adam.py</code> para que la página muestre el código dentro de una interfaz tipo editor.
+        </p>
+
+        <div class="code-window">
+          <div class="window-bar">
+            <div class="dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="filename">scrap_adam.py</div>
+          </div>
+          <pre id="pythonCode">#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+# Pega aquí el contenido completo de tu script Python.
+# Esta ventana está pensada para mostrar el scraper dentro de la página.
+
+import json
+import os
+import re
+import time
+
+# ... resto del código ...</pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Qué hace cada parte importante del scraper</h2>
+        <div class="step">
+          <div class="num">A</div>
+          <div>
+            <strong>Obtención de identificadores</strong>
+            <div class="mini">La función que busca identificadores revisa la colección y reúne todos los items cuyo nombre empieza por <code class="inline">ajc</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">B</div>
+          <div>
+            <strong>Extracción del concierto</strong>
+            <div class="mini">Lee el <code class="inline">meta property=&quot;og:title&quot;</code> y se queda con la parte útil del título, antes de los añadidos de Internet Archive.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">C</div>
+          <div>
+            <strong>Obtención del artista</strong>
+            <div class="mini">A partir del título del concierto, recorta todo lo que aparece antes de la palabra <em>Live</em>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">D</div>
+          <div>
+            <strong>Extracción de canciones</strong>
+            <div class="mini">Busca bloques <code class="inline">AudioObject</code>, toma el nombre de la canción, su duración y el enlace asociado al MP3.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">E</div>
+          <div>
+            <strong>Generación de salida JSON</strong>
+            <div class="mini">El resultado se guarda de forma estructurada, para que puedas reutilizarlo sin volver a raspar la web.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ejemplo del resultado esperado</h2>
+        <div class="code-window">
+          <div class="window-bar">
+            <div class="dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="filename">ajc02179_dig-mandrakes-1987-09-18.json</div>
+          </div>
+          <pre>{
+  "identifier": "ajc02179_dig-mandrakes-1987-09-18",
+  "url": "https://archive.org/details/ajc02179_dig-mandrakes-1987-09-18",
+  "concierto": "Dig Mandrakes Live at Cabaret Metro 1987-09-18",
+  "artista": "Dig Mandrakes",
+  "fecha_publicacion": "1987-09-18",
+  "imagen_disco": "https://archive.org/download/...JPEG",
+  "canciones": [
+    {
+      "nombre": "Bury Your Love Like Treasure",
+      "duracion": "03:10",
+      "duracion_iso": "PT0M190S",
+      "mp3": "https://archive.org/download/...mp3"
+    }
+  ]
+}</pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Cómo usar esta página</h2>
+        <ol>
+          <li>Guarda este archivo como <code class="inline">explicacion_scraper.html</code>.</li>
+          <li>Ábrelo en el navegador.</li>
+          <li>Pega tu script real en la ventana de código si quieres mostrarlo completo.</li>
+          <li>Úsalo como documentación visual del proyecto.</li>
+        </ol>
+        <div class="callout">
+          También se puede mejorar para que lea automáticamente el contenido de <code class="inline">scrap_adam.py</code> y lo inserte en la ventana mediante JavaScript, si la página se sirve desde un entorno local con permisos adecuados.
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">
+      Página explicativa creada para documentar el funcionamiento del scraper de conciertos de Internet Archive.
+    </div>
+  </div>
+</body>
+</html>
