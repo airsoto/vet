@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aadam Jacobs Collection Concert Explorer</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --bg2: #0c1724;
+      --panel: rgba(18, 28, 43, 0.88);
+      --panel-strong: rgba(13, 21, 33, 0.98);
+      --text: #edf4ff;
+      --muted: #9db0c6;
+      --line: rgba(255,255,255,0.08);
+      --accent: #ff9900;
+      --accent2: #61dafb;
+      --good: #67f2b0;
+      --shadow: 0 12px 36px rgba(0,0,0,0.35);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(97,218,251,0.18), transparent 24%),
+        radial-gradient(circle at top right, rgba(255,153,0,0.15), transparent 18%),
+        linear-gradient(180deg, #050b12 0%, #0a1420 38%, #071018 100%);
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent2); }
+
+    .page {
+      width: min(1440px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 18px 0 140px;
+    }
+
+    .hero {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(180deg, rgba(7,16,24,0.95), rgba(7,16,24,0.82));
+      border-bottom: 1px solid var(--line);
+      margin: -18px calc((100vw - min(1440px, calc(100% - 24px))) / -2) 18px;
+      padding: 18px max(12px, calc((100vw - min(1440px, calc(100% - 24px))) / 2)) 14px;
+    }
+
+    .hero-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 52px);
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: clamp(15px, 2.4vw, 18px);
+      max-width: 900px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0 0;
+    }
+
+    .badge {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      color: #dce7f8;
+      background: rgba(255,255,255,0.05);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 178px;
+      overflow: hidden;
+    }
+
+    .section {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .section h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: 0.01em;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input, select, button {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(97,218,251,0.6);
+      box-shadow: 0 0 0 3px rgba(97,218,251,0.12);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: transform .14s ease, opacity .14s ease, filter .14s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #ffb347);
+      color: #111;
+      font-weight: 700;
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .btn-good {
+      background: linear-gradient(135deg, #60e6a8, #9cf4c8);
+      color: #082116;
+      font-weight: 700;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .results-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .results-top p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .concert-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .concert-card {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+
+    .cover {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(255,153,0,0.16), rgba(97,218,251,0.12));
+    }
+
+    .cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-overlay {
+      position: absolute;
+      inset: auto 12px 12px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(7,16,24,0.74);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+      backdrop-filter: blur(6px);
+    }
+
+    .card-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .concert-title {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.12;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .tracks {
+      border-top: 1px solid var(--line);
+      margin-top: 6px;
+      padding-top: 10px;
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .track {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .track-left {
+      min-width: 0;
+    }
+
+    .track-name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .track-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tiny-btn {
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .playlist-items {
+      display: grid;
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .playlist-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .playlist-item.active {
+      border-color: rgba(97,218,251,0.55);
+      box-shadow: inset 0 0 0 1px rgba(97,218,251,0.25);
+      background: rgba(97,218,251,0.08);
+    }
+
+    .playlist-index {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+
+    .playlist-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .playlist-sub {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .player-bar {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 60;
+      background: linear-gradient(180deg, rgba(12,23,36,0.96), rgba(8,15,24,0.98));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .player-inner {
+      display: grid;
+      grid-template-columns: 1.2fr auto 1.1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 16px;
+    }
+
+    .now-playing {
+      min-width: 0;
+    }
+
+    .now-title {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .now-sub {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .round-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      background: rgba(255,255,255,0.08);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .round-btn.main {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--accent), #ffbf57);
+      color: #101010;
+      font-weight: 700;
+    }
+
+    .player-right {
+      display: grid;
+      gap: 8px;
+    }
+
+    .progress-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .progress {
+      width: 100%;
+      appearance: none;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      outline: none;
+    }
+
+    .progress::-webkit-slider-thumb {
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent2);
+      cursor: pointer;
+      border: none;
+    }
+
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      padding: 22px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(255,255,255,0.12);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .loader {
+      padding: 50px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .footer {
+      margin-top: 28px;
+      padding: 26px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      box-shadow: var(--shadow);
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .home a {
+      text-decoration: none;
+      color: var(--accent2);
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+      .player-inner {
+        grid-template-columns: 1fr;
+      }
+      .player-controls, .volume-row {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page { width: min(100% - 14px, 1440px); }
+      .concert-grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .hero { padding-top: 16px; }
+      .player-bar { left: 8px; right: 8px; bottom: 8px; }
+      .track { grid-template-columns: 1fr; }
+      .track-actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-inner">
+        <h1>Aadam Jacobs Collection Concert Explorer</h1>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <p class="subtitle">
+          Explore live concert recordings from the Aadam Jacobs Collection. Search by artist, date, concert title, or song name, then build your own playlist from entire shows or hand-picked tracks.
+        </p>
+        <div class="badge-row">
+          <span class="badge">Based on the Aadam Jacobs Collection</span>
+          <span class="badge">Internet Archive source</span>
+          <span class="badge">Artist, date, title, and song search</span>
+          <span class="badge">Mini player + custom playlist</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar panel">
+        <section class="section">
+          <h3>Search & filters</h3>
+          <div class="controls">
+            <div>
+              <label for="searchText">Search everything</label>
+              <input id="searchText" type="text" placeholder="Artist, concert title, song, identifier..." />
+            </div>
+            <div>
+              <label for="artistFilter">Artist</label>
+              <input id="artistFilter" type="text" placeholder="Type an artist name" />
+            </div>
+            <div>
+              <label for="songFilter">Song</label>
+              <input id="songFilter" type="text" placeholder="Type a track name" />
+            </div>
+            <div>
+              <label for="yearFilter">Year</label>
+              <select id="yearFilter">
+                <option value="">All years</option>
+              </select>
+            </div>
+            <div>
+              <label for="sortBy">Sort by</label>
+              <select id="sortBy">
+                <option value="date_desc">Newest first</option>
+                <option value="date_asc">Oldest first</option>
+                <option value="artist_asc">Artist A → Z</option>
+                <option value="artist_desc">Artist Z → A</option>
+                <option value="tracks_desc">Most tracks</option>
+                <option value="tracks_asc">Fewest tracks</option>
+              </select>
+            </div>
+            <div class="btn-row">
+              <button class="btn-primary" id="clearFiltersBtn">Clear filters</button>
+              <button class="btn-secondary" id="expandAllBtn">Expand all visible</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3>Collection stats</h3>
+          <div class="stats">
+            <div class="stat">
+              <strong id="statConcerts">0</strong>
+              <span>Visible concerts</span>
+            </div>
+            <div class="stat">
+              <strong id="statTracks">0</strong>
+              <span>Visible tracks</span>
+            </div>
+            <div class="stat">
+              <strong id="statArtists">0</strong>
+              <span>Visible artists</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3>Playlist builder</h3>
+          <div class="btn-row" style="margin-bottom:12px;">
+            <button class="btn-good" id="playAllBtn">Play playlist</button>
+            <button class="btn-secondary" id="shuffleBtn">Shuffle</button>
+            <button class="btn-secondary" id="clearPlaylistBtn">Clear</button>
+          </div>
+          <div id="playlistItems" class="playlist-items"></div>
+        </section>
+      </aside>
+
+      <section>
+        <div class="results-top">
+          <p id="resultsLabel">Loading concerts...</p>
+          <div class="btn-row">
+            <button class="btn-secondary" id="collapseAllBtn">Collapse all</button>
+          </div>
+        </div>
+        <div id="concertContainer" class="concert-grid">
+          <div class="loader panel">Loading JSON data from <strong>json/aadam_jacobs_concerts.json</strong>...</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="player-bar">
+    <div class="player-inner">
+      <div class="now-playing">
+        <div class="now-title" id="nowTitle">No track selected</div>
+        <div class="now-sub" id="nowSub">Choose a song or add a whole concert to your playlist</div>
+      </div>
+
+      <div class="player-controls">
+        <button class="round-btn" id="prevBtn" title="Previous">⏮</button>
+        <button class="round-btn main" id="playPauseBtn" title="Play / Pause">▶</button>
+        <button class="round-btn" id="nextBtn" title="Next">⏭</button>
+      </div>
+
+      <div class="player-right">
+        <div class="progress-row">
+          <span id="currentTime">00:00</span>
+          <input id="progressBar" class="progress" type="range" min="0" max="100" value="0" />
+          <span id="totalTime">00:00</span>
+        </div>
+        <div class="volume-row">
+          <span>Volume</span>
+          <input id="volumeBar" class="progress" type="range" min="0" max="1" step="0.01" value="0.85" style="max-width:180px;" />
+        </div>
+      </div>
+    </div>
+    <audio id="audioPlayer" preload="none"></audio>
+  </div>
+
+  <script>
+    const DATA_URL = 'json/aadam_jacobs_concerts.json';
+
+    const state = {
+      allConcerts: [],
+      filteredConcerts: [],
+      expanded: new Set(),
+      playlist: [],
+      currentIndex: -1,
+      isPlaying: false
+    };
+
+    const els = {
+      searchText: document.getElementById('searchText'),
+      artistFilter: document.getElementById('artistFilter'),
+      songFilter: document.getElementById('songFilter'),
+      yearFilter: document.getElementById('yearFilter'),
+      sortBy: document.getElementById('sortBy'),
+      clearFiltersBtn: document.getElementById('clearFiltersBtn'),
+      expandAllBtn: document.getElementById('expandAllBtn'),
+      collapseAllBtn: document.getElementById('collapseAllBtn'),
+      concertContainer: document.getElementById('concertContainer'),
+      resultsLabel: document.getElementById('resultsLabel'),
+      statConcerts: document.getElementById('statConcerts'),
+      statTracks: document.getElementById('statTracks'),
+      statArtists: document.getElementById('statArtists'),
+      playlistItems: document.getElementById('playlistItems'),
+      playAllBtn: document.getElementById('playAllBtn'),
+      shuffleBtn: document.getElementById('shuffleBtn'),
+      clearPlaylistBtn: document.getElementById('clearPlaylistBtn'),
+      audio: document.getElementById('audioPlayer'),
+      nowTitle: document.getElementById('nowTitle'),
+      nowSub: document.getElementById('nowSub'),
+      prevBtn: document.getElementById('prevBtn'),
+      playPauseBtn: document.getElementById('playPauseBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      progressBar: document.getElementById('progressBar'),
+      currentTime: document.getElementById('currentTime'),
+      totalTime: document.getElementById('totalTime'),
+      volumeBar: document.getElementById('volumeBar')
+    };
+
+    function normalize(text) {
+      return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function formatTime(sec) {
+      if (!isFinite(sec)) return '00:00';
+      const minutes = Math.floor(sec / 60);
+      const seconds = Math.floor(sec % 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[m]));
+    }
+
+    function uniqueArtists(concerts) {
+      return new Set(concerts.map(c => c.artista).filter(Boolean)).size;
+    }
+
+    function totalTracks(concerts) {
+      return concerts.reduce((sum, c) => sum + (Array.isArray(c.canciones) ? c.canciones.length : 0), 0);
+    }
+
+    function fillYears() {
+      const years = [...new Set(state.allConcerts.map(c => (c.fecha_publicacion || '').slice(0, 4)).filter(Boolean))].sort();
+      els.yearFilter.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+
+    function getTrackPayload(concert, track, trackIndex) {
+      return {
+        id: `${concert.identifier}__${trackIndex}__${track.mp3}`,
+        concertId: concert.identifier,
+        artist: concert.artista || 'Unknown artist',
+        concertTitle: concert.concierto || concert.identifier,
+        date: concert.fecha_publicacion || 'Unknown date',
+        trackName: track.nombre || `Track ${String(trackIndex + 1).padStart(2, '0')}`,
+        duration: track.duracion || '',
+        mp3: track.mp3 || '',
+        image: concert.imagen_disco || '',
+        sourceUrl: concert.url || ''
+      };
+    }
+
+    function addTrackToPlaylist(payload, autoplay = false) {
+      if (!payload.mp3) return;
+      state.playlist.push(payload);
+      renderPlaylist();
+      if (autoplay) {
+        playTrackById(payload.id);
+      }
+    }
+
+    function addConcertToPlaylist(concert) {
+      (concert.canciones || []).forEach((track, index) => {
+        addTrackToPlaylist(getTrackPayload(concert, track, index), false);
+      });
+      renderPlaylist();
+    }
+
+    function playTrackById(id) {
+      const idx = state.playlist.findIndex(item => item.id === id);
+      if (idx === -1) return;
+      state.currentIndex = idx;
+      loadCurrentTrack(true);
+    }
+
+    function loadCurrentTrack(autoplay = false) {
+      const current = state.playlist[state.currentIndex];
+      if (!current) {
+        els.nowTitle.textContent = 'No track selected';
+        els.nowSub.textContent = 'Choose a song or add a whole concert to your playlist';
+        els.audio.removeAttribute('src');
+        els.audio.load();
+        els.playPauseBtn.textContent = '▶';
+        renderPlaylist();
+        return;
+      }
+
+      els.audio.src = current.mp3;
+      els.nowTitle.textContent = current.trackName;
+      els.nowSub.textContent = `${current.artist} • ${current.concertTitle} • ${current.date}`;
+      renderPlaylist();
+
+      if (autoplay) {
+        els.audio.play().then(() => {
+          state.isPlaying = true;
+          els.playPauseBtn.textContent = '❚❚';
+        }).catch(() => {
+          state.isPlaying = false;
+          els.playPauseBtn.textContent = '▶';
+        });
+      }
+    }
+
+    function togglePlayPause() {
+      if (!state.playlist.length) return;
+      if (state.currentIndex < 0) {
+        state.currentIndex = 0;
+        loadCurrentTrack(true);
+        return;
+      }
+      if (els.audio.paused) {
+        els.audio.play();
+      } else {
+        els.audio.pause();
+      }
+    }
+
+    function playNext() {
+      if (!state.playlist.length) return;
+      state.currentIndex = (state.currentIndex + 1) % state.playlist.length;
+      loadCurrentTrack(true);
+    }
+
+    function playPrev() {
+      if (!state.playlist.length) return;
+      state.currentIndex = state.currentIndex <= 0 ? state.playlist.length - 1 : state.currentIndex - 1;
+      loadCurrentTrack(true);
+    }
+
+    function removeFromPlaylist(id) {
+      const idx = state.playlist.findIndex(item => item.id === id);
+      if (idx === -1) return;
+      state.playlist.splice(idx, 1);
+      if (!state.playlist.length) {
+        state.currentIndex = -1;
+        loadCurrentTrack(false);
+      } else if (idx < state.currentIndex) {
+        state.currentIndex -= 1;
+      } else if (idx === state.currentIndex) {
+        state.currentIndex = Math.min(state.currentIndex, state.playlist.length - 1);
+        loadCurrentTrack(false);
+      }
+      renderPlaylist();
+    }
+
+    function shufflePlaylist() {
+      for (let i = state.playlist.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [state.playlist[i], state.playlist[j]] = [state.playlist[j], state.playlist[i]];
+      }
+      state.currentIndex = state.playlist.length ? 0 : -1;
+      renderPlaylist();
+    }
+
+    function clearPlaylist() {
+      state.playlist = [];
+      state.currentIndex = -1;
+      state.isPlaying = false;
+      els.audio.pause();
+      loadCurrentTrack(false);
+      renderPlaylist();
+    }
+
+    function renderPlaylist() {
+      if (!state.playlist.length) {
+        els.playlistItems.innerHTML = '<div class="empty">Your playlist is empty. Add single tracks or full concerts.</div>';
+        return;
+      }
+
+      els.playlistItems.innerHTML = state.playlist.map((item, index) => `
+        <div class="playlist-item ${index === state.currentIndex ? 'active' : ''}">
+          <div class="playlist-index">${index + 1}</div>
+          <div>
+            <div class="playlist-title">${escapeHtml(item.trackName)}</div>
+            <div class="playlist-sub">${escapeHtml(item.artist)} • ${escapeHtml(item.date)}${item.duration ? ' • ' + escapeHtml(item.duration) : ''}</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary tiny-btn" onclick="playTrackById('${encodeURIComponent(item.id)}'.replace(/%/g,'%25'))">Play</button>
+            <button class="btn-secondary tiny-btn" onclick="removeFromPlaylist('${encodeURIComponent(item.id)}'.replace(/%/g,'%25'))">Remove</button>
+          </div>
+        </div>
+      `).join('');
+
+      // decode safe ids after rendering
+      els.playlistItems.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => {
+          const raw = btn.getAttribute('onclick');
+        };
+      });
+    }
+
+    // Rebind playlist buttons without fragile inline handlers
+    function renderPlaylist() {
+      if (!state.playlist.length) {
+        els.playlistItems.innerHTML = '<div class="empty">Your playlist is empty. Add single tracks or full concerts.</div>';
+        return;
+      }
+      els.playlistItems.innerHTML = '';
+      state.playlist.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = `playlist-item ${index === state.currentIndex ? 'active' : ''}`;
+        row.innerHTML = `
+          <div class="playlist-index">${index + 1}</div>
+          <div>
+            <div class="playlist-title">${escapeHtml(item.trackName)}</div>
+            <div class="playlist-sub">${escapeHtml(item.artist)} • ${escapeHtml(item.date)}${item.duration ? ' • ' + escapeHtml(item.duration) : ''}</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary tiny-btn play-btn">Play</button>
+            <button class="btn-secondary tiny-btn remove-btn">Remove</button>
+          </div>
+        `;
+        row.querySelector('.play-btn').addEventListener('click', () => playTrackById(item.id));
+        row.querySelector('.remove-btn').addEventListener('click', () => removeFromPlaylist(item.id));
+        els.playlistItems.appendChild(row);
+      });
+    }
+
+    function applyFilters() {
+      const q = normalize(els.searchText.value);
+      const artist = normalize(els.artistFilter.value);
+      const song = normalize(els.songFilter.value);
+      const year = els.yearFilter.value;
+      const sort = els.sortBy.value;
+
+      let concerts = state.allConcerts.filter(concert => {
+        const concertText = normalize([
+          concert.identifier,
+          concert.concierto,
+          concert.artista,
+          concert.fecha_publicacion,
+          ...(concert.canciones || []).map(t => t.nombre)
+        ].join(' | '));
+
+        const songMatch = !song || (concert.canciones || []).some(t => normalize(t.nombre).includes(song));
+        const artistMatch = !artist || normalize(concert.artista).includes(artist);
+        const yearMatch = !year || (concert.fecha_publicacion || '').startsWith(year);
+        const globalMatch = !q || concertText.includes(q);
+
+        return songMatch && artistMatch && yearMatch && globalMatch;
+      });
+
+      concerts.sort((a, b) => {
+        const ad = a.fecha_publicacion || '';
+        const bd = b.fecha_publicacion || '';
+        const aa = (a.artista || '').localeCompare(b.artista || '');
+        const ta = (a.canciones || []).length;
+        const tb = (b.canciones || []).length;
+
+        switch (sort) {
+          case 'date_asc': return ad.localeCompare(bd);
+          case 'artist_asc': return aa;
+          case 'artist_desc': return -aa;
+          case 'tracks_desc': return tb - ta;
+          case 'tracks_asc': return ta - tb;
+          case 'date_desc':
+          default: return bd.localeCompare(ad);
+        }
+      });
+
+      state.filteredConcerts = concerts;
+      updateStats();
+      renderConcerts();
+    }
+
+    function updateStats() {
+      els.statConcerts.textContent = state.filteredConcerts.length.toLocaleString();
+      els.statTracks.textContent = totalTracks(state.filteredConcerts).toLocaleString();
+      els.statArtists.textContent = uniqueArtists(state.filteredConcerts).toLocaleString();
+      els.resultsLabel.textContent = `${state.filteredConcerts.length.toLocaleString()} concerts found`;
+    }
+
+    function concertCard(concert) {
+      const expanded = state.expanded.has(concert.identifier);
+      const tracks = concert.canciones || [];
+      const cover = concert.imagen_disco || '';
+      const shownTracks = expanded ? tracks : tracks.slice(0, 5);
+
+      const card = document.createElement('article');
+      card.className = 'concert-card panel';
+      card.innerHTML = `
+        <div class="cover">
+          ${cover ? `<img loading="lazy" src="${escapeHtml(cover)}" alt="${escapeHtml(concert.concierto || concert.artista || 'Concert cover')}" onerror="this.style.display='none'">` : ''}
+          <div class="cover-overlay">
+            <span class="chip">${escapeHtml(concert.fecha_publicacion || 'Unknown date')}</span>
+            <span class="chip">${tracks.length} tracks</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <h2 class="concert-title">${escapeHtml(concert.artista || 'Unknown artist')}</h2>
+          <div class="meta">${escapeHtml(concert.concierto || concert.identifier || '')}</div>
+          <div class="meta">Identifier: ${escapeHtml(concert.identifier || '')}</div>
+          <div class="card-actions">
+            <button class="btn-good add-concert">Add full concert</button>
+            <button class="btn-secondary toggle-tracks">${expanded ? 'Show fewer tracks' : 'Show all tracks'}</button>
+            <a class="btn-secondary" href="${escapeHtml(concert.url || '#')}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">Open source</a>
+          </div>
+          <div class="tracks"></div>
+        </div>
+      `;
+
+      const tracksWrap = card.querySelector('.tracks');
+      if (!tracks.length) {
+        tracksWrap.innerHTML = '<div class="empty">No track list available for this concert.</div>';
+      } else {
+        shownTracks.forEach((track, trackIndex) => {
+          const payload = getTrackPayload(concert, track, trackIndex);
+          const row = document.createElement('div');
+          row.className = 'track';
+          row.innerHTML = `
+            <div class="track-left">
+              <div class="track-name">${escapeHtml(payload.trackName)}</div>
+              <div class="track-meta">${escapeHtml(payload.artist)} • ${escapeHtml(payload.date)}${payload.duration ? ' • ' + escapeHtml(payload.duration) : ''}</div>
+            </div>
+            <div class="track-actions">
+              <button class="btn-secondary tiny-btn play-track">Play</button>
+              <button class="btn-secondary tiny-btn add-track">Add</button>
+            </div>
+          `;
+          row.querySelector('.play-track').addEventListener('click', () => {
+            addTrackToPlaylist(payload, false);
+            playTrackById(payload.id);
+          });
+          row.querySelector('.add-track').addEventListener('click', () => addTrackToPlaylist(payload, false));
+          tracksWrap.appendChild(row);
+        });
+
+        if (!expanded && tracks.length > 5) {
+          const more = document.createElement('div');
+          more.className = 'meta';
+          more.textContent = `+ ${tracks.length - 5} more tracks hidden`;
+          tracksWrap.appendChild(more);
+        }
+      }
+
+      card.querySelector('.add-concert').addEventListener('click', () => addConcertToPlaylist(concert));
+      card.querySelector('.toggle-tracks').addEventListener('click', () => {
+        if (state.expanded.has(concert.identifier)) {
+          state.expanded.delete(concert.identifier);
+        } else {
+          state.expanded.add(concert.identifier);
+        }
+        renderConcerts();
+      });
+
+      return card;
+    }
+
+    function renderConcerts() {
+      els.concertContainer.innerHTML = '';
+      if (!state.filteredConcerts.length) {
+        els.concertContainer.innerHTML = '<div class="empty panel">No concerts match your filters. Try a broader artist, year, or song search.</div>';
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      state.filteredConcerts.forEach(concert => fragment.appendChild(concertCard(concert)));
+      els.concertContainer.appendChild(fragment);
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(DATA_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        state.allConcerts = Array.isArray(data) ? data : [];
+        state.filteredConcerts = [...state.allConcerts];
+        fillYears();
+        updateStats();
+        renderConcerts();
+      } catch (error) {
+        els.concertContainer.innerHTML = `
+          <div class="empty panel">
+            <strong>Could not load the concert database.</strong><br><br>
+            Make sure the file <code>json/aadam_jacobs_concerts.json</code> exists and that you are serving the page from a local or web server.<br><br>
+            Error: ${escapeHtml(error.message)}
+          </div>
+        `;
+        els.resultsLabel.textContent = 'Failed to load data';
+      }
+    }
+
+    [els.searchText, els.artistFilter, els.songFilter, els.yearFilter, els.sortBy].forEach(el => {
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+
+    els.clearFiltersBtn.addEventListener('click', () => {
+      els.searchText.value = '';
+      els.artistFilter.value = '';
+      els.songFilter.value = '';
+      els.yearFilter.value = '';
+      els.sortBy.value = 'date_desc';
+      applyFilters();
+    });
+
+    els.expandAllBtn.addEventListener('click', () => {
+      state.filteredConcerts.forEach(c => state.expanded.add(c.identifier));
+      renderConcerts();
+    });
+
+    els.collapseAllBtn.addEventListener('click', () => {
+      state.expanded.clear();
+      renderConcerts();
+    });
+
+    els.playAllBtn.addEventListener('click', () => {
+      if (!state.playlist.length) return;
+      if (state.currentIndex < 0) state.currentIndex = 0;
+      loadCurrentTrack(true);
+    });
+
+    els.shuffleBtn.addEventListener('click', () => {
+      shufflePlaylist();
+      renderPlaylist();
+    });
+
+    els.clearPlaylistBtn.addEventListener('click', clearPlaylist);
+
+    els.playPauseBtn.addEventListener('click', togglePlayPause);
+    els.nextBtn.addEventListener('click', playNext);
+    els.prevBtn.addEventListener('click', playPrev);
+
+    els.audio.addEventListener('play', () => {
+      state.isPlaying = true;
+      els.playPauseBtn.textContent = '❚❚';
+    });
+
+    els.audio.addEventListener('pause', () => {
+      state.isPlaying = false;
+      els.playPauseBtn.textContent = '▶';
+    });
+
+    els.audio.addEventListener('timeupdate', () => {
+      const { currentTime, duration } = els.audio;
+      els.currentTime.textContent = formatTime(currentTime);
+      els.totalTime.textContent = formatTime(duration);
+      els.progressBar.value = duration ? (currentTime / duration) * 100 : 0;
+    });
+
+    els.audio.addEventListener('loadedmetadata', () => {
+      els.totalTime.textContent = formatTime(els.audio.duration);
+    });
+
+    els.audio.addEventListener('ended', playNext);
+
+    els.progressBar.addEventListener('input', () => {
+      if (!isFinite(els.audio.duration)) return;
+      els.audio.currentTime = (els.progressBar.value / 100) * els.audio.duration;
+    });
+
+    els.volumeBar.addEventListener('input', () => {
+      els.audio.volume = Number(els.volumeBar.value);
+    });
+
+    els.audio.volume = Number(els.volumeBar.value);
+
+    loadData();
+  </script>
+</body>
+</html>
