@@ -590,11 +590,11 @@
         <!-- BLOQUE DESARROLLADO POR + HOME -->
         <div style="margin:10px 0 0 0;">
           <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
-            <span style="color:#ff9900;">Developed by: Angel Soto</span>
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
           </h2>
           <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
             <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
-              🏠 <span> Back to my HomePage</span>
+              🏠 <span>volver a página de inicio</span>
             </a>
           </p>
         </div>
@@ -740,7 +740,8 @@
   </div>
 
   <script>
-    const DATA_URL = 'json/aadam_jacobs_concerts.json';
+    const INDEX_CONCERTS_URL = 'json/index_concerts.json';
+    const INDEX_ARTISTS_URL = 'json/artists/index_artists.json';
 
     const state = {
       allConcerts: [],
@@ -748,7 +749,10 @@
       expanded: new Set(),
       playlist: [],
       currentIndex: -1,
-      isPlaying: false
+      isPlaying: false,
+      concertCache: new Map(),
+      artistsIndex: [],
+      filterTimer: null
     };
 
     const els = {
@@ -782,7 +786,7 @@
     };
 
     function normalize(text) {
-      return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     }
 
     function formatTime(sec) {
@@ -807,7 +811,7 @@
     }
 
     function totalTracks(concerts) {
-      return concerts.reduce((sum, c) => sum + (Array.isArray(c.canciones) ? c.canciones.length : 0), 0);
+      return concerts.reduce((sum, c) => sum + Number(c.tracks_count || c.canciones?.length || 0), 0);
     }
 
     function fillYears() {
@@ -816,10 +820,8 @@
     }
 
     function fillArtistSuggestions() {
-      const artists = [...new Set(state.allConcerts.map(c => (c.artista || '').trim()).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
       const datalist = document.getElementById('artistSuggestions');
+      const artists = (state.artistsIndex || []).map(a => a.artista).filter(Boolean);
       datalist.innerHTML = artists.map(artist => `<option value="${escapeHtml(artist)}"></option>`).join('');
     }
 
@@ -838,18 +840,32 @@
       };
     }
 
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    async function ensureConcertLoaded(concert) {
+      const concertId = concert.identifier;
+      if (state.concertCache.has(concertId)) return state.concertCache.get(concertId);
+      const file = concert.json_file || `concerts/${concertId}.json`;
+      const fullConcert = await fetchJson(`json/${file}`);
+      state.concertCache.set(concertId, fullConcert);
+      return fullConcert;
+    }
+
     function addTrackToPlaylist(payload, autoplay = false) {
       if (!payload.mp3) return;
       state.playlist.push(payload);
       renderPlaylist();
-      if (autoplay) {
-        playTrackById(payload.id);
-      }
+      if (autoplay) playTrackById(payload.id);
     }
 
-    function addConcertToPlaylist(concert) {
-      (concert.canciones || []).forEach((track, index) => {
-        addTrackToPlaylist(getTrackPayload(concert, track, index), false);
+    async function addConcertToPlaylist(concert) {
+      const fullConcert = await ensureConcertLoaded(concert);
+      (fullConcert.canciones || []).forEach((track, index) => {
+        addTrackToPlaylist(getTrackPayload(fullConcert, track, index), false);
       });
       renderPlaylist();
     }
@@ -896,11 +912,8 @@
         loadCurrentTrack(true);
         return;
       }
-      if (els.audio.paused) {
-        els.audio.play();
-      } else {
-        els.audio.pause();
-      }
+      if (els.audio.paused) els.audio.play();
+      else els.audio.pause();
     }
 
     function playNext() {
@@ -954,35 +967,6 @@
         els.playlistItems.innerHTML = '<div class="empty">Your playlist is empty. Add single tracks or full concerts.</div>';
         return;
       }
-
-      els.playlistItems.innerHTML = state.playlist.map((item, index) => `
-        <div class="playlist-item ${index === state.currentIndex ? 'active' : ''}">
-          <div class="playlist-index">${index + 1}</div>
-          <div>
-            <div class="playlist-title">${escapeHtml(item.trackName)}</div>
-            <div class="playlist-sub">${escapeHtml(item.artist)} • ${escapeHtml(item.date)}${item.duration ? ' • ' + escapeHtml(item.duration) : ''}</div>
-          </div>
-          <div class="btn-row">
-            <button class="btn-secondary tiny-btn" onclick="playTrackById('${encodeURIComponent(item.id)}'.replace(/%/g,'%25'))">Play</button>
-            <button class="btn-secondary tiny-btn" onclick="removeFromPlaylist('${encodeURIComponent(item.id)}'.replace(/%/g,'%25'))">Remove</button>
-          </div>
-        </div>
-      `).join('');
-
-      // decode safe ids after rendering
-      els.playlistItems.querySelectorAll('button').forEach(btn => {
-        btn.onclick = () => {
-          const raw = btn.getAttribute('onclick');
-        };
-      });
-    }
-
-    // Rebind playlist buttons without fragile inline handlers
-    function renderPlaylist() {
-      if (!state.playlist.length) {
-        els.playlistItems.innerHTML = '<div class="empty">Your playlist is empty. Add single tracks or full concerts.</div>';
-        return;
-      }
       els.playlistItems.innerHTML = '';
       state.playlist.forEach((item, index) => {
         const row = document.createElement('div');
@@ -1007,33 +991,31 @@
     function applyFilters() {
       const q = normalize(els.searchText.value);
       const artist = normalize(els.artistFilter.value);
-      const song = normalize(els.songFilter.value);
       const year = els.yearFilter.value;
       const sort = els.sortBy.value;
 
       let concerts = state.allConcerts.filter(concert => {
-        const concertText = normalize([
+        const concertText = normalize(concert.search_text || [
           concert.identifier,
           concert.concierto,
           concert.artista,
           concert.fecha_publicacion,
-          ...(concert.canciones || []).map(t => t.nombre)
+          concert.year
         ].join(' | '));
 
-        const songMatch = !song || (concert.canciones || []).some(t => normalize(t.nombre).includes(song));
         const artistMatch = !artist || normalize(concert.artista).includes(artist);
         const yearMatch = !year || (concert.fecha_publicacion || '').startsWith(year);
         const globalMatch = !q || concertText.includes(q);
 
-        return songMatch && artistMatch && yearMatch && globalMatch;
+        return artistMatch && yearMatch && globalMatch;
       });
 
       concerts.sort((a, b) => {
         const ad = a.fecha_publicacion || '';
         const bd = b.fecha_publicacion || '';
         const aa = (a.artista || '').localeCompare(b.artista || '');
-        const ta = (a.canciones || []).length;
-        const tb = (b.canciones || []).length;
+        const ta = Number(a.tracks_count || 0);
+        const tb = Number(b.tracks_count || 0);
 
         switch (sort) {
           case 'date_asc': return ad.localeCompare(bd);
@@ -1051,6 +1033,11 @@
       renderConcerts();
     }
 
+    function debounceApplyFilters() {
+      clearTimeout(state.filterTimer);
+      state.filterTimer = setTimeout(applyFilters, 180);
+    }
+
     function updateStats() {
       els.statConcerts.textContent = state.filteredConcerts.length.toLocaleString();
       els.statTracks.textContent = totalTracks(state.filteredConcerts).toLocaleString();
@@ -1058,41 +1045,31 @@
       els.resultsLabel.textContent = `${state.filteredConcerts.length.toLocaleString()} concerts found`;
     }
 
-    function concertCard(concert) {
-      const expanded = state.expanded.has(concert.identifier);
-      const tracks = concert.canciones || [];
-      const cover = concert.imagen_disco || '';
-      const shownTracks = expanded ? tracks : tracks.slice(0, 5);
-
-      const card = document.createElement('article');
-      card.className = 'concert-card panel';
-      card.innerHTML = `
-        <div class="cover">
-          ${cover ? `<img loading="lazy" src="${escapeHtml(cover)}" alt="${escapeHtml(concert.concierto || concert.artista || 'Concert cover')}" onerror="this.style.display='none'">` : ''}
-          <div class="cover-overlay">
-            <span class="chip">${escapeHtml(concert.fecha_publicacion || 'Unknown date')}</span>
-            <span class="chip">${tracks.length} tracks</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <h2 class="concert-title">${escapeHtml(concert.artista || 'Unknown artist')}</h2>
-          <div class="meta">${escapeHtml(concert.concierto || concert.identifier || '')}</div>
-          <div class="meta">Identifier: ${escapeHtml(concert.identifier || '')}</div>
-          <div class="card-actions">
-            <button class="btn-good add-concert">Add full concert</button>
-            <button class="btn-secondary toggle-tracks">${expanded ? 'Show fewer tracks' : 'Show all tracks'}</button>
-            <a class="btn-secondary" href="${escapeHtml(concert.url || '#')}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">Open source</a>
-          </div>
-          <div class="tracks"></div>
-        </div>
-      `;
-
+    async function toggleConcertDetails(concert, card, button) {
       const tracksWrap = card.querySelector('.tracks');
-      if (!tracks.length) {
-        tracksWrap.innerHTML = '<div class="empty">No track list available for this concert.</div>';
-      } else {
-        shownTracks.forEach((track, trackIndex) => {
-          const payload = getTrackPayload(concert, track, trackIndex);
+      if (state.expanded.has(concert.identifier)) {
+        state.expanded.delete(concert.identifier);
+        button.textContent = 'Show tracks';
+        tracksWrap.innerHTML = `<div class="meta">Tracks are loaded on demand to keep the page fast.</div>`;
+        return;
+      }
+
+      state.expanded.add(concert.identifier);
+      button.textContent = 'Hide tracks';
+      tracksWrap.innerHTML = '<div class="meta">Loading tracks...</div>';
+
+      try {
+        const fullConcert = await ensureConcertLoaded(concert);
+        const tracks = fullConcert.canciones || [];
+        tracksWrap.innerHTML = '';
+
+        if (!tracks.length) {
+          tracksWrap.innerHTML = '<div class="empty">No track list available for this concert.</div>';
+          return;
+        }
+
+        tracks.forEach((track, trackIndex) => {
+          const payload = getTrackPayload(fullConcert, track, trackIndex);
           const row = document.createElement('div');
           row.className = 'track';
           row.innerHTML = `
@@ -1112,24 +1089,49 @@
           row.querySelector('.add-track').addEventListener('click', () => addTrackToPlaylist(payload, false));
           tracksWrap.appendChild(row);
         });
-
-        if (!expanded && tracks.length > 5) {
-          const more = document.createElement('div');
-          more.className = 'meta';
-          more.textContent = `+ ${tracks.length - 5} more tracks hidden`;
-          tracksWrap.appendChild(more);
-        }
+      } catch (error) {
+        tracksWrap.innerHTML = `<div class="empty">Could not load tracks for this concert.<br>${escapeHtml(error.message)}</div>`;
       }
+    }
 
-      card.querySelector('.add-concert').addEventListener('click', () => addConcertToPlaylist(concert));
-      card.querySelector('.toggle-tracks').addEventListener('click', () => {
-        if (state.expanded.has(concert.identifier)) {
-          state.expanded.delete(concert.identifier);
-        } else {
-          state.expanded.add(concert.identifier);
+    function concertCard(concert) {
+      const cover = concert.imagen_disco || '';
+      const card = document.createElement('article');
+      card.className = 'concert-card panel';
+      card.innerHTML = `
+        <div class="cover">
+          ${cover ? `<img loading="lazy" src="${escapeHtml(cover)}" alt="${escapeHtml(concert.concierto || concert.artista || 'Concert cover')}" onerror="this.style.display='none'">` : ''}
+          <div class="cover-overlay">
+            <span class="chip">${escapeHtml(concert.fecha_publicacion || 'Unknown date')}</span>
+            <span class="chip">${Number(concert.tracks_count || 0)} tracks</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <h2 class="concert-title">${escapeHtml(concert.artista || 'Unknown artist')}</h2>
+          <div class="meta">${escapeHtml(concert.concierto || concert.identifier || '')}</div>
+          <div class="meta">Identifier: ${escapeHtml(concert.identifier || '')}</div>
+          <div class="card-actions">
+            <button class="btn-good add-concert">Add full concert</button>
+            <button class="btn-secondary toggle-tracks">Show tracks</button>
+            <a class="btn-secondary" href="${escapeHtml(concert.url || '#')}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">Open source</a>
+          </div>
+          <div class="tracks"><div class="meta">Tracks are loaded on demand to keep the page fast.</div></div>
+        </div>
+      `;
+
+      const toggleBtn = card.querySelector('.toggle-tracks');
+      card.querySelector('.add-concert').addEventListener('click', async () => {
+        card.querySelector('.add-concert').textContent = 'Adding...';
+        try {
+          await addConcertToPlaylist(concert);
+          card.querySelector('.add-concert').textContent = 'Added';
+          setTimeout(() => card.querySelector('.add-concert').textContent = 'Add full concert', 900);
+        } catch (error) {
+          card.querySelector('.add-concert').textContent = 'Error';
+          setTimeout(() => card.querySelector('.add-concert').textContent = 'Add full concert', 1200);
         }
-        renderConcerts();
       });
+      toggleBtn.addEventListener('click', () => toggleConcertDetails(concert, card, toggleBtn));
 
       return card;
     }
@@ -1137,7 +1139,7 @@
     function renderConcerts() {
       els.concertContainer.innerHTML = '';
       if (!state.filteredConcerts.length) {
-        els.concertContainer.innerHTML = '<div class="empty panel">No concerts match your filters. Try a broader artist, year, or song search.</div>';
+        els.concertContainer.innerHTML = '<div class="empty panel">No concerts match your filters. Try a broader artist, year, or search term.</div>';
         return;
       }
       const fragment = document.createDocumentFragment();
@@ -1147,10 +1149,12 @@
 
     async function loadData() {
       try {
-        const res = await fetch(DATA_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        state.allConcerts = Array.isArray(data) ? data : [];
+        const [concertIndex, artistIndex] = await Promise.all([
+          fetchJson(INDEX_CONCERTS_URL),
+          fetchJson(INDEX_ARTISTS_URL)
+        ]);
+        state.allConcerts = Array.isArray(concertIndex) ? concertIndex : [];
+        state.artistsIndex = Array.isArray(artistIndex) ? artistIndex : [];
         state.filteredConcerts = [...state.allConcerts];
         fillYears();
         fillArtistSuggestions();
@@ -1159,8 +1163,10 @@
       } catch (error) {
         els.concertContainer.innerHTML = `
           <div class="empty panel">
-            <strong>Could not load the concert database.</strong><br><br>
-            Make sure the file <code>json/aadam_jacobs_concerts.json</code> exists and that you are serving the page from a local or web server.<br><br>
+            <strong>Could not load the optimized concert database.</strong><br><br>
+            Make sure these files exist:<br>
+            <code>json/index_concerts.json</code><br>
+            <code>json/artists/index_artists.json</code><br><br>
             Error: ${escapeHtml(error.message)}
           </div>
         `;
@@ -1168,23 +1174,35 @@
       }
     }
 
-    [els.searchText, els.artistFilter, els.songFilter, els.yearFilter, els.sortBy].forEach(el => {
-      el.addEventListener('input', applyFilters);
+    [els.searchText, els.artistFilter].forEach(el => {
+      el.addEventListener('input', debounceApplyFilters);
       el.addEventListener('change', applyFilters);
     });
+    [els.yearFilter, els.sortBy].forEach(el => {
+      el.addEventListener('change', applyFilters);
+    });
+
+    els.songFilter.parentElement.innerHTML = `
+      <label for="songFilterDisabled">Song</label>
+      <div class="meta" style="font-size:12px;">Song-level search is now handled inside each concert after lazy loading tracks.</div>
+      <input id="songFilterDisabled" type="text" placeholder="Use the main search or open a concert to browse tracks" disabled />
+    `;
 
     els.clearFiltersBtn.addEventListener('click', () => {
       els.searchText.value = '';
       els.artistFilter.value = '';
-      els.songFilter.value = '';
       els.yearFilter.value = '';
       els.sortBy.value = 'date_desc';
       applyFilters();
     });
 
-    els.expandAllBtn.addEventListener('click', () => {
-      state.filteredConcerts.forEach(c => state.expanded.add(c.identifier));
-      renderConcerts();
+    els.expandAllBtn.addEventListener('click', async () => {
+      const cards = [...document.querySelectorAll('.concert-card')];
+      for (let i = 0; i < Math.min(cards.length, 12); i++) {
+        const card = cards[i];
+        const btn = card.querySelector('.toggle-tracks');
+        if (btn && btn.textContent === 'Show tracks') btn.click();
+      }
     });
 
     els.collapseAllBtn.addEventListener('click', () => {
@@ -1204,7 +1222,6 @@
     });
 
     els.clearPlaylistBtn.addEventListener('click', clearPlaylist);
-
     els.playPauseBtn.addEventListener('click', togglePlayPause);
     els.nextBtn.addEventListener('click', playNext);
     els.prevBtn.addEventListener('click', playPrev);
