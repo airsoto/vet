@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JITSTER GAME</title>
+  <style>
+    :root{
+      --bg:#07111b;
+      --bg2:#0d1b2a;
+      --panel:#13263a;
+      --panel2:#102131;
+      --line:#27435f;
+      --text:#ecf4ff;
+      --muted:#9cb4cb;
+      --accent:#ff9900;
+      --accent2:#ffb84d;
+      --good:#2ecc71;
+      --bad:#ff5a5f;
+      --shadow:0 14px 36px rgba(0,0,0,.35);
+      --radius:20px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top, rgba(255,153,0,.12), transparent 25%),
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.05), transparent 18%),
+        linear-gradient(180deg,var(--bg),var(--bg2));
+      min-height:100vh;
+    }
+
+    .wrap{
+      width:min(1180px,calc(100% - 24px));
+      margin:20px auto 40px;
+    }
+
+    .hero, .panel{
+      background:linear-gradient(180deg,rgba(19,38,58,.95),rgba(16,33,49,.95));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero{ padding:22px; margin-bottom:18px; }
+
+    h1{
+      margin:0 0 6px;
+      font-size:clamp(26px,4vw,42px);
+      line-height:1.06;
+      letter-spacing:.2px;
+    }
+
+    .subtitle{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:clamp(14px,2vw,16px);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:350px 1fr;
+      gap:18px;
+      align-items:start;
+    }
+
+    .panel{ padding:18px; }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin:14px 0 0;
+    }
+
+    .stat{
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:16px;
+      padding:12px;
+      text-align:center;
+    }
+
+    .stat .k{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .stat .v{
+      font-size:26px;
+      font-weight:800;
+      margin-top:6px;
+    }
+
+    .controls{ display:grid; gap:12px; }
+
+    label{
+      display:block;
+      margin-bottom:7px;
+      color:#d8e7f6;
+      font-weight:600;
+      font-size:14px;
+    }
+
+    select, input, button{ font:inherit; }
+
+    select, input{
+      width:100%;
+      background:#0b1725;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px 14px;
+      outline:none;
+      transition:.18s ease;
+    }
+
+    select:focus, input:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(255,153,0,.15);
+    }
+
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    button{
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      font-weight:800;
+      cursor:pointer;
+      transition:transform .12s ease, filter .18s ease, opacity .18s ease;
+    }
+
+    button:hover{ transform:translateY(-1px); filter:brightness(1.05); }
+    button:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+
+    .btn-primary{
+      background:linear-gradient(180deg,var(--accent),#ff8700);
+      color:#101010;
+    }
+
+    .btn-secondary{
+      background:#183047;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .btn-ghost{
+      background:#293749;
+      color:#f5f8fc;
+      border:1px solid rgba(255,255,255,.1);
+    }
+
+    .mini{ font-size:13px; color:var(--muted); }
+
+    .audio-wrap{
+      display:grid;
+      gap:10px;
+      margin-top:12px;
+    }
+
+    audio{
+      width:100%;
+      border-radius:12px;
+      filter:saturate(1.05);
+    }
+
+    .question-box{ display:grid; gap:14px; }
+
+    .suggest-box{ position:relative; }
+
+    .suggestions{
+      position:absolute;
+      left:0;
+      right:0;
+      top:calc(100% + 6px);
+      display:none;
+      z-index:5;
+      background:#0c1724;
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:14px;
+      overflow:hidden;
+      max-height:220px;
+      overflow-y:auto;
+      box-shadow:var(--shadow);
+    }
+
+    .suggestions.show{ display:block; }
+
+    .suggestion-item{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+      color:#eef6ff;
+    }
+
+    .suggestion-item:last-child{ border-bottom:none; }
+    .suggestion-item:hover{ background:rgba(255,153,0,.12); }
+
+    .feedback{
+      min-height:28px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      color:var(--muted);
+    }
+    .feedback.good{ color:var(--good); }
+    .feedback.bad{ color:var(--bad); }
+
+    .phase-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:#0e1114;
+      background:var(--accent2);
+      padding:8px 10px;
+      border-radius:999px;
+      font-weight:900;
+      margin-bottom:10px;
+    }
+
+    .phase-badge.hidden{ display:none; }
+
+    .timeline-wrap{ display:grid; gap:12px; }
+
+    .pending-card{
+      border:1px dashed rgba(255,184,77,.65);
+      background:rgba(255,153,0,.08);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .pending-card h3{
+      margin:0 0 4px;
+      font-size:18px;
+    }
+
+    .pending-card .artist{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .pending-card .compact-card{
+      margin-top:10px;
+      display:flex;
+      justify-content:flex-start;
+    }
+
+    .timeline-shell{
+      display:flex;
+      justify-content:center;
+      width:100%;
+      overflow-x:auto;
+      padding-bottom:6px;
+    }
+
+    .timeline-board{
+      display:flex;
+      flex-wrap:nowrap;
+      gap:6px;
+      align-items:center;
+      justify-content:center;
+      min-height:94px;
+      padding:8px 0;
+      min-width:max-content;
+      margin:0 auto;
+    }
+
+    .slot{
+      width:28px;
+      flex:0 0 28px;
+      align-self:center;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .slot button{
+      width:28px;
+      height:68px;
+      border-radius:12px;
+      font-size:18px;
+      line-height:1;
+      padding:0;
+      background:#122235;
+      color:var(--accent2);
+      border:1px dashed rgba(255,184,77,.4);
+    }
+
+    .slot button:hover{
+      background:rgba(255,153,0,.15);
+    }
+
+    .song-card{
+      width:92px;
+      min-height:74px;
+      border-radius:14px;
+      padding:8px 8px 10px;
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 8px 16px rgba(0,0,0,.22);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:6px;
+      flex:0 0 92px;
+      text-align:center;
+      position:relative;
+    }
+
+    .song-card .name{
+      font-weight:800;
+      font-size:10px;
+      line-height:1.08;
+      word-break:break-word;
+    }
+
+    .song-card .artist{
+      color:rgba(255,255,255,.9);
+      font-size:9px;
+      line-height:1.08;
+      word-break:break-word;
+      opacity:.9;
+    }
+
+    .song-card .year{
+      font-size:16px;
+      font-weight:900;
+      color:#fff7d5;
+      line-height:1;
+    }
+
+    .song-card.hidden-year .year{ color:rgba(255,255,255,.55); }
+
+    .song-card.error-reveal{
+      outline:2px solid rgba(255,90,95,.9);
+      box-shadow:0 0 0 3px rgba(255,90,95,.18), 0 8px 16px rgba(0,0,0,.22);
+    }
+
+    .error-badge{
+      position:absolute;
+      top:-10px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#ff5a5f;
+      color:white;
+      font-size:9px;
+      font-weight:900;
+      letter-spacing:.04em;
+      padding:3px 7px;
+      border-radius:999px;
+      white-space:nowrap;
+      box-shadow:0 6px 12px rgba(0,0,0,.25);
+    }
+
+    .statusbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .chip{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      border-radius:999px;
+      padding:8px 12px;
+      color:#e8f3ff;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .rules{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.55;
+      margin-top:8px;
+    }
+
+    .timeline-bottom{
+      margin-top:18px;
+      padding:14px;
+      background:linear-gradient(180deg,rgba(19,38,58,.95),rgba(16,33,49,.95));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .footer{
+      margin-top:22px;
+      padding:20px;
+      text-align:left;
+      color:#d5e7f7;
+      line-height:1.55;
+      background:linear-gradient(180deg,rgba(19,38,58,.95),rgba(16,33,49,.95));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+
+    .footer a{ color:var(--accent2); }
+    .muted{ color:var(--muted); }
+
+    .empty-state{
+      color:var(--muted);
+      padding:16px;
+      border:1px dashed rgba(255,255,255,.12);
+      border-radius:18px;
+      background:rgba(255,255,255,.02);
+    }
+
+    @media (max-width: 930px){
+      .grid{ grid-template-columns:1fr; }
+    }
+
+    @media (max-width: 560px){
+      .stats{ grid-template-columns:1fr 1fr; }
+      .song-card{ width:84px; flex-basis:84px; }
+      .slot{ width:24px; flex-basis:24px; }
+      .slot button{ width:24px; height:60px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>🎵🎵🎵 JITSTER GAME 🎵🎵🎵</h1>
+
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Escucha un fragmento, adivina <strong>canción</strong> y <strong>artista</strong>. Si aciertas ambos, ganas una vida.
+        Si fallas o pulsas <strong>“No lo sé”</strong>, no ganas vida, pero igualmente podrás colocar la tarjeta cronológicamente.
+        El <strong>título</strong> y el <strong>artista</strong> solo se desvelarán al colocar la tarjeta.
+        Ganas cuando consigas <strong>10 tarjetas correctas</strong>.
+      </p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="k">Vidas</div>
+          <div class="v" id="livesDisplay">3</div>
+        </div>
+        <div class="stat">
+          <div class="k">Tarjetas correctas</div>
+          <div class="v" id="scoreDisplay">0 / 10</div>
+        </div>
+        <div class="stat">
+          <div class="k">Fase</div>
+          <div class="v" id="phaseDisplay" style="font-size:18px;">Preparado</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <aside class="panel">
+        <div class="controls">
+          <div>
+            <label for="popFilter">Popularidad mínima</label>
+            <select id="popFilter">
+              <option value="80">80 - 100</option>
+              <option value="70">&gt; 70</option>
+              <option value="60">&gt; 60</option>
+              <option value="50">&gt; 50</option>
+              <option value="40">&gt; 40</option>
+              <option value="30">&gt; 30</option>
+              <option value="10">&gt; 10</option>
+              <option value="0">&gt; 0</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="decadeFilter">Década</label>
+            <select id="decadeFilter">
+              <option value="all">Todas</option>
+            </select>
+          </div>
+
+          <div class="btnrow">
+            <button class="btn-primary" id="startBtn">Iniciar partida</button>
+            <button class="btn-secondary" id="resetBtn">Reiniciar</button>
+          </div>
+
+          <div class="statusbar">
+            <div class="chip" id="datasetInfo">JSON pendiente de cargar…</div>
+            <div class="chip" id="usedInfo">Usadas: 0</div>
+          </div>
+
+          <div class="rules">
+            <strong>Reglas:</strong><br>
+            1) Escucha la preview y adivina canción + artista.<br>
+            2) Solo aparecerá sugerencia si las 3 letras coinciden con la respuesta correcta.<br>
+            3) Si aciertas ambos, ganas 1 vida.<br>
+            4) Si fallas o pulsas “No lo sé”, no ganas vida, pero sigues a la fase cronológica.<br>
+            5) El título y el artista solo se muestran después de colocar la tarjeta.<br>
+            6) Si colocas mal la tarjeta, pierdes 1 vida y se muestra el año real con aviso de error.<br>
+            6) La línea temporal queda visible abajo todo el tiempo.
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel">
+        <section class="question-box">
+          <div class="phase-badge hidden" id="placementBadge">Fase de colocación cronológica</div>
+
+          <div id="guessSection">
+            <h2 style="margin:0 0 4px;">🎧 Adivina la canción</h2>
+            <p class="muted" style="margin:0 0 12px;">Pulsa play, escribe el título y el artista o pulsa “No lo sé”.</p>
+
+            <div class="audio-wrap">
+              <audio id="previewPlayer" controls preload="none"></audio>
+              <div class="mini" id="roundHint">Pulsa “Iniciar partida” para comenzar.</div>
+            </div>
+
+            <div class="suggest-box">
+              <label for="trackInput">Título de la canción</label>
+              <input id="trackInput" type="text" autocomplete="off" placeholder="Escribe el título..." />
+              <div class="suggestions" id="trackSuggestions"></div>
+            </div>
+
+            <div class="suggest-box">
+              <label for="artistInput">Nombre del artista</label>
+              <input id="artistInput" type="text" autocomplete="off" placeholder="Escribe el artista..." />
+              <div class="suggestions" id="artistSuggestions"></div>
+            </div>
+
+            <div class="btnrow">
+              <button class="btn-primary" id="checkGuessBtn">Validar respuesta</button>
+              <button class="btn-ghost" id="dontKnowBtn">No lo sé</button>
+              <button class="btn-secondary" id="skipPreviewBtn">Repetir preview</button>
+            </div>
+
+            <div class="feedback" id="feedback">Esperando partida…</div>
+          </div>
+
+          <div id="placementSection" style="display:none;">
+            <div class="timeline-wrap">
+              <div class="pending-card" id="pendingCard"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section class="timeline-bottom">
+      <h3 style="margin:0 0 8px;">📅 Línea temporal</h3>
+      <p class="muted" style="margin:0 0 10px;">
+        Aquí se quedan visibles todas las canciones colocadas. Cuando toque colocar una nueva, aparecerán los huecos “+”.
+      </p>
+      <div class="timeline-shell">
+        <div id="timelineBoard" class="timeline-board"></div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const CARD_PALETTE = [
+      ['#7c3aed','#a78bfa'], ['#2563eb','#60a5fa'], ['#0f766e','#34d399'],
+      ['#be185d','#f472b6'], ['#b45309','#f59e0b'], ['#15803d','#4ade80'],
+      ['#b91c1c','#f87171'], ['#4338ca','#818cf8'], ['#0f766e','#2dd4bf'],
+      ['#92400e','#fbbf24'], ['#6d28d9','#c084fc'], ['#1d4ed8','#93c5fd']
+    ];
+
+    const GAME = {
+      rawSongs: [],
+      filteredSongs: [],
+      usedUris: new Set(),
+      timeline: [],
+      currentSong: null,
+      pendingSong: null,
+      lives: 3,
+      score: 0,
+      started: false,
+      phase: 'idle',
+      maxScore: 10,
+      cardColorIndex: 0,
+      lastErrorReveal: null
+    };
+
+    const els = {
+      popFilter: document.getElementById('popFilter'),
+      decadeFilter: document.getElementById('decadeFilter'),
+      startBtn: document.getElementById('startBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      previewPlayer: document.getElementById('previewPlayer'),
+      roundHint: document.getElementById('roundHint'),
+      trackInput: document.getElementById('trackInput'),
+      artistInput: document.getElementById('artistInput'),
+      trackSuggestions: document.getElementById('trackSuggestions'),
+      artistSuggestions: document.getElementById('artistSuggestions'),
+      checkGuessBtn: document.getElementById('checkGuessBtn'),
+      dontKnowBtn: document.getElementById('dontKnowBtn'),
+      skipPreviewBtn: document.getElementById('skipPreviewBtn'),
+      feedback: document.getElementById('feedback'),
+      pendingCard: document.getElementById('pendingCard'),
+      timelineBoard: document.getElementById('timelineBoard'),
+      guessSection: document.getElementById('guessSection'),
+      placementSection: document.getElementById('placementSection'),
+      placementBadge: document.getElementById('placementBadge'),
+      livesDisplay: document.getElementById('livesDisplay'),
+      scoreDisplay: document.getElementById('scoreDisplay'),
+      phaseDisplay: document.getElementById('phaseDisplay'),
+      datasetInfo: document.getElementById('datasetInfo'),
+      usedInfo: document.getElementById('usedInfo')
+    };
+
+    function normalize(str){
+      return (str || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu,' ')
+        .trim();
+    }
+
+    function safeYear(dateString){
+      if(!dateString) return null;
+      const year = String(dateString).slice(0,4);
+      return /^\d{4}$/.test(year) ? Number(year) : null;
+    }
+
+    function setFeedback(text, type=''){
+      els.feedback.textContent = text;
+      els.feedback.className = 'feedback' + (type ? ' ' + type : '');
+    }
+
+    function updateHUD(){
+      els.livesDisplay.textContent = GAME.lives;
+      els.scoreDisplay.textContent = `${GAME.score} / ${GAME.maxScore}`;
+      const labels = { idle:'Preparado', guess:'Adivinar', place:'Ordenar', over:'Final' };
+      els.phaseDisplay.textContent = labels[GAME.phase] || 'Preparado';
+      els.usedInfo.textContent = `Usadas: ${GAME.usedUris.size}`;
+    }
+
+    function enableGuessMode(){
+      GAME.phase = 'guess';
+      els.guessSection.style.display = '';
+      els.placementSection.style.display = 'none';
+      els.placementBadge.classList.add('hidden');
+      updateHUD();
+    }
+
+    function enablePlacementMode(){
+      GAME.phase = 'place';
+      els.guessSection.style.display = 'none';
+      els.placementSection.style.display = '';
+      els.placementBadge.classList.remove('hidden');
+      updateHUD();
+    }
+
+    function disableInteractions(gameOver=false){
+      if(gameOver){
+        GAME.phase = 'over';
+        updateHUD();
+      }
+    }
+
+    function getMinPopularity(){
+      return Number(els.popFilter.value || 80);
+    }
+
+    function getSelectedDecade(){
+      const value = els.decadeFilter.value;
+      return value === 'all' ? null : Number(value);
+    }
+
+    function populateDecadeFilter(){
+      const currentValue = els.decadeFilter.value || 'all';
+
+      const decades = [...new Set(
+        GAME.rawSongs
+          .map(song => safeYear(song["Album Release Date"]))
+          .filter(Boolean)
+          .map(year => Math.floor(year / 10) * 10)
+      )].sort((a, b) => b - a);
+
+      els.decadeFilter.innerHTML =
+        `<option value="all">Todas</option>` +
+        decades.map(decade => `<option value="${decade}">${decade} - ${decade + 9}</option>`).join('');
+
+      els.decadeFilter.value = decades.some(decade => String(decade) === String(currentValue))
+        ? String(currentValue)
+        : 'all';
+    }
+
+    function buildFilteredSongs(){
+      const min = getMinPopularity();
+      const decade = getSelectedDecade();
+
+      GAME.filteredSongs = GAME.rawSongs.filter(song => {
+        const pop = Number(song.Popularity || 0);
+        const preview = (song["Track Preview URL"] || '').trim();
+        const name = (song["Track Name"] || '').trim();
+        const artist = (song["Artist Name(s)"] || '').trim();
+        const year = safeYear(song["Album Release Date"]);
+        const matchesDecade = decade === null || (year >= decade && year <= decade + 9);
+
+        return pop >= min && preview && name && artist && year && matchesDecade;
+      });
+
+      els.datasetInfo.textContent = `Canciones válidas: ${GAME.filteredSongs.length}`;
+    }
+
+    function shuffle(arr){
+      const clone = [...arr];
+      for(let i = clone.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [clone[i], clone[j]] = [clone[j], clone[i]];
+      }
+      return clone;
+    }
+
+    function pickNextSong(){
+      const available = GAME.filteredSongs.filter(s => !GAME.usedUris.has(s["Track URI"]));
+      if(!available.length) return null;
+      return shuffle(available)[0];
+    }
+
+    function clearInputs(){
+      els.trackInput.value = '';
+      els.artistInput.value = '';
+      hideSuggestions(els.trackSuggestions);
+      hideSuggestions(els.artistSuggestions);
+    }
+
+    function playCurrentPreview(){
+      if(!GAME.currentSong) return;
+      els.previewPlayer.src = GAME.currentSong["Track Preview URL"];
+      els.previewPlayer.load();
+      els.previewPlayer.play().catch(() => {});
+    }
+
+    function nextRound(){
+      GAME.lastErrorReveal = null;
+
+      if(GAME.score >= GAME.maxScore){
+        setFeedback('🎉 ¡Has ganado la partida! Has colocado correctamente 10 canciones.', 'good');
+        disableInteractions(true);
+        els.guessSection.style.display = '';
+        els.placementSection.style.display = 'none';
+        els.roundHint.textContent = 'Partida terminada con victoria.';
+        renderTimeline(false);
+        return;
+      }
+
+      if(GAME.lives <= 0){
+        gameOver();
+        return;
+      }
+
+      const song = pickNextSong();
+      if(!song){
+        setFeedback('No quedan más canciones compatibles con ese filtro.', 'bad');
+        disableInteractions(true);
+        els.roundHint.textContent = 'No quedan canciones disponibles.';
+        return;
+      }
+
+      GAME.currentSong = song;
+      GAME.usedUris.add(song["Track URI"]);
+      clearInputs();
+      enableGuessMode();
+      els.roundHint.textContent = 'Escucha la preview y adivina. Si no lo sabes, podrás seguir ordenando la tarjeta.';
+      setFeedback('Escribe al menos 3 letras correctas para que aparezca la sugerencia exacta.', '');
+      renderTimeline(false);
+      playCurrentPreview();
+      updateHUD();
+    }
+
+    function gameOver(){
+      GAME.phase = 'over';
+      els.guessSection.style.display = '';
+      els.placementSection.style.display = 'none';
+      els.roundHint.textContent = 'Partida terminada.';
+      setFeedback('💀 Te has quedado sin vidas. Has perdido la partida.', 'bad');
+      renderTimeline(false);
+      updateHUD();
+    }
+
+    function songMatchesGuess(song, trackGuess, artistGuess){
+      const correctTrack = normalize(song["Track Name"]);
+      const correctArtist = normalize(song["Artist Name(s)"]);
+      return normalize(trackGuess) === correctTrack && normalize(artistGuess) === correctArtist;
+    }
+
+    function moveToPlacement(gainedLife){
+      GAME.pendingSong = GAME.currentSong;
+
+      if(GAME.timeline.length === 0){
+        const firstCard = mapSongCard(GAME.pendingSong);
+        GAME.timeline.push(firstCard);
+        GAME.score += 1;
+        GAME.pendingSong = null;
+        setFeedback(
+          gainedLife
+            ? '✅ Correcto. Ganas 1 vida y la primera tarjeta se coloca automáticamente.'
+            : `ℹ️ La primera tarjeta se coloca automáticamente. Año: ${firstCard.year}.`,
+          gainedLife ? 'good' : ''
+        );
+        renderTimeline(false);
+        updateHUD();
+        window.setTimeout(() => nextRound(), 1200);
+        return;
+      }
+
+      renderPendingCard();
+      renderTimeline(true);
+      enablePlacementMode();
+    }
+
+    function handleGuess(){
+      if(!GAME.started || GAME.phase !== 'guess' || !GAME.currentSong) return;
+
+      const trackGuess = els.trackInput.value.trim();
+      const artistGuess = els.artistInput.value.trim();
+
+      if(!trackGuess || !artistGuess){
+        setFeedback('Debes completar título y artista, o pulsar “No lo sé”.', 'bad');
+        return;
+      }
+
+      if(!songMatchesGuess(GAME.currentSong, trackGuess, artistGuess)){
+        setFeedback(
+          `❌ No has acertado. Ahora puedes colocar la tarjeta cronológicamente sin ganar vida. El título y el artista se desvelarán al colocarla.`,
+          'bad'
+        );
+        moveToPlacement(false);
+        return;
+      }
+
+      GAME.lives += 1;
+      setFeedback('✅ Correcto. Ganas 1 vida. Ahora colócala cronológicamente.', 'good');
+      moveToPlacement(true);
+    }
+
+    function handleDontKnow(){
+      if(!GAME.started || GAME.phase !== 'guess' || !GAME.currentSong) return;
+      clearInputs();
+      setFeedback(
+        `ℹ️ Has elegido “No lo sé”. Puedes colocar la tarjeta, pero no ganas vida. El título y el artista se desvelarán al colocarla.`,
+        ''
+      );
+      moveToPlacement(false);
+    }
+
+    function nextCardColors(){
+      const pair = CARD_PALETTE[GAME.cardColorIndex % CARD_PALETTE.length];
+      GAME.cardColorIndex += 1;
+      return pair;
+    }
+
+    function mapSongCard(song){
+      const [c1, c2] = nextCardColors();
+      return {
+        uri: song["Track URI"],
+        name: song["Track Name"],
+        artist: song["Artist Name(s)"],
+        year: safeYear(song["Album Release Date"]),
+        date: song["Album Release Date"],
+        c1, c2
+      };
+    }
+
+    function renderPendingCard(){
+      if(!GAME.pendingSong){
+        els.pendingCard.innerHTML = '';
+        return;
+      }
+      const previewCard = {
+        name: '????',
+        artist: 'Artista oculto',
+        year: '????',
+        c1: '#334155',
+        c2: '#64748b'
+      };
+      els.pendingCard.innerHTML = `
+        <div class="mini">Nueva tarjeta</div>
+        <h3>Canción oculta</h3>
+        <div class="artist">Artista oculto</div>
+        <div class="mini" style="margin-top:8px;">Título, artista y año ocultos hasta colocarla</div>
+        <div class="compact-card">${buildSongCard(previewCard, true)}</div>
+      `;
+    }
+
+    function buildSongCard(card, hideYear=false, errorReveal=false){
+      const badge = errorReveal ? '<div class="error-badge">ERROR</div>' : '';
+      return `
+        <article class="song-card ${hideYear ? 'hidden-year' : ''} ${errorReveal ? 'error-reveal' : ''}"
+          style="background:
+            linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.03)),
+            linear-gradient(180deg, ${card.c1}, ${card.c2});">
+          ${badge}
+          <div>
+            <div class="name">${escapeHtml(card.name)}</div>
+            <div class="artist">${escapeHtml(card.artist)}</div>
+          </div>
+          <div class="year">${hideYear ? '????' : card.year}</div>
+        </article>
+      `;
+    }
+
+    function renderTimeline(includeSlots=false){
+      if(!GAME.timeline.length && !includeSlots && !GAME.lastErrorReveal){
+        els.timelineBoard.innerHTML = `<div class="empty-state">Aún no hay tarjetas colocadas.</div>`;
+        return;
+      }
+
+      let html = '';
+
+      if(includeSlots){
+        html += slotButton(0);
+      }
+
+      GAME.timeline.forEach((card, index) => {
+        html += buildSongCard(card, false, false);
+        if(includeSlots){
+          html += slotButton(index + 1);
+        }
+      });
+
+      if(GAME.lastErrorReveal){
+        if(includeSlots){
+          const idx = Math.min(GAME.lastErrorReveal.index, GAME.timeline.length);
+          html = '';
+          html += slotButton(0);
+          GAME.timeline.forEach((card, index) => {
+            if(index === idx){
+              html += buildSongCard(GAME.lastErrorReveal.card, false, true);
+            }
+            html += buildSongCard(card, false, false);
+            html += slotButton(index + 1);
+          });
+          if(idx === GAME.timeline.length){
+            html += buildSongCard(GAME.lastErrorReveal.card, false, true);
+            html += slotButton(GAME.timeline.length + 1);
+          }
+        } else {
+          if (GAME.lastErrorReveal.index <= 0) {
+            html = buildSongCard(GAME.lastErrorReveal.card, false, true) + html;
+          } else if (GAME.lastErrorReveal.index >= GAME.timeline.length) {
+            html += buildSongCard(GAME.lastErrorReveal.card, false, true);
+          } else {
+            let rebuilt = '';
+            GAME.timeline.forEach((card, index) => {
+              if(index === GAME.lastErrorReveal.index){
+                rebuilt += buildSongCard(GAME.lastErrorReveal.card, false, true);
+              }
+              rebuilt += buildSongCard(card, false, false);
+            });
+            html = rebuilt;
+          }
+        }
+      }
+
+      els.timelineBoard.innerHTML = html;
+
+      if(includeSlots){
+        [...els.timelineBoard.querySelectorAll('.slot-btn')].forEach(btn => {
+          btn.addEventListener('click', () => tryPlaceAt(Number(btn.dataset.index)));
+        });
+      }
+    }
+
+    function slotButton(index){
+      return `
+        <div class="slot">
+          <button class="slot-btn" data-index="${index}" title="Colocar aquí">+</button>
+        </div>
+      `;
+    }
+
+    function tryPlaceAt(index){
+      if(!GAME.pendingSong || GAME.phase !== 'place') return;
+
+      const pending = mapSongCard(GAME.pendingSong);
+      const left = index > 0 ? GAME.timeline[index - 1] : null;
+      const right = index < GAME.timeline.length ? GAME.timeline[index] : null;
+
+      const fitsLeft = !left || pending.year >= left.year;
+      const fitsRight = !right || pending.year <= right.year;
+
+      if(fitsLeft && fitsRight){
+        GAME.timeline.splice(index, 0, pending);
+        GAME.score += 1;
+        GAME.lastErrorReveal = null;
+        setFeedback(`✅ Bien colocada. “${pending.name}” — ${pending.artist}. Año real: ${pending.year}.`, 'good');
+      } else {
+        GAME.lives -= 1;
+        GAME.lastErrorReveal = { card: pending, index };
+        setFeedback(`❌ Posición incorrecta. “${pending.name}” — ${pending.artist}. Año real: ${pending.year}. Aprende de la posición y vuelve a intentarlo con la siguiente.`, 'bad');
+      }
+
+      GAME.pendingSong = null;
+      renderTimeline(false);
+      updateHUD();
+
+      window.setTimeout(() => {
+        if(GAME.lives <= 0){
+          gameOver();
+        } else {
+          nextRound();
+        }
+      }, 1800);
+    }
+
+    function escapeHtml(text){
+      return String(text ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function getExactSuggestion(field){
+      if(!GAME.currentSong) return [];
+      const value = field === 'track' ? els.trackInput.value : els.artistInput.value;
+      const term = normalize(value);
+      if(term.length < 3) return [];
+
+      const correct = field === 'track' ? GAME.currentSong["Track Name"] : GAME.currentSong["Artist Name(s)"];
+      const correctNorm = normalize(correct);
+
+      if(correctNorm.startsWith(term)){
+        return [correct];
+      }
+      return [];
+    }
+
+    function showSuggestions(container, suggestions, targetInput){
+      if(!suggestions.length){
+        hideSuggestions(container);
+        return;
+      }
+
+      container.innerHTML = suggestions.map(item =>
+        `<div class="suggestion-item" data-value="${escapeHtml(item)}">${escapeHtml(item)}</div>`
+      ).join('');
+
+      container.classList.add('show');
+
+      [...container.querySelectorAll('.suggestion-item')].forEach(el => {
+        el.addEventListener('mousedown', (e) => e.preventDefault());
+        el.addEventListener('click', () => {
+          targetInput.value = el.dataset.value;
+          hideSuggestions(container);
+          targetInput.dispatchEvent(new Event('input', { bubbles:true }));
+          targetInput.focus();
+          const len = targetInput.value.length;
+          targetInput.setSelectionRange(len, len);
+        });
+      });
+    }
+
+    function hideSuggestions(container){
+      container.classList.remove('show');
+      container.innerHTML = '';
+    }
+
+    function wireSuggestionInput(input, container, field){
+      input.addEventListener('input', () => {
+        const suggestions = getExactSuggestion(field);
+        showSuggestions(container, suggestions, input);
+      });
+
+      input.addEventListener('blur', () => {
+        window.setTimeout(() => hideSuggestions(container), 180);
+      });
+
+      input.addEventListener('focus', () => {
+        const suggestions = getExactSuggestion(field);
+        showSuggestions(container, suggestions, input);
+      });
+    }
+
+    function startGame(){
+      buildFilteredSongs();
+      if(!GAME.filteredSongs.length){
+        setFeedback('No hay canciones válidas con ese filtro y preview disponible.', 'bad');
+        return;
+      }
+
+      GAME.started = true;
+      GAME.usedUris = new Set();
+      GAME.timeline = [];
+      GAME.currentSong = null;
+      GAME.pendingSong = null;
+      GAME.lives = 3;
+      GAME.score = 0;
+      GAME.phase = 'idle';
+      GAME.cardColorIndex = 0;
+      GAME.lastErrorReveal = null;
+      renderTimeline(false);
+      setFeedback('Partida iniciada.', '');
+      nextRound();
+    }
+
+    function resetGame(){
+      GAME.started = false;
+      GAME.usedUris = new Set();
+      GAME.timeline = [];
+      GAME.currentSong = null;
+      GAME.pendingSong = null;
+      GAME.lives = 3;
+      GAME.score = 0;
+      GAME.phase = 'idle';
+      GAME.cardColorIndex = 0;
+      GAME.lastErrorReveal = null;
+      els.previewPlayer.pause();
+      els.previewPlayer.removeAttribute('src');
+      els.previewPlayer.load();
+      clearInputs();
+      renderTimeline(false);
+      updateHUD();
+      els.guessSection.style.display = '';
+      els.placementSection.style.display = 'none';
+      els.placementBadge.classList.add('hidden');
+      els.roundHint.textContent = 'Pulsa “Iniciar partida” para comenzar.';
+      setFeedback('Juego reiniciado.', '');
+    }
+
+    async function loadSongs(){
+      try{
+        const res = await fetch('json/spotify_hitster.json', { cache: 'no-store' });
+        if(!res.ok) throw new Error('No se pudo cargar el JSON');
+        const data = await res.json();
+
+        GAME.rawSongs = Array.isArray(data) ? data : [];
+        populateDecadeFilter();
+        buildFilteredSongs();
+        renderTimeline(false);
+        updateHUD();
+        setFeedback('JSON cargado correctamente.', 'good');
+      }catch(err){
+        console.error(err);
+        els.datasetInfo.textContent = 'Error al cargar JSON';
+        setFeedback('No se pudo cargar json/spotify_hitster.json', 'bad');
+      }
+    }
+
+    els.startBtn.addEventListener('click', startGame);
+    els.resetBtn.addEventListener('click', resetGame);
+    els.checkGuessBtn.addEventListener('click', handleGuess);
+    els.dontKnowBtn.addEventListener('click', handleDontKnow);
+    els.skipPreviewBtn.addEventListener('click', playCurrentPreview);
+
+    els.popFilter.addEventListener('change', () => {
+      buildFilteredSongs();
+      if(!GAME.started){
+        setFeedback('Filtro actualizado.', '');
+      }
+    });
+
+    els.decadeFilter.addEventListener('change', () => {
+      buildFilteredSongs();
+      if(!GAME.started){
+        setFeedback('Filtro actualizado.', '');
+      }
+    });
+
+    wireSuggestionInput(els.trackInput, els.trackSuggestions, 'track');
+    wireSuggestionInput(els.artistInput, els.artistSuggestions, 'artist');
+
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && GAME.phase === 'guess'){
+        handleGuess();
+      }
+    });
+
+    loadSongs();
+    resetGame();
+  </script>
+</body>
+</html>
