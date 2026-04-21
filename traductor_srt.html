@@ -263,8 +263,8 @@
   <div class="wrap">
     <div class="card">
       <section class="hero">
-        <div class="badge">🌐 Traductor de archivo de subtítulos .SRT </div>
-        <h1>🌐 Traductor de archivo de subtítulos .SRT </h1>
+        <div class="badge">🌐 Traductor de archivo de subtítulos .SRT</div>
+        <h1>🌐 Traductor de archivo de subtítulos .SRT</h1>
 
         <!-- BLOQUE DESARROLLADO POR + HOME -->
         <div style="margin:10px 0 0 0;">
@@ -279,7 +279,7 @@
         </div>
 
         <p class="subtitle">
-          Sube un archivo <strong>.srt</strong>, traduce sin alterar numeración ni marcas de tiempo,
+          Sube un archivo <strong>.srt</strong>, traduce el texto sin alterar numeración ni marcas de tiempo,
           y descarga la versión traducida.
         </p>
       </section>
@@ -457,28 +457,41 @@
     function buildChunkPayload(chunk) {
       return chunk.map((entry, idx) => {
         const safeText = escapeTags(entry.text || '');
-        return `[[[ENTRY_${idx}]]]\n${safeText}`;
-      }).join('\n\n[[[SEP]]]\n\n');
+        return `__SRTBLOCK_${idx}__\n${safeText}`;
+      }).join('\n\n__SRTSEP__\n\n');
+    }
+
+    function cleanArtifacts(text) {
+      return (text || '')
+        .replace(/^\s*\[\[\[?\s*ENTRADA_\d+\s*\]?\]\]\s*$/gim, '')
+        .replace(/^\s*\[\[\[?\s*ENTRY_\d+\s*\]?\]\]\s*$/gim, '')
+        .replace(/^\s*__SRTBLOCK_\d+__\s*$/gim, '')
+        .replace(/^\s*__SRTSEP__\s*$/gim, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
     }
 
     function splitTranslatedChunk(text, expectedCount) {
-      const parts = text.split(/\n?\[\[\[SEP\]\]\]\n?/g).map(t => t.trim());
+      const normalized = (text || '').replace(/\r/g, '').trim();
+      const parts = normalized.split(/\n?__SRTSEP__\n?/g).map(t => t.trim());
 
       if (parts.length === expectedCount) {
         return parts.map((part, idx) =>
-          part.replace(new RegExp(`^\\[\\[\\[ENTRY_${idx}\\]\\]\\]\\s*`), '').trim()
+          cleanArtifacts(
+            part.replace(new RegExp(`^__SRTBLOCK_${idx}__\\s*`), '').trim()
+          )
         );
       }
 
-      // Si el separador no se preserva bien, intentamos dividir por marcadores ENTRY.
       const fallback = [];
-      const regex = /\[\[\[ENTRY_(\d+)\]\]\]([\s\S]*?)(?=\[\[\[ENTRY_\d+\]\]\]|$)/g;
+      const regex = /__SRTBLOCK_(\d+)__([\s\S]*?)(?=__SRTBLOCK_\d+__|$)/g;
       let match;
-      while ((match = regex.exec(text)) !== null) {
-        fallback[Number(match[1])] = match[2].trim();
+
+      while ((match = regex.exec(normalized)) !== null) {
+        fallback[Number(match[1])] = cleanArtifacts(match[2].trim());
       }
 
-      if (fallback.filter(Boolean).length === expectedCount) {
+      if (fallback.filter(v => typeof v === 'string').length === expectedCount) {
         return fallback;
       }
 
@@ -529,7 +542,7 @@
           for (let j = 0; j < chunk.length; j++) {
             translatedEntries.push({
               ...chunk[j],
-              text: restoreTags(translatedParts[j] || chunk[j].text)
+              text: cleanArtifacts(restoreTags(translatedParts[j] || chunk[j].text))
             });
           }
 
@@ -537,7 +550,13 @@
           setStatus(`Traduciendo bloque ${i + 1} de ${chunks.length}...`, 'warn');
         }
 
-        translatedSrtText = buildSRT(translatedEntries);
+        translatedSrtText = buildSRT(
+          translatedEntries.map(entry => ({
+            ...entry,
+            text: cleanArtifacts(entry.text)
+          }))
+        );
+
         output.value = translatedSrtText;
         downloadBtn.disabled = false;
         setStatus('Traducción completada. Ya puedes revisar y descargar el .srt en español.', 'ok');
