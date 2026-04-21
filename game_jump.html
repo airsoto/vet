@@ -18,6 +18,7 @@
       --accent-2:#7dd3fc;
       --danger:#fb7185;
       --ok:#34d399;
+      --gold:#ffd166;
       --shadow:0 20px 60px rgba(0,0,0,.35);
       --safe-top:env(safe-area-inset-top,0px);
       --safe-bottom:env(safe-area-inset-bottom,0px);
@@ -37,9 +38,7 @@
     #app{position:fixed;inset:0;overflow:hidden}
     canvas{display:block;width:100%;height:100%}
 
-    .hud{
-      position:absolute;inset:0;pointer-events:none;z-index:5;
-    }
+    .hud{position:absolute;inset:0;pointer-events:none;z-index:5}
     .topbar{
       position:absolute;
       top:max(14px, calc(var(--safe-top) + 10px));
@@ -83,9 +82,7 @@
       bottom:max(16px, calc(var(--safe-bottom) + 12px));
       display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
     }
-    .status{
-      padding:12px 14px;min-width:142px;max-width:58%;
-    }
+    .status{padding:12px 14px;min-width:142px;max-width:58%}
     .status .label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
     .status .value{margin-top:5px;font-size:18px;font-weight:800;letter-spacing:-.02em}
     .meter{
@@ -106,7 +103,7 @@
     }
     .modal-wrap.show{opacity:1;pointer-events:auto}
     .card{
-      width:min(92vw,380px);background:rgba(10,16,28,.88);border:1px solid var(--line);
+      width:min(92vw,400px);background:rgba(10,16,28,.88);border:1px solid var(--line);
       border-radius:28px;padding:26px 22px 20px;backdrop-filter:blur(16px);
       -webkit-backdrop-filter:blur(16px);box-shadow:var(--shadow);
       transform:translateY(14px) scale(.98);transition:transform .28s ease;
@@ -117,9 +114,7 @@
     .card h2{margin-top:8px;font-size:28px;line-height:1.05;letter-spacing:-.04em}
     .card p{margin-top:10px;font-size:15px;line-height:1.5;color:var(--muted)}
     .btnrow{display:grid;gap:10px;margin-top:18px}
-    .btn{
-      border:none;border-radius:16px;padding:14px 16px;font-weight:800;font-size:15px;
-    }
+    .btn{border:none;border-radius:16px;padding:14px 16px;font-weight:800;font-size:15px}
     .btn.primary{background:linear-gradient(135deg,var(--accent),#ffb84d);color:#111827}
     .btn.secondary{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
 
@@ -130,9 +125,7 @@
     }
     .row .k{font-size:14px;font-weight:700}
     .row .v{font-size:13px;color:var(--muted)}
-    .toggle{
-      width:54px;height:30px;border-radius:999px;background:#334155;border:none;position:relative;
-    }
+    .toggle{width:54px;height:30px;border-radius:999px;background:#334155;border:none;position:relative}
     .toggle::after{
       content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:white;transition:.18s ease;
     }
@@ -177,17 +170,17 @@
       <div class="card">
         <div class="eyebrow">Game Jump</div>
         <h2>Salta de nube en nube</h2>
-        <p>Mantén pulsado para cargar el salto y suelta para impulsarte.</p>
+        <p>Mantén pulsado para cargar el salto y suelta para impulsarte. Llega hasta la plataforma 100 para ganar.</p>
         <div class="btnrow">
           <button id="btnStart" class="btn primary">Empezar</button>
         </div>
-        <div class="footer-note">Manzanas extra en las plataformas 15, 30, 45, 60, 75 y 90.</div>
+        <div class="footer-note">Frutas extra en las plataformas 5, 10, 20, 35, 50, 65, 75, 80 y 95.</div>
       </div>
     </div>
 
     <div id="gameOverModal" class="modal-wrap">
       <div class="card">
-        <div class="eyebrow">Fin de partida</div>
+        <div class="eyebrow" id="overEyebrow">Fin de partida</div>
         <h2 id="overTitle">Has caído</h2>
         <p id="overText">Tu puntuación ha sido 0.</p>
         <div class="btnrow">
@@ -238,6 +231,7 @@
       settingsModal: document.getElementById('settingsModal'),
       overTitle: document.getElementById('overTitle'),
       overText: document.getElementById('overText'),
+      overEyebrow: document.getElementById('overEyebrow'),
       btnStart: document.getElementById('btnStart'),
       btnRetry: document.getElementById('btnRetry'),
       btnCloseOver: document.getElementById('btnCloseOver'),
@@ -255,7 +249,8 @@
     let state = 'ready';
     let inputLocked = false;
 
-    const APPLE_PLATFORMS = new Set([15, 30, 45, 60, 75, 90]);
+    const FRUIT_PLATFORMS = new Set([5, 10, 20, 35, 50, 65, 75, 80, 95]);
+    const FINAL_PLATFORM = 100;
 
     const settings = loadSettings();
     syncToggle(ui.toggleSound, settings.sound);
@@ -269,13 +264,13 @@
       minVY: 340,
       maxVY: 960,
       perfectRatio: 0.18,
-      worldSpeed: 0,
       cameraX: 0,
       score: 0,
       best: Number(localStorage.getItem('skyhop_best') || 0),
       charge: 0,
       particles: [],
       messages: [],
+      fireworks: [],
       clouds: [],
       stars: [],
       platforms: [],
@@ -287,6 +282,9 @@
       checkpointNumber: null,
       checkpointPlatform: null,
       platformCounter: 0,
+      won: false,
+      winTimer: 0,
+      fireworkTimer: 0,
     };
 
     function loadSettings(){
@@ -339,9 +337,9 @@
       game.score = 0;
       game.charge = 0;
       game.cameraX = 0;
-      game.worldSpeed = 0;
       game.particles = [];
       game.messages = [];
+      game.fireworks = [];
       game.platforms = [];
       game.nextPlatformIndex = 1;
       game.landedCount = 0;
@@ -350,6 +348,9 @@
       game.checkpointNumber = null;
       game.checkpointPlatform = null;
       game.platformCounter = 0;
+      game.won = false;
+      game.winTimer = 0;
+      game.fireworkTimer = 0;
       state = 'ready';
       paused = false;
       inputLocked = false;
@@ -357,7 +358,7 @@
       const baseY = H * 0.72;
       game.platforms.push({
         x: 40, y: baseY, w: 132, h: 16,
-        hue: 0, hasApple: false, isCheckpoint: false, number: 0
+        hasFruit: false, isCheckpoint: false, number: 0, isFinal: false
       });
 
       while (game.platforms.length < 12) addPlatform();
@@ -379,25 +380,29 @@
     }
 
     function addPlatform(){
+      if (game.platformCounter >= FINAL_PLATFORM) return;
+
       const prev = game.platforms[game.platforms.length - 1];
-      const diff = Math.min(1, game.score / 45);
-      const gap = lerp(86, 172, diff) + Math.random() * lerp(26, 66, diff);
-      const dy = (Math.random() - 0.5) * lerp(40, 110, diff);
-      const w = lerp(110, 58, diff) + Math.random() * 24;
-      const y = clamp(prev.y + dy, H * 0.36, H * 0.8);
+      const progress = game.platformCounter / FINAL_PLATFORM;
+      const diff = Math.min(1, progress * 1.15);
+      const gap = lerp(86, 172, diff) + Math.random() * lerp(24, 58, diff);
+      const dy = (Math.random() - 0.5) * lerp(40, 105, diff);
+      const w = lerp(112, 58, diff) + Math.random() * 22;
+      const y = clamp(prev.y + dy, H * 0.34, H * 0.8);
 
       game.platformCounter += 1;
       const platformNumber = game.platformCounter;
+      const isFinal = platformNumber === FINAL_PLATFORM;
 
       game.platforms.push({
         x: prev.x + prev.w + gap,
         y,
-        w,
-        h: 16,
-        hue: Math.random() * 20,
-        hasApple: APPLE_PLATFORMS.has(platformNumber),
+        w: isFinal ? Math.max(130, w + 42) : w,
+        h: isFinal ? 20 : 16,
+        hasFruit: FRUIT_PLATFORMS.has(platformNumber),
         isCheckpoint: false,
-        number: platformNumber
+        number: platformNumber,
+        isFinal,
       });
     }
 
@@ -405,7 +410,8 @@
       ui.score.textContent = game.score;
       ui.livesBox.textContent = `🍎 ${game.extraLives}`;
 
-      if (state === 'charging') ui.status.textContent = 'Cargando salto';
+      if (game.won) ui.status.textContent = '¡Meta alcanzada!';
+      else if (state === 'charging') ui.status.textContent = 'Cargando salto';
       else if (state === 'jumping') ui.status.textContent = 'En el aire';
       else if (state === 'dead') ui.status.textContent = 'Caída';
       else if (paused) ui.status.textContent = 'Pausado';
@@ -425,6 +431,13 @@
       requestAnimationFrame(loop);
     }
 
+    function showEndModal(title, text, eyebrow='Fin de partida'){
+      ui.overEyebrow.textContent = eyebrow;
+      ui.overTitle.textContent = title;
+      ui.overText.innerHTML = text;
+      ui.gameOverModal.classList.add('show');
+    }
+
     function gameOver(){
       state = 'dead';
       running = false;
@@ -432,14 +445,34 @@
       playFailSound();
       game.best = Math.max(game.best, game.score);
       localStorage.setItem('skyhop_best', String(game.best));
-      ui.overTitle.textContent = game.score > 0 ? 'Has caído' : 'Primer intento';
-      ui.overText.innerHTML = `Tu puntuación ha sido <strong>${game.score}</strong>.<br>Vidas guardadas: <strong>${game.extraLives}</strong>.<br>Mejor marca: <strong>${game.best}</strong>.`;
-      ui.gameOverModal.classList.add('show');
+      showEndModal(
+        game.score > 0 ? 'Has caído' : 'Primer intento',
+        `Tu puntuación ha sido <strong>${game.score}</strong>.<br>Vidas guardadas: <strong>${game.extraLives}</strong>.<br>Mejor marca: <strong>${game.best}</strong>.`
+      );
+      updateHUD();
+    }
+
+    function winGame(){
+      game.won = true;
+      running = false;
+      paused = false;
+      state = 'won';
+      game.best = Math.max(game.best, game.score);
+      localStorage.setItem('skyhop_best', String(game.best));
+      if (settings.vibration && navigator.vibrate) navigator.vibrate([18, 40, 18, 40, 18]);
+      playWinSound();
+      spawnMessage('¡Meta 100!', game.player.x, game.player.y - 44, '#ffd166');
+      launchFireworks(7);
+      showEndModal(
+        '¡Has ganado!',
+        `Has llegado a la plataforma <strong>${FINAL_PLATFORM}</strong>.<br>Puntuación final: <strong>${game.score}</strong>.<br>Mejor marca: <strong>${game.best}</strong>.`,
+        'Victoria'
+      );
       updateHUD();
     }
 
     function beginCharge(){
-      if (!running || paused || state === 'jumping' || state === 'dead' || inputLocked) return;
+      if (!running || paused || state === 'jumping' || state === 'dead' || state === 'won' || inputLocked) return;
       audioInit();
       state = 'charging';
       game.charge = 0;
@@ -459,15 +492,13 @@
       updateHUD();
     }
 
-    function collectApple(platform){
-      if (!platform.hasApple) return;
+    function collectFruit(platform){
+      if (!platform.hasFruit) return;
 
-      platform.hasApple = false;
+      platform.hasFruit = false;
       platform.isCheckpoint = true;
 
-      if (game.checkpointPlatform) {
-        game.checkpointPlatform.isCheckpoint = false;
-      }
+      if (game.checkpointPlatform) game.checkpointPlatform.isCheckpoint = false;
 
       game.extraLives += 1;
       game.checkpointPlatform = platform;
@@ -514,10 +545,10 @@
           y: cp.platformY,
           w: cp.platformW,
           h: cp.platformH,
-          hue: 0,
-          hasApple: false,
+          hasFruit: false,
           isCheckpoint: true,
-          number: cp.number
+          number: cp.number,
+          isFinal: false
         };
         game.platforms.unshift(recreated);
         game.checkpointPlatform = recreated;
@@ -563,6 +594,14 @@
         return p.t < p.life;
       });
 
+      game.fireworks = game.fireworks.filter(f => {
+        f.t += dt;
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        f.vy += 80 * dt;
+        return f.t < f.life;
+      });
+
       if (state === 'charging') {
         game.charge = Math.min(1, game.charge + dt / game.maxCharge);
         game.player.squash = game.charge;
@@ -590,11 +629,11 @@
         }
 
         if (pl.y > H + 120) handleDeath();
-      } else if (state !== 'dead' && game.platforms[pl.currentPlatform]) {
+      } else if (state !== 'dead' && state !== 'won' && game.platforms[pl.currentPlatform]) {
         pl.y = game.platforms[pl.currentPlatform].y;
       }
 
-      while (game.platforms.length < 18) addPlatform();
+      while (game.platforms.length < 18 && game.platformCounter < FINAL_PLATFORM) addPlatform();
 
       while (
         game.platforms.length > 12 &&
@@ -602,13 +641,8 @@
         game.platforms[0].x + game.platforms[0].w - game.cameraX < -220
       ) {
         if (pl.currentPlatform === 0) break;
-
         const removed = game.platforms.shift();
-
-        if (removed === game.checkpointPlatform) {
-          game.checkpointPlatform = null;
-        }
-
+        if (removed === game.checkpointPlatform) game.checkpointPlatform = null;
         game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex - 1);
         pl.currentPlatform = Math.max(0, pl.currentPlatform - 1);
       }
@@ -619,7 +653,6 @@
     function landOnPlatform(platform, index){
       const pl = game.player;
       pl.currentPlatform = index;
-      game.nextPlatformIndex = index + 1;
       pl.x = clamp(pl.x, platform.x + 10, platform.x + platform.w - 10);
       pl.y = platform.y;
       pl.vx = 0;
@@ -628,6 +661,7 @@
       state = 'ready';
 
       game.landedCount += 1;
+      game.nextPlatformIndex = index + 1;
 
       const distFromCenter = Math.abs(pl.x - (platform.x + platform.w / 2));
       const perfect = distFromCenter <= platform.w * game.perfectRatio;
@@ -644,7 +678,13 @@
         if (settings.vibration && navigator.vibrate) navigator.vibrate(10);
       }
 
-      collectApple(platform);
+      if (platform.isFinal) {
+        spawnBurst(pl.x, pl.y - 12, 28, '#ffd166');
+        winGame();
+        return;
+      }
+
+      collectFruit(platform);
     }
 
     function spawnMessage(text, x, y, color){
@@ -667,11 +707,34 @@
       }
     }
 
+    function launchFireworks(count=5){
+      const colors = ['#ff6b6b','#ffd166','#7dd3fc','#c084fc','#34d399','#ffffff'];
+      for (let c = 0; c < count; c++) {
+        const cx = W * (0.18 + Math.random() * 0.64) + game.cameraX;
+        const cy = H * (0.16 + Math.random() * 0.38);
+        for (let i = 0; i < 38; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 90 + Math.random() * 220;
+          game.fireworks.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            r: 1.8 + Math.random() * 2.8,
+            color: colors[(Math.random() * colors.length) | 0],
+            t: 0,
+            life: 0.9 + Math.random() * 0.8,
+          });
+        }
+      }
+    }
+
     function draw(){
       ctx.clearRect(0, 0, W, H);
       drawBackground();
       drawPlatforms();
       drawParticles();
+      drawFireworks();
       drawPlayer();
       drawMessages();
     }
@@ -694,10 +757,9 @@
       ctx.globalAlpha = 1;
 
       for (const c of game.clouds) {
-        const x = c.x, y = c.y;
         ctx.globalAlpha = c.a;
         ctx.fillStyle = '#ffffff';
-        blob(x, y, c.w, c.h);
+        blob(c.x, c.y, c.w, c.h);
       }
       ctx.globalAlpha = 1;
 
@@ -731,44 +793,54 @@
         if (sx + p.w < -60 || sx > W + 60) continue;
 
         const glow = ctx.createLinearGradient(sx, p.y - 10, sx, p.y + 16);
-        glow.addColorStop(0, 'rgba(125,211,252,.55)');
-        glow.addColorStop(1, 'rgba(125,211,252,0)');
+        glow.addColorStop(0, p.isFinal ? 'rgba(255,209,102,.75)' : 'rgba(125,211,252,.55)');
+        glow.addColorStop(1, p.isFinal ? 'rgba(255,209,102,0)' : 'rgba(125,211,252,0)');
         ctx.fillStyle = glow;
         roundRect(sx - 6, p.y - 12, p.w + 12, 22, 14, true);
 
         const body = ctx.createLinearGradient(sx, p.y - 5, sx, p.y + 14);
-        body.addColorStop(0, '#eaf7ff');
-        body.addColorStop(.5, '#cceeff');
-        body.addColorStop(1, '#89d6ff');
+        if (p.isFinal) {
+          body.addColorStop(0, '#fff4bf');
+          body.addColorStop(.5, '#ffd166');
+          body.addColorStop(1, '#ffb703');
+        } else {
+          body.addColorStop(0, '#eaf7ff');
+          body.addColorStop(.5, '#cceeff');
+          body.addColorStop(1, '#89d6ff');
+        }
         ctx.fillStyle = body;
         roundRect(sx, p.y - p.h / 2, p.w, p.h, 999, true);
 
-        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.strokeStyle = p.isFinal ? 'rgba(255,255,255,.65)' : 'rgba(255,255,255,.35)';
         ctx.lineWidth = 1;
         roundRect(sx, p.y - p.h / 2, p.w, p.h, 999, false);
 
-        if (p.hasApple) {
+        if (p.number > 0) {
+          ctx.fillStyle = p.isFinal ? 'rgba(40,30,0,.85)' : 'rgba(25,40,65,.62)';
+          ctx.font = '700 11px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(p.number), sx + p.w/2, p.y + 1);
+        }
+
+        if (p.hasFruit) {
           const ax = sx + p.w / 2;
           const ay = p.y - 20;
-
           ctx.save();
           ctx.fillStyle = '#ff4d4f';
           ctx.beginPath();
           ctx.arc(ax, ay, 8, 0, Math.PI * 2);
           ctx.fill();
-
           ctx.fillStyle = 'rgba(255,255,255,.28)';
           ctx.beginPath();
           ctx.arc(ax - 2.5, ay - 2.5, 2.5, 0, Math.PI * 2);
           ctx.fill();
-
           ctx.strokeStyle = '#5b3a29';
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(ax, ay - 8);
           ctx.quadraticCurveTo(ax + 2, ay - 13, ax + 5, ay - 14);
           ctx.stroke();
-
           ctx.fillStyle = '#34d399';
           ctx.beginPath();
           ctx.ellipse(ax + 5, ay - 11, 4, 2.5, -0.4, 0, Math.PI * 2);
@@ -785,6 +857,14 @@
           ctx.stroke();
           ctx.restore();
         }
+
+        if (p.isFinal) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(255,255,255,.95)';
+          ctx.font = '900 13px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillText('META', sx + p.w / 2, p.y - 24);
+          ctx.restore();
+        }
       }
     }
 
@@ -792,7 +872,6 @@
       const pl = game.player;
       const x = pl.x - game.cameraX;
       const y = pl.y - pl.h;
-
       const platformRef = game.platforms[pl.currentPlatform] || game.platforms[0];
       const squashX = state === 'charging' ? 1 + pl.squash * 0.38 : (state === 'jumping' && pl.vy > 0 ? 1.08 : 1);
       const squashY = state === 'charging' ? 1 - pl.squash * 0.32 : (state === 'jumping' && pl.vy < 0 ? 1.12 : 1);
@@ -841,7 +920,6 @@
         ctx.lineTo(x + 6, y + 20);
       }
       ctx.stroke();
-
       ctx.restore();
     }
 
@@ -851,6 +929,17 @@
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x - game.cameraX, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawFireworks(){
+      for (const f of game.fireworks) {
+        ctx.globalAlpha = 1 - f.t / f.life;
+        ctx.fillStyle = f.color;
+        ctx.beginPath();
+        ctx.arc(f.x - game.cameraX, f.y, f.r, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -919,6 +1008,7 @@
     function playLandSound(){ tone(240, .08, 'sine', .05); }
     function playPerfectSound(){ tone(520, .16, 'triangle', .08); tone(760, .18, 'sine', .05, .05); }
     function playFailSound(){ tone(240, .18, 'sawtooth', .08); tone(170, .28, 'triangle', .06, .1); }
+    function playWinSound(){ tone(520, .16, 'triangle', .08); tone(660, .18, 'triangle', .08, .08); tone(880, .24, 'sine', .06, .16); }
 
     function press(e){ if (e) e.preventDefault(); beginCharge(); }
     function release(e){ if (e) e.preventDefault(); releaseJump(); }
@@ -947,7 +1037,7 @@
     ui.btnCloseOver.addEventListener('click', () => ui.gameOverModal.classList.remove('show'));
 
     ui.btnPause.addEventListener('click', () => {
-      if (!running && state !== 'dead') return;
+      if (!running && state !== 'dead' && state !== 'won') return;
       paused = !paused;
       updateHUD();
       if (paused) return;
