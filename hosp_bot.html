@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
-      <script defer src="goat.js"></script>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Analizador IA de CASOS Hospitalización Veterinaria</title>
+  <title>Analizador IA de Hospitalización Veterinaria</title>
 
   <!--
     Analizador visual de hospitalización veterinaria
     Versión: HTML + CSS + JS puro
     IA externa: Puter.js
+    No requiere servidor propio, ni API key, ni Ollama local.
 
     IMPORTANTE:
     - Esta versión envía el texto a un servicio externo de IA.
+    - Para datos clínicos reales, se recomienda anonimizar propietarios/teléfonos/direcciones.
+    - No debe usarse para tomar decisiones clínicas sin revisión veterinaria.
   -->
 
   <script src="https://js.puter.com/v2/"></script>
@@ -284,7 +286,7 @@
       to { transform: rotate(360deg); }
     }
 
-   
+    $1
 
     .home a {
       color: #93c5fd;
@@ -328,8 +330,8 @@
   <header>
     <div class="title-row">
       <div>
-        <h1>Analizador IA de CASOS Hospitalización Veterinaria</h1>
-    
+        <h1>Analizador IA de Hospitalización Veterinaria</h1>
+        $1
 
         <!-- BLOQUE DESARROLLADO POR + HOME -->
         <div style="margin:10px 0 0 0;">
@@ -349,7 +351,8 @@
 
   <main>
     <div class="notice">
-      <strong>Privacidad:</strong> esta versión envía el texto a una IA externa.
+      <strong>Privacidad:</strong> esta versión envía el texto a una IA externa. Para uso clínico real, anonimiza nombres de propietarios,
+      teléfonos, direcciones y cualquier dato sensible. El resultado debe revisarlo siempre un veterinario.
     </div>
 
     <div class="status-row">
@@ -377,10 +380,11 @@
           <h2>Texto bruto</h2>
           <div class="tools">
             <select id="modelo" title="Modelo de IA">
-              <option value="" selected>Auto / modelo por defecto</option>
+              <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite · recomendado</option>
+              <option value="">Auto / modelo por defecto</option>
               <option value="gpt-5-nano">gpt-5-nano</option>
               <option value="gpt-5.4-nano">gpt-5.4-nano</option>
-              <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
               <option value="claude-sonnet-4">claude-sonnet-4</option>
             </select>
             <button id="btnProbarIA" title="Comprueba si Puter.js responde">Probar IA</button>
@@ -409,7 +413,7 @@
           <span class="small">Consejo: pega este resultado al inicio del documento de hospitalización como “Resumen del pase”.</span>
         </div>
       </section>
-    </div>
+    </div>$1
 
     <!-- FOOTER -->
     <footer class="footer">
@@ -427,27 +431,60 @@
     const PROMPT_HOSPITALIZACION = `
 Actúa como asistente experto en organización de pases de hospitalización veterinaria de perros y gatos.
 
-Vas a recibir un TEXTO BRUTO con varios pacientes hospitalizados. Tu tarea es convertirlo en un formato visual, rápido de leer y orientado a gravedad, planes, altas, pendientes y errores de copia.
+Vas a recibir un TEXTO BRUTO con varios casos hospitalizados. Tu trabajo NO es reescribir la historia clínica ni modificar los casos. Tu trabajo es ordenar, resumir, clasificar y hacer visible la información importante para que el pase sea más rápido, seguro y útil.
 
-OBJETIVO PRINCIPAL:
-Crear arriba del documento un “RESUMEN AUTOMÁTICO DEL PASE” y después fichas breves por paciente.
-El resumen NO sustituye al documento completo: sirve para que el pase sea mucho más rápido y seguro.
+MISIÓN PRINCIPAL:
+Convertir un documento largo y narrativo en:
+1. Un panel inicial de situación del hospital.
+2. Un resumen por gravedad.
+3. Una lista de tareas urgentes.
+4. Fichas visuales por paciente.
+5. Listas de pruebas, informes, recados y datos a revisar.
+
+REGLA DE ORO:
+No añadas, no cambies, no corrijas clínicamente y no inventes historias de pacientes. Solo puedes reorganizar y resumir lo que aparece escrito.
 
 REGLAS ESTRICTAS:
 - No inventes información.
 - No hagas diagnósticos nuevos.
-- No modifiques tratamientos.
-- No recomiendes tratamientos nuevos salvo que el texto ya lo indique como plan.
+- No modifiques diagnósticos, tratamientos, planes ni decisiones.
+- No recomiendes tratamientos nuevos salvo que el propio texto ya los indique como plan.
+- No conviertas sospechas en diagnósticos confirmados.
+- No elimines información crítica aunque esté repetida.
+- No suavices pronósticos graves.
 - Si falta un dato, escribe “No consta”.
-- No elimines alertas importantes aunque parezcan repetidas.
+- Si un dato está escrito de forma rara o parece un error, mantenlo como “dato a revisar”; no lo corrijas silenciosamente.
 - Mantén nombres de pacientes y NHC si aparecen.
-- Resume con lenguaje clínico claro, breve y útil.
-- Prioriza lo que afecta a gravedad, decisiones, alta, pruebas pendientes, comunicación con tutores y errores.
-- Si detectas datos contradictorios, cifras imposibles, dosis mal escritas o posibles errores de copia, márcalos en “⚠️ DATOS A REVISAR”.
+- Si hay datos de tutores, teléfonos, emails o direcciones, no los destaques salvo que sean necesarios para un recado administrativo.
+- Usa lenguaje clínico claro, breve y práctico.
+- Prioriza lo que afecta a gravedad, seguridad, decisión de alta, pruebas pendientes, comunicación con tutores y errores de copia.
+
+QUÉ DEBE HACER LA IA:
+- Detectar cada paciente.
+- Identificar motivo principal.
+- Extraer días hospitalizado/a si aparece.
+- Extraer último estado clínico relevante.
+- Detectar si come, bebe, orina, defeca, vomita, tiene diarrea, dolor, fiebre, hipotensión, hipertensión, oxígeno, SpO₂ baja o deterioro.
+- Detectar tratamientos actuales sin modificarlos.
+- Detectar planes escritos.
+- Detectar altas probables y condiciones antes del alta.
+- Detectar tareas urgentes.
+- Detectar pruebas/cultivos/analíticas/revisiones pendientes.
+- Detectar informes y recados.
+- Detectar posibles errores de copia o cifras incoherentes.
+
+QUÉ NO DEBE HACER LA IA:
+- No debe decidir tratamientos.
+- No debe cambiar dosis.
+- No debe interpretar pruebas de forma nueva.
+- No debe inventar valores ausentes.
+- No debe hacer recomendaciones clínicas no escritas en el texto.
+- No debe transformar una sospecha en certeza.
+- No debe añadir historia clínica que no aparezca en el texto.
 
 CLASIFICACIÓN VISUAL:
 
-🔴 CRÍTICOS / PRONÓSTICO MALO / DECISIÓN ÉTICA
+🔴 CRÍTICO / PRONÓSTICO MALO / DECISIÓN ÉTICA
 Usar si aparece cualquiera de estos elementos:
 - shock, hipotensión persistente o dependencia de noradrenalina/norepinefrina/dopamina/vasopresores
 - eutanasia planteada o pronóstico desfavorable/muy reservado
@@ -458,13 +495,13 @@ Usar si aparece cualquiera de estos elementos:
 - decisión clínica o ética relevante pendiente con tutores
 
 🟠 VIGILAR DE CERCA / INESTABLE / PENDIENTE IMPORTANTE
-Usar si aparece:
+Usar si aparece cualquiera de estos elementos:
 - postoperatorio complejo
 - paciente respiratorio o cardiológico con riesgo
 - dolor moderado/alto
 - fiebre, anorexia persistente, diarrea hemorrágica, vómitos persistentes
 - líquido libre, drenaje, cultivos pendientes, JP, sonda, FAST seriados
-- cirugía pendiente o decisión económica pendiente
+- cirugía pendiente, presupuesto pendiente o decisión económica pendiente
 - alta dudosa por dolor, apetito, micción, temperatura o estabilidad
 
 🟡 ESTABLE CON PENDIENTES
@@ -493,37 +530,56 @@ ICONOS AUXILIARES:
 - 🔪 Postquirúrgico
 - 💊 Ajuste o vigilancia de tratamiento
 - 📄 Informe pendiente
+- 🍽️ Apetito/alimentación
+- 💧 Fluidoterapia/hidratación
+- 🚽 Orina/heces
 
 FORMATO OBLIGATORIO DE SALIDA:
 
-# RESUMEN DEL PASE
+# RESUMEN AUTOMÁTICO DEL PASE
 
-## 🔴 CRÍTICOS / PRONÓSTICO MALO
-- NOMBRE — NHC: resumen de una línea con el motivo principal de gravedad, datos clave y decisión pendiente si existe.
+## 0. PANEL INICIAL DE SITUACIÓN
+- **Fecha/turno del documento:** si consta.
+- **Número aproximado de pacientes detectados:**
+- **Casos 🔴 críticos:** número y nombres.
+- **Casos 🟠 a vigilar de cerca:** número y nombres.
+- **Casos 🏠 con posible alta:** número y nombres.
+- **Pacientes con más días hospitalizados:** nombre, NHC y días si consta.
+- **Tareas urgentes del turno:** lista breve priorizada.
+- **Decisiones importantes pendientes:** eutanasia, alta dudosa, cirugía, transfusión, hablar con tutores, revisión de especialista, etc.
+- **Pruebas/resultados pendientes importantes:** cultivos, citologías, analíticas, radiografías, informes de imagen, controles.
+- **Alertas de seguridad documental:** número de posibles errores o datos raros detectados.
 
-## 🟠 VIGILAR DE CERCA
-- NOMBRE — NHC: resumen de una línea con problema principal, dato clave y plan.
+## 1. RESUMEN POR GRAVEDAD
 
-## 🟡 ESTABLES CON PENDIENTES
-- NOMBRE — NHC: resumen de una línea con pendiente principal.
+### 🔴 CRÍTICOS / PRONÓSTICO MALO
+- NOMBRE — NHC — días ingresado/a si consta: una línea con motivo de gravedad, dato clave y decisión o plan pendiente.
 
-## 🟢 POSIBLE ALTA / ESTABLES
-- NOMBRE — NHC: resumen de una línea y condición para alta si aparece.
+### 🟠 VIGILAR DE CERCA
+- NOMBRE — NHC — días ingresado/a si consta: una línea con problema principal, dato clave y plan.
 
-## 📌 PENDIENTES ADMINISTRATIVOS
-- Informes pendientes:
-- Recados:
-- Pruebas administrativas o comunicaciones pendientes:
+### 🟡 ESTABLES CON PENDIENTES
+- NOMBRE — NHC — días ingresado/a si consta: una línea con el pendiente principal.
 
----
+### 🟢 POSIBLE ALTA / ESTABLES
+- NOMBRE — NHC — días ingresado/a si consta: una línea con condición para alta si aparece.
 
-# FICHAS POR PACIENTE
+## 2. TAREAS URGENTES DEL TURNO
+Ordena de mayor a menor prioridad. Usa este formato:
+- 🔴 Paciente — tarea urgente — motivo.
+- 🟠 Paciente — tarea importante — motivo.
+- 🧪 Paciente — prueba/resultado pendiente — motivo.
+- 📞 Paciente — comunicación con tutores — motivo.
+
+No añadas tareas que no se deduzcan claramente del texto. Si algo es solo una posibilidad, escribe “valorar” o “según texto”.
+
+## 3. FICHAS VISUALES POR PACIENTE
 
 Para cada paciente, usa este formato:
 
 ## [ICONO DE GRAVEDAD] NOMBRE — NHC — especie/raza/sexo/edad si consta
 **Motivo:**
-**Días ingresado/a:**
+**Días hospitalizado/a:**
 **Estado actual:**
 **Últimos datos clave:** FC | FR | Tª | PANI | SpO₂ | analítica relevante | dolor | apetito | orina | heces
 
@@ -533,7 +589,10 @@ Para cada paciente, usa este formato:
 ### Tratamiento actual
 - 
 
-### Plan
+### Plan escrito
+- 
+
+### Tareas o controles próximos
 - 
 
 ### Alertas / datos a revisar
@@ -541,24 +600,19 @@ Para cada paciente, usa este formato:
 
 ---
 
-# ALTAS PROBABLES
+## 4. ALTAS PROBABLES Y CONDICIONES
 - Paciente:
+- Motivo por el que parece alta probable:
 - Condiciones antes del alta:
 - Instrucciones o controles mencionados:
 
----
+## 5. PRUEBAS, CULTIVOS, ANALÍTICAS O REVISIONES PENDIENTES
+- Paciente — prueba/resultado pendiente — responsable si consta — urgencia si se deduce.
 
-# PRUEBAS, CULTIVOS, ANALÍTICAS O REVISIONES PENDIENTES
-- 
+## 6. INFORMES Y RECADOS ADMINISTRATIVOS
+- Informe/recado — paciente/NHC — responsable si consta — observaciones.
 
----
-
-# INFORMES Y RECADOS
-- 
-
----
-
-# ⚠️ DATOS A REVISAR
+## 7. ⚠️ DATOS A REVISAR
 Incluye aquí:
 - posibles errores de copia entre pacientes
 - cifras imposibles o raras, por ejemplo PANI 1232/87/104
@@ -566,14 +620,17 @@ Incluye aquí:
 - tratamientos contradictorios
 - datos incompletos importantes
 - evoluciones que parezcan pertenecer a otro paciente
+- pacientes sin peso, sin días de ingreso o sin plan, si esa ausencia dificulta el pase
 
 ESTILO:
 - Muy visual.
-- Conciso pero suficientemente clínico.
-- Usa viñetas.
+- Intuitivo.
+- Pensado para leer al inicio de un pase clínico.
+- Usa viñetas y líneas cortas.
 - No escribas párrafos largos.
-- Prioriza lo que permite decidir rápido en el pase.
-- Si hay muchos pacientes, resume sin perder los puntos críticos.
+- No conviertas el resultado en una historia clínica nueva.
+- No añadas información médica que no esté escrita.
+- Si hay muchos pacientes, prioriza claridad y seguridad.
 `;
 
     const entrada = document.getElementById("entrada");
@@ -592,7 +649,10 @@ ESTILO:
       actualizarContadores("");
     });
     document.getElementById("btnDemo").addEventListener("click", cargarEjemplo);
-    window.addEventListener("load", cargarModelosDisponibles);
+    window.addEventListener("load", () => {
+      modelo.value = "gemini-2.5-flash-lite";
+      cargarModelosDisponibles();
+    });
 
     async function analizarTexto() {
       const textoBruto = entrada.value.trim();
@@ -617,13 +677,11 @@ ESTILO:
         let respuesta;
 
         const opciones = {
-          temperature: 0.2,
+          temperature: 0.15,
           text_verbosity: "medium"
         };
 
-        if (modelo.value) {
-          opciones.model = modelo.value;
-        }
+        opciones.model = modelo.value || "gemini-2.5-flash-lite";
 
         try {
           respuesta = await puter.ai.chat(promptFinal, opciones);
@@ -663,10 +721,10 @@ ESTILO:
         if (!Array.isArray(modelos) || modelos.length === 0) return;
 
         const preferidos = [
-          "gpt-5-nano",
-          "gpt-5.4-nano",
           "gemini-2.5-flash-lite",
           "gemini-2.5-flash",
+          "gpt-5-nano",
+          "gpt-5.4-nano",
           "claude-sonnet-4",
           "claude-opus-4-5",
           "mistral-large-latest",
@@ -692,18 +750,33 @@ ESTILO:
           .filter(m => !preferidos.includes(m.id))
           .slice(0, 60);
 
-        const seleccionActual = modelo.value;
-        modelo.innerHTML = '<option value="">Auto / modelo por defecto</option>';
+        const seleccionActual = modelo.value || "gemini-2.5-flash-lite";
+        modelo.innerHTML = '';
 
-        [...opcionesPreferidas, ...opcionesExtra].forEach(m => {
-          const option = document.createElement("option");
-          option.value = m.id;
-          option.textContent = `${m.name || m.id} (${m.provider || "modelo"})`;
-          modelo.appendChild(option);
-        });
+        const optionDefault = document.createElement("option");
+        optionDefault.value = "gemini-2.5-flash-lite";
+        optionDefault.textContent = "gemini-2.5-flash-lite · recomendado";
+        modelo.appendChild(optionDefault);
 
-        if (seleccionActual && idsDisponibles.has(seleccionActual)) {
+        const optionAuto = document.createElement("option");
+        optionAuto.value = "";
+        optionAuto.textContent = "Auto / modelo por defecto";
+        modelo.appendChild(optionAuto);
+
+        [...opcionesPreferidas, ...opcionesExtra]
+          .filter((m, index, arr) => m && m.id && arr.findIndex(x => x.id === m.id) === index)
+          .filter(m => m.id !== "gemini-2.5-flash-lite")
+          .forEach(m => {
+            const option = document.createElement("option");
+            option.value = m.id;
+            option.textContent = `${m.name || m.id} (${m.provider || "modelo"})`;
+            modelo.appendChild(option);
+          });
+
+        if (seleccionActual && Array.from(modelo.options).some(opt => opt.value === seleccionActual)) {
           modelo.value = seleccionActual;
+        } else {
+          modelo.value = "gemini-2.5-flash-lite";
         }
 
         estado.textContent = `Modelos disponibles cargados: ${modelo.options.length - 1}.`;
@@ -720,7 +793,7 @@ ESTILO:
       }
 
       const opciones = { temperature: 0.1 };
-      if (modelo.value) opciones.model = modelo.value;
+      opciones.model = modelo.value || "gemini-2.5-flash-lite";
 
       setCargando(true);
       estado.textContent = "Probando conexión con IA...";
@@ -823,25 +896,181 @@ ESTILO:
     }
 
     function cargarEjemplo() {
-      entrada.value = `06/05/26 NOCHE
+      entrada.value = `PACIENTES DE HOSPITALIZACIÓN
+PACIENTE 1 — CANINO, BEAGLE — DIABETES
 
-TOBY. Q11111. CANICHE. H 10A. MUCOCELE + VÓMITOS Y DIARREAS
-EVOLUCIÓN 06/05 NOCHE
-Pasa la noche alerta. Mucosas rosadas, húmedas, TRC <2s. Tª 38,2-37,6ºC. FC 80-84 lpm, FR 24-16 rpm. Abdomen más depresible que días previos. PANI 132/81/94. Orina, no defeca. Come algo de comida casera. No presenta pérdidas digestivas. Vía inflamada, se retira y se deja sin vía para valorar alta.
-TRATAMIENTO: Omeprazol, maropitant, mirtazapina, metronidazol, fortiflora, adisocol, canitroid.
-PLAN: Valorar alta.
+Fecha de ingreso: no consta
+Días hospitalizado: no consta
+Peso al ingreso: no consta
+Clínico responsable: no consta
 
-MISI. Q222. FEL. AZUL RUSO. HC. 8A. LEUCOCITOSIS SEVERA
-EVOLUCIÓN 06/05 NOCHE
-Pasa la noche sin cambios. Mucosas pálidas/ligeramente ictéricas. Taquicardia 208-220 lpm. Pulso débil. Mantiene PAS 90-100 y PAM 69-75. Por la mañana 88/51/59 mmHg. No tolera seguir bajando noradrenalina. Extremidad posterior derecha edematosa con almohadilla amoratada y fría. Come pequeñas cantidades si se ofrece de la mano. Orina solo tras vaciado por presión.
-TRATAMIENTO: Marbofloxacino, amoxiclav, metilprednisolona, noradrenalina 1 mcg/kg/min.
-PLAN: Valorar evolución con corticos. Plantear hemograma/TBil/crea/urea, Rx tórax, transfundir de nuevo o parar.
+Resumen del caso
 
-INFORMES
-BILL Q333 pendiente. No han abonado.
+Paciente diabético clínicamente estable, sin cambios relevantes durante el día. Durante la tarde se detecta que ya no porta el sensor FreeStyle y se encuentran varias piezas en la jaula.
 
-RECADOS
-Pendiente citología de COCO Q222222.`;
+Última evolución
+
+Se realiza radiografía abdominal en proyección lateral derecha, observándose pequeños restos de densidad mineral compatibles con fragmentos del FreeStyle.
+
+Problemas activos
+Diabetes.
+Posible ingestión o fragmentación del sensor FreeStyle.
+Pendiente control de glucemia por método alternativo.
+Plan / pendientes
+Vigilar signos digestivos: vómitos, anorexia, dolor abdominal, ausencia de heces o signos obstructivos.
+Control glucémico sin FreeStyle.
+Valorar seguimiento radiográfico si aparecen signos clínicos.
+PACIENTE 2 — FELINO, AZUL RUSO, HEMBRA CASTRADA, 8 AÑOS — LEUCOCITOSIS SEVERA / ANEMIA / SHOCK
+
+Fecha de ingreso: 03/05/2026
+Días hospitalizada: 5
+Peso inicial: 2,165 kg
+Peso actual: 2,155 kg
+
+Motivo de consulta
+
+Apatía, anorexia e hiporexia progresiva. Presentaba además antecedentes de retención fecal y lesión medular previa.
+
+Resumen del caso
+
+Paciente felina ingresada en estado grave, con anemia marcada, leucocitosis severa, sospecha de blastos en frotis, hipotensión persistente y necesidad de noradrenalina. Presenta mucosas pálidas/ictéricas, taquicardia marcada, pulso débil y episodios de globo vesical/fecaloma que requieren vaciado manual.
+
+Durante la hospitalización ha requerido soporte vasopresor, fluidoterapia, antibioterapia, corticoide y transfusiones. La evolución es parcialmente fluctuante: en algunos momentos está más alerta y come, pero continúa con anemia grave, leucocitosis muy marcada, bilirrubina elevada y dependencia de noradrenalina.
+
+Datos iniciales relevantes
+Mucosas pálidas.
+Pulso débil.
+Hipotensión inicial: PANI 79/57/62 mmHg.
+Hematocrito inicial muy bajo.
+Leucocitosis severa.
+Gasometría con acidosis marcada.
+Frotis con sospecha de blastos.
+FIV/FeLV negativo.
+Retención fecal y globo vesical.
+Evolución resumida
+Al ingreso presenta hipoglucemia, hipotensión y requiere bolo de glucosa, fluidoterapia y noradrenalina.
+No tolera la bajada de vasopresores en varias ocasiones.
+Se realiza transfusión de sangre completa, con respuesta limitada.
+Persiste anemia grave y leucocitosis severa.
+Presenta ictericia, hematomas y extremidad posterior derecha edematosa, fría y con almohadilla amoratada.
+Requiere vaciados vesicales por presión, en ocasiones incompletos.
+Come pequeñas cantidades si se le ofrece de la mano.
+El 07/05 se encuentra más alerta, pero continúa hipotensa y anémica.
+Se plantea nueva transfusión de concentrado de eritrocitos, que se inicia sin complicaciones.
+Tras transfusión, hematocrito sube a 16,2 % y leucocitos bajan a 70K.
+Últimos datos relevantes
+FC: 220 lpm aproximadamente.
+FR: 20 rpm.
+PANI: 105/66/72 mmHg en la tarde del 07/05.
+Temperatura: 37,7-39 ºC.
+Hematocrito postransfusión: 16,2 %.
+Leucocitos: 70K postransfusión.
+Bilirrubina total previa: 4,5.
+Creatinina: 0,6 mg/dL.
+Urea: 47 mg/dL.
+Problemas activos
+Leucocitosis severa.
+Anemia grave con necesidad de transfusión.
+Hipotensión dependiente de noradrenalina.
+Ictericia.
+Taquicardia persistente.
+Debilidad/pulso débil.
+Retención urinaria parcial / vaciado vesical manual.
+Extremidad posterior derecha edematosa y fría.
+Sospecha de proceso hematológico grave.
+Tratamiento actual
+Marbofloxacino 2 mg/kg/24h IV.
+Amoxiclav 22 mg/kg/8h IV.
+Metilprednisolona 1 mg/kg/12h.
+Noradrenalina.
+Plan
+Valorar evolución con corticoides.
+Plantear controles de hemograma, bilirrubina total, creatinina y urea.
+Valorar radiografía de tórax.
+Decidir si continuar con nuevas transfusiones o replantear el límite terapéutico según evolución y decisión de tutores.
+Gravedad
+
+🔴 Paciente crítico / pronóstico muy reservado.
+
+PACIENTE 3 — CANINO, PASTOR ALEMÁN, MACHO CASTRADO, 8 AÑOS — POSTOPERATORIO ABDOMINAL COMPLEJO
+
+Fecha de ingreso: 05/05/2026
+Días hospitalizado: 3
+Clínico responsable: servicio quirúrgico / medicina interna
+
+Motivo de consulta
+
+Hiporexia y apatía en paciente intervenido recientemente de abdomen séptico por úlcera pilórica.
+
+Antecedentes relevantes
+Enfermedad renal crónica congénita, con creatinina basal alrededor de 2 mg/dL.
+Malformación congénita de uretra.
+Artrosis de hombros.
+Cirugía abdominal de urgencia 20 días antes por úlcera pilórica/perforación gástrica.
+Resumen del caso
+
+Paciente canino con hiporexia, apatía y vómitos ocasionales tras cirugía abdominal reciente. En la ecografía se detecta líquido libre ecogénico, reacción peritoneal y una estructura tabicada de 10 x 5 cm adherida al estómago, compatible con posible complicación postquirúrgica: perforación, absceso, seroma o reacción peritoneal asociada.
+
+Se decide laparotomía exploratoria de urgencia. Durante la cirugía se identifica una estructura quística formada por omento sobre el cierre de la úlcera previa. Se drena contenido serosanguinolento, se realiza plastia/marsupialización, se liberan adherencias intestinales y se coloca drenaje Jackson-Pratt.
+
+Pruebas relevantes
+Gasometría sin alteraciones críticas destacadas.
+Creatinina 1,5 mg/dL.
+Urea 36 mg/dL.
+Albúmina 2,8 g/dL.
+Líquido libre abdominal con elevada celularidad.
+Ecografía: líquido libre ecogénico, reacción peritoneal y estructura tabicada adherida al estómago.
+Muestras enviadas para citología y cultivo.
+Cirugía realizada
+Reintervención quirúrgica abdominal.
+Drenaje de estructura quística perigástrica.
+Plastia/marsupialización.
+Liberación de adherencias yeyunales.
+Colocación de drenaje Jackson-Pratt.
+Colocación de sonda nasogástrica.
+Muestra del líquido del quiste enviada a cultivo.
+Evolución resumida
+Postoperatorio inicial estable.
+Mucosas rosadas, normotermia, pulso fuerte y abdomen progresivamente más depresible.
+Al principio no orina ni defeca en paseo.
+Drenaje JP inicialmente abundante, después disminuye de forma marcada.
+Se inicia alimentación por sonda, posteriormente come comida casera con apetito.
+Se cambia analgesia de metadona a buprenorfina.
+AFAST sin líquido libre en la mañana del 06/05.
+En la tarde del 06/05 presenta retención urinaria, se realiza sondaje y se vacían 350 ml.
+Por la noche ya orina por la mañana y vacía la vejiga por completo.
+JP con bajo volumen: 10-20 ml serohemorrágico.
+AFAST con leve cantidad de líquido libre en zona hepatodiafragmática.
+Últimos datos relevantes
+Tª: 37,8 ºC.
+FC: 90-104 lpm.
+FR: 16-24 rpm.
+PANI: 126/70/77 - 130/66/77.
+Peso: 40,2 kg.
+Come comida casera.
+Orina y vacía vejiga por completo.
+No defeca durante la noche.
+Drenaje JP: bajo volumen.
+Problemas activos
+Postoperatorio abdominal complejo.
+Drenaje Jackson-Pratt.
+Leve líquido libre hepatodiafragmático.
+Pendiente cultivo de líquido libre y líquido del quiste.
+Riesgo de infección, dehiscencia, recidiva o nueva complicación abdominal.
+Enfermedad renal congénita.
+Antecedente de retención urinaria.
+Plan
+Mantener hospitalización para monitorización.
+Control del dolor.
+FAST seriados.
+Vaciados y medición del drenaje Jackson-Pratt.
+Mantener antibioterapia.
+No administrar AINE.
+Pendiente resultados de cultivo de líquido libre y líquido del quiste.
+Retirar drenaje JP el jueves si la evolución lo permite.
+Gravedad
+
+🟠 Paciente en vigilancia estrecha por postoperatorio abdominal complejo.`;
       estado.textContent = "Ejemplo cargado.";
     }
   </script>
