@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Calculadora clínica de riesgo en nódulos mamarios caninos</title>
+
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(255, 255, 255, 0.08);
+      --panel-2: rgba(255, 255, 255, 0.12);
+      --text: #f8fafc;
+      --muted: #a8b3c7;
+      --accent: #ff9900;
+      --blue: #60a5fa;
+      --green: #22c55e;
+      --yellow: #facc15;
+      --red: #ef4444;
+      --border: rgba(255, 255, 255, 0.14);
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.22), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(255, 153, 0, 0.18), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .app {
+      width: min(1180px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    header {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 6vw, 48px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: clamp(14px, 2.6vw, 17px);
+    }
+
+    .home a,
+    .source-button,
+    .footer a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    .home a:hover,
+    .source-button:hover,
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .source-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .source-button,
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 16px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .source-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button:hover,
+    .source-button:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.3);
+      text-decoration: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: clamp(20px, 4vw, 28px);
+      letter-spacing: -0.02em;
+    }
+
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 10px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(96, 165, 250, 0.14);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      color: #bfdbfe;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: #e5e7eb;
+      font-weight: 750;
+    }
+
+    .hint {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 13px 14px;
+      background: rgba(0, 0, 0, 0.22);
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.13);
+    }
+
+    .toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .toggle button {
+      border-radius: 15px;
+      padding: 12px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .toggle button.active {
+      background: rgba(255, 153, 0, 0.22);
+      border-color: rgba(255, 153, 0, 0.75);
+      color: #fff7ed;
+    }
+
+    .result {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid var(--border);
+    }
+
+    .probability {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .percent {
+      font-size: clamp(44px, 8vw, 72px);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.06em;
+    }
+
+    .risk-label {
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .risk-low {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.45);
+    }
+
+    .risk-mid {
+      background: rgba(250, 204, 21, 0.18);
+      color: #fde68a;
+      border: 1px solid rgba(250, 204, 21, 0.42);
+    }
+
+    .risk-high {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+
+    .bar {
+      width: 100%;
+      height: 16px;
+      margin: 16px 0 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+      transition: width 0.25s ease;
+    }
+
+    .formula {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 13px;
+      overflow-x: auto;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .note {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 153, 0, 0.1);
+      border: 1px solid rgba(255, 153, 0, 0.32);
+      color: #fed7aa;
+      font-size: 14px;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border);
+    }
+
+    .mini strong {
+      display: block;
+      font-size: 20px;
+    }
+
+    .mini span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer {
+      margin-top: 22px;
+      padding: 22px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .footer p {
+      margin: 8px 0;
+    }
+
+    @media (max-width: 880px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header,
+      .card-body,
+      .card-header {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <header>
+      <h1>Calculadora clínica de riesgo en nódulos mamarios caninos</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+
+        </h2>
+
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+
+            🏠 <span>volver a página de inicio</span>
+
+          </a>
+
+        </p>
+
+      </div>
+
+      <p class="subtitle">
+        Herramienta visual basada en modelos de regresión logística penalizada de Firth para estimar:
+        <strong>probabilidad de diagnóstico histológico maligno</strong> y, en carcinomas,
+        <strong>probabilidad de grado histológico intermedio/alto, II–III frente a I</strong>.
+      </p>
+
+      <div class="source-row">
+        <a class="source-button"
+          href="https://www.mdpi.com/2076-2615/16/3/421"
+          target="_blank"
+          rel="noopener noreferrer">
+          📄 Basado en el artículo original
+        </a>
+
+        <button type="button" onclick="cargarEjemploMalignidad()">Ejemplo malignidad</button>
+        <button type="button" onclick="cargarEjemploGrado()">Ejemplo grado II–III</button>
+        <button type="button" onclick="resetearTodo()">Limpiar todo</button>
+      </div>
+    </header>
+
+    <section class="mini-grid">
+      <div class="mini">
+        <strong>Modelo 1</strong>
+        <span>Maligno vs benigno/no neoplásico</span>
+      </div>
+      <div class="mini">
+        <strong>Modelo 2</strong>
+        <span>Grado II–III vs grado I en carcinomas</span>
+      </div>
+      <div class="mini">
+        <strong>Uso clínico</strong>
+        <span>Apoyo preoperatorio, no sustituye histopatología</span>
+      </div>
+    </section>
+
+    <main class="grid">
+
+      <!-- CALCULADORA 1 -->
+      <section class="card">
+        <div class="card-header">
+          <h2>1. Probabilidad de malignidad histológica</h2>
+          <div class="tag">n = 153 nódulos · regresión logística de Firth</div>
+        </div>
+
+        <div class="card-body">
+          <div class="field">
+            <label for="ageN">
+              Edad en la esterilización
+              <span id="ageNValue">0 años</span>
+            </label>
+            <input id="ageN" type="number" min="0" max="25" step="0.1" value="0" oninput="calcularTodo()">
+            <span class="hint">Poner 0 si la perra está entera/no esterilizada.</span>
+          </div>
+
+          <div class="field">
+            <label for="size">
+              Diámetro máximo del tumor
+              <span id="sizeValue">1 cm</span>
+            </label>
+            <input id="size" type="number" min="0" max="30" step="0.1" value="1" oninput="calcularTodo()">
+            <span class="hint">Medida clínica máxima del nódulo mamario en centímetros.</span>
+          </div>
+
+          <div class="field">
+            <label>Crecimiento rápido comunicado</label>
+            <div class="toggle" data-group="rapid">
+              <button type="button" data-value="0" class="active" onclick="setToggle('rapid', 0)">No</button>
+              <button type="button" data-value="1" onclick="setToggle('rapid', 1)">Sí</button>
+            </div>
+            <span class="hint">Rapid = 1 si el propietario refiere crecimiento rápido.</span>
+          </div>
+
+          <div class="field">
+            <label>Tiempo desde detección hasta cirugía &gt; 3,5 meses</label>
+            <div class="toggle" data-group="delay">
+              <button type="button" data-value="0" class="active" onclick="setToggle('delay', 0)">No</button>
+              <button type="button" data-value="1" onclick="setToggle('delay', 1)">Sí</button>
+            </div>
+            <span class="hint">Delay = 1 si han pasado más de 3,5 meses.</span>
+          </div>
+
+          <div class="result">
+            <div class="probability">
+              <div class="percent" id="malPercent">--%</div>
+              <div class="risk-label" id="malRisk">Sin calcular</div>
+            </div>
+
+            <div class="bar">
+              <div class="bar-fill" id="malBar"></div>
+            </div>
+
+            <p id="malText">Introduce los datos para estimar la probabilidad.</p>
+
+            <div class="formula" id="malFormula">
+              η = -0,830 - 0,274·AgeN + 0,378·Size + 1,135·Rapid + 1,163·Delay
+            </div>
+
+            <div class="actions">
+              <button type="button" onclick="copiarResultado('mal')">Copiar resultado</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALCULADORA 2 -->
+      <section class="card">
+        <div class="card-header">
+          <h2>2. Probabilidad de grado II–III en carcinomas</h2>
+          <div class="tag">n = 83 carcinomas · regresión logística de Firth</div>
+        </div>
+
+        <div class="card-body">
+          <div class="field">
+            <label>Antecedente de tumores mamarios previos</label>
+            <div class="toggle" data-group="prev">
+              <button type="button" data-value="0" class="active" onclick="setToggle('prev', 0)">No</button>
+              <button type="button" data-value="1" onclick="setToggle('prev', 1)">Sí</button>
+            </div>
+            <span class="hint">Prev = 1 si hay historia previa registrada de tumores mamarios.</span>
+          </div>
+
+          <div class="field">
+            <label>Secreción mamaria sanguinolenta</label>
+            <div class="toggle" data-group="sang">
+              <button type="button" data-value="0" class="active" onclick="setToggle('sang', 0)">No</button>
+              <button type="button" data-value="1" onclick="setToggle('sang', 1)">Sí</button>
+            </div>
+            <span class="hint">Sang = 1 si hay secreción sanguinolenta por el pezón.</span>
+          </div>
+
+          <div class="field">
+            <label for="nodules">
+              Número total de nódulos mamarios sincrónicos
+              <span id="nodulesValue">1</span>
+            </label>
+            <input id="nodules" type="number" min="1" max="30" step="1" value="1" oninput="calcularTodo()">
+            <span class="hint">Número total de nódulos detectados al mismo tiempo en la exploración.</span>
+          </div>
+
+          <div class="result">
+            <div class="probability">
+              <div class="percent" id="gradePercent">--%</div>
+              <div class="risk-label" id="gradeRisk">Sin calcular</div>
+            </div>
+
+            <div class="bar">
+              <div class="bar-fill" id="gradeBar"></div>
+            </div>
+
+            <p id="gradeText">Introduce los datos para estimar la probabilidad.</p>
+
+            <div class="formula" id="gradeFormula">
+              η = -0,28 + 2,30·Prev + 4,25·Sang - 0,58·Nodules
+            </div>
+
+            <div class="actions">
+              <button type="button" onclick="copiarResultado('grade')">Copiar resultado</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <section class="note">
+      <strong>Importante:</strong> esta calculadora es una herramienta de apoyo clínico preoperatorio.
+      No sustituye la histopatología ni la valoración clínica completa. Los modelos proceden de una
+      población de perras con enfermedad mamaria M0 al diagnóstico; no deben extrapolarse directamente
+      a carcinoma mamario inflamatorio ni a enfermedad metastásica M1.
+    </section>
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+
+      <p><strong>_______________________________________________</strong></p>
+
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+
+        Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+
+      <p>_______________________________________________</p>
+
+    </footer>
+
+  </div>
+
+  <script>
+    const state = {
+      rapid: 0,
+      delay: 0,
+      prev: 0,
+      sang: 0
+    };
+
+    function logistic(eta) {
+      return 1 / (1 + Math.exp(-eta));
+    }
+
+    function clampNumber(value, min, max, fallback) {
+      const n = Number(value);
+      if (Number.isNaN(n)) return fallback;
+      return Math.min(Math.max(n, min), max);
+    }
+
+    function setToggle(group, value) {
+      state[group] = Number(value);
+
+      document.querySelectorAll(`[data-group="${group}"] button`).forEach(btn => {
+        btn.classList.toggle("active", Number(btn.dataset.value) === Number(value));
+      });
+
+      calcularTodo();
+    }
+
+    function formatPercent(p) {
+      return (p * 100).toFixed(1).replace(".", ",") + "%";
+    }
+
+    function clasificarRiesgo(p) {
+      if (p < 0.33) {
+        return {
+          text: "Riesgo bajo",
+          cls: "risk-low"
+        };
+      }
+      if (p < 0.66) {
+        return {
+          text: "Riesgo intermedio",
+          cls: "risk-mid"
+        };
+      }
+      return {
+        text: "Riesgo alto",
+        cls: "risk-high"
+      };
+    }
+
+    function pintarRiesgo(elementId, risk) {
+      const el = document.getElementById(elementId);
+      el.textContent = risk.text;
+      el.className = "risk-label " + risk.cls;
+    }
+
+    function calcularMalignidad() {
+      const ageN = clampNumber(document.getElementById("ageN").value, 0, 25, 0);
+      const size = clampNumber(document.getElementById("size").value, 0, 30, 0);
+
+      document.getElementById("ageNValue").textContent = ageN.toString().replace(".", ",") + " años";
+      document.getElementById("sizeValue").textContent = size.toString().replace(".", ",") + " cm";
+
+      const eta = -0.830 + (-0.274 * ageN) + (0.378 * size) + (1.135 * state.rapid) + (1.163 * state.delay);
+      const p = logistic(eta);
+      const risk = clasificarRiesgo(p);
+
+      document.getElementById("malPercent").textContent = formatPercent(p);
+      document.getElementById("malBar").style.width = (p * 100).toFixed(1) + "%";
+      pintarRiesgo("malRisk", risk);
+
+      document.getElementById("malText").innerHTML =
+        `Probabilidad estimada de <strong>diagnóstico histológico maligno</strong>: <strong>${formatPercent(p)}</strong>.`;
+
+      document.getElementById("malFormula").textContent =
+        `η = ${eta.toFixed(3).replace(".", ",")} | p = 1 / (1 + exp(-η))`;
+    }
+
+    function calcularGrado() {
+      const nodules = clampNumber(document.getElementById("nodules").value, 1, 30, 1);
+
+      document.getElementById("nodulesValue").textContent = nodules;
+
+      const eta = -0.28 + (2.30 * state.prev) + (4.25 * state.sang) + (-0.58 * nodules);
+      const p = logistic(eta);
+      const risk = clasificarRiesgo(p);
+
+      document.getElementById("gradePercent").textContent = formatPercent(p);
+      document.getElementById("gradeBar").style.width = (p * 100).toFixed(1) + "%";
+      pintarRiesgo("gradeRisk", risk);
+
+      document.getElementById("gradeText").innerHTML =
+        `Probabilidad estimada de <strong>grado histológico intermedio/alto, II–III</strong>: <strong>${formatPercent(p)}</strong>.`;
+
+      document.getElementById("gradeFormula").textContent =
+        `η = ${eta.toFixed(3).replace(".", ",")} | p = 1 / (1 + exp(-η))`;
+    }
+
+    function calcularTodo() {
+      calcularMalignidad();
+      calcularGrado();
+    }
+
+    function cargarEjemploMalignidad() {
+      document.getElementById("ageN").value = 9;
+      document.getElementById("size").value = 2.5;
+      setToggle("rapid", 1);
+      setToggle("delay", 1);
+      calcularTodo();
+    }
+
+    function cargarEjemploGrado() {
+      setToggle("prev", 1);
+      setToggle("sang", 1);
+      document.getElementById("nodules").value = 2;
+      calcularTodo();
+    }
+
+    function resetearTodo() {
+      document.getElementById("ageN").value = 0;
+      document.getElementById("size").value = 1;
+      document.getElementById("nodules").value = 1;
+
+      setToggle("rapid", 0);
+      setToggle("delay", 0);
+      setToggle("prev", 0);
+      setToggle("sang", 0);
+
+      calcularTodo();
+    }
+
+    async function copiarResultado(tipo) {
+      let texto = "";
+
+      if (tipo === "mal") {
+        texto =
+          "Calculadora de malignidad histológica en nódulo mamario canino\n" +
+          "Resultado: " + document.getElementById("malPercent").textContent + "\n" +
+          "Interpretación: " + document.getElementById("malRisk").textContent + "\n" +
+          document.getElementById("malText").innerText + "\n" +
+          document.getElementById("malFormula").innerText;
+      } else {
+        texto =
+          "Calculadora de grado histológico II–III en carcinoma mamario canino\n" +
+          "Resultado: " + document.getElementById("gradePercent").textContent + "\n" +
+          "Interpretación: " + document.getElementById("gradeRisk").textContent + "\n" +
+          document.getElementById("gradeText").innerText + "\n" +
+          document.getElementById("gradeFormula").innerText;
+      }
+
+      try {
+        await navigator.clipboard.writeText(texto);
+        alert("Resultado copiado al portapapeles.");
+      } catch (err) {
+        alert("No se pudo copiar automáticamente. Puedes seleccionar el resultado manualmente.");
+      }
+    }
+
+    calcularTodo();
+  </script>
+
+</body>
+
+</html>
