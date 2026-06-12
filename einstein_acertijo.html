@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<script defer src="goat.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Acertijo de Einstein | Angel Soto</title>
+
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(14, 24, 41, 0.86);
+      --panel-strong: rgba(8, 15, 28, 0.96);
+      --line: rgba(255, 255, 255, 0.11);
+      --line-strong: rgba(255, 255, 255, 0.2);
+      --text: #edf4ff;
+      --muted: #9fb1c8;
+      --accent: #ff9900;
+      --accent2: #6fc8ff;
+      --good: #67f2b0;
+      --danger: #ff6b6b;
+      --shadow: 0 18px 55px rgba(0, 0, 0, 0.42);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(255,153,0,.14), transparent 24%),
+        radial-gradient(circle at top left, rgba(111,200,255,.12), transparent 25%),
+        linear-gradient(180deg, #07101d 0%, #0a1322 45%, #08111f 100%);
+      padding: 22px;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      width: min(100%, 1280px);
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(18px, 4vw, 34px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      right: -180px;
+      top: -190px;
+      background: radial-gradient(circle, rgba(255,153,0,.15), transparent 66%);
+      pointer-events: none;
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      color: var(--accent2);
+      font-size: 0.86rem;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 3.6rem);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .subtitle {
+      margin: 13px auto 0;
+      max-width: 850px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .home a {
+      color: var(--accent2);
+      font-weight: 800;
+    }
+
+    .home a:hover {
+      text-decoration: underline;
+    }
+
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .board-wrap,
+    .side-panel {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px;
+    }
+
+    .board-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .board-title h2,
+    .side-panel h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(255,153,0,.13);
+      border: 1px solid rgba(255,153,0,.25);
+      color: #fff;
+      font-size: .82rem;
+      font-weight: 800;
+    }
+
+    .board-scroll {
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .board {
+      min-width: 840px;
+      display: grid;
+      grid-template-columns: 120px repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .house-head,
+    .row-head,
+    .cell {
+      border-radius: 16px;
+      min-height: 72px;
+      border: 1px solid var(--line);
+    }
+
+    .house-head {
+      background: linear-gradient(135deg, rgba(255,153,0,.16), rgba(111,200,255,.08));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .corner {
+      background: transparent;
+      border: none;
+    }
+
+    .row-head {
+      background: rgba(0,0,0,.24);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+      font-weight: 900;
+      font-size: .88rem;
+    }
+
+    .cell {
+      background: rgba(0,0,0,.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      transition: .15s ease;
+    }
+
+    .cell.drag-over {
+      border-color: rgba(255,153,0,.7);
+      background: rgba(255,153,0,.1);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.12);
+    }
+
+    .cell.locked {
+      background: rgba(103,242,176,.08);
+      border-color: rgba(103,242,176,.24);
+    }
+
+    .tile-bank {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .bank-group {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(0,0,0,.18);
+      padding: 12px;
+    }
+
+    .bank-title {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: .88rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .bank {
+      min-height: 56px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      border-radius: 14px;
+      padding: 6px;
+      background: rgba(255,255,255,.03);
+      border: 1px dashed rgba(255,255,255,.1);
+    }
+
+    .tile {
+      user-select: none;
+      cursor: grab;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 42px;
+      padding: 9px 11px;
+      border-radius: 14px;
+      border: 1px solid var(--line-strong);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 38%),
+        rgba(12, 20, 35, .95);
+      color: #fff;
+      font-size: .9rem;
+      font-weight: 900;
+      box-shadow: 0 10px 20px rgba(0,0,0,.23);
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+
+    .tile:hover {
+      transform: translateY(-1px);
+      border-color: rgba(111,200,255,.45);
+    }
+
+    .tile:active {
+      cursor: grabbing;
+      transform: scale(.98);
+    }
+
+    .tile.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(255,153,0,.16), 0 10px 20px rgba(0,0,0,.25);
+    }
+
+    .tile.color-red {
+      background: linear-gradient(135deg, rgba(255,70,70,.95), rgba(110,15,15,.95));
+    }
+
+    .tile.color-green {
+      background: linear-gradient(135deg, rgba(30,190,110,.95), rgba(10,80,48,.95));
+    }
+
+    .tile.color-white {
+      background: linear-gradient(135deg, #ffffff, #d8e3ef);
+      color: #111827;
+    }
+
+    .tile.color-yellow {
+      background: linear-gradient(135deg, #ffd84d, #d88a00);
+      color: #151515;
+    }
+
+    .tile.color-blue {
+      background: linear-gradient(135deg, #45b6ff, #123e8f);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      min-height: 48px;
+      border-radius: 15px;
+      border: 1px solid var(--line);
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.09);
+      border-color: var(--line-strong);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ff9900, #ff7b00);
+      color: #101010;
+      border: none;
+      box-shadow: 0 12px 24px rgba(255,153,0,.24);
+    }
+
+    .btn-danger {
+      background: rgba(255,107,107,.1);
+      color: #ffd6d6;
+      border-color: rgba(255,107,107,.26);
+    }
+
+    .message {
+      min-height: 62px;
+      margin-top: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.045);
+      color: var(--muted);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 14px;
+      font-weight: 900;
+      line-height: 1.4;
+    }
+
+    .message.ok {
+      color: var(--good);
+      background: rgba(103,242,176,.1);
+      border-color: rgba(103,242,176,.34);
+      font-size: 1.15rem;
+    }
+
+    .message.fail {
+      color: var(--danger);
+      background: rgba(255,107,107,.1);
+      border-color: rgba(255,107,107,.34);
+      font-size: 1.15rem;
+    }
+
+    details {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .details-content {
+      padding: 0 16px 16px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: .92rem;
+    }
+
+    .details-content ol {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    .details-content li {
+      margin-bottom: 6px;
+    }
+
+    .footer {
+      width: min(100%, 1280px);
+      margin: 22px auto 0;
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(14, 24, 41, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.55;
+    }
+
+    .footer a {
+      color: var(--accent2);
+      font-weight: 800;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .footer p {
+      margin: 8px 0;
+    }
+
+    .footer h4 {
+      margin: 10px 0;
+      font-size: 1.05rem;
+    }
+
+    @media (max-width: 1040px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .side-panel {
+        order: -1;
+      }
+
+      .tile-bank {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      body {
+        padding: 14px;
+      }
+
+      .tile-bank {
+        grid-template-columns: 1fr;
+      }
+
+      .card,
+      .board-wrap,
+      .side-panel,
+      .footer {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <section class="card">
+      <header class="header">
+        <div class="eyebrow">🧩 Acertijo lógico</div>
+
+        <h1>El acertijo de Einstein</h1>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <p class="subtitle">
+          Arrastra cada ficha a la casa correspondiente. Cuando creas que lo tienes, pulsa comprobar.
+          El juego solo te dirá si has acertado o fallado.
+        </p>
+      </header>
+
+      <div class="layout">
+        <section class="board-wrap">
+          <div class="board-title">
+            <h2>Tablero de resolución</h2>
+            <span class="pill">🐟 ¿Quién tiene el pececito?</span>
+          </div>
+
+          <div class="board-scroll">
+            <div class="board" id="board">
+              <div class="corner"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-panel">
+          <h2>Fichas móviles</h2>
+          <p style="color:var(--muted); margin:8px 0 0; font-size:.92rem;">
+            Puedes arrastrarlas o pulsar una ficha y después pulsar una casilla compatible.
+          </p>
+
+          <div class="actions">
+            <button class="btn-primary" id="checkBtn" type="button">Comprobar</button>
+            <button id="clearBtn" type="button">Vaciar tablero</button>
+            <button class="btn-danger" id="resetBtn" type="button">Reiniciar todo</button>
+          </div>
+
+          <div class="message" id="message">
+            Coloca las fichas en el tablero.
+          </div>
+
+          <details>
+            <summary>Ver pistas</summary>
+            <div class="details-content">
+              <ol>
+                <li>El británico vive en la casa roja.</li>
+                <li>El sueco tiene un perro.</li>
+                <li>El danés toma té.</li>
+                <li>La casa verde está a la izquierda de la blanca.</li>
+                <li>El dueño de la casa verde toma café.</li>
+                <li>La persona que fuma Pall Mall tiene un pájaro.</li>
+                <li>El dueño de la casa amarilla fuma Dunhill.</li>
+                <li>El que vive en la casa del centro toma leche.</li>
+                <li>El noruego vive en la primera casa.</li>
+                <li>La persona que fuma Brends vive junto a la que tiene un gato.</li>
+                <li>La persona que tiene un caballo vive junto a la que fuma Dunhill.</li>
+                <li>El que fuma Bluemasters bebe cerveza.</li>
+                <li>El alemán fuma Prince.</li>
+                <li>El noruego vive junto a la casa azul.</li>
+                <li>El que fuma Brends tiene un vecino que toma agua.</li>
+              </ol>
+            </div>
+          </details>
+        </aside>
+      </div>
+
+      <section class="tile-bank" id="tileBank"></section>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+
+    <h4 style="text-align: center;">
+      <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a>
+    </h4>
+
+    <p><strong>_______________________________________________</strong></p>
+
+    <p>
+      <strong>Proyectos con licencia WTFPL</strong>
+      (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))
+    </p>
+
+    <p>
+      DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.
+    </p>
+
+    <p>_______________________________________________</p>
+  </footer>
+
+  <script>
+    const categories = [
+      {
+        key: "color",
+        label: "Casa",
+        icon: "🏠",
+        items: [
+          { value: "Roja", icon: "🔴", className: "color-red" },
+          { value: "Verde", icon: "🟢", className: "color-green" },
+          { value: "Blanca", icon: "⚪", className: "color-white" },
+          { value: "Amarilla", icon: "🟡", className: "color-yellow" },
+          { value: "Azul", icon: "🔵", className: "color-blue" }
+        ]
+      },
+      {
+        key: "nationality",
+        label: "Nacionalidad",
+        icon: "👤",
+        items: [
+          { value: "Británico", icon: "🇬🇧" },
+          { value: "Sueco", icon: "🇸🇪" },
+          { value: "Danés", icon: "🇩🇰" },
+          { value: "Noruego", icon: "🇳🇴" },
+          { value: "Alemán", icon: "🇩🇪" }
+        ]
+      },
+      {
+        key: "pet",
+        label: "Mascota",
+        icon: "🐾",
+        items: [
+          { value: "Perro", icon: "🐶" },
+          { value: "Pájaro", icon: "🐦" },
+          { value: "Gato", icon: "🐱" },
+          { value: "Caballo", icon: "🐴" },
+          { value: "Pececito", icon: "🐟" }
+        ]
+      },
+      {
+        key: "drink",
+        label: "Bebida",
+        icon: "🥤",
+        items: [
+          { value: "Té", icon: "🍵" },
+          { value: "Café", icon: "☕" },
+          { value: "Leche", icon: "🥛" },
+          { value: "Cerveza", icon: "🍺" },
+          { value: "Agua", icon: "💧" }
+        ]
+      },
+      {
+        key: "smoke",
+        label: "Cigarro",
+        icon: "🚬",
+        items: [
+          { value: "Pall Mall", icon: "🚬" },
+          { value: "Dunhill", icon: "🟤" },
+          { value: "Brends", icon: "⚫" },
+          { value: "Bluemasters", icon: "🔷" },
+          { value: "Prince", icon: "👑" }
+        ]
+      }
+    ];
+
+    const board = document.getElementById("board");
+    const tileBank = document.getElementById("tileBank");
+    const message = document.getElementById("message");
+    const checkBtn = document.getElementById("checkBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let selectedTile = null;
+
+    function normalizeText(text) {
+      return String(text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function showMessage(text, type = "") {
+      message.className = "message";
+      if (type) message.classList.add(type);
+      message.textContent = text;
+    }
+
+    function buildBoard() {
+      board.innerHTML = "";
+
+      const corner = document.createElement("div");
+      corner.className = "corner";
+      board.appendChild(corner);
+
+      for (let i = 1; i <= 5; i++) {
+        const head = document.createElement("div");
+        head.className = "house-head";
+        head.textContent = `Casa ${i}`;
+        board.appendChild(head);
+      }
+
+      categories.forEach(category => {
+        const rowHead = document.createElement("div");
+        rowHead.className = "row-head";
+        rowHead.innerHTML = `${category.icon}<br>${category.label}`;
+        board.appendChild(rowHead);
+
+        for (let col = 0; col < 5; col++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.dataset.type = category.key;
+          cell.dataset.col = String(col);
+          cell.addEventListener("dragover", handleDragOver);
+          cell.addEventListener("dragleave", handleDragLeave);
+          cell.addEventListener("drop", handleDropOnCell);
+          cell.addEventListener("click", () => placeSelectedTile(cell));
+          board.appendChild(cell);
+        }
+      });
+    }
+
+    function buildTileBank() {
+      tileBank.innerHTML = "";
+
+      categories.forEach(category => {
+        const group = document.createElement("div");
+        group.className = "bank-group";
+
+        const title = document.createElement("p");
+        title.className = "bank-title";
+        title.innerHTML = `<span>${category.icon} ${category.label}</span><span>${category.items.length}</span>`;
+
+        const bank = document.createElement("div");
+        bank.className = "bank";
+        bank.dataset.bank = category.key;
+        bank.addEventListener("dragover", handleDragOver);
+        bank.addEventListener("dragleave", handleDragLeave);
+        bank.addEventListener("drop", handleDropOnBank);
+
+        category.items.forEach(item => {
+          const tile = createTile(category.key, item);
+          bank.appendChild(tile);
+        });
+
+        group.appendChild(title);
+        group.appendChild(bank);
+        tileBank.appendChild(group);
+      });
+    }
+
+    function createTile(type, item) {
+      const tile = document.createElement("div");
+      tile.className = `tile ${item.className || ""}`;
+      tile.draggable = true;
+      tile.id = `tile-${type}-${normalizeText(item.value).replace(/\s+/g, "-")}`;
+      tile.dataset.type = type;
+      tile.dataset.value = item.value;
+      tile.innerHTML = `<span>${item.icon}</span><span>${item.value}</span>`;
+
+      tile.addEventListener("dragstart", event => {
+        event.dataTransfer.setData("text/plain", tile.id);
+        selectedTile = null;
+        removeSelectedTiles();
+      });
+
+      tile.addEventListener("click", event => {
+        event.stopPropagation();
+        selectTile(tile);
+      });
+
+      return tile;
+    }
+
+    function selectTile(tile) {
+      if (selectedTile === tile) {
+        tile.classList.remove("selected");
+        selectedTile = null;
+        return;
+      }
+
+      removeSelectedTiles();
+      selectedTile = tile;
+      tile.classList.add("selected");
+      showMessage("Ficha seleccionada. Pulsa una casilla compatible para colocarla.");
+    }
+
+    function removeSelectedTiles() {
+      document.querySelectorAll(".tile.selected").forEach(tile => {
+        tile.classList.remove("selected");
+      });
+    }
+
+    function placeSelectedTile(cell) {
+      if (!selectedTile) return;
+
+      if (selectedTile.dataset.type !== cell.dataset.type) {
+        showMessage("Esa ficha no corresponde a esta fila.", "fail");
+        return;
+      }
+
+      placeTileInCell(selectedTile, cell);
+      selectedTile.classList.remove("selected");
+      selectedTile = null;
+      showMessage("Ficha colocada.");
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.currentTarget.classList.add("drag-over");
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove("drag-over");
+    }
+
+    function handleDropOnCell(event) {
+      event.preventDefault();
+      const cell = event.currentTarget;
+      cell.classList.remove("drag-over");
+
+      const tileId = event.dataTransfer.getData("text/plain");
+      const tile = document.getElementById(tileId);
+
+      if (!tile) return;
+
+      if (tile.dataset.type !== cell.dataset.type) {
+        showMessage("Esa ficha no corresponde a esta fila.", "fail");
+        return;
+      }
+
+      placeTileInCell(tile, cell);
+      showMessage("Ficha colocada.");
+    }
+
+    function handleDropOnBank(event) {
+      event.preventDefault();
+      const bank = event.currentTarget;
+      bank.classList.remove("drag-over");
+
+      const tileId = event.dataTransfer.getData("text/plain");
+      const tile = document.getElementById(tileId);
+
+      if (!tile) return;
+
+      if (tile.dataset.type !== bank.dataset.bank) {
+        showMessage("Esa ficha pertenece a otra categoría.", "fail");
+        return;
+      }
+
+      bank.appendChild(tile);
+      showMessage("Ficha devuelta al panel.");
+    }
+
+    function placeTileInCell(tile, cell) {
+      const previousTile = cell.querySelector(".tile");
+
+      if (previousTile && previousTile !== tile) {
+        const bank = document.querySelector(`.bank[data-bank="${previousTile.dataset.type}"]`);
+        bank.appendChild(previousTile);
+      }
+
+      cell.appendChild(tile);
+    }
+
+    function clearBoard() {
+      document.querySelectorAll(".cell .tile").forEach(tile => {
+        const bank = document.querySelector(`.bank[data-bank="${tile.dataset.type}"]`);
+        bank.appendChild(tile);
+      });
+
+      selectedTile = null;
+      removeSelectedTiles();
+      showMessage("Tablero vacío.");
+    }
+
+    function getGrid() {
+      const grid = {
+        color: Array(5).fill(null),
+        nationality: Array(5).fill(null),
+        pet: Array(5).fill(null),
+        drink: Array(5).fill(null),
+        smoke: Array(5).fill(null)
+      };
+
+      document.querySelectorAll(".cell").forEach(cell => {
+        const tile = cell.querySelector(".tile");
+        if (!tile) return;
+
+        const type = cell.dataset.type;
+        const col = Number(cell.dataset.col);
+        grid[type][col] = tile.dataset.value;
+      });
+
+      return grid;
+    }
+
+    function isComplete(grid) {
+      return Object.values(grid).every(row => row.every(Boolean));
+    }
+
+    function indexOf(row, value) {
+      return row.indexOf(value);
+    }
+
+    function sameHouse(grid, rowA, valueA, rowB, valueB) {
+      return indexOf(grid[rowA], valueA) === indexOf(grid[rowB], valueB);
+    }
+
+    function leftOf(grid, rowA, valueA, rowB, valueB) {
+      return indexOf(grid[rowA], valueA) + 1 === indexOf(grid[rowB], valueB);
+    }
+
+    function nextTo(grid, rowA, valueA, rowB, valueB) {
+      return Math.abs(indexOf(grid[rowA], valueA) - indexOf(grid[rowB], valueB)) === 1;
+    }
+
+    function validatePuzzle() {
+      const grid = getGrid();
+
+      if (!isComplete(grid)) {
+        return false;
+      }
+
+      const checks = [
+        sameHouse(grid, "nationality", "Británico", "color", "Roja"),
+        sameHouse(grid, "nationality", "Sueco", "pet", "Perro"),
+        sameHouse(grid, "nationality", "Danés", "drink", "Té"),
+        leftOf(grid, "color", "Verde", "color", "Blanca"),
+        sameHouse(grid, "color", "Verde", "drink", "Café"),
+        sameHouse(grid, "smoke", "Pall Mall", "pet", "Pájaro"),
+        sameHouse(grid, "color", "Amarilla", "smoke", "Dunhill"),
+        grid.drink[2] === "Leche",
+        grid.nationality[0] === "Noruego",
+        nextTo(grid, "smoke", "Brends", "pet", "Gato"),
+        nextTo(grid, "pet", "Caballo", "smoke", "Dunhill"),
+        sameHouse(grid, "smoke", "Bluemasters", "drink", "Cerveza"),
+        sameHouse(grid, "nationality", "Alemán", "smoke", "Prince"),
+        nextTo(grid, "nationality", "Noruego", "color", "Azul"),
+        nextTo(grid, "smoke", "Brends", "drink", "Agua"),
+        sameHouse(grid, "nationality", "Alemán", "pet", "Pececito")
+      ];
+
+      return checks.every(Boolean);
+    }
+
+    function checkAnswer() {
+      if (validatePuzzle()) {
+        showMessage("HAS ACERTADO", "ok");
+      } else {
+        showMessage("HAS FALLADO", "fail");
+      }
+    }
+
+    function resetAll() {
+      buildBoard();
+      buildTileBank();
+      selectedTile = null;
+      showMessage("Coloca las fichas en el tablero.");
+    }
+
+    checkBtn.addEventListener("click", checkAnswer);
+    clearBtn.addEventListener("click", clearBoard);
+    resetBtn.addEventListener("click", resetAll);
+
+    document.addEventListener("click", event => {
+      if (!event.target.closest(".tile") && !event.target.closest(".cell")) {
+        selectedTile = null;
+        removeSelectedTiles();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", resetAll);
+  </script>
+</body>
+</html>
