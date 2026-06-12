@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<script defer src="goat.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Lights Out | Angel Soto</title>
+
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(14, 24, 41, 0.82);
+      --line: rgba(255, 255, 255, 0.1);
+      --line-strong: rgba(255, 255, 255, 0.18);
+      --text: #edf4ff;
+      --muted: #9fb1c8;
+      --accent: #ff9900;
+      --accent2: #6fc8ff;
+      --good: #67f2b0;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(255,153,0,.14), transparent 24%),
+        radial-gradient(circle at top left, rgba(111,200,255,.12), transparent 25%),
+        linear-gradient(180deg, #07101d 0%, #0a1322 45%, #08111f 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      width: min(100%, 860px);
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: clamp(20px, 4vw, 34px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -160px;
+      top: -160px;
+      background: radial-gradient(circle, rgba(255,153,0,.16), transparent 65%);
+      pointer-events: none;
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      color: var(--accent2);
+      font-size: 0.86rem;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 3.4rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 12px auto 0;
+      max-width: 620px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .home a {
+      color: var(--accent2);
+      font-weight: 800;
+    }
+
+    .home a:hover {
+      text-decoration: underline;
+    }
+
+    .toolbar {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      margin: 24px 0 18px;
+    }
+
+    select,
+    button {
+      min-height: 48px;
+      border-radius: 15px;
+      border: 1px solid var(--line);
+      font-family: inherit;
+      font-weight: 800;
+      outline: none;
+    }
+
+    select {
+      width: 100%;
+      padding: 0 15px;
+      background: #000;
+      color: #fff;
+      color-scheme: dark;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #000;
+      color: #fff;
+    }
+
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,153,0,.18);
+    }
+
+    button {
+      padding: 0 16px;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.09);
+      border-color: var(--line-strong);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ff9900, #ff7b00);
+      color: #101010;
+      border: none;
+      box-shadow: 0 12px 24px rgba(255,153,0,.24);
+    }
+
+    .info-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .info-box {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.045);
+      border-radius: 18px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .info-box strong {
+      display: block;
+      font-size: 1.45rem;
+      color: #fff;
+    }
+
+    .info-box span {
+      display: block;
+      color: var(--muted);
+      font-size: .86rem;
+      margin-top: 2px;
+    }
+
+    .game-shell {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      margin: 24px 0;
+    }
+
+    .board {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border-radius: 24px;
+      background: rgba(0,0,0,.24);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
+    .cell {
+      width: clamp(58px, 14vw, 86px);
+      height: clamp(58px, 14vw, 86px);
+      border-radius: 19px;
+      border: 1px solid rgba(255,255,255,.12);
+      cursor: pointer;
+      background:
+        radial-gradient(circle at 35% 25%, rgba(255,255,255,.12), transparent 30%),
+        linear-gradient(145deg, #111827, #030712);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.06),
+        0 10px 22px rgba(0,0,0,.25);
+      transition:
+        transform .12s ease,
+        box-shadow .18s ease,
+        background .18s ease,
+        border-color .18s ease;
+    }
+
+    .cell:hover {
+      transform: translateY(-2px) scale(1.02);
+      border-color: rgba(111,200,255,.36);
+    }
+
+    .cell.on {
+      background:
+        radial-gradient(circle at 32% 22%, rgba(255,255,255,.78), transparent 22%),
+        radial-gradient(circle at center, rgba(255,214,90,.95), rgba(255,153,0,.92) 44%, rgba(255,123,0,.62) 72%);
+      box-shadow:
+        0 0 28px rgba(255,153,0,.48),
+        0 0 80px rgba(255,153,0,.18),
+        inset 0 1px 0 rgba(255,255,255,.42);
+      border-color: rgba(255,214,90,.75);
+    }
+
+    .message {
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.045);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .message.win {
+      color: var(--good);
+      background: rgba(103,242,176,.1);
+      border-color: rgba(103,242,176,.32);
+    }
+
+    details {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 15px 17px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .details-content {
+      color: var(--muted);
+      padding: 0 17px 17px;
+      line-height: 1.55;
+    }
+
+    .footer {
+      width: min(100%, 860px);
+      margin: 22px auto 0;
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(14, 24, 41, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.55;
+    }
+
+    .footer a {
+      color: var(--accent2);
+      font-weight: 800;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .footer p {
+      margin: 8px 0;
+    }
+
+    .footer h4 {
+      margin: 10px 0;
+      font-size: 1.05rem;
+    }
+
+    @media (max-width: 680px) {
+      body {
+        padding: 14px;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .board {
+        gap: 9px;
+        padding: 12px;
+      }
+
+      .cell {
+        border-radius: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <section class="card">
+      <header class="header">
+        <div class="eyebrow">💡 Juego lógico</div>
+
+        <h1>Lights Out</h1>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <p class="subtitle">
+          Pulsa una casilla para cambiar su estado y el de sus vecinas. El objetivo es apagar todas las luces.
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <select id="boardSelect" aria-label="Seleccionar tablero">
+          <option value="5x1">Tablero 5 × 1</option>
+          <option value="3x3" selected>Tablero 3 × 3</option>
+        </select>
+
+        <button class="btn-primary" id="newGameBtn" type="button">Nueva partida</button>
+        <button id="resetBtn" type="button">Reiniciar</button>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-box">
+          <strong id="moves">0</strong>
+          <span>movimientos</span>
+        </div>
+
+        <div class="info-box">
+          <strong id="lightsOn">0</strong>
+          <span>luces encendidas</span>
+        </div>
+
+        <div class="info-box">
+          <strong id="boardSize">3×3</strong>
+          <span>tablero actual</span>
+        </div>
+      </div>
+
+      <div class="game-shell">
+        <div class="board" id="board" aria-label="Tablero Lights Out"></div>
+      </div>
+
+      <div class="message" id="message">
+        Pulsa una luz para empezar.
+      </div>
+
+      <details>
+        <summary>Reglas del juego</summary>
+        <div class="details-content">
+          <p>
+            Cada vez que pulsas una casilla, cambia esa casilla y también sus vecinas directas:
+            arriba, abajo, izquierda y derecha. Las diagonales no cambian.
+          </p>
+          <p>
+            En el modo <strong>5×1</strong>, solo hay una fila de cinco luces. En el modo
+            <strong>3×3</strong>, hay nueve luces en forma de cuadrícula.
+          </p>
+          <p>
+            Para ganar, todas las luces deben quedar apagadas.
+          </p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+
+    <h4 style="text-align: center;">
+      <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a>
+    </h4>
+
+    <p><strong>_______________________________________________</strong></p>
+
+    <p>
+      <strong>Proyectos con licencia WTFPL</strong>
+      (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))
+    </p>
+
+    <p>
+      DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.
+    </p>
+
+    <p>_______________________________________________</p>
+  </footer>
+
+  <script>
+    const board = document.getElementById("board");
+    const boardSelect = document.getElementById("boardSelect");
+    const newGameBtn = document.getElementById("newGameBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const movesEl = document.getElementById("moves");
+    const lightsOnEl = document.getElementById("lightsOn");
+    const boardSizeEl = document.getElementById("boardSize");
+    const messageEl = document.getElementById("message");
+
+    let rows = 3;
+    let cols = 3;
+    let state = [];
+    let initialState = [];
+    let moves = 0;
+    let gameWon = false;
+
+    function getBoardConfig() {
+      const value = boardSelect.value;
+
+      if (value === "5x1") {
+        return { rows: 1, cols: 5, label: "5×1" };
+      }
+
+      return { rows: 3, cols: 3, label: "3×3" };
+    }
+
+    function createEmptyState() {
+      return Array.from({ length: rows }, () => Array(cols).fill(false));
+    }
+
+    function cloneState(source) {
+      return source.map(row => [...row]);
+    }
+
+    function isInside(r, c) {
+      return r >= 0 && r < rows && c >= 0 && c < cols;
+    }
+
+    function toggleAt(r, c, targetState = state) {
+      const positions = [
+        [r, c],
+        [r - 1, c],
+        [r + 1, c],
+        [r, c - 1],
+        [r, c + 1]
+      ];
+
+      positions.forEach(([rr, cc]) => {
+        if (isInside(rr, cc)) {
+          targetState[rr][cc] = !targetState[rr][cc];
+        }
+      });
+    }
+
+    function countLightsOn() {
+      return state.flat().filter(Boolean).length;
+    }
+
+    function countLightsInState(targetState) {
+      return targetState.flat().filter(Boolean).length;
+    }
+
+    function renderBoard() {
+      board.innerHTML = "";
+      board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement("button");
+          cell.className = "cell";
+          cell.type = "button";
+          cell.setAttribute("aria-label", `Fila ${r + 1}, columna ${c + 1}`);
+
+          if (state[r][c]) {
+            cell.classList.add("on");
+          }
+
+          cell.addEventListener("click", () => handleCellClick(r, c));
+          board.appendChild(cell);
+        }
+      }
+
+      updateInfo();
+    }
+
+    function updateInfo() {
+      const lightsOn = countLightsOn();
+
+      movesEl.textContent = moves;
+      lightsOnEl.textContent = lightsOn;
+      boardSizeEl.textContent = `${cols}×${rows}`;
+
+      if (lightsOn === 0) {
+        gameWon = true;
+        messageEl.className = "message win";
+        messageEl.textContent = `¡Completado! Has apagado todas las luces en ${moves} movimiento${moves === 1 ? "" : "s"}.`;
+      } else if (!gameWon) {
+        messageEl.className = "message";
+        messageEl.textContent = "Sigue apagando luces hasta dejar el tablero completamente oscuro.";
+      }
+    }
+
+    function handleCellClick(r, c) {
+      if (gameWon) return;
+
+      toggleAt(r, c);
+      moves++;
+      renderBoard();
+    }
+
+    function createSolvablePuzzle() {
+      state = createEmptyState();
+
+      const totalCells = rows * cols;
+      const minMoves = rows === 1 ? 3 : 5;
+      const maxMoves = rows === 1 ? 8 : 14;
+      const randomMoves = Math.floor(Math.random() * (maxMoves - minMoves + 1)) + minMoves;
+
+      for (let i = 0; i < randomMoves; i++) {
+        const r = Math.floor(Math.random() * rows);
+        const c = Math.floor(Math.random() * cols);
+        toggleAt(r, c);
+      }
+
+      if (countLightsInState(state) === 0) {
+        const randomCell = Math.floor(Math.random() * totalCells);
+        toggleAt(Math.floor(randomCell / cols), randomCell % cols);
+      }
+
+      initialState = cloneState(state);
+    }
+
+    function newGame() {
+      const config = getBoardConfig();
+
+      rows = config.rows;
+      cols = config.cols;
+      moves = 0;
+      gameWon = false;
+
+      createSolvablePuzzle();
+
+      messageEl.className = "message";
+      messageEl.textContent = "Nueva partida generada. Intenta apagar todas las luces.";
+
+      renderBoard();
+    }
+
+    function resetGame() {
+      state = cloneState(initialState);
+      moves = 0;
+      gameWon = false;
+
+      messageEl.className = "message";
+      messageEl.textContent = "Partida reiniciada.";
+
+      renderBoard();
+    }
+
+    boardSelect.addEventListener("change", newGame);
+    newGameBtn.addEventListener("click", newGame);
+    resetBtn.addEventListener("click", resetGame);
+
+    document.addEventListener("DOMContentLoaded", newGame);
+  </script>
+</body>
+</html>
