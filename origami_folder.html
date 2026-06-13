@@ -650,7 +650,7 @@
       </div>
 
       <p class="small-help">
-        This page tries to collect <strong>.fold</strong> files from the same directory. On GitHub Pages, it uses the public GitHub API; it also accepts an optional <strong>fold_files.json</strong> file containing a list of names or paths.
+        This page collects <strong>.fold</strong> files from the GitHub subfolder <strong>/fold_files</strong>. On GitHub Pages, it uses the public GitHub API; it also accepts an optional <strong>fold_files.json</strong> manifest inside that folder.
       </p>
     </section>
 
@@ -766,17 +766,22 @@
       Keeps the original Flat-Folder IDs so ./src/main.js can keep working.
 
       Ways to feed the .fold list:
-      1) GitHub Pages: detects owner/repo/directory and queries the public GitHub API.
-      2) Servers with directory listing enabled: tries to read .fold links from ./.
-      3) Optional manifest: create fold_files.json next to this HTML:
+      1) GitHub Pages: detects owner/repo and queries the public GitHub API for /fold_files.
+      2) Optional manifest: create /fold_files/fold_files.json:
          ["crane.fold", "dragon.fold", "subfolder/butterfly.fold"]
+      3) Servers with directory listing enabled: tries to read .fold links from ./fold_files/.
       4) Manual fallback: add names to LOCAL_FOLD_FILES.
     */
 
+    const FOLD_FILES_WEB_DIR = "./fold_files/";
+    const FOLD_FILES_GITHUB_PATH = "fold_files";
+
     const LOCAL_FOLD_FILES = [
-      // "crane.fold",
-      // "dragon.fold",
-      // "butterfly.fold"
+      // Add manual fallbacks here only if GitHub discovery is not available.
+      // Examples:
+      // "fold_files/crane.fold",
+      // "fold_files/dragon.fold",
+      // "fold_files/butterfly.fold"
     ];
 
     const els = {
@@ -827,7 +832,9 @@
       const value = String(path || "").trim();
       if (!value) return "";
       if (/^https?:\/\//i.test(value)) return value;
-      return value.startsWith("./") || value.startsWith("../") || value.startsWith("/") ? value : `./${value}`;
+      if (value.startsWith("./") || value.startsWith("../") || value.startsWith("/")) return value;
+      if (value.startsWith(`${FOLD_FILES_GITHUB_PATH}/`)) return `./${value}`;
+      return `${FOLD_FILES_WEB_DIR}${value}`;
     }
 
     function optionKey(value) {
@@ -904,7 +911,11 @@
     }
 
     async function loadManifest() {
-      const candidates = ["./fold_files.json", "./folds.json", "./examples/fold_files.json"];
+      const candidates = [
+        `${FOLD_FILES_WEB_DIR}fold_files.json`,
+        `${FOLD_FILES_WEB_DIR}folds.json`
+      ];
+
       for (const url of candidates) {
         try {
           const res = await fetch(url, { cache: "no-store" });
@@ -913,7 +924,7 @@
           const files = Array.isArray(json) ? json : (json.files || json.fold_files || []);
           if (files.length) {
             addFoldFiles(files, "manifest");
-            log(`Manifest loaded: ${url} (${files.length} files).`);
+            log(`Manifest loaded from ${url} (${files.length} files).`);
             return true;
           }
         } catch (_) {}
@@ -923,21 +934,49 @@
 
     async function loadDirectoryIndex() {
       try {
-        const res = await fetch("./", { cache: "no-store" });
+        const res = await fetch(FOLD_FILES_WEB_DIR, { cache: "no-store" });
         if (!res.ok) return false;
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, "text/html");
+        const baseUrl = new URL(FOLD_FILES_WEB_DIR, window.location.href);
         const files = Array.from(doc.querySelectorAll("a[href]"))
           .map(a => a.getAttribute("href"))
-          .filter(href => href && /\.fold(\?|#|$)/i.test(href));
+          .filter(href => href && /\.fold(\?|#|$)/i.test(href))
+          .map(href => new URL(href, baseUrl).href);
 
         if (files.length) {
           addFoldFiles(files, "directory");
-          log(`Directory listing detected (${files.length} .fold files).`);
+          log(`Directory listing detected in ${FOLD_FILES_WEB_DIR} (${files.length} .fold files).`);
           return true;
         }
       } catch (_) {}
       return false;
+    }
+
+    async function fetchGitHubContents(owner, repo, apiPath) {
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${apiPath}`;
+      const res = await fetch(apiUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status} while reading ${apiPath}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function collectGitHubFoldFiles(owner, repo, apiPath, depth = 0) {
+      if (depth > 6) return [];
+
+      const items = await fetchGitHubContents(owner, repo, apiPath);
+      const files = [];
+
+      for (const item of items) {
+        if (item.type === "file" && /\.fold$/i.test(item.name)) {
+          files.push(`./${item.path}`);
+        } else if (item.type === "dir") {
+          const nested = await collectGitHubFoldFiles(owner, repo, item.path, depth + 1);
+          files.push(...nested);
+        }
+      }
+
+      return files;
     }
 
     async function loadGitHubPagesFolder() {
@@ -946,30 +985,20 @@
 
       const owner = host.split(".")[0];
       const parts = window.location.pathname.split("/").filter(Boolean);
-      const repo = parts[0] || `${owner}.github.io`;
-      const filename = parts.at(-1) || "";
-      const hasFile = /\.[a-z0-9]+$/i.test(filename);
-      const dirParts = hasFile ? parts.slice(1, -1) : parts.slice(1);
-      const apiPath = dirParts.map(encodeURIComponent).join("/");
-      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${apiPath}`;
+      const firstPart = parts[0] || "";
+      const repo = firstPart && !/\.[a-z0-9]+$/i.test(firstPart) ? firstPart : `${owner}.github.io`;
 
       try {
-        const res = await fetch(apiUrl, { cache: "no-store" });
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (!Array.isArray(data)) return false;
-        const folds = data.filter(item => item.type === "file" && /\.fold$/i.test(item.name));
+        const folds = await collectGitHubFoldFiles(owner, repo, FOLD_FILES_GITHUB_PATH);
         if (!folds.length) return false;
-        addFoldFiles(folds.map(item => ({
-          name: item.name,
-          path: item.name,
-          download_url: item.download_url
-        })), "github");
-        log(`GitHub Pages: found ${folds.length} .fold files in the same directory.`);
+
+        addFoldFiles(folds, "github");
+        log(`GitHub Pages: found ${folds.length} .fold files in /${FOLD_FILES_GITHUB_PATH}.`);
         return true;
       } catch (err) {
-        log(`Could not query the GitHub API: ${err.message}`);
+        log(`Could not query /${FOLD_FILES_GITHUB_PATH} through the GitHub API: ${err.message}`);
       }
+
       return false;
     }
 
@@ -989,7 +1018,7 @@
       if (after > before) {
         log(`List updated: ${after} .fold files available.`);
       } else if (!after) {
-        log("No .fold files were found. Add fold_files.json or fill LOCAL_FOLD_FILES in this HTML file.");
+        log(`No .fold files were found. Add ${FOLD_FILES_WEB_DIR}fold_files.json or fill LOCAL_FOLD_FILES in this HTML file.`);
       }
     }
 
