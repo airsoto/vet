@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Flat-Folder — Buscador visual de figuras .fold</title>
+  <link rel="icon" href="./favicon.png">
+  <style>
+    :root {
+      --bg: #07090d;
+      --panel: rgba(17, 24, 39, 0.92);
+      --panel-2: rgba(10, 15, 25, 0.95);
+      --text: #f8fafc;
+      --muted: #a7b0c0;
+      --accent: #ff9900;
+      --accent-2: #ffd08a;
+      --line: rgba(255, 255, 255, 0.12);
+      --good: #9be48b;
+      --danger: #ff7a7a;
+      --shadow: 0 22px 65px rgba(0, 0, 0, 0.38);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+      min-height: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(255, 153, 0, 0.18), transparent 30%),
+        radial-gradient(circle at 90% 8%, rgba(90, 130, 255, 0.16), transparent 34%),
+        linear-gradient(180deg, #06070a 0%, #0a0d14 42%, #090b10 100%);
+    }
+
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: #fff;
+      text-decoration: underline;
+    }
+
+    .app-shell {
+      width: min(1500px, calc(100% - 20px));
+      margin: 0 auto;
+      padding: 18px 0 28px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(12, 14, 20, 0.9));
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(245px, 360px);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -80px -70px auto auto;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(255, 153, 0, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .title-block {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-2);
+      border: 1px solid rgba(255, 153, 0, 0.34);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(255, 153, 0, 0.08);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: 0.95;
+      letter-spacing: -0.055em;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: clamp(14px, 2.4vw, 17px);
+      line-height: 1.55;
+    }
+
+    .home a {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #fff;
+      opacity: 0.9;
+    }
+
+    .home a:hover {
+      color: var(--accent-2);
+    }
+
+    .attribution {
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      border-left: 4px solid var(--accent);
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 14px;
+      color: #e8edf7;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .preview-card {
+      position: relative;
+      z-index: 1;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(5, 8, 15, 0.72);
+      padding: 12px;
+      min-height: 252px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--accent-2);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .preview-status {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .preview-image-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      min-height: 178px;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      border: 1px solid rgba(255,255,255,0.09);
+      display: grid;
+      place-items: center;
+    }
+
+    #preview_image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .preview-placeholder {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .preview-meta {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 0;
+    }
+
+    .preview-meta strong {
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+    }
+
+    .toolbar-card,
+    .workspace-card,
+    .console-card {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+    }
+
+    .toolbar-card {
+      padding: 12px;
+    }
+
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(190px, 300px) auto auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .field label,
+    .mini-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    input,
+    select,
+    button,
+    input[type="button"] {
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      min-height: 42px;
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    select {
+      color-scheme: dark;
+      width: 100%;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      min-height: auto;
+      transform: scale(1.15);
+      accent-color: var(--accent);
+    }
+
+    input[type="number"] {
+      width: 82px;
+    }
+
+    input:focus,
+    select:focus,
+    button:focus,
+    input[type="button"]:focus {
+      border-color: rgba(255, 153, 0, 0.8);
+      box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.14);
+    }
+
+    button,
+    input[type="button"] {
+      cursor: pointer;
+      font-weight: 800;
+      white-space: nowrap;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover,
+    input[type="button"]:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.13);
+      border-color: rgba(255, 153, 0, 0.48);
+    }
+
+    .primary-button {
+      background: linear-gradient(135deg, #ff9900, #f97316) !important;
+      color: #111827 !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
+      box-shadow: 0 9px 24px rgba(255, 153, 0, 0.2);
+    }
+
+    .ghost-button {
+      color: #fff !important;
+    }
+
+    .status-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.13);
+      background: rgba(255,255,255,0.07);
+      padding: 6px 9px;
+      color: #dbe4f3;
+      min-height: 30px;
+    }
+
+    .badge.good {
+      border-color: rgba(155, 228, 139, 0.35);
+      color: var(--good);
+      background: rgba(155, 228, 139, 0.08);
+    }
+
+    .controls-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    div .border,
+    .border {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 6px 9px;
+      margin: 0;
+      background: rgba(255, 255, 255, 0.075);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 12px;
+      color: #edf2fb;
+      font-size: 13px;
+    }
+
+    .border span[style*="width:110px"] {
+      color: var(--accent-2);
+      font-weight: 800;
+    }
+
+    .border select,
+    .border input[type="number"] {
+      min-height: 32px;
+      padding: 5px 8px;
+      border-radius: 9px;
+    }
+
+    #flat_controls,
+    #cell_controls,
+    #state_controls {
+      display: none;
+    }
+
+    .workspace-card {
+      min-height: 62vh;
+      background: radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 42%), var(--panel-2);
+    }
+
+    .workspace-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      color: #e5ebf5;
+      font-weight: 800;
+    }
+
+    .workspace-title small {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .svg-wrap {
+      overflow: auto;
+      width: 100%;
+      min-height: min(70vh, 780px);
+      touch-action: pan-x pan-y;
+      background:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+    }
+
+    #main {
+      display: block;
+      width: 100%;
+      min-width: 780px;
+      height: min(72vh, 820px);
+      min-height: 560px;
+    }
+
+    #flat,
+    #cell,
+    #fold {
+      overflow: visible;
+    }
+
+    .console-card {
+      padding: 12px;
+    }
+
+    #console {
+      width: 100%;
+      min-height: 160px;
+      background: #05070b;
+      color: #dce6f5;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 14px;
+      resize: vertical;
+      font-family: var(--mono);
+      padding: 12px;
+      line-height: 1.42;
+    }
+
+    .footer {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(0, 0, 0, 0.35);
+      color: #dce3ef;
+      font-size: 13px;
+      line-height: 1.55;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.22);
+    }
+
+    .footer p {
+      margin: 7px 0;
+    }
+
+    .footer h4 {
+      margin: 12px 0;
+      font-size: 18px;
+      letter-spacing: 0.03em;
+    }
+
+    .footer h4 a {
+      display: inline-flex;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #111827;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .small-help {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 980px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-card {
+        min-height: auto;
+      }
+
+      .toolbar-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app-shell {
+        width: min(100% - 12px, 1500px);
+        padding-top: 8px;
+      }
+
+      .hero,
+      .toolbar-card,
+      .workspace-card,
+      .console-card,
+      .footer {
+        border-radius: 16px;
+      }
+
+      .hero {
+        padding: 14px;
+      }
+
+      .toolbar-grid {
+        grid-template-columns: 1fr;
+      }
+
+      input,
+      select,
+      button,
+      input[type="button"] {
+        min-height: 46px;
+        font-size: 16px;
+      }
+
+      .controls-strip {
+        gap: 8px;
+      }
+
+      .border {
+        width: 100%;
+        justify-content: space-between;
+        min-height: 44px;
+      }
+
+      .border span[style*="width:110px"] {
+        width: auto !important;
+      }
+
+      #main {
+        min-width: 680px;
+        min-height: 500px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="title-block">
+        <div class="kicker">🧩 Origami · FOLD · Flat-folding</div>
+        <h1>Flat-Folder<br>buscador visual</h1>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+            <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <p class="subtitle">
+          Interfaz oscura para cargar, filtrar y visualizar archivos <strong>.fold</strong>. El buscador localiza figuras por nombre de archivo y el panel derecho intenta mostrar una imagen orientativa de la figura seleccionada.
+        </p>
+
+        <div class="attribution">
+          <strong>Basado en Flat-Folder.</strong> Flat-Folder is software written by Jason S. Ku to compute and analyze valid flat-foldable states of flat-foldable crease patterns, both assigned and unassigned.
+          <a href="https://github.com/origamimagiro/flat-folder/tree/main" target="_blank" rel="noopener">Repositorio original</a>.
+        </div>
+      </div>
+
+      <aside class="preview-card" aria-label="Previsualización de figura">
+        <div class="preview-head">
+          <span>🖼️ Vista previa</span>
+          <span class="preview-status" id="preview_status">sin selección</span>
+        </div>
+        <div class="preview-image-wrap">
+          <img id="preview_image" alt="Imagen orientativa de la figura seleccionada">
+          <div class="preview-placeholder" id="preview_placeholder">
+            Elige un archivo <strong>.fold</strong> para buscar una imagen con el nombre de la figura.
+          </div>
+        </div>
+        <div class="preview-meta">
+          <strong id="preview_term">Ningún archivo seleccionado</strong>
+          <span><a id="preview_link" href="#" target="_blank" rel="noopener" style="display:none;">abrir búsqueda de imágenes</a></span>
+        </div>
+      </aside>
+    </header>
+
+    <section class="toolbar-card" aria-label="Controles principales">
+      <div class="toolbar-grid">
+        <div class="field">
+          <label for="figure_search">Buscar figura</label>
+          <input id="figure_search" type="search" placeholder="Ej.: crane, dragon, butterfly, tessellation..." autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="example">Archivos .fold encontrados</label>
+          <select id="example"></select>
+        </div>
+
+        <div class="field">
+          <label for="import">Importar archivo</label>
+          <input type="file" id="import" accept=".fold,.json,.svg,.cp,.opx">
+        </div>
+
+        <div class="field">
+          <span class="mini-label">Vista</span>
+          <input type="button" id="side" value="+" title="Alternar vista" style="width:52px;">
+        </div>
+
+        <div class="field">
+          <span class="mini-label">Acción</span>
+          <button type="button" class="primary-button" id="load_fold_choice">Cargar .fold</button>
+        </div>
+      </div>
+
+      <div class="status-row">
+        <span class="badge good" id="count_badge">0 archivos</span>
+        <button type="button" class="ghost-button" id="refresh_folds">Actualizar lista</button>
+        <button type="button" class="ghost-button" id="clear_search">Limpiar búsqueda</button>
+        <input type="button" id="export_button" value="Export" style="display:none">
+        <div id="export" style="display:inline"></div>
+      </div>
+
+      <p class="small-help">
+        La página intenta recoger archivos <strong>.fold</strong> del mismo directorio. En GitHub Pages usa la API pública de GitHub; también acepta un archivo opcional <strong>fold_files.json</strong> con una lista de nombres o rutas.
+      </p>
+    </section>
+
+    <section id="flat_controls" class="controls-strip" aria-label="Controles de patrón de pliegues">
+      <div class="border">
+        <span style="display:inline-block;width:110px">Crease Pattern</span>
+      </div>
+      <div class="border">
+        <label for="rotate_flat">Rotate</label>
+        <select id="rotate_flat"></select>
+      </div>
+      <div class="border">
+        <label for="flip_flat">Flip</label>
+        <input type="checkbox" id="flip_flat">
+      </div>
+      <div class="border">
+        <label for="text">Text</label>
+        <input type="checkbox" id="text">
+      </div>
+      <div class="border">
+        <label for="limit_select">Limit</label>
+        <select id="limit_select"></select>
+      </div>
+      <div class="border">
+        <input type="button" id="fold_button" value="Fold">
+      </div>
+    </section>
+
+    <section id="cell_controls" class="controls-strip" aria-label="Controles de vista plegada">
+      <div class="border">
+        <span style="display:inline-block;width:110px">Folded View</span>
+      </div>
+      <div class="border">
+        <label for="rotate_fold">Rotate</label>
+        <select id="rotate_fold"></select>
+      </div>
+      <div class="border">
+        <label for="flip_fold">Flip</label>
+        <input type="checkbox" id="flip_fold">
+      </div>
+      <div id="fold_controls" style="display:none">
+        <div class="border">
+          <label for="scale">Scale</label>
+          <input type="checkbox" id="scale">
+        </div>
+        <div class="border">
+          <label for="shadow">Shadows</label>
+          <input id="shadow" type="number" min="0" max="6" step="1">
+        </div>
+        <div class="border">
+          <label for="visible">Visible</label>
+          <input type="checkbox" id="visible">
+        </div>
+      </div>
+    </section>
+
+    <section id="state_controls" class="controls-strip" aria-label="Controles de estado plegado">
+      <div class="border">
+        <span style="display:inline-block;width:110px">Folded State</span>
+      </div>
+      <div class="border">
+        <label for="component_select">Component</label>
+        <select id="component_select"></select>
+      </div>
+      <div id="state_config" style="display:none">
+        <div class="border">
+          <label for="state_select" id="state_label"></label>
+          <input id="state_select" type="number">
+        </div>
+      </div>
+      <div class="border">
+        <span id="num_states"></span>
+      </div>
+    </section>
+
+    <main class="workspace-card">
+      <div class="workspace-title">
+        <span>🧾 Área de trabajo</span>
+        <small>Patrón plano · celda · modelo plegado</small>
+      </div>
+      <div class="svg-wrap">
+        <svg id="main">
+          <svg id="flat"></svg>
+          <svg id="cell"></svg>
+          <svg id="fold"></svg>
+        </svg>
+      </div>
+    </main>
+
+    <section class="console-card" aria-label="Consola Flat-Folder">
+      <textarea id="console" rows="10" readonly></textarea>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+
+  <script type="module">
+    /*
+      Interfaz añadida por Ángel Soto.
+      Mantiene los IDs originales de Flat-Folder para que ./src/main.js siga funcionando.
+
+      Formas de alimentar la lista .fold:
+      1) GitHub Pages: detecta owner/repo/directorio y consulta la API pública de GitHub.
+      2) Servidores con listado de directorios: intenta leer enlaces .fold desde ./.
+      3) Manifest opcional: crea fold_files.json junto a este HTML:
+         ["crane.fold", "dragon.fold", "subcarpeta/butterfly.fold"]
+      4) Fallback manual: añade nombres en LOCAL_FOLD_FILES.
+    */
+
+    const LOCAL_FOLD_FILES = [
+      // "crane.fold",
+      // "dragon.fold",
+      // "butterfly.fold"
+    ];
+
+    const els = {
+      select: document.getElementById("example"),
+      search: document.getElementById("figure_search"),
+      count: document.getElementById("count_badge"),
+      refresh: document.getElementById("refresh_folds"),
+      clear: document.getElementById("clear_search"),
+      load: document.getElementById("load_fold_choice"),
+      fileInput: document.getElementById("import"),
+      console: document.getElementById("console"),
+      previewImage: document.getElementById("preview_image"),
+      previewPlaceholder: document.getElementById("preview_placeholder"),
+      previewStatus: document.getElementById("preview_status"),
+      previewTerm: document.getElementById("preview_term"),
+      previewLink: document.getElementById("preview_link")
+    };
+
+    let allFoldOptions = [];
+    let previewAbortController = null;
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      if (!els.console) return;
+      els.console.value += `${time} | ${message}\n`;
+      els.console.scrollTop = els.console.scrollHeight;
+    }
+
+    function filenameFromPath(path) {
+      try {
+        const url = new URL(path, window.location.href);
+        path = url.pathname;
+      } catch (_) {}
+      return decodeURIComponent(String(path).split("/").filter(Boolean).pop() || String(path));
+    }
+
+    function cleanFigureName(pathOrName) {
+      const file = filenameFromPath(pathOrName);
+      return file
+        .replace(/\.fold$/i, "")
+        .replace(/\.(json|svg|cp|opx)$/i, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function normalizeFoldPath(path) {
+      const value = String(path || "").trim();
+      if (!value) return "";
+      if (/^https?:\/\//i.test(value)) return value;
+      return value.startsWith("./") || value.startsWith("../") || value.startsWith("/") ? value : `./${value}`;
+    }
+
+    function optionKey(value) {
+      return normalizeFoldPath(value).replace(/^\.\//, "").toLowerCase();
+    }
+
+    function getCurrentSelection() {
+      const opt = els.select?.selectedOptions?.[0];
+      if (!opt) return null;
+      return { label: opt.textContent.trim(), value: opt.value || opt.textContent.trim() };
+    }
+
+    function syncOptionsFromSelect() {
+      const current = Array.from(els.select.options)
+        .filter(opt => (opt.value || opt.textContent).trim())
+        .map(opt => ({
+          label: opt.textContent.trim() || filenameFromPath(opt.value),
+          value: opt.value || opt.textContent.trim(),
+          source: opt.dataset.source || "flat-folder"
+        }));
+
+      const map = new Map(allFoldOptions.map(item => [optionKey(item.value), item]));
+      for (const item of current) {
+        map.set(optionKey(item.value), item);
+      }
+      allFoldOptions = Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    }
+
+    function setOptions(options, keepValue = true) {
+      const previous = keepValue ? els.select.value : "";
+      els.select.innerHTML = "";
+
+      for (const item of options) {
+        const opt = document.createElement("option");
+        opt.value = item.value;
+        opt.textContent = item.label;
+        opt.dataset.source = item.source || "local";
+        els.select.appendChild(opt);
+      }
+
+      if (keepValue && previous && Array.from(els.select.options).some(o => o.value === previous)) {
+        els.select.value = previous;
+      }
+
+      const total = allFoldOptions.length;
+      const shown = options.length;
+      els.count.textContent = total === shown ? `${total} archivo${total === 1 ? "" : "s"}` : `${shown}/${total} visibles`;
+    }
+
+    function renderFilteredOptions() {
+      syncOptionsFromSelect();
+      const query = els.search.value.trim().toLowerCase();
+      const filtered = query
+        ? allFoldOptions.filter(item => `${item.label} ${item.value}`.toLowerCase().includes(query))
+        : allFoldOptions;
+      setOptions(filtered, false);
+      if (els.select.options.length) els.select.selectedIndex = 0;
+      updatePreviewFromSelection();
+    }
+
+    function addFoldFiles(files, source = "local") {
+      const map = new Map(allFoldOptions.map(item => [optionKey(item.value), item]));
+
+      for (const raw of files || []) {
+        const value = typeof raw === "string" ? raw : (raw.download_url || raw.path || raw.name || raw.url || "");
+        if (!value || !/\.fold(\?|#|$)/i.test(value)) continue;
+        const normalized = normalizeFoldPath(value);
+        const label = cleanFigureName(typeof raw === "string" ? raw : (raw.name || raw.path || normalized)) || filenameFromPath(normalized);
+        map.set(optionKey(normalized), { label, value: normalized, source });
+      }
+
+      allFoldOptions = Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+      renderFilteredOptions();
+    }
+
+    async function loadManifest() {
+      const candidates = ["./fold_files.json", "./folds.json", "./examples/fold_files.json"];
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) continue;
+          const json = await res.json();
+          const files = Array.isArray(json) ? json : (json.files || json.fold_files || []);
+          if (files.length) {
+            addFoldFiles(files, "manifest");
+            log(`Manifest cargado: ${url} (${files.length} archivos).`);
+            return true;
+          }
+        } catch (_) {}
+      }
+      return false;
+    }
+
+    async function loadDirectoryIndex() {
+      try {
+        const res = await fetch("./", { cache: "no-store" });
+        if (!res.ok) return false;
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const files = Array.from(doc.querySelectorAll("a[href]"))
+          .map(a => a.getAttribute("href"))
+          .filter(href => href && /\.fold(\?|#|$)/i.test(href));
+
+        if (files.length) {
+          addFoldFiles(files, "directory");
+          log(`Listado del directorio detectado (${files.length} archivos .fold).`);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    async function loadGitHubPagesFolder() {
+      const host = window.location.hostname;
+      if (!host.endsWith(".github.io")) return false;
+
+      const owner = host.split(".")[0];
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const repo = parts[0] || `${owner}.github.io`;
+      const filename = parts.at(-1) || "";
+      const hasFile = /\.[a-z0-9]+$/i.test(filename);
+      const dirParts = hasFile ? parts.slice(1, -1) : parts.slice(1);
+      const apiPath = dirParts.map(encodeURIComponent).join("/");
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${apiPath}`;
+
+      try {
+        const res = await fetch(apiUrl, { cache: "no-store" });
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (!Array.isArray(data)) return false;
+        const folds = data.filter(item => item.type === "file" && /\.fold$/i.test(item.name));
+        if (!folds.length) return false;
+        addFoldFiles(folds.map(item => ({
+          name: item.name,
+          path: item.name,
+          download_url: item.download_url
+        })), "github");
+        log(`GitHub Pages: encontrados ${folds.length} archivos .fold en el mismo directorio.`);
+        return true;
+      } catch (err) {
+        log(`No se pudo consultar GitHub API: ${err.message}`);
+      }
+      return false;
+    }
+
+    async function discoverFoldFiles() {
+      syncOptionsFromSelect();
+      if (LOCAL_FOLD_FILES.length) addFoldFiles(LOCAL_FOLD_FILES, "manual");
+
+      const before = allFoldOptions.length;
+      await loadManifest();
+      await loadDirectoryIndex();
+      await loadGitHubPagesFolder();
+
+      syncOptionsFromSelect();
+      renderFilteredOptions();
+
+      const after = allFoldOptions.length;
+      if (after > before) {
+        log(`Lista actualizada: ${after} archivos .fold disponibles.`);
+      } else if (!after) {
+        log("No se encontraron archivos .fold. Añade fold_files.json o rellena LOCAL_FOLD_FILES en este HTML.");
+      }
+    }
+
+    async function importFoldFromPath(path) {
+      if (!path) return;
+      const fileName = filenameFromPath(path);
+      log(`Cargando archivo: ${fileName}`);
+
+      try {
+        const res = await fetch(path, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const file = new File([blob], fileName, { type: blob.type || "application/json" });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        els.fileInput.files = dataTransfer.files;
+        els.fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+        log(`Importado mediante el selector original: ${fileName}`);
+      } catch (err) {
+        log(`Error al cargar ${fileName}: ${err.message}`);
+        alert(`No he podido cargar ${fileName}. Comprueba que el archivo existe y que el servidor permite fetch().`);
+      }
+    }
+
+    function setPreviewLoading(term) {
+      els.previewStatus.textContent = "buscando...";
+      els.previewTerm.textContent = term || "Sin selección";
+      els.previewImage.style.display = "none";
+      els.previewImage.removeAttribute("src");
+      els.previewPlaceholder.style.display = "grid";
+      els.previewPlaceholder.innerHTML = `Buscando imagen de <strong>${escapeHtml(term)}</strong>...`;
+    }
+
+    function setPreviewEmpty(term, reason = "No se ha encontrado una imagen fiable.") {
+      els.previewStatus.textContent = "sin imagen";
+      els.previewTerm.textContent = term || "Sin selección";
+      els.previewImage.style.display = "none";
+      els.previewImage.removeAttribute("src");
+      els.previewPlaceholder.style.display = "grid";
+      els.previewPlaceholder.innerHTML = `${escapeHtml(reason)}<br><br><strong>${escapeHtml(term || "")}</strong>`;
+    }
+
+    function setPreviewImage(term, imageUrl, pageUrl) {
+      els.previewStatus.textContent = "imagen encontrada";
+      els.previewTerm.textContent = term;
+      els.previewPlaceholder.style.display = "none";
+      els.previewImage.src = imageUrl;
+      els.previewImage.style.display = "block";
+      els.previewLink.style.display = pageUrl ? "inline" : "none";
+      els.previewLink.href = pageUrl || "#";
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function updatePreviewFromSelection() {
+      const selection = getCurrentSelection();
+      if (!selection) {
+        setPreviewEmpty("", "Elige un archivo .fold para activar la previsualización.");
+        els.previewLink.style.display = "none";
+        return;
+      }
+
+      const term = cleanFigureName(selection.label || selection.value);
+      updatePreview(term);
+    }
+
+    async function updatePreview(term) {
+      if (!term) return;
+      if (previewAbortController) previewAbortController.abort();
+      previewAbortController = new AbortController();
+
+      const imageSearchTerm = term.toLowerCase().includes("origami") ? term : `${term} origami`;
+      const searchUrl = `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(imageSearchTerm)}&title=Special:MediaSearch&type=image`;
+      els.previewLink.href = searchUrl;
+      els.previewLink.style.display = "inline";
+      setPreviewLoading(term);
+
+      const apiUrl = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({
+        action: "query",
+        generator: "search",
+        gsrsearch: imageSearchTerm,
+        gsrnamespace: "6",
+        gsrlimit: "1",
+        prop: "imageinfo",
+        iiprop: "url|mime|extmetadata",
+        iiurlwidth: "700",
+        format: "json",
+        origin: "*"
+      });
+
+      try {
+        const res = await fetch(apiUrl, { signal: previewAbortController.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const pages = Object.values(data.query?.pages || {});
+        const info = pages[0]?.imageinfo?.[0];
+        const img = info?.thumburl || info?.url;
+        const page = pages[0]?.title
+          ? `https://commons.wikimedia.org/wiki/${encodeURIComponent(pages[0].title.replaceAll(" ", "_"))}`
+          : searchUrl;
+
+        if (img) {
+          setPreviewImage(term, img, page);
+        } else {
+          setPreviewEmpty(term);
+        }
+      } catch (err) {
+        if (err.name === "AbortError") return;
+        setPreviewEmpty(term, "No se pudo conectar con Wikimedia Commons para la vista previa.");
+      }
+    }
+
+    function attachEvents() {
+      els.search.addEventListener("input", renderFilteredOptions);
+      els.select.addEventListener("change", updatePreviewFromSelection);
+
+      els.load.addEventListener("click", () => {
+        const selection = getCurrentSelection();
+        if (!selection) return alert("Selecciona primero un archivo .fold.");
+        importFoldFromPath(selection.value);
+      });
+
+      els.clear.addEventListener("click", () => {
+        els.search.value = "";
+        renderFilteredOptions();
+        els.search.focus();
+      });
+
+      els.refresh.addEventListener("click", async () => {
+        log("Actualizando lista de archivos .fold...");
+        await discoverFoldFiles();
+      });
+
+      els.fileInput.addEventListener("change", () => {
+        const file = els.fileInput.files?.[0];
+        if (!file) return;
+        const term = cleanFigureName(file.name);
+        log(`Archivo importado manualmente: ${file.name}`);
+        updatePreview(term);
+      });
+    }
+
+    window.addEventListener("load", async () => {
+      attachEvents();
+
+      // Damos un instante a ./src/main.js para rellenar el select original de ejemplos.
+      await new Promise(resolve => setTimeout(resolve, 450));
+      await discoverFoldFiles();
+      updatePreviewFromSelection();
+      log("Interfaz Ángel Soto iniciada.");
+    });
+  </script>
+</body>
+</html>
