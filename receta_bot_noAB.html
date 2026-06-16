@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RECETA_Bot AB | PresVet</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090f1a;
+      --bg-soft: #111827;
+      --panel: rgba(17, 24, 39, 0.92);
+      --panel-strong: #172033;
+      --line: rgba(148, 163, 184, 0.22);
+      --line-strong: rgba(148, 163, 184, 0.38);
+      --text: #e5e7eb;
+      --muted: #aeb8c8;
+      --primary: #38bdf8;
+      --primary-strong: #0ea5e9;
+      --good: #34d399;
+      --warn: #f59e0b;
+      --danger: #fb7185;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+      --radius: 18px;
+      --field-radius: 12px;
+      --focus: 0 0 0 4px rgba(56, 189, 248, 0.22);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 36rem),
+        radial-gradient(circle at top right, rgba(52, 211, 153, 0.12), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a { color: var(--primary); }
+
+    [hidden] { display: none !important; }
+
+    .login-view {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .login-card {
+      width: min(100%, 460px);
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.96));
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      padding: 30px;
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.12);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .login-card h1,
+    .app-title h1 {
+      margin: 16px 0 8px;
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .login-card p,
+    .app-title p,
+    .hint,
+    .status-line {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .login-error {
+      min-height: 22px;
+      margin-top: 12px;
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .app-shell {
+      width: min(1420px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 22px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(9, 15, 26, 0.82);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+      backdrop-filter: blur(18px);
+    }
+
+    .app-title h1 {
+      margin-top: 10px;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+    }
+
+    .app-title p { margin: 0; }
+
+    .top-actions,
+    .nav-actions,
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .top-actions { justify-content: flex-end; }
+
+    .nav-actions {
+      margin-top: 16px;
+    }
+
+    .nav-actions a {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.92rem;
+    }
+
+    .nav-actions a:hover {
+      border-color: rgba(56, 189, 248, 0.48);
+      color: #e0f2fe;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 430px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.22);
+    }
+
+    .card + .card { margin-top: 22px; }
+
+    .card h2 {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 18px;
+      font-size: 1.08rem;
+      letter-spacing: -0.02em;
+    }
+
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      color: #04131f;
+      background: linear-gradient(135deg, var(--primary), var(--good));
+      font-weight: 900;
+      font-size: 0.86rem;
+    }
+
+    .field { margin-bottom: 15px; }
+
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      display: block;
+      margin: 0 0 7px;
+      color: #d9e3ef;
+      font-weight: 800;
+      font-size: 0.94rem;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 11px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--field-radius);
+      outline: none;
+      background: #0b1220;
+      color: var(--text);
+      font: inherit;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    textarea { resize: vertical; min-height: 108px; }
+
+    input::placeholder,
+    textarea::placeholder { color: #64748b; }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(56, 189, 248, 0.88);
+      box-shadow: var(--focus);
+      background: #0f172a;
+    }
+
+    input[readonly] {
+      background: rgba(15, 23, 42, 0.72);
+      color: #bfdbfe;
+      cursor: default;
+    }
+
+    input:disabled,
+    select:disabled {
+      opacity: 0.62;
+      cursor: not-allowed;
+    }
+
+    .inline-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 11px 16px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--primary-strong), #0284c7);
+      color: #f8fafc;
+      font-weight: 900;
+      font-size: 0.98rem;
+      cursor: pointer;
+      box-shadow: 0 14px 28px rgba(14, 165, 233, 0.22);
+      transition: transform 0.15s ease, filter 0.15s ease, border-color 0.15s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); filter: brightness(1.07); }
+    .button:active { transform: translateY(0); }
+    .button.secondary {
+      background: rgba(15, 23, 42, 0.72);
+      border-color: var(--line-strong);
+      color: var(--text);
+      box-shadow: none;
+    }
+    .button.success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 14px 28px rgba(16, 185, 129, 0.2);
+    }
+    .button.warn {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      box-shadow: 0 14px 28px rgba(245, 158, 11, 0.18);
+    }
+
+    .status-line {
+      margin: 10px 0 0;
+      font-size: 0.92rem;
+    }
+    .status-line.ok { color: #86efac; }
+    .status-line.warn { color: #fbbf24; }
+    .status-line.error { color: #fda4af; }
+
+    .side-panel {
+      position: sticky;
+      top: 154px;
+    }
+
+    .summary-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .summary-item {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-item dt {
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .summary-item dd {
+      margin: 0;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+
+    #excelArea {
+      margin-top: 22px;
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      max-width: 100%;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1180px;
+      background: #0b1220;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      text-align: left;
+      font-size: 0.88rem;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #111827;
+      color: #dbeafe;
+      z-index: 1;
+    }
+
+    td { color: #d1d5db; }
+
+    .credits {
+      margin: 26px 0 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.62);
+      text-align: center;
+    }
+
+    .credits p { margin: 8px 0; }
+
+    .license {
+      text-align: left;
+      max-width: 900px;
+      margin: 18px auto 0;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 50;
+      max-width: min(420px, calc(100% - 36px));
+      padding: 13px 16px;
+      border-radius: 15px;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      background: rgba(15, 23, 42, 0.96);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+      color: var(--text);
+    }
+
+    @media (max-width: 1060px) {
+      .app-header,
+      .layout { grid-template-columns: 1fr; }
+      .top-actions { justify-content: flex-start; }
+      .side-panel { position: static; }
+    }
+
+    @media (max-width: 760px) {
+      .app-shell { width: min(100% - 20px, 1420px); padding-top: 10px; }
+      .card { padding: 17px; }
+      .form-grid,
+      .inline-fields { grid-template-columns: 1fr; }
+      .summary-item { grid-template-columns: 1fr; gap: 4px; }
+      .button { width: 100%; }
+      .top-actions,
+      .button-row { width: 100%; }
+    }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .app-header,
+      .container,
+      #excelArea,
+      .credits,
+      .login-view,
+      .toast { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <section id="loginView" class="login-view" aria-label="Acceso protegido">
+    <form id="loginForm" class="login-card" autocomplete="off">
+      <span class="brand-pill">🔐 PresVet · acceso privado</span>
+      <h1>RECETA_Bot AB</h1>
+      <p>Introduce la contraseña para acceder al generador de recetas.</p>
+      <div class="field">
+        <label for="passwordInput">Contraseña</label>
+        <input id="passwordInput" type="password" inputmode="text" autocomplete="current-password" placeholder="Contraseña de acceso" required>
+      </div>
+      <button class="button" type="submit">Entrar</button>
+      <div id="loginError" class="login-error" role="alert"></div>
+    </form>
+  </section>
+
+  <div id="appShell" class="app-shell" hidden>
+    <header class="app-header">
+      <div class="app-title">
+        <span class="brand-pill">💊 RECETA_Bot AB · desarrollado por Angel Soto</span>
+        <h1>Receta veterinaria</h1>
+        <p>Modo oscuro, navegación rápida, carga externa desde <strong>/json/no_ab.json</strong> y salida preparada para PDF A4.</p>
+        <nav class="nav-actions" aria-label="Navegación rápida">
+          <a href="#datos-paciente">Paciente</a>
+          <a href="#medicamento-card">Medicamento</a>
+          <a href="#pauta-card">Pauta</a>
+          <a href="#clinica-card">Clínica</a>
+          <a href="#excelArea">Excel</a>
+        </nav>
+        <p id="jsonStatus" class="status-line">Cargando medicamentos desde /json/no_ab.json…</p>
+      </div>
+      <div class="top-actions">
+        <button class="button" type="button" onclick="generarReceta()">🖨️ Imprimir receta</button>
+        <button class="button secondary" type="button" onclick="copyToClipboardExcel()">📋 Copiar filas</button>
+        <button class="button success" type="button" onclick="ejecutarAmbas()">✅ Imprimir + copiar</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="container" aria-label="Formulario de receta">
+        <section id="datos-paciente" class="card">
+          <h2><span class="step-dot">1</span> Datos del cliente y paciente</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="clienteMascota">Cliente / Mascota</label>
+              <input type="text" id="clienteMascota" placeholder="Nombre del tutor / referencia del paciente">
+            </div>
+            <div class="field">
+              <label for="nombreMascota">Nombre de la Mascota</label>
+              <input type="text" id="nombreMascota" placeholder="Ej.: Luna">
+            </div>
+            <div class="field">
+              <label for="rega">Especie</label>
+              <select id="rega">
+                <option value="80">Perro</option>
+                <option value="81">Gato</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="prescripcion">Prescripción</label>
+              <select id="prescripcion">
+                <option value="ORDINARIA">ORDINARIA</option>
+                <option value="es excepcional">Es excepcional</option>
+                <option value="es estupefaciente">Es estupefaciente</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section id="medicamento-card" class="card">
+          <h2><span class="step-dot">2</span> Medicamento y formato</h2>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="medicamentoFiltro">Buscar fármaco</label>
+              <input type="search" id="medicamentoFiltro" placeholder="Escribe para filtrar el listado del JSON">
+              <p class="hint">La lista se carga desde <code>/json/no_ab.json</code>. También se prueba <code>json/no_ab.json</code> como compatibilidad en GitHub Pages.</p>
+            </div>
+            <div class="field full">
+              <label for="medicamento">Fármaco</label>
+              <select id="medicamento"></select>
+              <input type="text" id="medicamentoEscrito" placeholder="O escriba otro fármaco manualmente" style="margin-top: 10px;">
+            </div>
+            <div class="field full">
+              <label for="formato">Formato</label>
+              <select id="formato"></select>
+              <input type="text" id="formatoEscrito" placeholder="O escriba otro formato manualmente" style="margin-top: 10px;">
+            </div>
+            <div class="field">
+              <label for="unidadesTotales">Unidades totales</label>
+              <input type="text" id="unidadesTotales" readonly>
+            </div>
+            <div class="field">
+              <label for="unidades">Unidades</label>
+              <input type="text" id="unidades" readonly>
+            </div>
+            <div class="field">
+              <label for="sustanciaActiva">Sustancia activa</label>
+              <input type="text" id="sustanciaActiva" readonly>
+            </div>
+            <div class="field">
+              <label for="tipoMedicamento">Tipo medicamento</label>
+              <input type="text" id="tipoMedicamento" readonly>
+            </div>
+            <div class="field full">
+              <label for="claseMedicamento">Clase medicamento</label>
+              <input type="text" id="claseMedicamento" readonly>
+            </div>
+          </div>
+        </section>
+
+        <section id="pauta-card" class="card">
+          <h2><span class="step-dot">3</span> Pauta y cálculo de envases</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="dosis">Dosis (<span id="unidadDosisLabel"></span>)</label>
+              <select id="dosis">
+                <option value="">Seleccione…</option>
+                <option value="0.25">0.25</option>
+                <option value="0.5">0.5</option>
+                <option value="0.75">0.75</option>
+                <option value="1">1</option>
+                <option value="1.2">1.2</option>
+                <option value="1.3">1.3</option>
+                <option value="1.5">1 y 1/2</option>
+                <option value="1.6">1.6</option>
+                <option value="1.7">1.7</option>
+                <option value="1.8">1.8</option>
+                <option value="1.9">1.9</option>
+                <option value="2">2</option>
+                <option value="2.5">2 y 1/2</option>
+                <option value="3">3</option>
+                <option value="3.5">3 y 1/2</option>
+                <option value="4">4</option>
+                <option value="4.5">4 y 1/2</option>
+                <option value="5">5</option>
+                <option value="5.5">5 y 1/2</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+              </select>
+              <input type="number" id="dosisEscrita" placeholder="O escriba la dosis…" step="any" style="margin-top: 10px;">
+            </div>
+            <div class="field">
+              <label for="frecuencia">Frecuencia</label>
+              <select id="frecuencia">
+                <option value="1 vez al día">1 vez al día</option>
+                <option value="2 veces al día">2 veces al día</option>
+                <option value="3 veces al día">3 veces al día</option>
+                <option value="4 veces al día">4 veces al día</option>
+                <option value="ver notas adicionales">Ver notas adicionales</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="duracion">Duración (días)</label>
+              <select id="duracion">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+                <option value="25">25</option>
+                <option value="26">26</option>
+                <option value="27">27</option>
+                <option value="28">28</option>
+                <option value="29">29</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+                <option value="60">60</option>
+                <option value="80">80</option>
+                <option value="90">90</option>
+                <option value="120">120</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="via">Vía administración</label>
+              <select id="via">
+                <option value="vía oral">Vía oral</option>
+                <option value="vía tópica">Vía tópica</option>
+                <option value="intramuscular">Intramuscular</option>
+                <option value="subcutánea">Subcutánea</option>
+                <option value="intravenosa">Intravenosa</option>
+                <option value="Inhalatoria">Inhalatoria</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="claseTratamiento">Clase de tratamiento</label>
+              <select id="claseTratamiento">
+                <option value="1">Es antibiótico Terapéutico</option>
+                <option value="2">Es antibiótico Metafiláctico</option>
+                <option value="3">Es antibiótico Profiláctico</option>
+                <option value="NO es antibiótico">No es antibiótico</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tipoDispensacion">Tipo dispensación</label>
+              <select id="tipoDispensacion">
+                <option value="1">Dispensación</option>
+                <option value="2">No dispensación</option>
+                <option value="3">Botiquín</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="vigencia">Vigencia</label>
+              <select id="vigencia">
+                <option value="5 días">5 días</option>
+                <option value="30 días">30 días</option>
+                <option value="3 meses">3 meses</option>
+                <option value="tratamiento crónico">Tratamiento crónico</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="numeroEnvases">Número de envases</label>
+              <input type="text" id="numeroEnvases" readonly>
+            </div>
+            <div class="field">
+              <label for="porcentajeEnvaseTotal">Porcentaje envase total (%)</label>
+              <input type="text" id="porcentajeEnvaseTotal" readonly>
+            </div>
+          </div>
+        </section>
+
+        <section id="clinica-card" class="card">
+          <h2><span class="step-dot">4</span> Diagnóstico, notas y firma</h2>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="diagnostico">Diagnóstico</label>
+              <textarea id="diagnostico" rows="4" placeholder="Diagnóstico / motivo de prescripción"></textarea>
+            </div>
+            <div class="field full">
+              <label for="notas">Notas adicionales</label>
+              <textarea id="notas" rows="4" placeholder="Instrucciones adicionales para el tutor"></textarea>
+            </div>
+            <div class="field full">
+              <label for="firma">Firma</label>
+              <input type="text" id="firma" placeholder="Angel Soto DVM PhD">
+            </div>
+          </div>
+          <div class="button-row">
+            <button class="button" type="button" onclick="generarReceta()">🖨️ Imprimir receta</button>
+            <button class="button secondary" type="button" onclick="copyToClipboardExcel()">📋 Copiar filas para Excel</button>
+            <button class="button success" type="button" onclick="ejecutarAmbas()">✅ Imprimir + copiar</button>
+          </div>
+        </section>
+
+        <section id="excelArea" class="card">
+          <h2><span class="step-dot">5</span> Tabla para Excel <span class="hint">(no se imprime en la receta)</span></h2>
+          <div class="table-wrap">
+            <table id="excelTable">
+              <thead>
+                <tr>
+                  <th>Provincia</th>
+                  <th>NIF</th>
+                  <th>Nombre</th>
+                  <th>Primer Apellido</th>
+                  <th>Segundo Apellido</th>
+                  <th>Numero Colegiado</th>
+                  <th>Fecha Prescripcion</th>
+                  <th>Codigo Nacional</th>
+                  <th>Especie REGA</th>
+                  <th>Numero de Envases</th>
+                  <th>Numero Receta</th>
+                  <th>Tipo Dispensacion</th>
+                  <th>Clase Tratamiento</th>
+                  <th>Porcentaje Envase Total</th>
+                  <th>Duracion Tratamiento</th>
+                  <th>Codigo Medicamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr id="dataRow">
+                  <td id="tdProvincia"></td>
+                  <td id="tdNif"></td>
+                  <td id="tdNombre"></td>
+                  <td id="tdApellido1"></td>
+                  <td id="tdApellido2"></td>
+                  <td id="tdNumColegiado"></td>
+                  <td id="tdFechaReceta"></td>
+                  <td id="tdCodigoNacional"></td>
+                  <td id="tdEspecieRega"></td>
+                  <td id="tdNumEnvases"></td>
+                  <td id="tdNumReceta"></td>
+                  <td id="tdTipoDispensacion"></td>
+                  <td id="tdClaseTratamiento"></td>
+                  <td id="tdPorcEnvase"></td>
+                  <td id="tdDuracion"></td>
+                  <td id="tdCodMedicamento2"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="button-row" style="margin-top: 14px;">
+            <button id="btnCopiarExcel" class="button secondary" type="button" onclick="copyToClipboardExcel()">Copiar filas para Excel</button>
+          </div>
+        </section>
+      </section>
+
+      <aside class="side-panel">
+        <section class="card" aria-label="Resumen rápido">
+          <h2><span class="step-dot">↻</span> Resumen rápido</h2>
+          <dl class="summary-list">
+            <div class="summary-item"><dt>JSON</dt><dd id="sumJson">Pendiente</dd></div>
+            <div class="summary-item"><dt>Fármaco</dt><dd id="sumMedicamento">—</dd></div>
+            <div class="summary-item"><dt>Formato</dt><dd id="sumFormato">—</dd></div>
+            <div class="summary-item"><dt>Dosis</dt><dd id="sumDosis">—</dd></div>
+            <div class="summary-item"><dt>Frecuencia</dt><dd id="sumFrecuencia">—</dd></div>
+            <div class="summary-item"><dt>Duración</dt><dd id="sumDuracion">—</dd></div>
+            <div class="summary-item"><dt>Envases</dt><dd id="sumEnvases">—</dd></div>
+            <div class="summary-item"><dt>% envase</dt><dd id="sumPorcentaje">—</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="credits">
+      <p><strong>Creado por:</strong> Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café:</strong> <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></p>
+      <div class="license">
+        <p><strong>Proyecto con licencia WTFPL</strong></p>
+        <p>Este proyecto está bajo la licencia DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE.</p>
+        <p>Esta licencia NO incluye o NO aplica para: personal no veterinario perteneciente al Ministerio de Agricultura, Pesca y Alimentación de España; miembros en activo o cesantes de las Cortes Generales; titulares de cargos políticos de elección popular. A estos colectivos se les aplica: © 2025. Angel Soto. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+  </div>
+
+  <canvas id="qrCanvas" style="display:none;"></canvas>
+  <div id="toast" class="toast" hidden></div>
+
+  <script>
+    const PASSWORD_HASH = "16b9f129cef5311b6035fd018e0bd5c61cbbc4e499499812ac577e4781c8c0b1";
+    const AUTH_KEY = "receta_bot_ab_auth";
+    const JSON_URLS = ["/json/no_ab.json", "json/no_ab.json", "./json/no_ab.json"];
+    let medicamentos = [];
+    let loadedJsonUrl = "";
+
+    const $ = (id) => document.getElementById(id);
+
+    function showToast(message, tone = "") {
+      const toast = $("toast");
+      toast.textContent = message;
+      toast.hidden = false;
+      toast.style.borderColor = tone === "error" ? "rgba(251, 113, 133, 0.45)" : tone === "ok" ? "rgba(52, 211, 153, 0.45)" : "rgba(56, 189, 248, 0.28)";
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => { toast.hidden = true; }, 3600);
+    }
+
+    async function sha256(text) {
+      if (!window.crypto || !window.crypto.subtle) {
+        throw new Error("El navegador no permite validar la contraseña con crypto.subtle. Abre la web desde HTTPS.");
+      }
+      const data = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function unlockApp() {
+      $("loginView").hidden = true;
+      $("appShell").hidden = false;
+      cargarMedicamentosJSON();
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const input = $("passwordInput");
+      const error = $("loginError");
+      error.textContent = "";
+      try {
+        const hash = await sha256(input.value);
+        if (hash === PASSWORD_HASH) {
+          sessionStorage.setItem(AUTH_KEY, "1");
+          unlockApp();
+        } else {
+          error.textContent = "Contraseña incorrecta.";
+          input.select();
+        }
+      } catch (err) {
+        error.textContent = err.message || "No se pudo validar la contraseña.";
+      }
+    }
+
+    function normalizarCadena(str) {
+      return String(str || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+    }
+
+    function getField(obj, keys) {
+      for (const key of keys) {
+        if (obj && Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+          if (value !== null && value !== undefined && String(value).trim() !== "") return String(value).trim();
+        }
+      }
+      return "";
+    }
+
+    function medName(m) {
+      return getField(m, ["Denominación comercial", "Denominacion comercial", "denominacion_comercial", "Denominacion Comercial", "Medicamento", "Nombre", "nombre"]);
+    }
+
+    function medFormato(m) {
+      return getField(m, ["Formato", "formato", "Presentación", "Presentacion"]);
+    }
+
+    function medCodigoNacional(m) {
+      return getField(m, ["Código nacional", "Codigo nacional", "Código Nacional", "Codigo Nacional", "codigo_nacional"]);
+    }
+
+    function medUnidadesTotales(m) {
+      return getField(m, ["Unidades totales", "Unidades Totales", "unidades_totales", "unidades totales"]);
+    }
+
+    function medUnidades(m) {
+      return getField(m, ["unidades", "Unidades", "Unidad", "unidad"]);
+    }
+
+    function medSustanciaActiva(m) {
+      return getField(m, ["Sustancia Activa", "Sustancia activa", "sustancia_activa"]);
+    }
+
+    function medTipo(m) {
+      return getField(m, ["Tipo Medicamento", "Tipo medicamento", "tipo_medicamento"]);
+    }
+
+    function medClase(m) {
+      return getField(m, ["Clase Medicamento", "Clase medicamento", "clase_medicamento"]);
+    }
+
+    async function cargarMedicamentosJSON() {
+      const status = $("jsonStatus");
+      const summary = $("sumJson");
+      let lastError = null;
+      for (const url of JSON_URLS) {
+        try {
+          status.textContent = `Cargando medicamentos desde ${url}…`;
+          status.className = "status-line";
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          const array = Array.isArray(data) ? data : (Array.isArray(data.medicamentos) ? data.medicamentos : (Array.isArray(data.data) ? data.data : []));
+          if (!array.length) throw new Error("El JSON no contiene un array de medicamentos.");
+          medicamentos = array.filter(item => item && typeof item === "object" && medName(item));
+          loadedJsonUrl = url;
+          status.textContent = `Medicamentos cargados: ${medicamentos.length} registros desde ${url}`;
+          status.className = "status-line ok";
+          summary.textContent = `${medicamentos.length} registros · ${url}`;
+          cargarMedicamentos();
+          updateSummary();
+          return;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      medicamentos = [];
+      status.textContent = `No se pudo cargar /json/no_ab.json. Revisa que exista la carpeta json y el archivo no_ab.json. ${lastError ? lastError.message : ""}`;
+      status.className = "status-line error";
+      summary.textContent = "No cargado";
+      cargarMedicamentos();
+    }
+
+    function cargarMedicamentos(filter = "") {
+      const selectMedicamento = $("medicamento");
+      const normalizedFilter = normalizarCadena(filter);
+      const currentValue = selectMedicamento.value;
+      selectMedicamento.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = medicamentos.length ? "Seleccione un medicamento" : "JSON no cargado";
+      selectMedicamento.appendChild(placeholder);
+
+      const unique = [];
+      const seen = new Set();
+      medicamentos.forEach(m => {
+        const name = medName(m);
+        const key = normalizarCadena(name);
+        if (!name || seen.has(key)) return;
+        if (normalizedFilter && !key.includes(normalizedFilter)) return;
+        seen.add(key);
+        unique.push(name);
+      });
+
+      unique.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+      const fragment = document.createDocumentFragment();
+      unique.forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        fragment.appendChild(option);
+      });
+      selectMedicamento.appendChild(fragment);
+
+      if (currentValue && unique.includes(currentValue)) {
+        selectMedicamento.value = currentValue;
+      }
+      updateFormatos();
+    }
+
+    function updateFormatos() {
+      const medicamentoSeleccionado = normalizarCadena($("medicamento").value || "");
+      const formatoSelect = $("formato");
+      formatoSelect.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = medicamentoSeleccionado ? "Seleccione formato" : "Seleccione primero un fármaco";
+      formatoSelect.appendChild(placeholder);
+
+      const resultados = medicamentos.filter(m => normalizarCadena(medName(m)) === medicamentoSeleccionado);
+      resultados.forEach(m => {
+        const format = medFormato(m);
+        if (!format) return;
+        const option = document.createElement("option");
+        option.value = format;
+        option.textContent = format;
+        formatoSelect.appendChild(option);
+      });
+
+      if (resultados.length > 0) {
+        formatoSelect.selectedIndex = 1;
+        updateUnidades();
+      } else {
+        clearMedicationDetails();
+      }
+      updateSummary();
+    }
+
+    function clearMedicationDetails() {
+      $("unidadesTotales").value = "";
+      $("unidades").value = "";
+      $("sustanciaActiva").value = "";
+      $("tipoMedicamento").value = "";
+      $("claseMedicamento").value = "";
+      $("unidadDosisLabel").textContent = "";
+      calcularEnvases();
+    }
+
+    function getSelectedMedicationRecord() {
+      const medicamentoSeleccionado = normalizarCadena($("medicamento").value || "");
+      const formatoSeleccionado = normalizarCadena($("formato").value || "");
+      return medicamentos.find(m => normalizarCadena(medName(m)) === medicamentoSeleccionado && normalizarCadena(medFormato(m)) === formatoSeleccionado) || null;
+    }
+
+    function updateUnidades() {
+      const resultado = getSelectedMedicationRecord();
+      if (resultado) {
+        $("unidadesTotales").value = medUnidadesTotales(resultado);
+        $("unidades").value = medUnidades(resultado);
+        $("sustanciaActiva").value = medSustanciaActiva(resultado);
+        $("tipoMedicamento").value = medTipo(resultado);
+        $("claseMedicamento").value = medClase(resultado);
+        $("unidadDosisLabel").textContent = medUnidades(resultado);
+      } else {
+        clearMedicationDetails();
+      }
+      calcularEnvases();
+      updateSummary();
+    }
+
+    function parseFraction(value) {
+      if (!value) return 0;
+      const clean = String(value).trim().replace(",", ".");
+      const mixed = clean.match(/^(\d+(?:\.\d+)?)\s*y\s*(\d+)\s*\/\s*(\d+)$/i);
+      if (mixed) {
+        const whole = parseFloat(mixed[1]);
+        const num = parseFloat(mixed[2]);
+        const den = parseFloat(mixed[3]);
+        return den ? whole + (num / den) : 0;
+      }
+      if (clean.includes("/")) {
+        const parts = clean.split("/");
+        if (parts.length === 2) {
+          const num = parseFloat(parts[0]);
+          const den = parseFloat(parts[1]);
+          if (!isNaN(num) && !isNaN(den) && den !== 0) return num / den;
+        }
+      }
+      const parsed = parseFloat(clean);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function frecuenciaToNumber(freq) {
+      switch (freq) {
+        case "1 vez al día": return 1;
+        case "2 veces al día": return 2;
+        case "3 veces al día": return 3;
+        case "4 veces al día": return 4;
+        default: return 1;
+      }
+    }
+
+    function getDosisTexto() {
+      const dosisSelect = $("dosis");
+      const option = dosisSelect.options[dosisSelect.selectedIndex];
+      const dosisSeleccionada = dosisSelect.value ? (option ? option.textContent : dosisSelect.value) : "";
+      const dosisEscrita = $("dosisEscrita").value;
+      return dosisSeleccionada || dosisEscrita || "";
+    }
+
+    function calcularEnvases() {
+      const dosisSelect = $("dosis").value;
+      const dosisEscrita = $("dosisEscrita").value;
+      const freqString = $("frecuencia").value;
+      const freq = frecuenciaToNumber(freqString);
+      const d = parseFloat($("duracion").value) || 0;
+      const ut = parseFloat(String($("unidadesTotales").value).replace(",", ".")) || 0;
+
+      const dSelectVal = parseFraction(dosisSelect);
+      const dEscritaVal = parseFraction(dosisEscrita);
+      const dTotal = dSelectVal > 0 ? dSelectVal : dEscritaVal;
+
+      if (!ut || !dTotal || !freq || !d) {
+        $("numeroEnvases").value = "";
+        $("porcentajeEnvaseTotal").value = "";
+        updateSummary();
+        return;
+      }
+
+      const totalUso = dTotal * freq * d;
+      const numEnvases = Math.max(1, Math.ceil(totalUso / ut));
+      const pctEnvase = (totalUso / (ut * numEnvases)) * 100;
+
+      $("numeroEnvases").value = numEnvases;
+      $("porcentajeEnvaseTotal").value = pctEnvase.toFixed(2) + " %";
+      updateSummary();
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function escapeICS(value) {
+      return String(value || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/\n/g, "\\n")
+        .replace(/,/g, "\\,")
+        .replace(/;/g, "\\;");
+    }
+
+    function crearNumeroReceta(fecha = new Date()) {
+      return fecha.getDate().toString().padStart(2, "0")
+        + (fecha.getMonth() + 1).toString().padStart(2, "0")
+        + fecha.getFullYear().toString()
+        + "_"
+        + fecha.getHours().toString().padStart(2, "0")
+        + fecha.getMinutes().toString().padStart(2, "0")
+        + fecha.getSeconds().toString().padStart(2, "0");
+    }
+
+    function getValoresReceta(fecha = new Date()) {
+      const selected = getSelectedMedicationRecord();
+      return {
+        fecha,
+        recetaNumero: crearNumeroReceta(fecha),
+        clienteMascota: $("clienteMascota").value,
+        nombreMascota: $("nombreMascota").value,
+        prescripcion: $("prescripcion").value,
+        medicamento: $("medicamento").value,
+        medicamentoEscrito: $("medicamentoEscrito").value,
+        formato: $("formato").value,
+        formatoEscrito: $("formatoEscrito").value,
+        unidades: $("unidades").value,
+        sustanciaActiva: $("sustanciaActiva").value,
+        tipoMedicamento: $("tipoMedicamento").value,
+        claseMedicamento: $("claseMedicamento").value,
+        dosisTexto: getDosisTexto(),
+        frecuencia: $("frecuencia").value,
+        duracion: $("duracion").value,
+        via: $("via").value,
+        claseTratamiento: $("claseTratamiento").value,
+        tipoDispensacion: $("tipoDispensacion").value,
+        vigencia: $("vigencia").value,
+        numeroEnvases: $("numeroEnvases").value,
+        porcentajeEnvase: $("porcentajeEnvaseTotal").value,
+        diagnostico: $("diagnostico").value,
+        notas: $("notas").value,
+        firma: $("firma").value,
+        especieRega: $("rega").value,
+        codigoNacional: selected ? medCodigoNacional(selected) : ""
+      };
+    }
+
+    function generarICS(valores) {
+      const now = new Date();
+      const dtStamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+      const uid = `${Date.now()}@receta_bot_ab`;
+      const farmaco = valores.medicamento || valores.medicamentoEscrito || "Medicamento";
+      const desc = `Mascota: ${valores.nombreMascota}\nFarmaco: ${farmaco}\nDosis: ${valores.dosisTexto} ${valores.unidades}\nFrecuencia: ${valores.frecuencia}\nDuracion: ${valores.duracion} dias\nNotas: ${valores.notas}`;
+      return [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//PresVet//RECETA_Bot AB//ES",
+        "BEGIN:VEVENT",
+        "UID:" + uid,
+        "DTSTAMP:" + dtStamp,
+        "DTSTART:" + dtStamp,
+        "DTEND:" + dtStamp,
+        "SUMMARY:" + escapeICS("Tratamiento para " + (valores.nombreMascota || "mascota")),
+        "DESCRIPTION:" + escapeICS(desc),
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n");
+    }
+
+    function presvetInline(count = 9) {
+      return `<span class="presvet-white">${Array(count).fill("PresVet es una PUTA MIERDA").join(" ")}</span>`;
+    }
+
+    function rxLine(label, value, extraClass = "") {
+      const printable = value === undefined || value === null || String(value).trim() === "" ? "—" : value;
+      return `<div class="rx-line ${extraClass}"><strong>${escapeHTML(label)}:</strong> <span>${escapeHTML(printable)}</span> ${presvetInline(8)}</div>`;
+    }
+
+    function buildRecipePage(valores, ejemplar, qrDataUrl, withQR = false) {
+      const fechaLegible = valores.fecha.toLocaleDateString("es-ES");
+      const medicamentoFinal = [valores.medicamento, valores.medicamentoEscrito].filter(Boolean).join(" ");
+      const formatoFinal = [valores.formato, valores.formatoEscrito].filter(Boolean).join(" ");
+      const dosisFinal = [valores.dosisTexto, valores.unidades].filter(Boolean).join(" ");
+      const qrBlock = withQR ? `
+        <section class="qr-box">
+          <div>
+            <strong>Código QR (ICS)</strong>
+            <p>Escanee el código para añadir una nota en el calendario del móvil con la pauta de tratamiento.</p>
+            ${presvetInline(18)}
+          </div>
+          <img src="${qrDataUrl}" alt="Código QR ICS">
+        </section>
+      ` : "";
+
+      return `
+        <section class="recipe-page">
+          <div class="recipe-content">
+            <header class="rx-header">
+              <div>
+                <h1>Receta Veterinaria</h1>
+                <p>
+                  HOSPITAL CLINICO VETERINARIO COMPLUTENSE - UCM<br>
+                  NIF/CIF: Q2818014I<br>
+                  Avda. Puerta de Hierro, s/n<br>
+                  MADRID - 28040<br>
+                  Telf.: 91-3943755<br>
+                  hcvinf@ucm.es
+                </p>
+              </div>
+              <div class="rx-meta">
+                <p>
+                  <strong>RECETA Nº:</strong> ${escapeHTML(valores.recetaNumero)}<br>
+                  <strong>Fecha:</strong> ${escapeHTML(fechaLegible)}<br>
+                  <strong>Responsable:</strong> Soto Bustos, Angel<br>
+                  <strong>Nº Colegiado:</strong> 4337<br>
+                  <strong>Provincia:</strong> MADRID<br>
+                  <strong>Vigencia:</strong> ${escapeHTML(valores.vigencia)}
+                </p>
+              </div>
+            </header>
+
+            <main class="rx-grid">
+              ${rxLine("Cliente / Mascota", valores.clienteMascota)}
+              ${rxLine("Nombre de la Mascota", valores.nombreMascota)}
+              ${rxLine("Prescripción", valores.prescripcion)}
+              ${rxLine("Medicamento", medicamentoFinal)}
+              ${rxLine("Formato", formatoFinal, "wide")}
+              ${rxLine("Sustancia Activa", valores.sustanciaActiva)}
+              ${rxLine("Tipo Medicamento", valores.tipoMedicamento)}
+              ${rxLine("Clase Medicamento", valores.claseMedicamento)}
+              ${rxLine("Dosis", dosisFinal)}
+              ${rxLine("Frecuencia", valores.frecuencia)}
+              ${rxLine("Duración", valores.duracion + " días")}
+              ${rxLine("Vía de administración", valores.via)}
+              ${rxLine("Clase de tratamiento", valores.claseTratamiento)}
+              ${rxLine("Tipo dispensación", valores.tipoDispensacion)}
+              ${rxLine("Número de Envases", valores.numeroEnvases)}
+              ${rxLine("Porcentaje Envase Total", valores.porcentajeEnvase)}
+              ${rxLine("Diagnóstico", valores.diagnostico, "wide text-block")}
+              ${rxLine("Notas adicionales", valores.notas, "wide text-block")}
+            </main>
+
+            ${qrBlock}
+
+            <footer class="rx-footer">
+              <p>Firmado: ${escapeHTML(valores.firma || "Angel Soto DVM PhD")}<br>Nº Colegiado: 4337<br><em>${escapeHTML(ejemplar)}</em></p>
+              <div class="presvet-footer">${Array(28).fill("PresVet es una PUTA MIERDA").join(" · ")}</div>
+            </footer>
+          </div>
+        </section>
+      `;
+    }
+
+    function generarReceta() {
+      const valores = getValoresReceta(new Date());
+      const icsData = generarICS(valores);
+
+      if (!window.QRCode || !QRCode.toDataURL) {
+        alert("No se ha podido cargar la librería QRCode. Revisa la conexión a CDN.");
+        return;
+      }
+
+      QRCode.toDataURL(icsData, { errorCorrectionLevel: "M", width: 256 }, (err, qrDataUrl) => {
+        if (err) {
+          console.error(err);
+          alert("Error generando el QR");
+          return;
+        }
+
+        const contenido = buildRecipePage(valores, "Ejemplar para el propietario", qrDataUrl, true)
+          + buildRecipePage(valores, "Ejemplar para la farmacia", qrDataUrl, false);
+        const newWindow = window.open("", "_blank");
+        if (!newWindow) {
+          alert("Desactiva el bloqueo de ventanas emergentes para poder imprimir la receta.");
+          return;
+        }
+
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html lang="es">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Receta Veterinaria ${escapeHTML(valores.recetaNumero)}</title>
+              <style>
+                @page { size: A4; margin: 10mm; }
+                * { box-sizing: border-box; }
+                html, body { margin: 0; padding: 0; background: #fff; color: #050505; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 9.6pt; line-height: 1.27; }
+                .recipe-page {
+                  position: relative;
+                  width: 190mm;
+                  min-height: 277mm;
+                  height: 277mm;
+                  margin: 0 auto;
+                  background: #fff;
+                  color: #050505;
+                  overflow: hidden;
+                  page-break-after: always;
+                  break-after: page;
+                }
+                .recipe-page:last-child { page-break-after: auto; break-after: auto; }
+                .recipe-content {
+                  transform-origin: top left;
+                  width: 100%;
+                  min-height: 100%;
+                  padding: 0;
+                }
+                .rx-header {
+                  display: grid;
+                  grid-template-columns: 1.18fr 0.82fr;
+                  gap: 8mm;
+                  align-items: start;
+                  border-bottom: 1px solid #111;
+                  padding-bottom: 4mm;
+                  margin-bottom: 4mm;
+                }
+                h1 { margin: 0 0 3mm; font-size: 18pt; letter-spacing: -0.02em; }
+                p { margin: 0; }
+                .rx-meta { text-align: right; }
+                .rx-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 2.3mm 5mm;
+                }
+                .rx-line {
+                  min-height: 5.7mm;
+                  color: #050505;
+                  overflow-wrap: anywhere;
+                  border-bottom: 0.2mm solid #e5e7eb;
+                  padding-bottom: 1.2mm;
+                }
+                .rx-line strong { color: #000; }
+                .rx-line.wide { grid-column: 1 / -1; }
+                .rx-line.text-block { min-height: 12mm; white-space: pre-wrap; }
+                .presvet-white {
+                  color: #fff !important;
+                  font-size: 7pt;
+                  line-height: 1;
+                  letter-spacing: 0.12em;
+                  word-spacing: 0.18em;
+                  margin-left: 1mm;
+                }
+                .qr-box {
+                  display: grid;
+                  grid-template-columns: minmax(0, 1fr) 33mm;
+                  gap: 5mm;
+                  align-items: center;
+                  margin-top: 5mm;
+                  padding: 3.5mm;
+                  border: 0.25mm solid #111;
+                  border-radius: 2mm;
+                }
+                .qr-box img { width: 31mm; height: 31mm; display: block; }
+                .qr-box p { margin-top: 1.5mm; }
+                .rx-footer {
+                  margin-top: 5mm;
+                  padding-top: 3mm;
+                  border-top: 1px solid #111;
+                  text-align: center;
+                }
+                .presvet-footer {
+                  color: #fff !important;
+                  font-size: 7pt;
+                  line-height: 1.1;
+                  margin-top: 2mm;
+                  letter-spacing: 0.08em;
+                }
+                @media screen {
+                  body { background: #dbe3ef; padding: 16px 0; }
+                  .recipe-page { box-shadow: 0 20px 70px rgba(15, 23, 42, 0.26); }
+                  .recipe-page + .recipe-page { margin-top: 18px; }
+                }
+                @media print {
+                  body { background: #fff; }
+                  .recipe-page { margin: 0; box-shadow: none; }
+                }
+              </style>
+            </head>
+            <body>
+              ${contenido}
+              <script>
+                function fitPagesToA4() {
+                  document.querySelectorAll('.recipe-page').forEach(function(page) {
+                    var content = page.querySelector('.recipe-content');
+                    var scale = 1;
+                    content.style.transform = 'scale(1)';
+                    content.style.width = '100%';
+                    var pageHeight = page.getBoundingClientRect().height;
+                    while (content.getBoundingClientRect().height > pageHeight && scale > 0.76) {
+                      scale -= 0.02;
+                      content.style.transform = 'scale(' + scale + ')';
+                      content.style.width = (100 / scale) + '%';
+                    }
+                  });
+                }
+                window.addEventListener('load', function() {
+                  setTimeout(function() {
+                    fitPagesToA4();
+                    window.focus();
+                    window.print();
+                  }, 250);
+                });
+              <\/script>
+            </body>
+          </html>
+        `);
+        newWindow.document.close();
+      });
+    }
+
+    function fillExcelTable(values, numReceta, fechaLegible) {
+      $("tdProvincia").textContent = "28";
+      $("tdNif").textContent = "52349927H";
+      $("tdNombre").textContent = "Angel";
+      $("tdApellido1").textContent = "Soto";
+      $("tdApellido2").textContent = "Bustos";
+      $("tdNumColegiado").textContent = "2804337";
+      $("tdFechaReceta").textContent = fechaLegible;
+      $("tdCodigoNacional").textContent = values.codigoNacional;
+      $("tdEspecieRega").textContent = values.especieRega;
+      $("tdNumEnvases").textContent = values.numeroEnvases;
+      $("tdNumReceta").textContent = numReceta;
+      $("tdTipoDispensacion").textContent = values.tipoDispensacion;
+      $("tdClaseTratamiento").textContent = values.claseTratamiento;
+      $("tdPorcEnvase").textContent = values.porcentajeEnvase;
+      $("tdDuracion").textContent = values.duracion;
+      $("tdCodMedicamento2").textContent = values.codigoNacional;
+    }
+
+    function writeClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return ok ? Promise.resolve() : Promise.reject(new Error("No se pudo copiar al portapapeles."));
+    }
+
+    async function copyToClipboardExcel() {
+      const fecha = new Date();
+      const valores = getValoresReceta(fecha);
+      const numReceta = crearNumeroReceta(fecha);
+      const fechaLegible = fecha.toLocaleDateString("es-ES");
+      fillExcelTable(valores, numReceta, fechaLegible);
+
+      const row1 = [
+        "Provincia",
+        "NIF",
+        "Nombre",
+        "Primer Apellido",
+        "Segundo Apellido",
+        "Numero Colegiado",
+        "Fecha Prescripcion",
+        "Codigo Nacional",
+        "Especie REGA perro=80; gato=81",
+        "Numero de Envases",
+        "Numero Receta",
+        "Tipo Dispensacion",
+        "Clase Tratamiento",
+        "Porcentaje Envase Total",
+        "Duracion Tratamiento",
+        "Codigo Medicamento"
+      ].join("\t");
+
+      const row2 = [
+        "28",
+        "52349927H",
+        "Angel",
+        "Soto",
+        "Bustos",
+        "2804337",
+        fechaLegible,
+        valores.codigoNacional,
+        valores.especieRega,
+        valores.numeroEnvases,
+        numReceta,
+        valores.tipoDispensacion,
+        valores.claseTratamiento,
+        valores.porcentajeEnvase,
+        valores.duracion,
+        valores.codigoNacional
+      ].join("\t");
+
+      const finalText = row1 + "\n" + row2;
+      try {
+        await writeClipboard(finalText);
+        showToast("Filas copiadas para Excel.", "ok");
+      } catch (err) {
+        console.error("Error al copiar:", err);
+        showToast("No se pudo copiar automáticamente. Revisa permisos del portapapeles.", "error");
+      }
+    }
+
+    async function ejecutarAmbas() {
+      await copyToClipboardExcel();
+      generarReceta();
+    }
+
+    function updateSummary() {
+      const med = $("medicamento")?.value || $("medicamentoEscrito")?.value || "—";
+      const fmt = $("formato")?.value || $("formatoEscrito")?.value || "—";
+      $("sumMedicamento").textContent = med || "—";
+      $("sumFormato").textContent = fmt || "—";
+      $("sumDosis").textContent = [getDosisTexto(), $("unidades")?.value].filter(Boolean).join(" ") || "—";
+      $("sumFrecuencia").textContent = $("frecuencia")?.value || "—";
+      $("sumDuracion").textContent = $("duracion")?.value ? $("duracion").value + " días" : "—";
+      $("sumEnvases").textContent = $("numeroEnvases")?.value || "—";
+      $("sumPorcentaje").textContent = $("porcentajeEnvaseTotal")?.value || "—";
+      if (loadedJsonUrl) $("sumJson").textContent = `${medicamentos.length} registros · ${loadedJsonUrl}`;
+    }
+
+    function bindEvents() {
+      $("loginForm").addEventListener("submit", handleLogin);
+      $("medicamentoFiltro").addEventListener("input", (e) => cargarMedicamentos(e.target.value));
+      $("medicamento").addEventListener("change", updateFormatos);
+      $("formato").addEventListener("change", updateUnidades);
+      $("dosis").addEventListener("change", (event) => {
+        const manual = $("dosisEscrita");
+        if (event.target.value) {
+          manual.value = "";
+          manual.disabled = true;
+        } else {
+          manual.disabled = false;
+        }
+        calcularEnvases();
+      });
+      $("dosisEscrita").addEventListener("input", (event) => {
+        const select = $("dosis");
+        if (event.target.value) {
+          select.selectedIndex = 0;
+          select.disabled = true;
+        } else {
+          select.disabled = false;
+        }
+        calcularEnvases();
+      });
+      ["frecuencia", "duracion"].forEach(id => $(id).addEventListener("change", calcularEnvases));
+      ["medicamentoEscrito", "formatoEscrito", "clienteMascota", "nombreMascota", "prescripcion", "via", "claseTratamiento", "tipoDispensacion", "vigencia", "diagnostico", "notas", "firma", "rega"].forEach(id => {
+        const el = $(id);
+        if (el) el.addEventListener("input", updateSummary);
+        if (el) el.addEventListener("change", updateSummary);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      bindEvents();
+      if (sessionStorage.getItem(AUTH_KEY) === "1") {
+        unlockApp();
+      }
+    });
+  </script>
+</body>
+</html>
