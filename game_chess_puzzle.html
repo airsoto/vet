@@ -1,0 +1,1033 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Mini ajedrez 3x3 | Acertijo táctil</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --panel: #141820;
+      --panel-2: #10141b;
+      --text: #f2f5f7;
+      --muted: #9aa4b2;
+      --line: rgba(255,255,255,.12);
+      --accent: #ff9900;
+      --good: #48d597;
+      --bad: #ff5c7a;
+      --cell-white: #e6ddc8;
+      --cell-black: #4b2d18;
+      --cell-white-soft: #d6c7a8;
+      --wood-dark: #3a2112;
+      --wood-mid: #6f431f;
+      --wood-gold: #9b6632;
+      --aged-cream: #eee6d2;
+      --aged-cream-deep: #cdbb98;
+      --shadow: 0 16px 45px rgba(0,0,0,.35);
+      --radius: 22px;
+      --board-size: min(86vw, 390px);
+      --target-size: min(58vw, 230px);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,153,0,.13), transparent 30%),
+        radial-gradient(circle at 85% 20%, rgba(72,213,151,.08), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
+      user-select: none;
+    }
+
+    .app {
+      width: min(1120px, 100%);
+    }
+
+    header {
+      text-align: center;
+      margin: 8px auto 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 8vw, 58px);
+      letter-spacing: -0.07em;
+      line-height: .92;
+      font-weight: 850;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 14px auto 0;
+      color: var(--muted);
+      font-size: clamp(14px, 3.5vw, 17px);
+      line-height: 1.45;
+    }
+
+    .home a,
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .home a:hover,
+    .footer a:hover { text-decoration: underline; }
+
+    .game-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018)), var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .main-card {
+      padding: clamp(14px, 4vw, 24px);
+      display: grid;
+      place-items: center;
+      gap: 14px;
+    }
+
+    .board-wrap {
+      width: var(--board-size);
+      max-width: 100%;
+    }
+
+    .board-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin: 0 2px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .board-label strong {
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 15px;
+    }
+
+    .board {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: clamp(7px, 2vw, 11px);
+      padding: clamp(8px, 2.4vw, 12px);
+      border-radius: 28px;
+      background: #07090c;
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.035), 0 22px 60px rgba(0,0,0,.36);
+      touch-action: manipulation;
+    }
+
+    .cell {
+      border: 0;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(46px, 15vw, 78px);
+      line-height: 1;
+      cursor: pointer;
+      position: relative;
+      transition: transform .12s ease, box-shadow .12s ease, filter .12s ease, opacity .12s ease;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.22),
+        inset 0 -1px 0 rgba(0,0,0,.18),
+        inset 0 0 0 1px rgba(0,0,0,.12);
+      color: #111827;
+      min-width: 0;
+      min-height: 0;
+      touch-action: manipulation;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .cell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 0;
+      mix-blend-mode: multiply;
+    }
+
+    .cell.white {
+      background:
+        radial-gradient(circle at 18% 22%, rgba(116,82,43,.12), transparent 18%),
+        radial-gradient(circle at 76% 80%, rgba(95,62,32,.10), transparent 22%),
+        linear-gradient(135deg, rgba(255,255,255,.55), rgba(255,255,255,.04) 48%, rgba(105,74,39,.08)),
+        var(--aged-cream);
+      color: #16110c;
+    }
+
+    .cell.white::before {
+      opacity: .72;
+      background:
+        repeating-linear-gradient(8deg, rgba(99,72,38,.045) 0 2px, transparent 2px 8px),
+        repeating-linear-gradient(96deg, rgba(255,255,255,.14) 0 1px, transparent 1px 10px),
+        linear-gradient(160deg, transparent, rgba(117,82,42,.16));
+    }
+
+    .cell.black {
+      background:
+        radial-gradient(circle at 20% 18%, rgba(190,128,62,.24), transparent 20%),
+        radial-gradient(circle at 80% 70%, rgba(22,12,6,.26), transparent 26%),
+        linear-gradient(135deg, var(--wood-gold), var(--wood-mid) 34%, var(--wood-dark) 72%, #2a160c);
+      color: #f4f6f8;
+    }
+
+    .cell.black::before {
+      opacity: .86;
+      background:
+        repeating-linear-gradient(4deg, rgba(255,222,158,.065) 0 2px, transparent 2px 9px),
+        repeating-linear-gradient(92deg, rgba(0,0,0,.13) 0 1px, transparent 1px 6px),
+        linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.18));
+    }
+
+    .cell > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .cell:active { transform: scale(.985); }
+
+    .cell.selected {
+      outline: 3px solid var(--accent);
+      box-shadow: 0 0 0 6px rgba(255,153,0,.14), inset 0 0 0 1px rgba(0,0,0,.11);
+    }
+
+    .cell.legal::after {
+      content: "";
+      width: 22%;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 0 8px rgba(72,213,151,.13), 0 0 24px rgba(72,213,151,.58);
+      position: absolute;
+      bottom: 10%;
+      right: 10%;
+    }
+
+    .cell.blocked::after {
+      content: "";
+      width: 26%;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--bad);
+      position: absolute;
+      bottom: 15%;
+      right: 10%;
+      opacity: .8;
+    }
+
+    .piece {
+      display: inline-grid;
+      place-items: center;
+      position: relative;
+      transform: translateY(-2px);
+      pointer-events: none;
+      line-height: .9;
+      font-family: "Times New Roman", "Noto Serif Symbols", "DejaVu Serif", "Segoe UI Symbol", serif;
+      font-size: clamp(52px, 16vw, 84px);
+      font-weight: 900;
+      font-variant: normal;
+      letter-spacing: -0.04em;
+      filter: none;
+      text-shadow: none;
+      text-rendering: geometricPrecision;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .piece::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: .92em;
+      height: .92em;
+      border-radius: 50%;
+      transform: translateY(.03em);
+      pointer-events: none;
+    }
+
+    .piece.white-piece {
+      color: #ffffff;
+      -webkit-text-stroke: 0 transparent;
+      text-shadow: none;
+    }
+
+    .piece.white-piece::before {
+      background: rgba(30, 18, 9, .58);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.08),
+        0 8px 18px rgba(0,0,0,.26),
+        inset 0 1px 0 rgba(255,255,255,.10);
+    }
+
+    .piece.black-piece {
+      color: #000000;
+      -webkit-text-stroke: 0 transparent;
+      text-shadow: none;
+    }
+
+    .piece.black-piece::before {
+      background: rgba(245, 235, 211, .72);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,.12),
+        0 8px 18px rgba(0,0,0,.18),
+        inset 0 1px 0 rgba(255,255,255,.55);
+    }
+
+    .target-board .piece {
+      font-size: clamp(30px, 9vw, 50px);
+      filter: none;
+      text-shadow: none;
+    }
+
+    .solved-pop {
+      animation: solvedPulse .42s ease-out both;
+    }
+
+    @keyframes solvedPulse {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.045); filter: saturate(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 17px;
+      padding: 12px;
+      min-height: 74px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 6px;
+      font-size: clamp(24px, 7vw, 34px);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .target-card {
+      display: grid;
+      place-items: center;
+      gap: 12px;
+    }
+
+    .target-board {
+      width: var(--target-size);
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 6px;
+      padding: 8px;
+      background: #07090c;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+    }
+
+    .target-board .cell {
+      border-radius: 14px;
+      font-size: clamp(26px, 9vw, 45px);
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .target-title {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .target-title strong {
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 15px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button, select {
+      border: 1px solid rgba(255,255,255,.13);
+      background: rgba(255,255,255,.055);
+      color: var(--text);
+      min-height: 46px;
+      border-radius: 15px;
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      touch-action: manipulation;
+    }
+
+    button:hover, select:hover {
+      background: rgba(255,255,255,.09);
+      border-color: rgba(255,255,255,.22);
+    }
+
+    button:active { transform: scale(.985); }
+
+    .primary {
+      background: linear-gradient(135deg, rgba(255,153,0,.95), rgba(255,153,0,.68));
+      color: #111;
+      border-color: rgba(255,153,0,.8);
+    }
+
+    .primary:hover { background: linear-gradient(135deg, rgba(255,176,49,1), rgba(255,153,0,.78)); }
+
+    .danger {
+      background: rgba(255,92,122,.12);
+      border-color: rgba(255,92,122,.28);
+    }
+
+    select {
+      width: 100%;
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 18px) 20px, calc(100% - 12px) 20px;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    .status {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.42;
+      font-size: 14px;
+    }
+
+    .status strong { color: var(--text); }
+
+    .legend {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      margin: 26px auto 0;
+      padding: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 820px) {
+      .game-shell {
+        grid-template-columns: 1fr;
+      }
+      .side {
+        grid-template-columns: 1fr;
+      }
+      .target-card {
+        grid-template-columns: 1fr;
+      }
+      .panel { padding: 14px; }
+    }
+
+    @media (max-width: 460px) {
+      body { padding-left: 10px; padding-right: 10px; }
+      .main-card { padding: 12px; }
+      .cell { border-radius: 17px; }
+      .board { border-radius: 24px; gap: 7px; }
+      .row { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat { min-height: 66px; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Ajedrez Puzzle 3×3</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">Mueve la dama, el rey, la torre y el caballo desde la posición inicial hasta el tablero objetivo. Solo valen movimientos reales de ajedrez. Sin capturas. Sin piezas duplicadas.</p>
+    </header>
+
+    <main class="game-shell">
+      <section class="card main-card" aria-label="Tablero principal">
+        <div class="board-wrap">
+          <div class="board-label">
+            <strong>Tu tablero</strong>
+            <span id="pieceColorLabel">Piezas blancas</span>
+          </div>
+          <div class="board" id="board"></div>
+        </div>
+        <p class="status" id="status"><strong>Selecciona una pieza.</strong> Después toca una casilla marcada.</p>
+      </section>
+
+      <aside class="side">
+        <section class="card panel target-card" aria-label="Tablero objetivo">
+          <div class="target-title">
+            <strong>Objetivo</strong>
+            <span id="puzzleLabel">Acertijo 1</span>
+          </div>
+          <div class="target-board" id="targetBoard"></div>
+          <p class="legend"></p>
+        </section>
+
+        <section class="card panel">
+          <div class="stats">
+            <div class="stat"><span>Aciertos</span><strong id="wins">0</strong></div>
+            <div class="stat"><span>Tiempo</span><strong id="time">--:--</strong></div>
+            <div class="stat"><span>Mov. acertijo</span><strong id="moves">0</strong></div>
+            <div class="stat"><span>Mov. totales</span><strong id="totalMoves">0</strong></div>
+          </div>
+        </section>
+
+        <section class="card panel controls" aria-label="Controles del juego">
+          <select id="timerSelect" aria-label="Cronómetro por acertijo">
+            <option value="0">Sin cronómetro</option>
+            <option value="60">1 minuto</option>
+            <option value="180" selected>3 minutos</option>
+            <option value="300">5 minutos</option>
+          </select>
+
+          <div class="row">
+            <button class="primary" id="newPuzzleBtn">Nuevo acertijo</button>
+            <button id="colorBtn">Cambiar a negras</button>
+          </div>
+          <div class="row">
+            <button id="resetPuzzleBtn">Reiniciar acertijo</button>
+            <button class="danger" id="resetGameBtn">Reiniciar juego</button>
+          </div>
+          <p class="legend">Toque rápido: selecciona y mueve. Si una pieza no tiene destino libre, prueba con otra. La dama y la torre no saltan piezas; el caballo sí.</p>
+        </section>
+      </aside>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto. Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const BOARD_SIZE = 3;
+      const CELL_COUNT = 9;
+      const CORNERS = new Set([0, 2, 6, 8]);
+      const PIECES = [
+        { id: "Q", name: "Dama", white: "♕", black: "♛" },
+        { id: "K", name: "Rey", white: "♔", black: "♚" },
+        { id: "R", name: "Torre", white: "♖", black: "♜" },
+        { id: "N", name: "Caballo", white: "♘", black: "♞" }
+      ];
+
+      const boardEl = document.getElementById("board");
+      const targetBoardEl = document.getElementById("targetBoard");
+      const statusEl = document.getElementById("status");
+      const winsEl = document.getElementById("wins");
+      const movesEl = document.getElementById("moves");
+      const totalMovesEl = document.getElementById("totalMoves");
+      const timeEl = document.getElementById("time");
+      const puzzleLabelEl = document.getElementById("puzzleLabel");
+      const pieceColorLabelEl = document.getElementById("pieceColorLabel");
+      const timerSelect = document.getElementById("timerSelect");
+      const newPuzzleBtn = document.getElementById("newPuzzleBtn");
+      const resetPuzzleBtn = document.getElementById("resetPuzzleBtn");
+      const resetGameBtn = document.getElementById("resetGameBtn");
+      const colorBtn = document.getElementById("colorBtn");
+
+      const state = {
+        puzzleNumber: 1,
+        wins: 0,
+        moves: 0,
+        totalMoves: 0,
+        selected: null,
+        pieceColor: "white",
+        current: {},
+        initial: {},
+        target: {},
+        locked: false,
+        timerId: null,
+        secondsLeft: 180,
+        dragPiece: null
+      };
+
+      function idxToRC(index) {
+        return { r: Math.floor(index / BOARD_SIZE), c: index % BOARD_SIZE };
+      }
+
+      function rcToIdx(r, c) {
+        return r * BOARD_SIZE + c;
+      }
+
+      function inside(r, c) {
+        return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+      }
+
+      function clonePositions(pos) {
+        return Object.fromEntries(PIECES.map(p => [p.id, pos[p.id]]));
+      }
+
+      function serialize(pos) {
+        return PIECES.map(p => pos[p.id]).join("|");
+      }
+
+      function samePositions(a, b) {
+        return PIECES.every(p => a[p.id] === b[p.id]);
+      }
+
+      function occupantAt(pos, index) {
+        return PIECES.find(p => pos[p.id] === index)?.id || null;
+      }
+
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function randomPositions() {
+        const cells = shuffle([...Array(CELL_COUNT).keys()]);
+        const pos = {};
+        PIECES.forEach((p, i) => { pos[p.id] = cells[i]; });
+        return pos;
+      }
+
+      function legalMovesFor(pieceId, pos) {
+        const from = pos[pieceId];
+        const { r, c } = idxToRC(from);
+        const moves = [];
+        const addIfFree = (rr, cc) => {
+          if (!inside(rr, cc)) return;
+          const target = rcToIdx(rr, cc);
+          if (!occupantAt(pos, target)) moves.push(target);
+        };
+        const slide = (dirs) => {
+          dirs.forEach(([dr, dc]) => {
+            let rr = r + dr;
+            let cc = c + dc;
+            while (inside(rr, cc)) {
+              const target = rcToIdx(rr, cc);
+              if (occupantAt(pos, target)) break;
+              moves.push(target);
+              rr += dr;
+              cc += dc;
+            }
+          });
+        };
+
+        if (pieceId === "K") {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr || dc) addIfFree(r + dr, c + dc);
+            }
+          }
+        } else if (pieceId === "N") {
+          [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr, dc]) => addIfFree(r + dr, c + dc));
+        } else if (pieceId === "R") {
+          slide([[1,0],[-1,0],[0,1],[0,-1]]);
+        } else if (pieceId === "Q") {
+          slide([[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]);
+        }
+        return moves;
+      }
+
+      function allMoves(pos) {
+        const result = [];
+        PIECES.forEach(piece => {
+          legalMovesFor(piece.id, pos).forEach(to => result.push({ piece: piece.id, to }));
+        });
+        return result;
+      }
+
+      function shortestDistance(start, goal, maxDepth = 60) {
+        const startKey = serialize(start);
+        const goalKey = serialize(goal);
+        if (startKey === goalKey) return 0;
+
+        const queue = [{ pos: clonePositions(start), depth: 0 }];
+        const seen = new Set([startKey]);
+
+        while (queue.length) {
+          const node = queue.shift();
+          if (node.depth >= maxDepth) continue;
+
+          for (const move of allMoves(node.pos)) {
+            const next = clonePositions(node.pos);
+            next[move.piece] = move.to;
+            const key = serialize(next);
+            if (seen.has(key)) continue;
+            if (key === goalKey) return node.depth + 1;
+            seen.add(key);
+            queue.push({ pos: next, depth: node.depth + 1 });
+          }
+        }
+        return null;
+      }
+
+      function makeTargetFrom(start) {
+        let target = clonePositions(start);
+        const minSteps = 7 + Math.floor(Math.random() * 8);
+        let lastKey = serialize(target);
+
+        for (let i = 0; i < minSteps; i++) {
+          const options = shuffle(allMoves(target).filter(move => {
+            const next = clonePositions(target);
+            next[move.piece] = move.to;
+            return serialize(next) !== lastKey;
+          }));
+          if (!options.length) break;
+          lastKey = serialize(target);
+          const chosen = options[0];
+          target[chosen.piece] = chosen.to;
+        }
+        return target;
+      }
+
+      function generateSolvablePuzzle() {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const start = randomPositions();
+          const target = makeTargetFrom(start);
+          if (samePositions(start, target)) continue;
+          const dist = shortestDistance(start, target);
+          if (dist !== null && dist >= 3) return { start, target, dist };
+        }
+        const fallback = randomPositions();
+        return { start: fallback, target: makeTargetFrom(fallback), dist: null };
+      }
+
+      function pieceGlyph(pieceId) {
+        const piece = PIECES.find(p => p.id === pieceId);
+        return piece ? piece[state.pieceColor] : "";
+      }
+
+      function pieceName(pieceId) {
+        return PIECES.find(p => p.id === pieceId).name;
+      }
+
+      function createCell(index, mode = "play") {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = `cell ${CORNERS.has(index) ? "black" : "white"}`;
+        cell.dataset.index = String(index);
+        cell.setAttribute("aria-label", `Casilla ${index + 1}`);
+        if (mode === "target") cell.tabIndex = -1;
+        return cell;
+      }
+
+      function renderBoard() {
+        boardEl.innerHTML = "";
+        const legal = state.selected ? new Set(legalMovesFor(state.selected, state.current)) : new Set();
+
+        for (let i = 0; i < CELL_COUNT; i++) {
+          const cell = createCell(i);
+          const occupant = occupantAt(state.current, i);
+
+          if (occupant) {
+            const span = document.createElement("span");
+            span.className = `piece ${state.pieceColor}-piece`;
+            span.textContent = pieceGlyph(occupant);
+            cell.appendChild(span);
+            cell.dataset.piece = occupant;
+            cell.setAttribute("aria-label", `${pieceName(occupant)} en casilla ${i + 1}`);
+          }
+
+          if (state.selected && state.current[state.selected] === i) cell.classList.add("selected");
+          if (legal.has(i)) cell.classList.add("legal");
+          if (state.selected && !legal.has(i) && !occupant) cell.classList.add("blocked");
+
+          cell.addEventListener("click", () => handleCellTap(i));
+          cell.addEventListener("pointerdown", (ev) => handlePointerDown(ev, i));
+          cell.addEventListener("pointerup", (ev) => handlePointerUp(ev, i));
+          boardEl.appendChild(cell);
+        }
+      }
+
+      function renderTargetBoard() {
+        targetBoardEl.innerHTML = "";
+        for (let i = 0; i < CELL_COUNT; i++) {
+          const cell = createCell(i, "target");
+          const occupant = occupantAt(state.target, i);
+          if (occupant) {
+            const span = document.createElement("span");
+            span.className = `piece ${state.pieceColor}-piece`;
+            span.textContent = pieceGlyph(occupant);
+            cell.appendChild(span);
+          }
+          targetBoardEl.appendChild(cell);
+        }
+      }
+
+      function renderStats() {
+        winsEl.textContent = state.wins;
+        movesEl.textContent = state.moves;
+        totalMovesEl.textContent = state.totalMoves;
+        puzzleLabelEl.textContent = `Acertijo ${state.puzzleNumber}`;
+        pieceColorLabelEl.textContent = state.pieceColor === "white" ? "Piezas blancas" : "Piezas negras";
+        colorBtn.textContent = state.pieceColor === "white" ? "Cambiar a negras" : "Cambiar a blancas";
+      }
+
+      function render() {
+        renderBoard();
+        renderTargetBoard();
+        renderStats();
+        renderTime();
+      }
+
+      function setStatus(text, strong = false) {
+        statusEl.innerHTML = strong ? `<strong>${text}</strong>` : text;
+      }
+
+      function handleCellTap(index) {
+        if (state.locked) return;
+        const occupant = occupantAt(state.current, index);
+
+        if (occupant) {
+          state.selected = occupant;
+          const moves = legalMovesFor(occupant, state.current).length;
+          setStatus(`<strong>${pieceName(occupant)} seleccionada.</strong> Destinos disponibles: ${moves}.`);
+          renderBoard();
+          return;
+        }
+
+        if (state.selected) {
+          tryMove(state.selected, index);
+        } else {
+          setStatus("Toca una pieza para ver sus movimientos legales.");
+        }
+      }
+
+      function handlePointerDown(ev, index) {
+        const occupant = occupantAt(state.current, index);
+        if (!occupant || state.locked) return;
+        state.dragPiece = occupant;
+        state.selected = occupant;
+        renderBoard();
+      }
+
+      function handlePointerUp(ev, index) {
+        if (!state.dragPiece || state.locked) return;
+        const piece = state.dragPiece;
+        state.dragPiece = null;
+        const occupant = occupantAt(state.current, index);
+        if (!occupant && state.current[piece] !== index) tryMove(piece, index);
+      }
+
+      function tryMove(pieceId, to) {
+        const legal = legalMovesFor(pieceId, state.current);
+        if (!legal.includes(to)) {
+          setStatus(`<strong>Movimiento no válido.</strong> ${pieceName(pieceId)} no puede ir a esa casilla.`);
+          state.selected = pieceId;
+          renderBoard();
+          return;
+        }
+
+        state.current[pieceId] = to;
+        state.moves += 1;
+        state.totalMoves += 1;
+        state.selected = null;
+        setStatus(`${pieceName(pieceId)} movida. Busca la posición objetivo.`);
+        render();
+
+        if (samePositions(state.current, state.target)) {
+          solvePuzzle();
+        }
+      }
+
+      function solvePuzzle() {
+        state.locked = true;
+        state.wins += 1;
+        stopTimer();
+        renderStats();
+        boardEl.classList.add("solved-pop");
+        setStatus(`¡Acertijo resuelto en ${state.moves} movimientos! Acierto añadido.`, true);
+        setTimeout(() => boardEl.classList.remove("solved-pop"), 450);
+      }
+
+      function newPuzzle({ keepNumber = false } = {}) {
+        const puzzle = generateSolvablePuzzle();
+        state.initial = clonePositions(puzzle.start);
+        state.current = clonePositions(puzzle.start);
+        state.target = clonePositions(puzzle.target);
+        state.moves = 0;
+        state.selected = null;
+        state.locked = false;
+        if (!keepNumber) state.puzzleNumber += 1;
+        resetTimer();
+        const hint = puzzle.dist ? ` Mínimo posible aproximado: ${puzzle.dist} movimientos.` : "";
+        setStatus(`<strong>Nuevo acertijo.</strong> Lleva tus piezas hasta el tablero objetivo.${hint}`);
+        render();
+      }
+
+      function resetPuzzle() {
+        state.current = clonePositions(state.initial);
+        state.moves = 0;
+        state.selected = null;
+        state.locked = false;
+        resetTimer();
+        setStatus("Acertijo reiniciado. Misma posición inicial y mismo objetivo.");
+        render();
+      }
+
+      function resetGame() {
+        state.puzzleNumber = 0;
+        state.wins = 0;
+        state.moves = 0;
+        state.totalMoves = 0;
+        state.selected = null;
+        state.locked = false;
+        newPuzzle();
+      }
+
+      function togglePieceColor() {
+        state.pieceColor = state.pieceColor === "white" ? "black" : "white";
+        render();
+      }
+
+      function getTimerSeconds() {
+        return Number(timerSelect.value || 0);
+      }
+
+      function resetTimer() {
+        stopTimer();
+        state.secondsLeft = getTimerSeconds();
+        renderTime();
+        if (state.secondsLeft > 0) {
+          state.timerId = window.setInterval(() => {
+            state.secondsLeft -= 1;
+            renderTime();
+            if (state.secondsLeft <= 0) {
+              stopTimer();
+              state.locked = true;
+              state.selected = null;
+              setStatus("Tiempo agotado. Pulsa Nuevo acertijo o Reiniciar acertijo.", true);
+              renderBoard();
+            }
+          }, 1000);
+        }
+      }
+
+      function stopTimer() {
+        if (state.timerId) window.clearInterval(state.timerId);
+        state.timerId = null;
+      }
+
+      function renderTime() {
+        if (getTimerSeconds() === 0) {
+          timeEl.textContent = "--:--";
+          return;
+        }
+        const m = Math.floor(state.secondsLeft / 60);
+        const s = state.secondsLeft % 60;
+        timeEl.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+
+      newPuzzleBtn.addEventListener("click", () => newPuzzle());
+      resetPuzzleBtn.addEventListener("click", resetPuzzle);
+      resetGameBtn.addEventListener("click", resetGame);
+      colorBtn.addEventListener("click", togglePieceColor);
+      timerSelect.addEventListener("change", () => {
+        resetTimer();
+        setStatus("Cronómetro actualizado para este acertijo.");
+      });
+
+      document.addEventListener("keydown", ev => {
+        if (ev.key.toLowerCase() === "n") newPuzzle();
+        if (ev.key.toLowerCase() === "r") resetPuzzle();
+        if (ev.key.toLowerCase() === "c") togglePieceColor();
+      });
+
+      state.puzzleNumber = 0;
+      newPuzzle();
+    })();
+  </script>
+</body>
+</html>
