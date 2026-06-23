@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MJ - Estadísticas por temporada</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg: #08080b;
+      --bg-soft: #111118;
+      --card: rgba(22, 22, 31, 0.92);
+      --card-strong: rgba(31, 31, 44, 0.96);
+      --line: rgba(255, 255, 255, 0.11);
+      --text: #f8fafc;
+      --muted: #a1a1aa;
+      --red: #dc2626;
+      --red-soft: rgba(220, 38, 38, 0.22);
+      --gold: #ff9900;
+      --green: #22c55e;
+      --blue: #38bdf8;
+      --shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(220, 38, 38, 0.28), transparent 34%),
+        radial-gradient(circle at 88% 8%, rgba(255, 153, 0, 0.16), transparent 30%),
+        linear-gradient(135deg, #050507 0%, #111118 48%, #1a0608 100%);
+    }
+
+    body::before {
+      content: "23";
+      position: fixed;
+      right: -4vw;
+      top: -8vh;
+      font-size: clamp(180px, 32vw, 520px);
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.035);
+      pointer-events: none;
+      z-index: 0;
+      line-height: 0.8;
+    }
+
+    a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1380px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 32px 0 22px;
+    }
+
+    .hero {
+      padding: clamp(24px, 5vw, 56px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(220, 38, 38, 0.20), rgba(255, 153, 0, 0.08)),
+        rgba(12, 12, 18, 0.82);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -130px auto;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(220, 38, 38, 0.38), transparent 65%);
+      filter: blur(8px);
+    }
+
+    .kicker {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 12px;
+      border: 1px solid rgba(255, 153, 0, 0.34);
+      border-radius: 999px;
+      color: #ffd18a;
+      background: rgba(255, 153, 0, 0.08);
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      margin: 16px 0 0;
+      font-size: clamp(2rem, 7vw, 5rem);
+      line-height: 0.96;
+      letter-spacing: -0.07em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      max-width: 780px;
+      color: var(--muted);
+      font-size: clamp(1rem, 2.3vw, 1.2rem);
+      line-height: 1.6;
+    }
+
+    .home a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #f4f4f5;
+      opacity: 0.9;
+    }
+
+    .home a:hover {
+      opacity: 1;
+      color: var(--gold);
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    label {
+      color: #d4d4d8;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    select,
+    input {
+      width: 100%;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 12px 13px;
+      outline: none;
+      transition: border 0.2s, background 0.2s, transform 0.2s;
+    }
+
+    select:focus,
+    input:focus {
+      border-color: rgba(255, 153, 0, 0.82);
+      background: rgba(255, 255, 255, 0.11);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      color: white;
+      font-weight: 800;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      box-shadow: 0 12px 30px rgba(220, 38, 38, 0.22);
+      transition: transform 0.18s, filter 0.18s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.09);
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .stat-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.18);
+      min-height: 110px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      font-size: clamp(1.45rem, 3vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.05em;
+    }
+
+    .stat-note {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .grid-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .chart-wrap {
+      padding: 18px;
+      height: 460px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .mini-list {
+      padding: 16px 18px 20px;
+      display: grid;
+      gap: 11px;
+    }
+
+    .mini-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .badge {
+      display: inline-flex;
+      min-width: 46px;
+      justify-content: center;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: var(--red-soft);
+      color: #fecaca;
+      font-weight: 900;
+      font-size: 0.83rem;
+    }
+
+    .mini-main {
+      min-width: 0;
+    }
+
+    .mini-main strong {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-main span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .mini-value {
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: var(--gold);
+    }
+
+    .table-panel {
+      margin-top: 18px;
+    }
+
+    .table-tools {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .table-wrap {
+      max-height: 620px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #181820;
+      color: #fafafa;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 153, 0, 0.07);
+    }
+
+    .win {
+      color: var(--green);
+      font-weight: 900;
+    }
+
+    .loss {
+      color: #fb7185;
+      font-weight: 900;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
+      font-weight: 800;
+      font-size: 0.78rem;
+    }
+
+    .teams {
+      margin-top: 18px;
+      padding: 20px;
+    }
+
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .teams-grid div {
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid var(--line);
+    }
+
+    .teams-grid strong {
+      color: #fff;
+    }
+
+    .status {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 153, 0, 0.25);
+      background: rgba(255, 153, 0, 0.08);
+      color: #ffe0ad;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .footer {
+      margin-top: 26px;
+      padding: 24px;
+      border-radius: var(--radius);
+      background: rgba(0, 0, 0, 0.42);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.55;
+      font-size: 0.9rem;
+    }
+
+    .footer h4 {
+      margin: 8px 0;
+      font-size: 1rem;
+    }
+
+    .footer a {
+      color: var(--gold);
+      font-weight: 900;
+    }
+
+    @media (max-width: 1080px) {
+      .toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .grid-main {
+        grid-template-columns: 1fr;
+      }
+
+      .teams-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 18px, 1380px);
+        padding-top: 12px;
+      }
+
+      .hero {
+        padding: 22px;
+      }
+
+      .toolbar,
+      .dashboard,
+      .teams-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row {
+        align-items: stretch;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .chart-wrap {
+        height: 340px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <header class="hero">
+      <span class="kicker">🏀 Michael Jordan · Game Log</span>
+
+      <h1>Estadísticas de Michael Jordan</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Explorador interactivo de partidos por temporada, rival, localía y estadística.
+        El gráfico y la tabla se actualizan automáticamente desde <strong>json/mj.json</strong>.
+      </p>
+
+      <section class="toolbar" aria-label="Filtros">
+        <div class="control">
+          <label for="temporada">Temporada</label>
+          <select id="temporada">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="estadistica">Dato principal</label>
+          <select id="estadistica">
+            <option value="PTS">Puntos</option>
+            <option value="AST">Asistencias</option>
+            <option value="TRB">Rebotes</option>
+            <option value="STL">Robos</option>
+            <option value="BLK">Tapones</option>
+            <option value="FT">Tiros libres</option>
+            <option value="FG">Tiros de campo anotados</option>
+            <option value="FGA">Tiros de campo intentados</option>
+            <option value="MP">Minutos</option>
+            <option value="TOV">Pérdidas</option>
+            <option value="GmSc">Game Score</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="localia">Local / visitante</label>
+          <select id="localia">
+            <option value="">Todos</option>
+            <option value="home">Local</option>
+            <option value="away">Visitante</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="resultado">Resultado</label>
+          <select id="resultado">
+            <option value="">Todos</option>
+            <option value="win">Victorias</option>
+            <option value="loss">Derrotas</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="busqueda">Buscar rival</label>
+          <input id="busqueda" type="search" placeholder="Ej.: BOS, LAL, NYK..." />
+        </div>
+      </section>
+
+      <div class="button-row" style="margin-top:14px;">
+        <button id="btnReset">Reiniciar filtros</button>
+        <button id="btnTipoGrafico" class="secondary">Cambiar a barras</button>
+      </div>
+
+      <div id="estado" class="status"></div>
+    </header>
+
+    <section class="dashboard" aria-label="Resumen">
+      <article class="stat-card">
+        <div class="stat-label">Partidos</div>
+        <div class="stat-value" id="cardPartidos">—</div>
+        <div class="stat-note">según filtros activos</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-label">Media</div>
+        <div class="stat-value" id="cardMedia">—</div>
+        <div class="stat-note" id="cardMediaLabel">dato seleccionado</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-label">Máximo</div>
+        <div class="stat-value" id="cardMax">—</div>
+        <div class="stat-note" id="cardMaxLabel">mejor partido</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-label">Total</div>
+        <div class="stat-value" id="cardTotal">—</div>
+        <div class="stat-note" id="cardTotalLabel">acumulado</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-label">Victorias</div>
+        <div class="stat-value" id="cardVictorias">—</div>
+        <div class="stat-note" id="cardWinPct">porcentaje</div>
+      </article>
+    </section>
+
+    <main class="grid-main">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">Evolución por partido</h3>
+            <p class="panel-subtitle" id="chartSubtitulo">Dato seleccionado</p>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="grafico"></canvas>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">Top partidos</h3>
+            <p class="panel-subtitle">Ordenados por la estadística seleccionada</p>
+          </div>
+        </div>
+        <div class="mini-list" id="topPartidos"></div>
+      </aside>
+    </main>
+
+    <section class="panel table-panel">
+      <div class="panel-head">
+        <div>
+          <h3 class="panel-title">Tabla de partidos</h3>
+          <p class="panel-subtitle" id="tablaSubtitulo">Datos cargados desde JSON</p>
+        </div>
+        <div class="table-tools">
+          <button id="btnCopiar" class="secondary">Copiar tabla</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="Date">Fecha</th>
+              <th data-sort="EndYear">Temporada</th>
+              <th data-sort="Age">Edad</th>
+              <th data-sort="Opp">Rival</th>
+              <th data-sort="Home">Local</th>
+              <th data-sort="Win">Res.</th>
+              <th data-sort="MP">MP</th>
+              <th data-sort="PTS">PTS</th>
+              <th data-sort="FG">FG</th>
+              <th data-sort="FGA">FGA</th>
+              <th data-sort="FT">FT</th>
+              <th data-sort="TRB">TRB</th>
+              <th data-sort="AST">AST</th>
+              <th data-sort="STL">STL</th>
+              <th data-sort="BLK">BLK</th>
+              <th data-sort="TOV">TOV</th>
+              <th data-sort="GmSc">GmSc</th>
+            </tr>
+          </thead>
+          <tbody id="tabla"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel teams">
+      <h3 class="panel-title" style="margin-bottom:14px;">Códigos de equipos rivales</h3>
+      <div class="teams-grid">
+        <div><strong>ATL</strong> = Atlanta Hawks</div>
+        <div><strong>BOS</strong> = Boston Celtics</div>
+        <div><strong>BRK</strong> = Brooklyn Nets</div>
+        <div><strong>CHA / CHH</strong> = Charlotte Hornets</div>
+        <div><strong>CHI</strong> = Chicago Bulls</div>
+        <div><strong>CLE</strong> = Cleveland Cavaliers</div>
+        <div><strong>DAL</strong> = Dallas Mavericks</div>
+        <div><strong>DEN</strong> = Denver Nuggets</div>
+        <div><strong>DET</strong> = Detroit Pistons</div>
+        <div><strong>GSW</strong> = Golden State Warriors</div>
+        <div><strong>HOU</strong> = Houston Rockets</div>
+        <div><strong>IND</strong> = Indiana Pacers</div>
+        <div><strong>LAC</strong> = Los Angeles Clippers</div>
+        <div><strong>LAL</strong> = Los Angeles Lakers</div>
+        <div><strong>MIA</strong> = Miami Heat</div>
+        <div><strong>MIL</strong> = Milwaukee Bucks</div>
+        <div><strong>MIN</strong> = Minnesota Timberwolves</div>
+        <div><strong>NJN</strong> = New Jersey Nets</div>
+        <div><strong>NYK</strong> = New York Knicks</div>
+        <div><strong>ORL</strong> = Orlando Magic</div>
+        <div><strong>PHI</strong> = Philadelphia 76ers</div>
+        <div><strong>PHO</strong> = Phoenix Suns</div>
+        <div><strong>POR</strong> = Portland Trail Blazers</div>
+        <div><strong>SAS</strong> = San Antonio Spurs</div>
+        <div><strong>SEA</strong> = Seattle SuperSonics</div>
+        <div><strong>TOR</strong> = Toronto Raptors</div>
+        <div><strong>UTA</strong> = Utah Jazz</div>
+        <div><strong>WSB / WAS</strong> = Washington Bullets/Wizards</div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+        Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const DATA_URLS = [
+      "json/mj.json",
+      "/json/mj.json",
+      "/vet/json/mj.json"
+    ];
+
+    const CAMPOS = {
+      PTS: "Puntos",
+      AST: "Asistencias",
+      TRB: "Rebotes",
+      STL: "Robos",
+      BLK: "Tapones",
+      FT: "Tiros libres",
+      FG: "Tiros de campo anotados",
+      FGA: "Tiros de campo intentados",
+      MP: "Minutos",
+      TOV: "Pérdidas",
+      GmSc: "Game Score"
+    };
+
+    let datos = [];
+    let datosFiltrados = [];
+    let grafico = null;
+    let tipoGrafico = "line";
+    let sortState = { campo: "Date", asc: true };
+
+    const $ = (id) => document.getElementById(id);
+
+    document.addEventListener("DOMContentLoaded", iniciar);
+
+    async function iniciar() {
+      activarEventos();
+      await cargarDatos();
+    }
+
+    function activarEventos() {
+      ["temporada", "estadistica", "localia", "resultado", "busqueda"].forEach(id => {
+        $(id).addEventListener("input", filtrarYActualizar);
+      });
+
+      $("btnReset").addEventListener("click", reiniciarFiltros);
+      $("btnTipoGrafico").addEventListener("click", cambiarTipoGrafico);
+      $("btnCopiar").addEventListener("click", copiarTabla);
+
+      document.querySelectorAll("th[data-sort]").forEach(th => {
+        th.addEventListener("click", () => ordenarPor(th.dataset.sort));
+      });
+    }
+
+    async function cargarDatos() {
+      mostrarEstado("Cargando datos desde JSON…");
+
+      let ultimoError = null;
+
+      for (const url of DATA_URLS) {
+        try {
+          const respuesta = await fetch(url, { cache: "no-store" });
+
+          if (!respuesta.ok) {
+            throw new Error(`HTTP ${respuesta.status}`);
+          }
+
+          const json = await respuesta.json();
+          datos = normalizarDatos(Array.isArray(json) ? json : json.data || []);
+
+          if (!datos.length) {
+            throw new Error("El JSON no contiene registros válidos.");
+          }
+
+          poblarTemporadas();
+          ocultarEstado();
+          filtrarYActualizar();
+          return;
+
+        } catch (error) {
+          ultimoError = error;
+        }
+      }
+
+      mostrarEstado(
+        `No se pudo cargar el archivo JSON. Revisa que exista en json/mj.json. Error: ${ultimoError?.message || "desconocido"}`
+      );
+    }
+
+    function normalizarDatos(registros) {
+      return registros
+        .filter(d => d && typeof d === "object")
+        .map(d => ({
+          ...d,
+          EndYear: numero(d.EndYear),
+          Date: d.Date || "",
+          Age: numero(d.Age),
+          Home: numero(d.Home),
+          Win: numero(d.Win),
+          Opp: String(d.Opp || "").toUpperCase(),
+          MP: numero(d.MP),
+          PTS: numero(d.PTS),
+          FG: numero(d.FG),
+          FGA: numero(d.FGA),
+          FT: numero(d.FT),
+          TRB: numero(d.TRB),
+          AST: numero(d.AST),
+          STL: numero(d.STL),
+          BLK: numero(d.BLK),
+          TOV: numero(d.TOV),
+          GmSc: numero(d.GmSc)
+        }))
+        .sort((a, b) => fechaReal(a.Date) - fechaReal(b.Date));
+    }
+
+    function numero(valor) {
+      const n = Number(String(valor ?? "").replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function fechaReal(fecha) {
+      if (!fecha) return new Date(0);
+
+      const partes = String(fecha).split(/[/-]/).map(Number);
+
+      if (partes.length === 3) {
+        const [mes, dia, anio] = partes;
+        return new Date(anio, mes - 1, dia);
+      }
+
+      const d = new Date(fecha);
+      return Number.isNaN(d.getTime()) ? new Date(0) : d;
+    }
+
+    function fechaES(fecha) {
+      const d = fechaReal(fecha);
+
+      if (d.getFullYear() < 1900) return fecha || "—";
+
+      return d.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    }
+
+    function poblarTemporadas() {
+      const selector = $("temporada");
+      selector.innerHTML = `<option value="">Todas</option>`;
+
+      const temporadas = [...new Set(datos.map(d => d.EndYear).filter(Boolean))].sort((a, b) => a - b);
+
+      temporadas.forEach(t => {
+        const opcion = document.createElement("option");
+        opcion.value = t;
+        opcion.textContent = `${t - 1}-${String(t).slice(-2)}`;
+        selector.appendChild(opcion);
+      });
+    }
+
+    function filtrarYActualizar() {
+      const temporada = $("temporada").value;
+      const localia = $("localia").value;
+      const resultado = $("resultado").value;
+      const busqueda = $("busqueda").value.trim().toUpperCase();
+
+      datosFiltrados = datos.filter(d => {
+        const pasaTemporada = !temporada || String(d.EndYear) === temporada;
+        const pasaLocalia =
+          !localia ||
+          (localia === "home" && d.Home === 1) ||
+          (localia === "away" && d.Home !== 1);
+
+        const pasaResultado =
+          !resultado ||
+          (resultado === "win" && d.Win === 1) ||
+          (resultado === "loss" && d.Win !== 1);
+
+        const pasaBusqueda = !busqueda || d.Opp.includes(busqueda);
+
+        return pasaTemporada && pasaLocalia && pasaResultado && pasaBusqueda;
+      });
+
+      aplicarOrden();
+      actualizarResumen();
+      actualizarGrafico();
+      actualizarTopPartidos();
+      actualizarTabla();
+    }
+
+    function actualizarResumen() {
+      const campo = $("estadistica").value;
+      const n = datosFiltrados.length;
+      const valores = datosFiltrados.map(d => numero(d[campo]));
+      const total = suma(valores);
+      const media = n ? total / n : 0;
+      const max = n ? Math.max(...valores) : 0;
+      const victorias = datosFiltrados.filter(d => d.Win === 1).length;
+      const pctVictorias = n ? (victorias / n) * 100 : 0;
+
+      $("cardPartidos").textContent = n;
+      $("cardMedia").textContent = formatoNumero(media, 1);
+      $("cardMax").textContent = formatoNumero(max, 1);
+      $("cardTotal").textContent = formatoNumero(total, 0);
+      $("cardVictorias").textContent = victorias;
+
+      $("cardMediaLabel").textContent = CAMPOS[campo] || campo;
+      $("cardMaxLabel").textContent = CAMPOS[campo] || campo;
+      $("cardTotalLabel").textContent = CAMPOS[campo] || campo;
+      $("cardWinPct").textContent = `${formatoNumero(pctVictorias, 1)} %`;
+    }
+
+    function actualizarGrafico() {
+      const campo = $("estadistica").value;
+      const etiquetas = datosFiltrados.map(d => fechaES(d.Date));
+      const valores = datosFiltrados.map(d => numero(d[campo]));
+      const nombreCampo = CAMPOS[campo] || campo;
+
+      $("chartSubtitulo").textContent = `${nombreCampo} · ${datosFiltrados.length} partidos`;
+
+      const ctx = $("grafico").getContext("2d");
+
+      if (grafico) {
+        grafico.destroy();
+      }
+
+      const gradiente = ctx.createLinearGradient(0, 0, 0, 420);
+      gradiente.addColorStop(0, "rgba(220, 38, 38, 0.42)");
+      gradiente.addColorStop(1, "rgba(220, 38, 38, 0.02)");
+
+      grafico = new Chart(ctx, {
+        type: tipoGrafico,
+        data: {
+          labels: etiquetas,
+          datasets: [{
+            label: nombreCampo,
+            data: valores,
+            fill: tipoGrafico === "line",
+            borderColor: "#ef4444",
+            backgroundColor: tipoGrafico === "line" ? gradiente : "rgba(220, 38, 38, 0.62)",
+            borderWidth: 2,
+            tension: 0.34,
+            pointRadius: datosFiltrados.length > 80 ? 0 : 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "#ff9900"
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: "index",
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: "#f8fafc",
+                font: {
+                  weight: "bold"
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: "rgba(12, 12, 18, 0.96)",
+              titleColor: "#fff",
+              bodyColor: "#e4e4e7",
+              borderColor: "rgba(255,255,255,0.18)",
+              borderWidth: 1,
+              callbacks: {
+                afterLabel: (context) => {
+                  const d = datosFiltrados[context.dataIndex];
+                  return [
+                    `Rival: ${d.Opp}`,
+                    `Resultado: ${d.Win ? "Victoria" : "Derrota"}`,
+                    `Local: ${d.Home ? "Sí" : "No"}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: "#a1a1aa",
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 12
+              },
+              grid: {
+                color: "rgba(255,255,255,0.06)"
+              },
+              title: {
+                display: true,
+                text: "Fecha",
+                color: "#d4d4d8"
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                color: "#a1a1aa"
+              },
+              grid: {
+                color: "rgba(255,255,255,0.08)"
+              },
+              title: {
+                display: true,
+                text: nombreCampo,
+                color: "#d4d4d8"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function actualizarTopPartidos() {
+      const campo = $("estadistica").value;
+      const contenedor = $("topPartidos");
+
+      const top = [...datosFiltrados]
+        .sort((a, b) => numero(b[campo]) - numero(a[campo]))
+        .slice(0, 6);
+
+      if (!top.length) {
+        contenedor.innerHTML = `<div class="mini-item">No hay partidos con esos filtros.</div>`;
+        return;
+      }
+
+      contenedor.innerHTML = top.map((d, i) => `
+        <article class="mini-item">
+          <span class="badge">#${i + 1}</span>
+          <div class="mini-main">
+            <strong>${fechaES(d.Date)} · vs ${escapeHTML(d.Opp)}</strong>
+            <span>${d.Home ? "Local" : "Visitante"} · ${d.Win ? "Victoria" : "Derrota"} · Temp. ${d.EndYear}</span>
+          </div>
+          <div class="mini-value">${formatoNumero(d[campo], 1)}</div>
+        </article>
+      `).join("");
+    }
+
+    function actualizarTabla() {
+      const cuerpo = $("tabla");
+      const campo = $("estadistica").value;
+
+      $("tablaSubtitulo").textContent = `${datosFiltrados.length} partidos mostrados · orden: ${sortState.campo}`;
+
+      if (!datosFiltrados.length) {
+        cuerpo.innerHTML = `
+          <tr>
+            <td colspan="17" style="text-align:center; padding:28px; color:#a1a1aa;">
+              No hay partidos que coincidan con los filtros activos.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      cuerpo.innerHTML = datosFiltrados.map(d => {
+        const resultadoClase = d.Win ? "win" : "loss";
+        const resultadoTexto = d.Win ? "V" : "D";
+
+        return `
+          <tr>
+            <td>${fechaES(d.Date)}</td>
+            <td>${d.EndYear || "—"}</td>
+            <td>${formatoNumero(d.Age, 1)}</td>
+            <td><span class="pill">${escapeHTML(d.Opp)}</span></td>
+            <td>${d.Home ? "Sí" : "No"}</td>
+            <td class="${resultadoClase}">${resultadoTexto}</td>
+            <td>${formatoNumero(d.MP, 0)}</td>
+            <td>${resaltarCampo("PTS", campo, d.PTS)}</td>
+            <td>${resaltarCampo("FG", campo, d.FG)}</td>
+            <td>${resaltarCampo("FGA", campo, d.FGA)}</td>
+            <td>${resaltarCampo("FT", campo, d.FT)}</td>
+            <td>${resaltarCampo("TRB", campo, d.TRB)}</td>
+            <td>${resaltarCampo("AST", campo, d.AST)}</td>
+            <td>${resaltarCampo("STL", campo, d.STL)}</td>
+            <td>${resaltarCampo("BLK", campo, d.BLK)}</td>
+            <td>${resaltarCampo("TOV", campo, d.TOV)}</td>
+            <td>${resaltarCampo("GmSc", campo, d.GmSc)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function resaltarCampo(nombreCampo, campoActivo, valor) {
+      const v = formatoNumero(valor, nombreCampo === "GmSc" ? 1 : 0);
+
+      if (nombreCampo === campoActivo) {
+        return `<strong style="color:#ff9900;">${v}</strong>`;
+      }
+
+      return v;
+    }
+
+    function ordenarPor(campo) {
+      if (sortState.campo === campo) {
+        sortState.asc = !sortState.asc;
+      } else {
+        sortState.campo = campo;
+        sortState.asc = true;
+      }
+
+      aplicarOrden();
+      actualizarGrafico();
+      actualizarTopPartidos();
+      actualizarTabla();
+    }
+
+    function aplicarOrden() {
+      const { campo, asc } = sortState;
+
+      datosFiltrados.sort((a, b) => {
+        let va = a[campo];
+        let vb = b[campo];
+
+        if (campo === "Date") {
+          va = fechaReal(a.Date);
+          vb = fechaReal(b.Date);
+        }
+
+        if (typeof va === "string") va = va.toUpperCase();
+        if (typeof vb === "string") vb = vb.toUpperCase();
+
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function cambiarTipoGrafico() {
+      tipoGrafico = tipoGrafico === "line" ? "bar" : "line";
+      $("btnTipoGrafico").textContent = tipoGrafico === "line" ? "Cambiar a barras" : "Cambiar a líneas";
+      actualizarGrafico();
+    }
+
+    function reiniciarFiltros() {
+      $("temporada").value = "";
+      $("estadistica").value = "PTS";
+      $("localia").value = "";
+      $("resultado").value = "";
+      $("busqueda").value = "";
+      sortState = { campo: "Date", asc: true };
+      tipoGrafico = "line";
+      $("btnTipoGrafico").textContent = "Cambiar a barras";
+      filtrarYActualizar();
+    }
+
+    async function copiarTabla() {
+      if (!datosFiltrados.length) return;
+
+      const cabeceras = [
+        "Fecha", "Temporada", "Edad", "Rival", "Local", "Resultado", "MP",
+        "PTS", "FG", "FGA", "FT", "TRB", "AST", "STL", "BLK", "TOV", "GmSc"
+      ];
+
+      const filas = datosFiltrados.map(d => [
+        fechaES(d.Date),
+        d.EndYear,
+        formatoNumero(d.Age, 1),
+        d.Opp,
+        d.Home ? "Sí" : "No",
+        d.Win ? "Victoria" : "Derrota",
+        d.MP,
+        d.PTS,
+        d.FG,
+        d.FGA,
+        d.FT,
+        d.TRB,
+        d.AST,
+        d.STL,
+        d.BLK,
+        d.TOV,
+        d.GmSc
+      ]);
+
+      const texto = [cabeceras, ...filas].map(fila => fila.join("\t")).join("\n");
+
+      try {
+        await navigator.clipboard.writeText(texto);
+        mostrarEstado("Tabla copiada al portapapeles.");
+        setTimeout(ocultarEstado, 1800);
+      } catch {
+        mostrarEstado("No se pudo copiar automáticamente. Selecciona la tabla manualmente.");
+      }
+    }
+
+    function suma(arr) {
+      return arr.reduce((acc, n) => acc + numero(n), 0);
+    }
+
+    function formatoNumero(valor, decimales = 0) {
+      const n = numero(valor);
+
+      return n.toLocaleString("es-ES", {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales
+      });
+    }
+
+    function mostrarEstado(texto) {
+      const estado = $("estado");
+      estado.textContent = texto;
+      estado.classList.add("show");
+    }
+
+    function ocultarEstado() {
+      const estado = $("estado");
+      estado.textContent = "";
+      estado.classList.remove("show");
+    }
+
+    function escapeHTML(texto) {
+      return String(texto ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
