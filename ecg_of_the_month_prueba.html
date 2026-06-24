@@ -3,18 +3,18 @@
 <script defer src="goat.js"></script>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#070b12" />
-  <title>ECG of the Month · Base de datos interactiva</title>
+  <title>ECG of the Month · Navegador visual</title>
   <style>
     :root{
-      color-scheme: dark;
+      color-scheme:dark;
       --bg:#070b12;
       --bg2:#0b1220;
       --panel:rgba(15,23,42,.88);
       --panel2:rgba(17,24,39,.96);
-      --card:rgba(15,23,42,.72);
-      --card2:rgba(2,6,23,.72);
+      --panel3:rgba(2,6,23,.72);
+      --card:rgba(15,23,42,.74);
       --line:rgba(148,163,184,.22);
       --line2:rgba(255,153,0,.38);
       --text:#e5e7eb;
@@ -22,39 +22,33 @@
       --muted2:#7f8da3;
       --accent:#ff9900;
       --accent2:#ffd08a;
-      --good:#36d399;
-      --bad:#fb7185;
       --blue:#38bdf8;
+      --green:#36d399;
+      --red:#fb7185;
       --shadow:0 24px 70px rgba(0,0,0,.42);
       --radius:22px;
       --radius2:16px;
-      --max:1420px;
+      --max:1480px;
     }
-
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
+    html{scroll-behavior:smooth; -webkit-text-size-adjust:100%}
     body{
       margin:0;
       min-height:100vh;
       font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 12% 0%, rgba(255,153,0,.18), transparent 31%),
-        radial-gradient(circle at 90% 8%, rgba(56,189,248,.12), transparent 28%),
-        radial-gradient(circle at 50% 100%, rgba(255,153,0,.08), transparent 32%),
+        radial-gradient(circle at 10% 0%, rgba(255,153,0,.20), transparent 30%),
+        radial-gradient(circle at 86% 6%, rgba(56,189,248,.11), transparent 31%),
+        radial-gradient(circle at 55% 100%, rgba(255,153,0,.07), transparent 34%),
         linear-gradient(180deg, #070b12 0%, #0a0f1b 55%, #060914 100%);
       color:var(--text);
       line-height:1.55;
+      overflow-x:hidden;
     }
-
     a{color:var(--accent2); text-decoration:none}
     a:hover{text-decoration:underline}
-
-    .page{
-      width:min(var(--max), calc(100% - 28px));
-      margin:0 auto;
-      padding:24px 0 40px;
-    }
-
+    button,input,select{font:inherit}
+    .page{width:min(var(--max), calc(100% - 28px)); margin:0 auto; padding:24px 0 42px}
     .hero{
       position:relative;
       overflow:hidden;
@@ -62,446 +56,968 @@
       border-radius:calc(var(--radius) + 4px);
       padding:26px;
       background:
-        linear-gradient(135deg, rgba(15,23,42,.94), rgba(2,6,23,.74)),
+        linear-gradient(135deg, rgba(15,23,42,.96), rgba(2,6,23,.76)),
         repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 18px);
       box-shadow:var(--shadow);
     }
-
-    .hero::before{
+    .hero:before{
       content:"";
       position:absolute;
-      inset:-120px auto auto -120px;
-      width:260px;height:260px;
-      background:radial-gradient(circle, rgba(255,153,0,.32), transparent 68%);
-      pointer-events:none;
+      width:310px;height:310px;
+      top:-165px;left:-130px;
+      background:radial-gradient(circle, rgba(255,153,0,.36), transparent 68%);
       filter:blur(2px);
+      pointer-events:none;
     }
-
-    .topline{
-      display:flex;
-      justify-content:space-between;
-      gap:16px;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      position:relative;
-      z-index:1;
+    .hero:after{
+      content:"ECG";
+      position:absolute;
+      right:22px; bottom:-26px;
+      font-size:clamp(92px, 17vw, 230px);
+      font-weight:900;
+      color:rgba(255,255,255,.035);
+      letter-spacing:-.08em;
+      pointer-events:none;
     }
-
-    h1{
-      margin:0;
-      font-size:clamp(30px, 5vw, 64px);
-      line-height:.94;
-      letter-spacing:-.055em;
-      max-width:980px;
+    .topline{display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; position:relative; z-index:1}
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 12px;
+      border:1px solid rgba(255,153,0,.25);
+      border-radius:999px;
+      background:rgba(255,153,0,.10);
+      color:var(--accent2);
+      font-weight:800;
+      font-size:13px;
+      white-space:nowrap;
     }
-
+    h1{margin:0; max-width:1000px; font-size:clamp(31px, 5vw, 66px); line-height:.94; letter-spacing:-.055em}
     .accent{color:var(--accent)}
-    .lead{
-      max-width:980px;
-      margin:16px 0 0;
-      color:var(--muted);
-      font-size:clamp(15px, 2vw, 18px);
-    }
-
-    .home a{
-      color:#e5e7eb;
-      opacity:.92;
-    }
-
-    .hero-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:20px;
-      position:relative;
-      z-index:1;
-    }
-
-    .btn,
-    button.btn,
-    label.btn{
+    .lead{max-width:1020px; margin:16px 0 0; color:var(--muted); font-size:clamp(15px, 2vw, 18px)}
+    .lead a{font-weight:800; border-bottom:1px dotted rgba(255,208,138,.5)}
+    .home a{color:#e5e7eb; opacity:.92}
+    .hero-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; position:relative; z-index:1}
+    .btn,.chip-btn{
+      border:1px solid var(--line2);
+      color:#101827;
+      background:linear-gradient(180deg, #ffb13c, #ff9900);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 10px 24px rgba(255,153,0,.12);
+      transition:.18s transform, .18s border-color, .18s background;
       display:inline-flex;
+      gap:8px;
       align-items:center;
       justify-content:center;
-      gap:8px;
-      min-height:42px;
-      padding:10px 14px;
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:999px;
-      color:#fff;
-      background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.045));
-      cursor:pointer;
-      font-weight:700;
-      font-size:14px;
-      box-shadow:0 10px 26px rgba(0,0,0,.18);
-      transition:.18s ease;
       text-decoration:none;
-      user-select:none;
     }
-    .btn:hover{transform:translateY(-1px); border-color:rgba(255,153,0,.5); text-decoration:none}
-    .btn.primary{background:linear-gradient(135deg, #ff9900, #ffba4c); color:#111827; border-color:#ffba4c}
-    .btn.ghost{box-shadow:none; background:rgba(15,23,42,.48)}
-    .btn.small{min-height:34px; padding:7px 10px; font-size:12px}
-    .btn.danger{border-color:rgba(251,113,133,.32); color:#fecdd3}
-
+    .btn:hover,.chip-btn:hover{transform:translateY(-1px); text-decoration:none}
+    .btn.secondary,.chip-btn.secondary{
+      color:var(--text);
+      background:rgba(15,23,42,.72);
+      border-color:var(--line);
+      box-shadow:none;
+    }
+    .btn.ghost{color:var(--accent2); background:transparent; border-color:rgba(255,153,0,.26); box-shadow:none}
+    .btn.small{padding:7px 10px; font-size:12px}
     .statusbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-top:16px;
+      color:var(--muted);
+      font-size:13px;
+      position:relative; z-index:1;
+    }
+    .status-dot{width:9px;height:9px;border-radius:50%; background:var(--muted2); box-shadow:0 0 0 4px rgba(148,163,184,.08)}
+    .status-dot.ok{background:var(--green); box-shadow:0 0 0 4px rgba(54,211,153,.10)}
+    .status-dot.bad{background:var(--red); box-shadow:0 0 0 4px rgba(251,113,133,.10)}
+
+    .filters{
+      margin-top:18px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(15,23,42,.86), rgba(2,6,23,.58));
+      padding:16px;
+      box-shadow:0 18px 42px rgba(0,0,0,.18);
+      position:sticky;
+      top:8px;
+      z-index:50;
+      backdrop-filter:blur(12px);
+    }
+    .filter-grid{
+      display:grid;
+      grid-template-columns: 1.35fr .8fr .9fr .65fr .7fr;
+      gap:10px;
+      align-items:end;
+    }
+    .field label{display:block; color:var(--muted); font-size:12px; font-weight:800; margin:0 0 6px; letter-spacing:.02em}
+    .field input,.field select{
+      width:100%;
+      border:1px solid var(--line);
+      background:rgba(2,6,23,.68);
+      color:var(--text);
+      border-radius:14px;
+      padding:12px 12px;
+      outline:none;
+    }
+    .field input:focus,.field select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10)}
+    .quickline{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center}
+    .mini-label{color:var(--muted2); font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.06em}
+    .pill{
+      border:1px solid rgba(148,163,184,.18);
+      background:rgba(15,23,42,.7);
+      color:var(--muted);
+      border-radius:999px;
+      padding:6px 9px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .pill:hover,.pill.active{border-color:rgba(255,153,0,.5); color:var(--accent2); background:rgba(255,153,0,.1)}
+
+    .stats{
       display:grid;
       grid-template-columns:repeat(4, minmax(0,1fr));
       gap:12px;
       margin:18px 0;
     }
-
     .stat{
       border:1px solid var(--line);
-      background:rgba(15,23,42,.58);
       border-radius:var(--radius2);
+      background:rgba(15,23,42,.62);
       padding:14px;
-      min-height:84px;
+      box-shadow:0 14px 32px rgba(0,0,0,.13);
     }
-    .stat strong{display:block; font-size:clamp(24px, 4vw, 38px); line-height:1; letter-spacing:-.04em}
-    .stat span{display:block; margin-top:8px; color:var(--muted); font-size:13px}
+    .stat b{display:block; font-size:clamp(23px, 3vw, 34px); color:#fff; line-height:1}
+    .stat span{display:block; color:var(--muted); font-size:12px; margin-top:6px; font-weight:800}
 
     .layout{
       display:grid;
-      grid-template-columns:minmax(320px, 450px) minmax(0, 1fr);
+      grid-template-columns:1fr;
       gap:18px;
       align-items:start;
     }
-
-    .panel{
+    .results-panel,.detail-panel{
       border:1px solid var(--line);
-      background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(2,6,23,.58));
       border-radius:var(--radius);
-      box-shadow:0 18px 50px rgba(0,0,0,.25);
+      background:linear-gradient(180deg, rgba(15,23,42,.80), rgba(2,6,23,.58));
+      box-shadow:var(--shadow);
       overflow:hidden;
     }
-
-    .controls{
-      position:sticky;
-      top:10px;
-      max-height:calc(100vh - 20px);
+    .panel-head{
+      display:flex; justify-content:space-between; gap:12px; align-items:center;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      background:rgba(2,6,23,.42);
+    }
+    .panel-head h2{margin:0; font-size:17px; letter-spacing:-.02em}
+    .counter{color:var(--muted); font-size:12px; font-weight:800}
+    .results{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:14px;
+      padding:14px;
+      max-height:none;
+      overflow:visible;
+    }
+    .result-card{
       display:flex;
       flex-direction:column;
+      gap:12px;
+      min-height:100%;
+      border:1px solid rgba(148,163,184,.17);
+      background:linear-gradient(135deg, rgba(17,24,39,.86), rgba(2,6,23,.78));
+      border-radius:20px;
+      padding:12px;
+      cursor:pointer;
+      transition:.18s transform, .18s border-color, .18s background, .18s box-shadow;
+      position:relative;
+      overflow:hidden;
     }
-
-    .panel-head{
-      padding:16px 16px 12px;
-      border-bottom:1px solid var(--line);
-      background:rgba(2,6,23,.36);
-    }
-    .panel-head h2,
-    .panel-head h3{margin:0; font-size:18px; letter-spacing:-.02em}
-    .panel-head p{margin:6px 0 0; color:var(--muted); font-size:13px}
-
-    .searchbox{
-      display:grid;
-      gap:10px;
-      padding:14px;
-      border-bottom:1px solid var(--line);
-    }
-
-    .field label{
-      display:block;
-      margin:0 0 6px;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.02em;
-      text-transform:uppercase;
-    }
-    input,
-    select,
-    textarea{
+    .result-card:hover{transform:translateY(-2px); border-color:rgba(255,153,0,.52); background:linear-gradient(135deg, rgba(31,41,55,.9), rgba(2,6,23,.72)); box-shadow:0 18px 36px rgba(0,0,0,.22)}
+    .result-card.active{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10), 0 18px 42px rgba(0,0,0,.28)}
+    .thumb-wrap{
+      border-radius:16px;
+      overflow:hidden;
+      background:#fff;
+      border:1px solid rgba(148,163,184,.16);
+      aspect-ratio:16/10;
+      display:flex; align-items:center; justify-content:center;
       width:100%;
-      min-height:42px;
-      border:1px solid rgba(148,163,184,.26);
-      border-radius:14px;
-      padding:10px 12px;
-      background:rgba(2,6,23,.65);
-      color:var(--text);
-      outline:none;
-      font:inherit;
+      cursor:pointer;
     }
-    input:focus, select:focus, textarea:focus{border-color:rgba(255,153,0,.66); box-shadow:0 0 0 3px rgba(255,153,0,.11)}
-
-    .field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-
-    .chips{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:7px 10px;
+    .thumb-wrap::after{
+      content:"Ver caso";
+      position:absolute;
+      right:18px;
+      top:18px;
+      padding:5px 8px;
       border-radius:999px;
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.1);
-      color:#dbeafe;
-      font-size:12px;
-      font-weight:700;
-      cursor:pointer;
+      background:rgba(2,6,23,.82);
+      border:1px solid rgba(255,153,0,.38);
+      color:var(--accent2);
+      font-size:11px;
+      font-weight:900;
+      opacity:0;
+      transform:translateY(-4px);
+      transition:.18s opacity,.18s transform;
+      pointer-events:none;
     }
-    .chip:hover{border-color:rgba(255,153,0,.5)}
-    .chip.active{background:rgba(255,153,0,.14); color:var(--accent2); border-color:rgba(255,153,0,.55)}
-    .chip.static{cursor:default; color:var(--muted)}
-
-    .results{
-      overflow:auto;
-      padding:10px;
-    }
-
-    .card{
+    .result-card:hover .thumb-wrap::after{opacity:1; transform:translateY(0)}
+    .thumb-wrap img{width:100%; height:100%; object-fit:contain; background:#fff; filter:contrast(1.05)}
+    .no-img{color:var(--muted2); font-size:12px; text-align:center; padding:8px}
+    .card-title{margin:0; font-size:15px; line-height:1.2}
+    .card-sub{margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.35}
+    .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+    .tag{
       border:1px solid rgba(148,163,184,.18);
-      background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(15,23,42,.42));
-      border-radius:18px;
-      padding:13px;
-      margin-bottom:10px;
-      cursor:pointer;
-      transition:.16s ease;
+      color:var(--muted);
+      background:rgba(2,6,23,.38);
+      padding:4px 7px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      max-width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    .card:hover{border-color:rgba(255,153,0,.5); transform:translateY(-1px)}
-    .card.active{border-color:var(--accent); background:linear-gradient(180deg, rgba(255,153,0,.14), rgba(15,23,42,.72))}
-    .card-title{font-weight:900; letter-spacing:-.02em; display:flex; justify-content:space-between; gap:8px}
-    .card-meta{color:var(--muted); font-size:12px; margin-top:4px}
-    .card-text{font-size:13px; color:#cbd5e1; margin:9px 0 0; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
-    .tagrow{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px}
-    .tag{font-size:11px; padding:4px 7px; border-radius:999px; border:1px solid rgba(255,255,255,.1); color:#cbd5e1; background:rgba(255,255,255,.04)}
-    .tag.accent{border-color:rgba(255,153,0,.42); color:var(--accent2); background:rgba(255,153,0,.08)}
+    .tag.orange{color:var(--accent2); border-color:rgba(255,153,0,.25); background:rgba(255,153,0,.08)}
+    .tag.blue{color:#bae6fd; border-color:rgba(56,189,248,.25); background:rgba(56,189,248,.08)}
+    .empty{
+      padding:34px 18px;
+      text-align:center;
+      color:var(--muted);
+    }
 
-    .detail{
-      min-height:620px;
+    .detail-panel{
+      min-height:520px;
+      position:relative;
+      top:auto;
+      max-height:none;
+      overflow:visible;
+      scroll-margin-top:18px;
+    }
+    .detail-panel .section,
+    .detail-panel .section-content,
+    .detail-panel .text-block,
+    .detail-panel .translation-box,
+    .detail-panel .translation-body,
+    .detail-panel .fig-cap{
+      max-height:none !important;
+      overflow:visible !important;
     }
     .detail-body{padding:18px}
-    .empty{
-      display:grid;
-      place-items:center;
-      min-height:480px;
-      color:var(--muted);
-      text-align:center;
-      padding:22px;
+    .detail-title{margin:0; font-size:clamp(24px, 3.5vw, 42px); line-height:1.02; letter-spacing:-.045em}
+    .detail-meta{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 14px}
+    .link-row{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 0}
+    .authors-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-top:12px}
+    .author-card{border:1px solid rgba(148,163,184,.16); border-radius:16px; background:rgba(2,6,23,.42); padding:10px}
+    .author-card b{display:block; color:#fff; font-size:14px}
+    .author-card span{display:block; color:var(--muted); font-size:12px; margin-top:3px}
+    .section{
+      margin-top:14px;
+      border:1px solid rgba(148,163,184,.16);
+      border-radius:18px;
+      background:rgba(2,6,23,.35);
+      overflow:hidden;
     }
-    .empty .icon{font-size:56px; margin-bottom:12px}
+    .section-head{
+      display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(148,163,184,.12);
+      background:rgba(15,23,42,.46);
+    }
+    .section-head h3{margin:0; font-size:16px}
+    .section-content{padding:14px; color:#dbe4f3}
+    .text-block{white-space:pre-wrap; color:#dbe4f3}
 
-    .article-head{
+    .translation-box{
+      margin-top:12px;
+      border:1px solid rgba(255,153,0,.28);
+      border-left:4px solid var(--accent);
+      border-radius:16px;
+      background:linear-gradient(180deg, rgba(255,153,0,.105), rgba(15,23,42,.45));
+      padding:12px;
+      color:#fff7ed;
+      white-space:pre-wrap;
+      font-size:14px;
+      box-shadow:0 12px 28px rgba(0,0,0,.16);
+    }
+    .translation-box[hidden]{display:none}
+    .translation-box .translation-title{
       display:flex;
       justify-content:space-between;
-      gap:16px;
-      flex-wrap:wrap;
-      align-items:flex-start;
-      margin-bottom:14px;
-    }
-    .article-head h2{
-      margin:0;
-      font-size:clamp(22px, 3vw, 36px);
-      line-height:1;
-      letter-spacing:-.04em;
-    }
-    .article-meta{color:var(--muted); margin-top:8px; font-size:14px}
-
-    .quicklinks{display:flex; gap:8px; flex-wrap:wrap}
-
-    .authors{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin:12px 0 0;
-    }
-    .author-pill{
-      border:1px solid rgba(255,255,255,.11);
-      border-radius:14px;
-      padding:8px 10px;
-      background:rgba(2,6,23,.42);
-      color:#e5e7eb;
-      font-size:13px;
-    }
-    .author-pill small{display:block; color:var(--muted2); margin-top:2px}
-
-    details.section{
-      border:1px solid var(--line);
-      background:rgba(2,6,23,.35);
-      border-radius:18px;
-      margin:12px 0;
-      overflow:hidden;
-    }
-    details.section summary{
-      cursor:pointer;
-      padding:13px 15px;
+      gap:10px;
+      align-items:center;
+      margin:0 0 8px;
+      color:var(--accent2);
       font-weight:900;
-      color:#fff;
-      border-bottom:1px solid transparent;
+      font-size:12px;
+      letter-spacing:.04em;
+      text-transform:uppercase;
     }
-    details.section[open] summary{border-bottom-color:var(--line); color:var(--accent2)}
-    .section-content{padding:14px 15px; color:#d7dee9; white-space:pre-wrap}
-    .section-content.compact{max-height:390px; overflow:auto}
+    .translation-box .translation-body{white-space:pre-wrap}
+    .translation-box .translation-error{color:#fecdd3}
+    .translation-note{color:var(--muted2); font-size:12px; margin-top:8px}
+    .btn[disabled]{opacity:.58; cursor:wait; transform:none}
+    details.section summary{list-style:none; cursor:pointer}
+    details.section summary::-webkit-details-marker{display:none}
+    details.section:not([open]) .section-head{border-bottom:0}
+    .summary-hint{color:var(--accent2); font-size:12px; font-weight:900}
+    details[open] .summary-hint:before{content:"Ocultar · "}
+    details:not([open]) .summary-hint:before{content:"Desplegar · "}
 
-    mark{
-      background:rgba(255,153,0,.33);
-      color:#fff;
-      border-radius:4px;
-      padding:0 2px;
-    }
-
-    .gallery{
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
-      gap:14px;
-      margin:14px 0 6px;
-    }
-    .figure-card{
-      border:1px solid var(--line);
-      border-radius:18px;
-      overflow:hidden;
-      background:rgba(2,6,23,.45);
-    }
-    .figure-img-wrap{
-      background:#f8fafc;
-      min-height:190px;
-      display:grid;
-      place-items:center;
-      padding:10px;
-      cursor:zoom-in;
-    }
-    .figure-img-wrap img{
-      max-width:100%;
+    .gallery{display:grid; grid-template-columns:repeat(auto-fit, minmax(285px, 1fr)); gap:12px; margin-top:12px}
+    .figure-card{border:1px solid rgba(148,163,184,.18); border-radius:18px; overflow:hidden; background:rgba(2,6,23,.48)}
+    .figure-card img{
       width:100%;
-      height:auto;
+      max-height:410px;
       object-fit:contain;
       display:block;
-      border-radius:8px;
-      box-shadow:0 8px 26px rgba(0,0,0,.22);
-    }
-    .figure-caption{padding:12px 13px; font-size:13px; color:#dbe4f0; white-space:pre-wrap}
-    .figure-caption strong{color:var(--accent2)}
-    .figure-actions{display:flex; gap:8px; flex-wrap:wrap; padding:0 13px 13px}
-
-    .ref-list{display:grid; gap:10px}
-    .ref-item{
-      padding:12px;
-      border:1px solid rgba(148,163,184,.18);
-      background:rgba(15,23,42,.46);
-      border-radius:14px;
-    }
-    .ref-actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
-
-    .toast{
-      position:fixed;
-      right:16px;
-      bottom:16px;
-      z-index:1000;
-      border:1px solid rgba(255,153,0,.45);
-      background:rgba(15,23,42,.96);
-      color:#fff;
-      border-radius:16px;
-      padding:12px 14px;
-      box-shadow:0 16px 40px rgba(0,0,0,.35);
-      transform:translateY(20px);
-      opacity:0;
-      pointer-events:none;
-      transition:.2s ease;
-    }
-    .toast.show{opacity:1; transform:translateY(0)}
-
-    .lightbox{
-      position:fixed;
-      inset:0;
-      z-index:999;
-      display:none;
-      background:rgba(0,0,0,.86);
-      backdrop-filter:blur(7px);
-      padding:20px;
-    }
-    .lightbox.open{display:grid; grid-template-rows:auto 1fr auto; gap:12px}
-    .lightbox-top{
-      display:flex;
-      gap:10px;
-      justify-content:space-between;
-      align-items:center;
-      color:#fff;
-    }
-    .lightbox-stage{
-      overflow:auto;
-      display:grid;
-      place-items:center;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:18px;
-    }
-    .lightbox-stage img{
-      max-width:none;
-      transform-origin:center;
-      transition:.12s ease;
       background:#fff;
-      border-radius:10px;
-      box-shadow:0 24px 80px rgba(0,0,0,.5);
+      cursor:zoom-in;
+      padding:6px;
     }
-    .lightbox-caption{
-      color:#cbd5e1;
-      max-height:120px;
-      overflow:auto;
-      white-space:pre-wrap;
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:14px;
-      padding:10px 12px;
-      background:rgba(15,23,42,.72);
+    .fig-cap{padding:12px; color:var(--muted); font-size:13px; white-space:pre-wrap}
+    .fig-actions{display:flex; gap:8px; flex-wrap:wrap; padding:0 12px 12px}
+    .refs{display:flex; flex-direction:column; gap:10px}
+    .ref-card{border:1px solid rgba(148,163,184,.15); border-radius:14px; background:rgba(15,23,42,.35); padding:10px}
+    .ref-card p{margin:0 0 8px; color:#dbe4f3; font-size:13px}
+
+    .modal{
+      position:fixed; inset:0; z-index:999;
+      display:none;
+      background:rgba(0,0,0,.88);
+      align-items:center;
+      justify-content:center;
+      padding:18px;
     }
+    .modal.open{display:flex}
+    .modal-inner{width:min(1500px, 100%); max-height:95vh; border:1px solid rgba(255,255,255,.16); border-radius:20px; background:#05070c; box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column}
+    .modal-bar{display:flex; gap:10px; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.1); color:var(--muted)}
+    .modal-img-wrap{overflow:auto; display:flex; justify-content:center; align-items:center; min-height:0; background:#fff}
+    .modal-img-wrap img{max-width:none; width:auto; height:auto; min-width:min(100%, 900px); max-height:none; display:block; padding:12px; background:#fff}
+    .toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:rgba(15,23,42,.96); border:1px solid var(--line2); color:var(--text);
+      padding:10px 14px; border-radius:999px; z-index:1000; display:none; box-shadow:var(--shadow);
+      font-size:13px; font-weight:800;
+    }
+    .toast.show{display:block}
 
     .footer{
       margin-top:26px;
       border:1px solid var(--line);
       border-radius:var(--radius);
       padding:18px;
-      background:rgba(2,6,23,.62);
+      background:rgba(2,6,23,.68);
       color:var(--muted);
-      font-size:13px;
       text-align:center;
+      font-size:13px;
     }
+    .footer a{color:var(--accent2)}
 
-    .minihelp{
-      margin-top:12px;
-      color:var(--muted2);
-      font-size:12px;
-    }
-
-    .loading{
-      padding:16px;
-      border:1px dashed rgba(255,153,0,.35);
-      border-radius:16px;
-      background:rgba(255,153,0,.06);
-      color:var(--accent2);
-      margin:12px 0 0;
-    }
-
-    .hidden{display:none!important}
-
-    @media (max-width:980px){
+    @media (max-width:1080px){
+      .filter-grid{grid-template-columns:1fr 1fr}
       .layout{grid-template-columns:1fr}
-      .controls{position:relative; top:auto; max-height:none}
-      .results{max-height:520px}
-      .statusbar{grid-template-columns:repeat(2, minmax(0,1fr))}
+      .detail-panel{position:relative; top:auto; max-height:none; overflow:visible}
+      .results{grid-template-columns:repeat(2, minmax(0,1fr)); max-height:none}
     }
-    @media (max-width:620px){
+    @media (max-width:700px){
       .page{width:min(100% - 16px, var(--max)); padding-top:10px}
       .hero{padding:18px}
-      .statusbar{grid-template-columns:1fr}
-      .field-row{grid-template-columns:1fr}
-      .detail-body{padding:12px}
+      .filter-grid{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr 1fr}
+      .results{grid-template-columns:1fr}
+      .result-card{display:flex}
+      .thumb-wrap{aspect-ratio:16/10}
       .gallery{grid-template-columns:1fr}
     }
 
-    @media print{
-      body{background:#fff; color:#111}
-      .hero,.controls,.footer,.hero-actions,.quicklinks,.toast,.lightbox{display:none!important}
-      .layout{display:block}
-      .panel{box-shadow:none; border:none; background:#fff}
-      .detail-body{padding:0}
-      details.section{border:1px solid #ddd; background:#fff}
-      details.section summary{color:#111}
-      .section-content{color:#111}
-      a{color:#111}
+
+    .load-more-wrap{
+      grid-column:1 / -1;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding:12px;
+      border:1px dashed rgba(148,163,184,.22);
+      border-radius:16px;
+      color:var(--muted);
+      background:rgba(2,6,23,.34);
+      text-align:center;
     }
+    .load-more-wrap .btn{min-width:min(100%,280px)}
+
+    /* =========================================================
+       OPTIMIZACIÓN PARA SMARTPHONE
+       ========================================================= */
+    .mobile-filter-toggle,
+    .mobile-back{
+      display:none;
+    }
+
+    .layout,
+    .results-panel,
+    .detail-panel,
+    .result-card,
+    .section,
+    .figure-card{
+      min-width:0;
+    }
+
+    .text-block,
+    .translation-body,
+    .fig-cap,
+    .ref-card p,
+    .author-card span,
+    .lead,
+    .statusbar,
+    .footer{
+      overflow-wrap:anywhere;
+      word-break:normal;
+      hyphens:auto;
+    }
+
+    @media (max-width:760px){
+      :root{
+        --radius:18px;
+        --radius2:14px;
+      }
+
+      html{
+        scroll-padding-top:10px;
+        -webkit-text-size-adjust:100%;
+      }
+
+      body{
+        overflow-x:hidden;
+        background:
+          radial-gradient(circle at 15% 0%, rgba(255,153,0,.14), transparent 25%),
+          linear-gradient(180deg,#070b12 0%,#080d18 60%,#050812 100%);
+      }
+
+      button,
+      a,
+      input,
+      select,
+      summary{
+        -webkit-tap-highlight-color:transparent;
+        touch-action:manipulation;
+      }
+
+      input,
+      select{
+        font-size:16px; /* evita el zoom automático de iOS */
+      }
+
+      .page{
+        width:100%;
+        margin:0;
+        padding:
+          max(8px, env(safe-area-inset-top))
+          max(8px, env(safe-area-inset-right))
+          max(28px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+      }
+
+      .hero{
+        padding:17px 15px;
+        border-radius:18px;
+      }
+
+      .hero:before{
+        width:190px;
+        height:190px;
+        top:-105px;
+        left:-90px;
+        opacity:.8;
+      }
+
+      .hero:after{
+        right:10px;
+        bottom:-10px;
+        font-size:92px;
+        opacity:.55;
+      }
+
+      .topline{
+        display:block;
+      }
+
+      .badge{
+        max-width:100%;
+        white-space:normal;
+        line-height:1.25;
+        padding:7px 10px;
+      }
+
+      h1{
+        margin-top:12px;
+        font-size:clamp(32px,11vw,48px);
+        line-height:1;
+        letter-spacing:-.045em;
+      }
+
+      .lead{
+        margin-top:14px;
+        font-size:15px;
+        line-height:1.58;
+      }
+
+      .hero-actions{
+        display:grid;
+        grid-template-columns:1fr;
+        gap:9px;
+        margin-top:17px;
+      }
+
+      .hero-actions .btn{
+        width:100%;
+        min-height:46px;
+        white-space:normal;
+        text-align:center;
+        border-radius:14px;
+      }
+
+      .statusbar{
+        align-items:flex-start;
+        font-size:12px;
+        line-height:1.45;
+      }
+
+      .status-dot{
+        flex:0 0 auto;
+        margin-top:4px;
+      }
+
+      .filters{
+        position:static;
+        top:auto;
+        z-index:1;
+        margin-top:12px;
+        padding:11px;
+        border-radius:17px;
+        backdrop-filter:none;
+      }
+
+      .mobile-filter-toggle{
+        width:100%;
+        min-height:48px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:11px 13px;
+        border:1px solid rgba(255,153,0,.34);
+        border-radius:13px;
+        background:rgba(255,153,0,.09);
+        color:var(--accent2);
+        font-weight:900;
+        cursor:pointer;
+      }
+
+      .mobile-filter-toggle .toggle-state{
+        color:var(--muted);
+        font-size:12px;
+      }
+
+      .filters.mobile-collapsed .filter-grid,
+      .filters.mobile-collapsed .quickline{
+        display:none;
+      }
+
+      .filter-grid{
+        grid-template-columns:1fr;
+        gap:11px;
+        margin-top:11px;
+      }
+
+      .field label{
+        font-size:12px;
+      }
+
+      .field input,
+      .field select{
+        min-height:48px;
+        padding:12px;
+        border-radius:12px;
+      }
+
+      .quickline{
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        overscroll-behavior-x:contain;
+        scrollbar-width:none;
+        padding:2px 1px 5px;
+        margin-top:11px;
+      }
+
+      .quickline::-webkit-scrollbar{
+        display:none;
+      }
+
+      .quickline .mini-label{
+        flex:0 0 auto;
+        align-self:center;
+      }
+
+      .pill{
+        flex:0 0 auto;
+        min-height:40px;
+        padding:8px 11px;
+      }
+
+      .stats{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:8px;
+        margin:12px 0;
+      }
+
+      .stat{
+        padding:11px;
+      }
+
+      .stat b{
+        font-size:25px;
+      }
+
+      .stat span{
+        font-size:11px;
+        line-height:1.3;
+      }
+
+      .layout{
+        display:flex;
+        flex-direction:column;
+        gap:12px;
+      }
+
+      .layout.case-open .detail-panel{
+        order:-1;
+      }
+
+      .layout.case-open .results-panel{
+        display:none;
+      }
+
+      .results-panel,
+      .detail-panel{
+        border-radius:17px;
+        box-shadow:0 15px 38px rgba(0,0,0,.28);
+      }
+
+      .panel-head{
+        align-items:flex-start;
+        padding:12px;
+      }
+
+      .panel-head h2{
+        font-size:16px;
+        line-height:1.25;
+      }
+
+      .panel-head .counter{
+        text-align:right;
+        line-height:1.3;
+      }
+
+      .results{
+        grid-template-columns:1fr;
+        gap:11px;
+        padding:10px;
+      }
+
+      .load-more-wrap{
+        padding:11px;
+        border-radius:14px;
+      }
+
+      .load-more-wrap .btn{
+        width:100%;
+        min-height:46px;
+      }
+
+      .result-card{
+        padding:10px;
+        gap:10px;
+        border-radius:16px;
+        transform:none !important;
+      }
+
+      .result-card:hover{
+        transform:none;
+      }
+
+      .thumb-wrap{
+        width:100%;
+        height:auto;
+        min-height:185px;
+        aspect-ratio:16/9;
+        border-radius:13px;
+      }
+
+      .thumb-wrap::after{
+        display:none;
+      }
+
+      .thumb-wrap img{
+        width:100%;
+        height:100%;
+        object-fit:contain;
+      }
+
+      .card-title{
+        font-size:16px;
+      }
+
+      .card-sub{
+        font-size:13px;
+      }
+
+      .chips{
+        gap:5px;
+      }
+
+      .tag{
+        white-space:normal;
+        overflow:visible;
+        text-overflow:clip;
+        line-height:1.25;
+      }
+
+      .detail-body{
+        padding:12px;
+      }
+
+      .mobile-back{
+        width:100%;
+        min-height:46px;
+        display:flex;
+        margin:0 0 13px;
+        border-radius:13px;
+      }
+
+      .detail-title{
+        font-size:clamp(27px,8.5vw,38px);
+        line-height:1.04;
+      }
+
+      .detail-meta,
+      .link-row{
+        gap:7px;
+      }
+
+      .detail-body > .link-row .btn{
+        flex:1 1 calc(50% - 7px);
+        min-height:42px;
+        white-space:normal;
+      }
+
+      .authors-grid{
+        grid-template-columns:1fr;
+      }
+
+      .author-card{
+        padding:12px;
+      }
+
+      .author-card .link-row .btn{
+        flex:1 1 calc(50% - 7px);
+        white-space:normal;
+      }
+
+      .section{
+        margin-top:11px;
+        border-radius:15px;
+      }
+
+      .section-head{
+        display:grid;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:8px;
+        padding:12px;
+      }
+
+      .section-head h3{
+        font-size:15px;
+        align-self:center;
+      }
+
+      .section-head > .link-row{
+        grid-column:1 / -1;
+        width:100%;
+      }
+
+      .section-head > .link-row .btn,
+      .section-content > .link-row .btn,
+      .fig-actions .btn{
+        flex:1 1 calc(50% - 7px);
+        min-height:42px;
+        white-space:normal;
+      }
+
+      details.section summary{
+        min-height:48px;
+      }
+
+      .summary-hint{
+        text-align:right;
+      }
+
+      .section-content{
+        padding:12px;
+        font-size:15px;
+        line-height:1.66;
+      }
+
+      .text-block,
+      .translation-body,
+      .fig-cap{
+        max-height:none !important;
+        overflow:visible !important;
+        font-size:15px;
+        line-height:1.68;
+      }
+
+      .translation-box{
+        padding:12px;
+        margin-top:11px;
+        border-radius:13px;
+      }
+
+      .translation-title{
+        align-items:flex-start !important;
+        flex-direction:column;
+      }
+
+      .gallery{
+        grid-template-columns:1fr;
+        gap:11px;
+      }
+
+      .figure-card{
+        border-radius:15px;
+      }
+
+      .figure-card img{
+        width:100%;
+        height:auto;
+        max-height:none;
+        object-fit:contain;
+        padding:4px;
+      }
+
+      .fig-cap{
+        padding:12px;
+      }
+
+      .fig-actions{
+        padding:0 12px 12px;
+      }
+
+      .ref-card{
+        padding:11px;
+      }
+
+      .ref-card .link-row .btn{
+        flex:1 1 calc(50% - 7px);
+        min-height:41px;
+        white-space:normal;
+      }
+
+      .modal{
+        padding:
+          max(6px,env(safe-area-inset-top))
+          max(6px,env(safe-area-inset-right))
+          max(6px,env(safe-area-inset-bottom))
+          max(6px,env(safe-area-inset-left));
+      }
+
+      .modal-inner{
+        width:100%;
+        max-height:calc(100dvh - 12px);
+        border-radius:14px;
+      }
+
+      .modal-bar{
+        align-items:flex-start;
+        flex-direction:column;
+        padding:9px;
+      }
+
+      .modal-bar > .link-row{
+        width:100%;
+      }
+
+      .modal-bar .btn{
+        flex:1 1 0;
+        min-height:42px;
+      }
+
+      .modal-img-wrap{
+        overflow:auto;
+        min-height:0;
+        touch-action:pan-x pan-y pinch-zoom;
+      }
+
+      .modal-img-wrap img{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        max-height:calc(100dvh - 125px);
+        object-fit:contain;
+        padding:5px;
+      }
+
+      .toast{
+        width:calc(100% - 24px);
+        bottom:max(10px,env(safe-area-inset-bottom));
+        border-radius:13px;
+        text-align:center;
+      }
+
+      .footer{
+        margin-top:14px;
+        padding:15px 12px;
+        border-radius:17px;
+        font-size:12px;
+      }
+
+      .footer p{
+        margin:9px 0;
+      }
+    }
+
+    @media (max-width:390px){
+      .stats{
+        grid-template-columns:1fr;
+      }
+
+      .section-head,
+      .panel-head{
+        grid-template-columns:1fr;
+      }
+
+      .section-head .counter,
+      .section-head .summary-hint,
+      .panel-head .counter{
+        text-align:left;
+      }
+
+      .section-head > .link-row .btn,
+      .section-content > .link-row .btn,
+      .fig-actions .btn,
+      .detail-body > .link-row .btn,
+      .author-card .link-row .btn,
+      .ref-card .link-row .btn{
+        flex-basis:100%;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -509,8 +1025,8 @@
     <header class="hero">
       <div class="topline">
         <div>
-          <h1><span class="accent">ECG of the Month</span><br>base de datos interactiva</h1>
-
+          <span class="badge">🫀 Base de datos · ECG of the Month</span>
+          <h1><span class="accent">ECG of the Month</span><br/>navegador visual</h1>
           <!-- BLOQUE DESARROLLADO POR + HOME -->
           <div style="margin:10px 0 0 0;">
           <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
@@ -522,130 +1038,89 @@
           </a>
           </p>
           </div>
-
           <p class="lead">
-            Navegador visual para consultar los casos de <em>ECG of the Month</em> extraídos de AVMA Journals: autores, descripción clínica, interpretación ECG, figuras, discusión y referencias.
+            <a href="https://avmajournals.avma.org/search?q1=ecg+of+the+month&searchBtn=" target="_blank" rel="noopener">Navegador visual para consultar los casos de ECG of the Month extraídos de AVMA Journals</a>. Busca por autor, especie, año o por términos de la interpretación ECG: fibrillation, AV block, Ashman, atrial flutter, ventricular tachycardia, pacemaker, etc.
           </p>
         </div>
       </div>
-
       <div class="hero-actions">
-        <a class="btn primary" href="https://airsoto.github.io/vet/how/how_ecg_of_the_month.html" target="_blank" rel="noopener">🧬 Cómo se ha creado la base de datos</a>
-        <a class="btn" href="/json/ecg_of_the_month.json" target="_blank" rel="noopener">📦 Abrir JSON</a>
-        <button class="btn ghost" id="downloadFilteredBtn" type="button">⬇️ Descargar selección</button>
-        <label class="btn ghost" for="localJsonInput">📁 Cargar JSON local</label>
-        <input id="localJsonInput" type="file" accept="application/json,.json" class="hidden" />
+        <a class="btn" href="https://airsoto.github.io/vet/how/how_ecg_of_the_month.html" target="_blank" rel="noopener">⚙️ Cómo se ha creado la base de datos</a>
+        <a class="btn secondary" href="json/ecg_of_the_month.json" target="_blank" rel="noopener">📄 Ver JSON</a>
+        <button class="btn ghost" id="loadLocalBtn" type="button">📂 Cargar JSON local</button>
+        <input type="file" id="localFile" accept="application/json,.json" hidden />
       </div>
-      <div id="loadStatus" class="loading">Cargando datos desde <strong>./json/ecg_of_the_month.json</strong>…</div>
+      <div class="statusbar" id="statusbar">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Preparando carga de datos…</span>
+      </div>
     </header>
 
-    <section class="statusbar" aria-label="Resumen de la base de datos">
-      <div class="stat"><strong id="statTotal">0</strong><span>casos cargados</span></div>
-      <div class="stat"><strong id="statVisible">0</strong><span>casos visibles</span></div>
-      <div class="stat"><strong id="statFigures">0</strong><span>figuras ECG</span></div>
-      <div class="stat"><strong id="statYears">0</strong><span>años cubiertos</span></div>
+    <section class="filters" id="filtersPanel" aria-label="Filtros de búsqueda">
+      <button class="mobile-filter-toggle" id="mobileFilterToggle" type="button" aria-expanded="false" aria-controls="mobileFilterContent">
+        <span>🔎 Buscar y filtrar casos</span>
+        <span class="toggle-state" id="mobileFilterState">Mostrar</span>
+      </button>
+      <div id="mobileFilterContent">
+      <div class="filter-grid">
+        <div class="field">
+          <label for="qInput">Búsqueda libre</label>
+          <input id="qInput" type="search" placeholder="Ej.: Rottweiler, syncope, pacemaker, hyperthyroidism…" />
+        </div>
+        <div class="field">
+          <label for="authorInput">Autor</label>
+          <input id="authorInput" list="authorsList" type="search" placeholder="Ej.: Santilli, Kittleson…" />
+          <datalist id="authorsList"></datalist>
+        </div>
+        <div class="field">
+          <label for="arrInput">Arritmia / interpretación ECG</label>
+          <input id="arrInput" type="search" placeholder="Ej.: atrial fibrillation, AV block…" />
+        </div>
+        <div class="field">
+          <label for="speciesSelect">Especie</label>
+          <select id="speciesSelect"><option value="all">Todas</option></select>
+        </div>
+        <div class="field">
+          <label for="sortSelect">Orden</label>
+          <select id="sortSelect">
+            <option value="dateDesc">Más recientes</option>
+            <option value="dateAsc">Más antiguos</option>
+            <option value="figuresDesc">Más figuras</option>
+            <option value="authorsAsc">Autor A-Z</option>
+          </select>
+        </div>
+      </div>
+      <div class="quickline" id="quickline">
+        <span class="mini-label">Búsquedas rápidas</span>
+      </div>
+      </div>
+    </section>
+
+    <section class="stats" id="stats">
+      <div class="stat"><b id="statTotal">—</b><span>casos totales</span></div>
+      <div class="stat"><b id="statVisible">—</b><span>casos visibles</span></div>
+      <div class="stat"><b id="statSpecies">—</b><span>especies detectadas</span></div>
+      <div class="stat"><b id="statFigures">—</b><span>imágenes ECG</span></div>
     </section>
 
     <main class="layout">
-      <aside class="panel controls">
+      <section class="results-panel">
         <div class="panel-head">
-          <h2>🔎 Búsqueda</h2>
-          <p>Filtra por autor, arritmia, especie, año o texto libre.</p>
-        </div>
-
-        <div class="searchbox">
-          <div class="field">
-            <label for="q">Texto libre</label>
-            <input id="q" type="search" placeholder="Ej.: Boxer, syncope, pacemaker, hyperthyroidism…" autocomplete="off" />
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="authorFilter">Autor</label>
-              <input id="authorFilter" type="search" placeholder="Ej.: Santilli, Rishniw…" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="arrhythmiaFilter">Arritmia / interpretación ECG</label>
-              <input id="arrhythmiaFilter" type="search" placeholder="Ej.: atrial fibrillation, AV block…" autocomplete="off" />
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="speciesFilter">Especie</label>
-              <select id="speciesFilter">
-                <option value="">Todas</option>
-                <option value="dog">Perro</option>
-                <option value="cat">Gato</option>
-                <option value="horse">Caballo</option>
-                <option value="rabbit">Conejo</option>
-                <option value="other">Otros / sin detectar</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="yearFilter">Año</label>
-              <select id="yearFilter"><option value="">Todos</option></select>
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="sortBy">Ordenar</label>
-              <select id="sortBy">
-                <option value="dateDesc">Fecha: más reciente</option>
-                <option value="dateAsc">Fecha: más antigua</option>
-                <option value="authorAsc">Autor A-Z</option>
-                <option value="figuresDesc">Más figuras</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="itemsPerPage">Mostrar</label>
-              <select id="itemsPerPage">
-                <option value="25">25 casos</option>
-                <option value="50">50 casos</option>
-                <option value="100">100 casos</option>
-                <option value="9999">Todos</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Filtros rápidos</label>
-            <div class="chips" id="quickFilters"></div>
-          </div>
-
-          <div class="chips">
-            <button class="btn small" id="clearFiltersBtn" type="button">🧹 Limpiar filtros</button>
-            <button class="btn small" id="randomBtn" type="button">🎲 Caso aleatorio</button>
-          </div>
-
-          <p class="minihelp">Consejo: busca por “third-degree AV block”, “atrial fibrillation”, “ventricular tachycardia”, “Ashman”, “junctional”, “artifact”…</p>
-        </div>
-
-        <div class="panel-head">
-          <h3>📚 Resultados</h3>
-          <p id="resultSummary">Sin datos cargados.</p>
+          <h2>Casos que cumplen la búsqueda</h2>
+          <span class="counter" id="resultCounter">0 resultados</span>
         </div>
         <div class="results" id="results"></div>
-      </aside>
+      </section>
 
-      <section class="panel detail" aria-live="polite">
+      <section class="detail-panel" id="detailPanel">
         <div class="panel-head">
-          <h2>📈 Ficha del ECG</h2>
-          <p>Selecciona un caso para ver la información completa y sus imágenes.</p>
+          <h2>Detalle del caso</h2>
+          <span class="counter">Pulsa la imagen o la tarjeta</span>
         </div>
-        <div class="detail-body" id="detail">
-          <div class="empty">
-            <div>
-              <div class="icon">🫀</div>
-              <h2>Selecciona un ECG of the Month</h2>
-              <p>La ficha mostrará descripción clínica, interpretación, figuras ampliables, discusión, notas y referencias.</p>
-            </div>
-          </div>
+        <div class="detail-body" id="detailBody">
+          <div class="empty">Selecciona un ECG para cargar todos sus datos, imágenes, interpretación, discusión y referencias. 🔎</div>
         </div>
       </section>
     </main>
-
 
     <!-- FOOTER -->
     <footer class="footer">
@@ -661,614 +1136,679 @@
     </footer>
   </div>
 
-  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de imagen ECG">
-    <div class="lightbox-top">
-      <strong id="lightboxTitle">Figura ECG</strong>
-      <div class="chips">
-        <button class="btn small" id="zoomOutBtn" type="button">−</button>
-        <button class="btn small" id="zoomResetBtn" type="button">100%</button>
-        <button class="btn small" id="zoomInBtn" type="button">+</button>
-        <a class="btn small" id="openImageBtn" href="#" target="_blank" rel="noopener">Abrir imagen</a>
-        <button class="btn small danger" id="closeLightboxBtn" type="button">Cerrar ✕</button>
+  <div class="modal" id="imageModal" aria-hidden="true">
+    <div class="modal-inner">
+      <div class="modal-bar">
+        <span id="modalTitle">Imagen ECG</span>
+        <div class="link-row" style="margin:0">
+          <a class="btn small secondary" id="modalOpen" href="#" target="_blank" rel="noopener">Abrir original</a>
+          <button class="btn small" id="modalClose" type="button">Cerrar</button>
+        </div>
       </div>
+      <div class="modal-img-wrap"><img id="modalImg" alt="ECG ampliado" /></div>
     </div>
-    <div class="lightbox-stage" id="lightboxStage">
-      <img id="lightboxImg" alt="ECG ampliado" />
-    </div>
-    <div class="lightbox-caption" id="lightboxCaption"></div>
   </div>
-
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast">Copiado</div>
 
   <script>
-    'use strict';
+    const JSON_URLS = (() => {
+      const file = 'ecg_of_the_month.json';
+      const origin = /^https?:$/.test(location.protocol) ? location.origin : '';
+      const here = location.href;
+      const candidates = [
+        new URL(`json/${file}`, here).href,
+        new URL(`./json/${file}`, here).href,
+        origin ? `${origin}/vet/json/${file}` : null,
+        origin ? `${origin}/json/${file}` : null,
+        'https://airsoto.github.io/vet/json/ecg_of_the_month.json'
+      ].filter(Boolean);
+      return [...new Set(candidates)];
+    })();
 
-    const DATA_URLS = ['./json/ecg_of_the_month.json', '/json/ecg_of_the_month.json', 'json/ecg_of_the_month.json'];
-    const QUICK_FILTERS = [
-      'atrial fibrillation', 'atrial flutter', 'AV block', 'third-degree', 'second-degree',
-      'ventricular tachycardia', 'premature complexes', 'junctional', 'pacemaker',
-      'Ashman', 'accessory pathway', 'artifact', 'bundle branch block', 'sinus rhythm'
+    const quickTerms = [
+      'atrial fibrillation', 'AV block', 'third-degree', 'Ashman', 'atrial flutter',
+      'ventricular tachycardia', 'junctional', 'pacemaker', 'accessory pathway',
+      'right bundle branch block', 'escape', 'ST segment', 'hyperthyroidism'
     ];
 
-    let db = [];
-    let filtered = [];
-    let selectedId = null;
-    let visibleLimit = 25;
-    let zoom = 1;
+    let allArticles = [];
+    let filteredArticles = [];
+    let selectedKey = null;
+    let visibleLimit = 18;
 
-    const $ = (sel, root=document) => root.querySelector(sel);
-    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    function batchSize(){
+      return window.matchMedia('(max-width:760px)').matches ? 9 : 18;
+    }
 
+    const $ = (id) => document.getElementById(id);
     const els = {
-      q: $('#q'),
-      authorFilter: $('#authorFilter'),
-      arrhythmiaFilter: $('#arrhythmiaFilter'),
-      speciesFilter: $('#speciesFilter'),
-      yearFilter: $('#yearFilter'),
-      sortBy: $('#sortBy'),
-      itemsPerPage: $('#itemsPerPage'),
-      results: $('#results'),
-      detail: $('#detail'),
-      resultSummary: $('#resultSummary'),
-      loadStatus: $('#loadStatus'),
-      statTotal: $('#statTotal'),
-      statVisible: $('#statVisible'),
-      statFigures: $('#statFigures'),
-      statYears: $('#statYears'),
-      quickFilters: $('#quickFilters'),
-      clearFiltersBtn: $('#clearFiltersBtn'),
-      randomBtn: $('#randomBtn'),
-      downloadFilteredBtn: $('#downloadFilteredBtn'),
-      localJsonInput: $('#localJsonInput'),
-      toast: $('#toast'),
-      lightbox: $('#lightbox'),
-      lightboxImg: $('#lightboxImg'),
-      lightboxTitle: $('#lightboxTitle'),
-      lightboxCaption: $('#lightboxCaption'),
-      openImageBtn: $('#openImageBtn'),
-      closeLightboxBtn: $('#closeLightboxBtn'),
-      zoomInBtn: $('#zoomInBtn'),
-      zoomOutBtn: $('#zoomOutBtn'),
-      zoomResetBtn: $('#zoomResetBtn'),
-      lightboxStage: $('#lightboxStage')
+      statusDot: $('statusDot'), statusText: $('statusText'),
+      q: $('qInput'), author: $('authorInput'), arr: $('arrInput'), species: $('speciesSelect'), sort: $('sortSelect'),
+      authorsList: $('authorsList'), quickline: $('quickline'), results: $('results'), resultCounter: $('resultCounter'),
+      detailBody: $('detailBody'), statTotal: $('statTotal'), statVisible: $('statVisible'), statSpecies: $('statSpecies'), statFigures: $('statFigures'),
+      localFile: $('localFile'), loadLocalBtn: $('loadLocalBtn'), toast: $('toast'),
+      filtersPanel: $('filtersPanel'), mobileFilterToggle: $('mobileFilterToggle'), mobileFilterState: $('mobileFilterState')
     };
 
-    function escapeHtml(str=''){
-      return String(str)
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'",'&#039;');
+    function escapeHtml(value){
+      return String(value ?? '')
+        .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+        .replaceAll('"','&quot;').replaceAll("'",'&#039;');
     }
-
-    function normalize(str=''){
-      return String(str || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-        .toLowerCase();
+    function cleanText(value){
+      return String(value ?? '').replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
     }
-
-    function compact(str=''){
-      return String(str || '').replace(/\s+/g,' ').trim();
+    function plainText(value){ return cleanText(value).replace(/\s+/g,' '); }
+    function shortText(value, max=190){
+      const t = plainText(value);
+      return t.length > max ? t.slice(0, max).replace(/\s+\S*$/,'') + '…' : t;
     }
-
-    function textBlock(str=''){
-      return escapeHtml(String(str || '').trim() || 'No disponible.');
-    }
-
-    function dateYear(article){
-      const d = article.publication_date || article.date || '';
-      const m = String(d).match(/(19|20)\d{2}/);
-      return m ? m[0] : '';
-    }
-
-    function dateValue(article){
-      const d = String(article.publication_date || '').replaceAll('/','-');
-      const t = Date.parse(d);
-      return Number.isFinite(t) ? t : 0;
-    }
-
-    function getAuthors(article){
-      const arr = article.autores || article.authors || [];
-      if (Array.isArray(arr)) return arr.filter(Boolean);
-      return [];
-    }
-
-    function getAuthorText(article){
-      return getAuthors(article).map(a => [a.name, a.credentials, a.affiliation].filter(Boolean).join(' ')).join(' | ');
-    }
-
+    function getAuthors(article){ return Array.isArray(article.autores) ? article.autores : (Array.isArray(article.authors) ? article.authors : []); }
+    function authorNames(article){ return getAuthors(article).map(a => a?.name).filter(Boolean); }
     function getFigures(article){
-      const figs = Array.isArray(article.figuras) ? article.figuras.slice() : [];
-      const existing = new Set(figs.map(f => String(f.figure_number || f.figure_id || f.image_download_url || '')));
-      Object.keys(article).forEach(k => {
-        const m = k.match(/^figura_(\d+)$/);
-        if (!m || !article[k]) return;
-        const n = Number(m[1]);
-        if (existing.has(String(n))) return;
-        figs.push({
-          figure_number:n,
-          label:`Figure ${n}`,
-          image_download_url:article[k],
-          image_url_full:article[k],
-          descripcion_figura:article[`descripcion_figura_${n}`] || ''
-        });
-      });
-      return figs.sort((a,b)=>(a.figure_number||0)-(b.figure_number||0));
+      const figs = Array.isArray(article.figuras) ? [...article.figuras] : [];
+      for(let i=1;i<=12;i++){
+        const url = article[`figura_${i}`];
+        if(url && !figs.some(f => f.figure_number === i || f.image_download_url === url)){
+          figs.push({
+            figure_number:i,
+            label:`Figure ${i}`,
+            image_download_url:url,
+            descripcion_figura:article[`descripcion_figura_${i}`] || ''
+          });
+        }
+      }
+      return figs.sort((a,b)=>(a.figure_number || 99)-(b.figure_number || 99));
     }
-
-    function bestImageUrl(fig){
-      const candidates = [fig.image_url_full, fig.image_url_inline, fig.image_download_url].filter(Boolean);
-      const noTif = candidates.find(u => !/\.tiff?(\?|$)/i.test(u));
-      return noTif || candidates[0] || '';
+    function usableImage(url){
+      if(!url) return '';
+      const lower = url.toLowerCase();
+      if(lower.endsWith('.tif') || lower.endsWith('.tiff')) return '';
+      return url;
     }
-
-    function getImageFallbacks(fig){
-      return [fig.image_url_full, fig.image_url_inline, fig.image_download_url]
-        .filter(Boolean)
-        .filter((v,i,a)=>a.indexOf(v)===i);
+    function figureImage(fig){
+      return usableImage(fig?.image_url_full) || usableImage(fig?.image_url_inline) || usableImage(fig?.image_download_url) || '';
     }
-
-    function detectSpecies(article){
-      const blob = normalize([article.descripcion_del_caso, article.interpretacion_ecg, article.discusion].join(' '));
-      if (/\b(cat|feline|gato|domestic shorthair)\b/.test(blob)) return 'cat';
-      if (/\b(dog|canine|perro|boxer|retriever|collie|rottweiler|shih tzu|great pyrenees)\b/.test(blob)) return 'dog';
-      if (/\b(horse|equine|caballo)\b/.test(blob)) return 'horse';
-      if (/\b(rabbit|conejo)\b/.test(blob)) return 'rabbit';
-      return 'other';
+    function firstFigure(article){ return getFigures(article)[0] || null; }
+    function yearOf(article){
+      const s = String(article.publication_date || '');
+      const m = s.match(/(19|20)\d{2}/);
+      return m ? m[0] : 's/f';
     }
-
-    function speciesLabel(s){
-      return {dog:'Perro', cat:'Gato', horse:'Caballo', rabbit:'Conejo', other:'Otros'}[s] || 'Otros';
+    function dateValue(article){
+      const raw = String(article.publication_date || '').replaceAll('/','-');
+      const d = Date.parse(raw);
+      return Number.isFinite(d) ? d : 0;
     }
-
-    function articleBlob(article){
-      return normalize([
-        article.title, article.editorial_type, article.article_url, article.doi, article.journal,
-        article.publication_date, article.volume, article.issue, article.pages,
-        getAuthorText(article), article.descripcion_del_caso, article.interpretacion_ecg,
-        article.discusion, JSON.stringify(article.referencias || [])
-      ].join(' '));
-    }
-
-    function matchQuery(article, value){
-      if (!value) return true;
-      const terms = normalize(value).split(/\s+/).filter(Boolean);
-      const blob = articleBlob(article);
-      return terms.every(t => blob.includes(t));
-    }
-
-    function matchAuthor(article, value){
-      if (!value) return true;
-      return normalize(getAuthorText(article)).includes(normalize(value));
-    }
-
-    function matchArrhythmia(article, value){
-      if (!value) return true;
-      const terms = normalize(value).split(/\s+/).filter(Boolean);
-      const blob = normalize([article.interpretacion_ecg, article.discusion, article.descripcion_del_caso].join(' '));
-      return terms.every(t => blob.includes(t));
-    }
-
-    function inferArrhythmiaBadges(article){
-      const blob = normalize([article.interpretacion_ecg, article.discusion].join(' '));
-      const rules = [
-        ['atrial fibrillation','FA / AF'],
-        ['atrial flutter','Flutter'],
-        ['third-degree atrioventricular','AV block III'],
-        ['third-degree av block','AV block III'],
-        ['second-degree atrioventricular','AV block II'],
-        ['bundle branch block','Bloqueo rama'],
-        ['ventricular tachycardia','VT'],
-        ['ventricular premature','VPC/VEB'],
-        ['atrial premature','APC'],
-        ['junctional premature','JPC'],
-        ['ashman','Ashman'],
-        ['accessory pathway','Vía accesoria'],
-        ['pacemaker','Marcapasos'],
-        ['artifact','Artefacto'],
-        ['sinus rhythm','Ritmo sinusal']
+    function inferSpecies(article){
+      const text = `${article.descripcion_del_caso || ''} ${article.interpretacion_ecg || ''} ${getFigures(article).map(f=>f.descripcion_figura||'').join(' ')}`.toLowerCase();
+      const found = [];
+      const tests = [
+        ['Perro', /\b(dog|dogs|canine|bitch|puppy|retriever|boxer|rottweiler|collie|shih tzu|great pyrenees|labrador)\b/i],
+        ['Gato', /\b(cat|cats|feline|kitten|domestic shorthair|maine coon)\b/i],
+        ['Caballo', /\b(horse|horses|equine|foal|mare|stallion|gelding)\b/i],
+        ['Conejo', /\b(rabbit|rabbits|lapin)\b/i],
+        ['Hurón', /\b(ferret|ferrets)\b/i],
+        ['Ave', /\b(bird|avian|parrot|cockatiel|macaw)\b/i],
+        ['Bovino', /\b(cow|cattle|bovine|calf)\b/i]
       ];
-      const out = [];
-      rules.forEach(([needle,label]) => { if (blob.includes(needle) && !out.includes(label)) out.push(label); });
-      return out.slice(0,5);
+      tests.forEach(([label, re]) => { if(re.test(text)) found.push(label); });
+      return found.length ? [...new Set(found)] : ['No especificada'];
     }
+    function combinedSearchText(article){
+      return [
+        article.title, article.editorial_type, article.doi, article.journal, article.publication_date, article.pages,
+        authorNames(article).join(' '),
+        article.descripcion_del_caso, article.interpretacion_ecg, article.discusion,
+        getFigures(article).map(f => `${f.label || ''} ${f.descripcion_figura || ''}`).join(' '),
+        (article.referencias || []).map(r => r.full_citation || '').join(' ')
+      ].join(' ').toLowerCase();
+    }
+    function getKey(article){ return article.article_url || article.doi || `${article.title}-${article.publication_date}-${authorNames(article)[0] || ''}`; }
 
-    function enrich(rawArticles){
-      return rawArticles.map((a, idx) => ({
-        ...a,
-        _id: a.doi || a.article_url || `ecg-${idx}`,
-        _idx: idx,
-        _year: dateYear(a),
-        _species: detectSpecies(a),
-        _figures: getFigures(a),
-        _badges: inferArrhythmiaBadges(a)
-      }));
+    function setStatus(type, text){
+      els.statusDot.className = 'status-dot ' + (type || '');
+      els.statusText.textContent = text;
+    }
+    function toast(text){
+      els.toast.textContent = text;
+      els.toast.classList.add('show');
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => els.toast.classList.remove('show'), 1900);
     }
 
     async function loadJson(){
-      let lastError = '';
-      for (const url of DATA_URLS){
+      setStatus('', 'Cargando JSON desde rutas GitHub Pages…');
+      let lastError = null;
+      for(const url of JSON_URLS){
         try{
           const res = await fetch(url, {cache:'no-store'});
           if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-          const json = await res.json();
-          setData(json, `Datos cargados desde ${url}`);
+          const data = await res.json();
+          setData(data, `Datos cargados desde ${url}`);
           return;
-        }catch(err){
-          lastError = `${url}: ${err.message}`;
-        }
+        }catch(err){ lastError = err; }
       }
-      els.loadStatus.innerHTML = `⚠️ No se pudo cargar el JSON automáticamente. Usa <strong>Cargar JSON local</strong> o revisa que exista <code>/json/ecg_of_the_month.json</code>.<br><small>${escapeHtml(lastError)}</small>`;
-      els.loadStatus.style.borderColor = 'rgba(251,113,133,.45)';
-      els.loadStatus.style.color = '#fecdd3';
+      setStatus('bad', `No se pudo cargar el JSON automáticamente. Usa “Cargar JSON local”. ${lastError ? lastError.message : ''}`);
+      els.results.innerHTML = `<div class="empty"><b>No se pudo cargar el JSON automáticamente.</b><br>Rutas probadas:<br>${JSON_URLS.map(u => `<code>${escapeHtml(u)}</code>`).join('<br>')}<br><br>Solución: comprueba que el archivo esté en <code>/vet/json/ecg_of_the_month.json</code> o usa el botón <b>Cargar JSON local</b>. 📂</div>`;
     }
 
-    function setData(json, message='Datos cargados'){
-      const articles = Array.isArray(json) ? json : (json.articles || []);
-      db = enrich(articles);
-      filtered = db.slice();
-      selectedId = db[0]?._id || null;
-      els.loadStatus.innerHTML = `✅ ${escapeHtml(message)} · <strong>${db.length}</strong> casos disponibles.`;
-      setupYears();
-      updateStats();
-      applyFilters();
-      if (selectedId) renderDetail(db.find(a=>a._id===selectedId));
-    }
-
-    function setupYears(){
-      const years = [...new Set(db.map(a=>a._year).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
-      els.yearFilter.innerHTML = '<option value="">Todos</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
-    }
-
-    function updateStats(){
-      const years = new Set(db.map(a=>a._year).filter(Boolean));
-      const figs = db.reduce((acc,a)=>acc + a._figures.length, 0);
-      els.statTotal.textContent = db.length;
-      els.statVisible.textContent = filtered.length;
-      els.statFigures.textContent = figs;
-      els.statYears.textContent = years.size;
-    }
-
-    function setupQuickFilters(){
-      els.quickFilters.innerHTML = QUICK_FILTERS.map(f => `<button type="button" class="chip" data-filter="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('');
-      $$('.chip[data-filter]', els.quickFilters).forEach(btn => {
-        btn.addEventListener('click', () => {
-          els.arrhythmiaFilter.value = btn.dataset.filter;
-          applyFilters();
-        });
+    function setData(data, sourceLabel){
+      const arr = Array.isArray(data) ? data : (Array.isArray(data.articles) ? data.articles : []);
+      allArticles = arr.map((article, index) => {
+        const item = {...article, __index:index, __species:inferSpecies(article), __key:getKey(article)};
+        item.__searchText = combinedSearchText(item);
+        item.__authorText = authorNames(item).join(' ').toLowerCase();
+        item.__arrText = `${item.interpretacion_ecg || ''} ${item.discusion || ''} ${getFigures(item).map(f=>f.descripcion_figura||'').join(' ')}`.toLowerCase();
+        return item;
       });
+      buildControls();
+      renderQuickTerms();
+      setStatus('ok', `${sourceLabel}. ${allArticles.length} casos disponibles.`);
+      applyFilters();
+    }
+
+    function buildControls(){
+      const authors = [...new Set(allArticles.flatMap(authorNames))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      els.authorsList.innerHTML = authors.map(a => `<option value="${escapeHtml(a)}"></option>`).join('');
+      const species = [...new Set(allArticles.flatMap(a => a.__species))].sort((a,b)=>a.localeCompare(b));
+      els.species.innerHTML = '<option value="all">Todas</option>' + species.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    }
+    function renderQuickTerms(){
+      els.quickline.innerHTML = '<span class="mini-label">Búsquedas rápidas</span>' + quickTerms.map(term => `<button class="pill" type="button" data-term="${escapeHtml(term)}">${escapeHtml(term)}</button>`).join('') + '<button class="pill" type="button" data-clear="1">Limpiar filtros</button>';
+      els.quickline.querySelectorAll('[data-term]').forEach(btn => btn.addEventListener('click', () => {
+        els.arr.value = btn.dataset.term;
+        applyFilters();
+      }));
+      els.quickline.querySelector('[data-clear]').addEventListener('click', clearFilters);
+    }
+    function clearFilters(){
+      els.q.value = '';
+      els.author.value = '';
+      els.arr.value = '';
+      els.species.value = 'all';
+      els.sort.value = 'dateDesc';
+      applyFilters();
     }
 
     function applyFilters(){
-      const q = els.q.value.trim();
-      const author = els.authorFilter.value.trim();
-      const arr = els.arrhythmiaFilter.value.trim();
-      const species = els.speciesFilter.value;
-      const year = els.yearFilter.value;
-      visibleLimit = Number(els.itemsPerPage.value || 25);
-
-      filtered = db.filter(article => {
-        return matchQuery(article, q)
-          && matchAuthor(article, author)
-          && matchArrhythmia(article, arr)
-          && (!species || article._species === species)
-          && (!year || article._year === year);
+      document.querySelector('.layout')?.classList.remove('case-open');
+      selectedKey = null;
+      visibleLimit = batchSize();
+      const q = els.q.value.trim().toLowerCase();
+      const author = els.author.value.trim().toLowerCase();
+      const arr = els.arr.value.trim().toLowerCase();
+      const species = els.species.value;
+      filteredArticles = allArticles.filter(article => {
+        const allText = article.__searchText || '';
+        const authorText = article.__authorText || '';
+        const arrText = article.__arrText || '';
+        const speciesOk = species === 'all' || article.__species.includes(species);
+        return (!q || allText.includes(q)) && (!author || authorText.includes(author)) && (!arr || arrText.includes(arr)) && speciesOk;
       });
-
-      const sort = els.sortBy.value;
-      filtered.sort((a,b) => {
-        if(sort === 'dateAsc') return dateValue(a) - dateValue(b);
-        if(sort === 'dateDesc') return dateValue(b) - dateValue(a);
-        if(sort === 'authorAsc') return getAuthorText(a).localeCompare(getAuthorText(b));
-        if(sort === 'figuresDesc') return b._figures.length - a._figures.length;
-        return 0;
-      });
-
-      if (!filtered.find(a => a._id === selectedId)) selectedId = filtered[0]?._id || null;
+      sortFiltered();
+      if(selectedKey && !filteredArticles.some(a => a.__key === selectedKey)){
+        selectedKey = null;
+      }
+      renderStats();
       renderResults();
-      updateStats();
-      if (selectedId) renderDetail(filtered.find(a=>a._id===selectedId) || db.find(a=>a._id===selectedId));
-      else renderEmpty();
+      if(selectedKey) renderDetail(filteredArticles.find(a => a.__key === selectedKey));
+      else renderEmptyDetail();
     }
-
+    function sortFiltered(){
+      const sort = els.sort.value;
+      filteredArticles.sort((a,b) => {
+        if(sort === 'dateAsc') return dateValue(a) - dateValue(b);
+        if(sort === 'figuresDesc') return getFigures(b).length - getFigures(a).length;
+        if(sort === 'authorsAsc') return (authorNames(a)[0] || '').localeCompare(authorNames(b)[0] || '');
+        return dateValue(b) - dateValue(a);
+      });
+    }
+    function renderStats(){
+      const speciesCount = new Set(allArticles.flatMap(a => a.__species)).size;
+      const figCount = filteredArticles.reduce((n,a)=>n+getFigures(a).length,0);
+      els.statTotal.textContent = allArticles.length;
+      els.statVisible.textContent = filteredArticles.length;
+      els.statSpecies.textContent = speciesCount;
+      els.statFigures.textContent = figCount;
+      els.resultCounter.textContent = `${filteredArticles.length} resultado${filteredArticles.length === 1 ? '' : 's'}`;
+    }
     function renderResults(){
-      const shown = filtered.slice(0, visibleLimit);
-      els.resultSummary.textContent = `${filtered.length} casos encontrados · mostrando ${shown.length}.`;
-      if(!shown.length){
-        els.results.innerHTML = '<div class="empty" style="min-height:200px"><div><div class="icon">∅</div><p>No hay casos con esos filtros.</p></div></div>';
+      if(!filteredArticles.length){
+        els.results.innerHTML = '<div class="empty">No hay ECG que cumplan los filtros actuales. Prueba otro autor o término de arritmia.</div>';
+        els.resultCounter.textContent = '0 resultados';
         return;
       }
-      els.results.innerHTML = shown.map(article => {
-        const authors = getAuthors(article).map(a=>a.name).filter(Boolean).slice(0,3).join(', ');
-        const figs = article._figures.length;
-        const badges = article._badges.map(b=>`<span class="tag accent">${escapeHtml(b)}</span>`).join('');
-        const desc = compact(article.interpretacion_ecg || article.descripcion_del_caso || article.discusion || '');
-        const active = article._id === selectedId ? 'active' : '';
-        return `
-          <article class="card ${active}" data-id="${escapeHtml(article._id)}">
-            <div class="card-title">
-              <span>${escapeHtml(article.title || 'ECG of the Month')}</span>
-              <span class="tag">${escapeHtml(article._year || 's/f')}</span>
-            </div>
-            <div class="card-meta">${escapeHtml(authors || 'Autores no disponibles')} · ${escapeHtml(article.journal || '')}</div>
-            <p class="card-text">${escapeHtml(desc)}</p>
-            <div class="tagrow">
-              <span class="tag">${escapeHtml(speciesLabel(article._species))}</span>
-              <span class="tag">${figs} figura${figs===1?'':'s'}</span>
-              ${badges}
-            </div>
-          </article>`;
-      }).join('');
-      $$('.card', els.results).forEach(card => {
-        card.addEventListener('click', () => {
-          selectedId = card.dataset.id;
-          renderResults();
-          const article = db.find(a=>a._id===selectedId);
-          renderDetail(article);
-          if (window.innerWidth < 980) document.querySelector('.detail').scrollIntoView({behavior:'smooth', block:'start'});
-        });
+
+      const shown = filteredArticles.slice(0, visibleLimit);
+      const remaining = Math.max(0, filteredArticles.length - shown.length);
+      els.results.innerHTML = shown.map(article => cardHtml(article)).join('') +
+        (remaining ? `
+          <div class="load-more-wrap">
+            <span>Mostrando ${shown.length} de ${filteredArticles.length} casos</span>
+            <button class="btn secondary" id="loadMoreBtn" type="button">Cargar ${Math.min(batchSize(), remaining)} casos más</button>
+          </div>` : `
+          <div class="load-more-wrap"><span>Se muestran los ${shown.length} casos encontrados.</span></div>`);
+
+      els.resultCounter.textContent = `Mostrando ${shown.length} de ${filteredArticles.length}`;
+
+      els.results.querySelectorAll('.result-card').forEach(card => {
+        const open = (event) => {
+          if(event?.type === 'keydown' && !['Enter',' '].includes(event.key)) return;
+          if(event?.type === 'keydown') event.preventDefault();
+          const fromImage = Boolean(event?.target?.closest?.('.thumb-wrap'));
+          openCaseDetail(card.dataset.key, fromImage || window.innerWidth < 1080);
+        };
+        card.addEventListener('click', open);
+        card.addEventListener('keydown', open);
+      });
+
+      $('loadMoreBtn')?.addEventListener('click', () => {
+        visibleLimit = Math.min(filteredArticles.length, visibleLimit + batchSize());
+        renderResults();
       });
     }
+    function openCaseDetail(key, scrollToDetail=false){
+      selectedKey = key;
+      renderResults();
+      const article = filteredArticles.find(a => a.__key === selectedKey);
+      renderDetail(article);
+      if(window.matchMedia('(max-width:760px)').matches){
+        document.querySelector('.layout')?.classList.add('case-open');
+      }
+      if(scrollToDetail){
+        $('detailPanel')?.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+    }
 
-    function renderEmpty(){
-      els.detail.innerHTML = `
-        <div class="empty">
-          <div><div class="icon">∅</div><h2>Sin resultados</h2><p>Cambia los filtros para recuperar casos.</p></div>
-        </div>`;
+    function closeMobileCaseDetail(){
+      document.querySelector('.layout')?.classList.remove('case-open');
+      const selectedCard = [...document.querySelectorAll('.result-card')].find(card => card.dataset.key === selectedKey);
+      window.setTimeout(() => selectedCard?.scrollIntoView({behavior:'smooth', block:'center'}), 30);
+    }
+
+    function cardHtml(article){
+      const fig = firstFigure(article);
+      const src = figureImage(fig);
+      const authors = authorNames(article);
+      const authorLine = authors.length ? authors.slice(0,3).join(', ') + (authors.length > 3 ? ` +${authors.length-3}` : '') : 'Autores no indicados';
+      const species = article.__species.join(', ');
+      const active = article.__key === selectedKey ? ' active' : '';
+      const title = `${article.title || 'ECG of the Month'} · ${yearOf(article)}`;
+      return `
+        <article class="result-card${active}" data-key="${escapeHtml(article.__key)}" role="button" tabindex="0" aria-label="Abrir detalle del caso ${escapeHtml(title)}">
+          <div class="thumb-wrap" title="Abrir detalle del caso" aria-label="Abrir detalle del caso">${src ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHtml(src)}" alt="Imagen 1 del ECG. Pulsa para abrir el detalle del caso" onerror="this.parentElement.innerHTML='<span class=&quot;no-img&quot;>Imagen no disponible</span>'">` : '<span class="no-img">Sin imagen</span>'}</div>
+          <div>
+            <h3 class="card-title">${escapeHtml(title)}</h3>
+            <p class="card-sub"><strong>Autores:</strong> ${escapeHtml(authorLine)}</p>
+            <p class="card-sub"><strong>Especie:</strong> ${escapeHtml(species)}</p>
+            <div class="chips">
+              <span class="tag orange">${escapeHtml(article.publication_date || 'sin fecha')}</span>
+              <span class="tag blue">${getFigures(article).length} imagen${getFigures(article).length === 1 ? '' : 'es'}</span>
+              ${article.doi ? `<span class="tag">DOI ${escapeHtml(article.doi)}</span>` : ''}
+            </div>
+          </div>
+        </article>`;
+    }
+    function renderEmptyDetail(){
+      els.detailBody.innerHTML = '<div class="empty">No hay ningún caso seleccionado.</div>';
     }
 
     function renderDetail(article){
-      if(!article){ renderEmpty(); return; }
+      if(!article) return renderEmptyDetail();
+      const figs = getFigures(article);
       const authors = getAuthors(article);
-      const figs = article._figures || [];
-      const refs = Array.isArray(article.referencias) ? article.referencias : [];
-      const notes = Array.isArray(article.notas_pie) ? article.notas_pie : [];
-      const badges = article._badges.map(b=>`<span class="chip static">${escapeHtml(b)}</span>`).join('');
-
-      els.detail.innerHTML = `
-        <div class="article-head">
-          <div>
-            <h2>${escapeHtml(article.title || 'ECG of the Month')}</h2>
-            <div class="article-meta">
-              ${escapeHtml(article.publication_date || 'Fecha no disponible')} · Vol. ${escapeHtml(article.volume || '?')} · Nº ${escapeHtml(article.issue || '?')} · pp. ${escapeHtml(article.pages || '?')}
-              ${article.doi ? ` · DOI: ${escapeHtml(article.doi)}` : ''}
-            </div>
-            <div class="authors">${authors.map(renderAuthor).join('')}</div>
-            <div class="chips" style="margin-top:10px">
-              <span class="chip static">${escapeHtml(speciesLabel(article._species))}</span>
-              ${badges}
-            </div>
-          </div>
-          <div class="quicklinks">
-            ${article.article_url ? `<a class="btn small" href="${escapeHtml(article.article_url)}" target="_blank" rel="noopener">Artículo original</a>` : ''}
-            ${article.pdf_original_url ? `<a class="btn small" href="${escapeHtml(article.pdf_original_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
-            <button class="btn small" type="button" id="copyCaseBtn">Copiar ficha</button>
-            <button class="btn small" type="button" id="printBtn">Imprimir</button>
-          </div>
+      els.detailBody.innerHTML = `
+        <button class="btn secondary mobile-back" id="mobileBackBtn" type="button">← Volver a los resultados</button>
+        <h2 class="detail-title">${escapeHtml(article.title || 'ECG of the Month')}</h2>
+        <div class="detail-meta">
+          <span class="tag orange">${escapeHtml(article.publication_date || 'sin fecha')}</span>
+          <span class="tag blue">${escapeHtml(article.__species.join(', '))}</span>
+          ${article.volume || article.issue ? `<span class="tag">Vol. ${escapeHtml(article.volume || '?')} · Nº ${escapeHtml(article.issue || '?')}</span>` : ''}
+          ${article.pages ? `<span class="tag">Págs. ${escapeHtml(article.pages)}</span>` : ''}
+          ${article.doi ? `<span class="tag">DOI ${escapeHtml(article.doi)}</span>` : ''}
+        </div>
+        <div class="link-row">
+          ${article.article_url ? `<a class="btn small secondary" href="${escapeHtml(article.article_url)}" target="_blank" rel="noopener">Abrir artículo AVMA</a>` : ''}
+          ${article.pdf_original_url ? `<a class="btn small secondary" href="${escapeHtml(article.pdf_original_url)}" target="_blank" rel="noopener">PDF original</a>` : ''}
+          ${article.doi ? `<a class="btn small secondary" href="https://doi.org/${escapeHtml(article.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}
         </div>
 
-        <details class="section" open>
-          <summary>🩺 Descripción del caso</summary>
-          <div class="section-content">${textBlock(article.descripcion_del_caso)}</div>
-        </details>
+        <section class="section">
+          <div class="section-head"><h3>Autores</h3></div>
+          <div class="section-content authors-grid">
+            ${authors.length ? authors.map(authorHtml).join('') : '<p class="text-block">No hay autores registrados.</p>'}
+          </div>
+        </section>
 
-        <details class="section" open>
-          <summary>📈 Interpretación ECG</summary>
-          <div class="section-content">${textBlock(article.interpretacion_ecg)}</div>
-        </details>
-
-        <details class="section" open>
-          <summary>🖼️ Figuras ECG (${figs.length})</summary>
-          <div class="section-content" style="white-space:normal">${renderGallery(figs)}</div>
-        </details>
+        <section class="section">
+          <div class="section-head">
+            <h3>Descripción del caso</h3>
+            <div class="link-row" style="margin:0">
+              <button class="btn small secondary" type="button" data-copy="case">Copiar</button>
+              <button class="btn small" type="button" data-translate="case">Traducir al español</button>
+            </div>
+          </div>
+          <div class="section-content">
+            <div class="text-block" id="caseText">${escapeHtml(article.descripcion_del_caso || 'Sin descripción del caso.')}</div>
+            <div class="translation-box" id="caseTranslation" hidden></div>
+          </div>
+        </section>
 
         <details class="section">
-          <summary>💬 Discusión</summary>
-          <div class="section-content compact">${textBlock(article.discusion || article.discussion)}</div>
+          <summary>
+            <div class="section-head">
+              <h3>Interpretación ECG</h3>
+              <span class="summary-hint">sección</span>
+            </div>
+          </summary>
+          <div class="section-content">
+            <div class="link-row" style="margin:0 0 10px">
+              <button class="btn small secondary" type="button" data-copy="interp">Copiar</button>
+              <button class="btn small" type="button" data-translate="interp">Traducir al español</button>
+            </div>
+            <div class="text-block" id="interpText">${escapeHtml(article.interpretacion_ecg || 'Sin interpretación ECG.')}</div>
+            <div class="translation-box" id="interpTranslation" hidden></div>
+          </div>
         </details>
 
-        ${notes.length ? `<details class="section"><summary>📝 Notas a pie</summary><div class="section-content">${notes.map(n=>`<p><strong>${escapeHtml(n.label||'')}</strong> ${escapeHtml(n.text||'')}</p>`).join('')}</div></details>` : ''}
+        <section class="section">
+          <div class="section-head"><h3>Figuras ECG</h3><span class="counter">${figs.length} imagen${figs.length === 1 ? '' : 'es'}</span></div>
+          <div class="section-content">
+            ${figs.length ? `<div class="gallery">${figs.map((fig,i)=>figureHtml(fig,i)).join('')}</div>` : '<p class="text-block">No hay figuras registradas.</p>'}
+          </div>
+        </section>
 
         <details class="section">
-          <summary>📚 Referencias (${refs.length})</summary>
-          <div class="section-content" style="white-space:normal">${renderReferences(refs)}</div>
+          <summary>
+            <div class="section-head">
+              <h3>Discusión</h3>
+              <span class="summary-hint">sección</span>
+            </div>
+          </summary>
+          <div class="section-content">
+            <div class="link-row" style="margin:0 0 10px">
+              <button class="btn small secondary" type="button" data-copy="disc">Copiar</button>
+              <button class="btn small" type="button" data-translate="disc">Traducir al español</button>
+            </div>
+            <div class="text-block" id="discText">${escapeHtml(article.discusion || 'Sin discusión.')}</div>
+            <div class="translation-box" id="discTranslation" hidden></div>
+          </div>
         </details>
+
+        ${footnotesHtml(article)}
+        ${referencesHtml(article)}
       `;
-
-      $('#copyCaseBtn')?.addEventListener('click', () => copyArticle(article));
-      $('#printBtn')?.addEventListener('click', () => window.print());
-      $$('.figure-img-wrap', els.detail).forEach(wrap => {
-        wrap.addEventListener('click', () => {
-          const fig = figs[Number(wrap.dataset.index)];
-          openLightbox(fig);
-        });
-      });
-      setupImageFallbacks(els.detail);
+      bindDetailButtons(article);
     }
-
-    function renderAuthor(a){
+    function authorHtml(a){
       const links = Array.isArray(a.links) ? a.links : [];
-      const scholar = links.find(l => normalize(l.label).includes('scholar'));
-      const pubmed = links.find(l => normalize(l.label).includes('pubmed'));
-      return `<span class="author-pill">
-        <strong>${escapeHtml(a.name || 'Autor')}</strong>${a.credentials ? `, ${escapeHtml(a.credentials)}` : ''}
-        ${a.affiliation ? `<small>${escapeHtml(a.affiliation)}</small>` : ''}
-        <small>${scholar ? `<a href="${escapeHtml(scholar.url)}" target="_blank" rel="noopener">Scholar</a>` : ''}${scholar && pubmed ? ' · ' : ''}${pubmed ? `<a href="${escapeHtml(pubmed.url)}" target="_blank" rel="noopener">PubMed</a>` : ''}</small>
-      </span>`;
+      return `<div class="author-card">
+        <b>${escapeHtml(a.name || 'Autor')}</b>
+        ${a.credentials ? `<span>${escapeHtml(a.credentials)}</span>` : ''}
+        ${a.affiliation ? `<span>${escapeHtml(a.affiliation)}</span>` : ''}
+        ${links.length ? `<div class="link-row">${links.map(l => `<a class="btn small secondary" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label || 'enlace')}</a>`).join('')}</div>` : ''}
+      </div>`;
     }
-
-    function renderGallery(figs){
-      if(!figs.length) return '<p>No hay figuras disponibles.</p>';
-      return `<div class="gallery">${figs.map((fig, idx) => {
-        const url = bestImageUrl(fig);
-        const fallbacks = getImageFallbacks(fig).join('|');
-        const caption = fig.descripcion_figura || fig.alt_text || fig.caption || '';
-        return `<article class="figure-card">
-          <div class="figure-img-wrap" data-index="${idx}" title="Clic para ampliar">
-            ${url ? `<img src="${escapeHtml(url)}" data-fallbacks="${escapeHtml(fallbacks)}" alt="${escapeHtml(fig.alt_text || fig.label || 'Figura ECG')}" loading="lazy">` : '<span style="color:#111">Sin imagen</span>'}
-          </div>
-          <div class="figure-caption"><strong>${escapeHtml(fig.label || `Figure ${fig.figure_number || idx+1}`)}</strong><br>${escapeHtml(caption.replace(/^Figure\s*\d+—?\s*/i,''))}</div>
-          <div class="figure-actions">
-            ${fig.image_url_full ? `<a class="btn small" href="${escapeHtml(fig.image_url_full)}" target="_blank" rel="noopener">Full</a>` : ''}
-            ${fig.image_download_url ? `<a class="btn small" href="${escapeHtml(fig.image_download_url)}" target="_blank" rel="noopener">Descargar</a>` : ''}
-          </div>
-        </article>`;
-      }).join('')}</div>`;
+    function figureHtml(fig, i){
+      const src = figureImage(fig);
+      const cap = fig.descripcion_figura || fig.alt_text || '';
+      return `<article class="figure-card">
+        ${src ? `<img loading="lazy" decoding="async" src="${escapeHtml(src)}" alt="${escapeHtml(fig.label || 'Figura ECG')}" data-full="${escapeHtml(src)}" data-title="${escapeHtml(fig.label || `Figura ${i+1}`)}" onerror="this.outerHTML='<div class=&quot;empty&quot;>Imagen no disponible</div>'">` : '<div class="empty">Imagen no disponible</div>'}
+        <div class="fig-cap" id="figText${i}">${escapeHtml(cap)}</div>
+        <div class="translation-box" id="figTranslation${i}" hidden></div>
+        <div class="fig-actions">
+          <button class="btn small secondary" type="button" data-copy="fig" data-fig="${i}">Copiar</button>
+          <button class="btn small" type="button" data-translate="fig" data-fig="${i}">Traducir al español</button>
+          ${fig.image_download_url ? `<a class="btn small secondary" href="${escapeHtml(fig.image_download_url)}" target="_blank" rel="noopener">Descargar / abrir</a>` : ''}
+        </div>
+      </article>`;
     }
-
-    function setupImageFallbacks(root=document){
-      $$('img[data-fallbacks]', root).forEach(img => {
-        img.dataset.fallbackIndex = img.dataset.fallbackIndex || '0';
-        img.addEventListener('error', () => {
-          const list = (img.dataset.fallbacks || '').split('|').filter(Boolean);
-          let i = Number(img.dataset.fallbackIndex || 0) + 1;
-          while (i < list.length && list[i] === img.src) i++;
-          if (i < list.length){
-            img.dataset.fallbackIndex = String(i);
-            img.src = list[i];
-          } else {
-            img.alt = 'No se pudo cargar la imagen';
-            img.replaceWith(Object.assign(document.createElement('div'), {
-              textContent:'Imagen no disponible',
-              className:'image-error'
-            }));
-          }
-        }, {once:false});
-      });
+    function footnotesHtml(article){
+      const notes = Array.isArray(article.notas_pie) ? article.notas_pie : [];
+      if(!notes.length) return '';
+      return `<details class="section"><summary><div class="section-head"><h3>Notas al pie</h3><span class="summary-hint">sección</span></div></summary><div class="section-content refs">${notes.map(n => `<div class="ref-card"><p><strong>${escapeHtml(n.label || '')}</strong> ${escapeHtml(n.text || '')}</p></div>`).join('')}</div></details>`;
     }
-
-    function renderReferences(refs){
-      if(!refs.length) return '<p>No hay referencias disponibles.</p>';
-      return `<div class="ref-list">${refs.map((r,i)=>{
-        const actions = Array.isArray(r.action_links) ? r.action_links : [];
-        const links = [
-          r.crossref_url ? {label:'Crossref', url:r.crossref_url} : null,
-          r.google_scholar_url ? {label:'Google Scholar', url:r.google_scholar_url} : null,
-          r.export_citation_url ? {label:'Export Citation', url:r.export_citation_url} : null,
-          ...(Array.isArray(r.external_urls_in_citation) ? r.external_urls_in_citation.map(x=>({label:x.label || 'URL externa', url:x.url})) : []),
-          ...actions
-        ].filter(Boolean).filter((v, idx, arr)=> arr.findIndex(x=>x.label===v.label && x.url===v.url) === idx);
-        return `<div class="ref-item">
-          <div><strong>${escapeHtml(r.number || String(i+1))}</strong> ${escapeHtml(r.full_citation || '')}</div>
-          <div class="ref-actions">${links.map(l=>`<a class="btn small" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`).join('')}</div>
-        </div>`;
-      }).join('')}</div>`;
+    function referencesHtml(article){
+      const refs = Array.isArray(article.referencias) ? article.referencias : [];
+      if(!refs.length) return '';
+      return `<details class="section"><summary><div class="section-head"><h3>Referencias</h3><span class="summary-hint">${refs.length} referencias</span></div></summary><div class="section-content refs">${refs.map(refHtml).join('')}</div></details>`;
     }
-
-    function copyArticle(article){
-      const txt = [
-        `${article.title || 'ECG of the Month'} (${article.publication_date || ''})`,
-        `DOI: ${article.doi || ''}`,
-        `Autores: ${getAuthors(article).map(a=>a.name).join(', ')}`,
-        '',
-        'DESCRIPCIÓN DEL CASO:', article.descripcion_del_caso || '',
-        '',
-        'INTERPRETACIÓN ECG:', article.interpretacion_ecg || '',
-        '',
-        'DISCUSIÓN:', article.discusion || ''
-      ].join('\n');
-      navigator.clipboard?.writeText(txt).then(()=>toast('Ficha copiada al portapapeles.'));
+    function refHtml(ref){
+      const actions = Array.isArray(ref.action_links) ? ref.action_links : [];
+      return `<div class="ref-card">
+        <p>${escapeHtml(ref.full_citation || '')}</p>
+        <div class="link-row" style="margin:0">
+          ${ref.crossref_url ? `<a class="btn small secondary" href="${escapeHtml(ref.crossref_url)}" target="_blank" rel="noopener">Crossref</a>` : ''}
+          ${ref.google_scholar_url ? `<a class="btn small secondary" href="${escapeHtml(ref.google_scholar_url)}" target="_blank" rel="noopener">Google Scholar</a>` : ''}
+          ${ref.export_citation_url ? `<a class="btn small secondary" href="${escapeHtml(ref.export_citation_url)}" target="_blank" rel="noopener">Export Citation</a>` : ''}
+          ${actions.filter(a => !['Crossref','Search Google Scholar','Export Citation'].includes(a.label)).map(a => `<a class="btn small secondary" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.label || 'enlace')}</a>`).join('')}
+        </div>
+      </div>`;
     }
-
-    function openLightbox(fig){
-      if(!fig) return;
-      zoom = 1;
-      const url = bestImageUrl(fig);
-      const fallbacks = getImageFallbacks(fig).join('|');
-      els.lightboxImg.src = url;
-      els.lightboxImg.dataset.fallbacks = fallbacks;
-      els.lightboxImg.dataset.fallbackIndex = '0';
-      els.lightboxImg.style.transform = 'scale(1)';
-      els.lightboxTitle.textContent = fig.label || `Figura ${fig.figure_number || ''}`;
-      els.lightboxCaption.textContent = fig.descripcion_figura || fig.alt_text || '';
-      els.openImageBtn.href = fig.image_url_full || fig.image_download_url || url || '#';
-      els.lightbox.classList.add('open');
-      setupImageFallbacks(els.lightbox);
+    function bindDetailButtons(article){
+      $('mobileBackBtn')?.addEventListener('click', closeMobileCaseDetail);
+      document.querySelectorAll('.figure-card img[data-full]').forEach(img => img.addEventListener('click', () => openImage(img.dataset.full, img.dataset.title || 'Figura ECG')));
+      document.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', () => {
+        const text = sectionText(btn.dataset.copy, btn.dataset.fig);
+        copyText(text);
+      }));
+      document.querySelectorAll('[data-translate]').forEach(btn => btn.addEventListener('click', () => {
+        translateField(btn.dataset.translate, btn.dataset.fig, btn);
+      }));
     }
-
-    function setZoom(next){
-      zoom = Math.min(4, Math.max(.45, next));
-      els.lightboxImg.style.transform = `scale(${zoom})`;
-      els.zoomResetBtn.textContent = `${Math.round(zoom*100)}%`;
+    function sectionText(kind, figIndex){
+      if(kind === 'case') return $('caseText')?.textContent || '';
+      if(kind === 'interp') return $('interpText')?.textContent || '';
+      if(kind === 'disc') return $('discText')?.textContent || '';
+      if(kind === 'fig') return $(`figText${figIndex}`)?.textContent || '';
+      return '';
     }
-
-    function toast(msg){
-      els.toast.textContent = msg;
-      els.toast.classList.add('show');
-      setTimeout(()=>els.toast.classList.remove('show'), 2200);
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        toast('Texto copiado');
+      }catch{
+        toast('No se pudo copiar automáticamente');
+      }
     }
-
-    function downloadJson(filename, payload){
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+    function translationTarget(kind, figIndex){
+      if(kind === 'case') return $('caseTranslation');
+      if(kind === 'interp') return $('interpTranslation');
+      if(kind === 'disc') return $('discTranslation');
+      if(kind === 'fig') return $(`figTranslation${figIndex}`);
+      return null;
     }
-
-    function bindEvents(){
-      ['input','change'].forEach(ev => {
-        [els.q, els.authorFilter, els.arrhythmiaFilter, els.speciesFilter, els.yearFilter, els.sortBy, els.itemsPerPage]
-          .forEach(el => el.addEventListener(ev, applyFilters));
-      });
-
-      els.clearFiltersBtn.addEventListener('click', () => {
-        els.q.value = '';
-        els.authorFilter.value = '';
-        els.arrhythmiaFilter.value = '';
-        els.speciesFilter.value = '';
-        els.yearFilter.value = '';
-        els.sortBy.value = 'dateDesc';
-        applyFilters();
-      });
-
-      els.randomBtn.addEventListener('click', () => {
-        const pool = filtered.length ? filtered : db;
-        if(!pool.length) return;
-        const article = pool[Math.floor(Math.random()*pool.length)];
-        selectedId = article._id;
-        renderResults();
-        renderDetail(article);
-      });
-
-      els.downloadFilteredBtn.addEventListener('click', () => {
-        downloadJson('ecg_of_the_month_filtrado.json', {
-          generated_at: new Date().toISOString(),
-          total: filtered.length,
-          articles: filtered
-        });
-      });
-
-      els.localJsonInput.addEventListener('change', async (ev) => {
-        const file = ev.target.files?.[0];
-        if(!file) return;
-        const text = await file.text();
-        try{
-          setData(JSON.parse(text), `Datos cargados desde ${file.name}`);
-        }catch(err){
-          toast('No se pudo leer el JSON local.');
+    function translationTitle(kind){
+      if(kind === 'case') return 'Descripción del caso traducida al español';
+      if(kind === 'interp') return 'Interpretación ECG traducida al español';
+      if(kind === 'disc') return 'Discusión traducida al español';
+      if(kind === 'fig') return 'Descripción de la figura traducida al español';
+      return 'Traducción al español';
+    }
+    function simpleHash(text){
+      let h = 0x811c9dc5;
+      for(let i=0;i<text.length;i++){
+        h ^= text.charCodeAt(i);
+        h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+      }
+      return (h >>> 0).toString(16);
+    }
+    function splitForTranslation(text, maxLen=430){
+      const cleaned = cleanText(text);
+      if(cleaned.length <= maxLen) return [cleaned];
+      const parts = [];
+      const paragraphs = cleaned.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+      for(const paragraph of paragraphs){
+        if(paragraph.length <= maxLen){
+          parts.push(paragraph);
+          continue;
         }
-      });
+        const sentences = paragraph.match(/[^.!?;:]+[.!?;:]?\s*/g) || [paragraph];
+        let buffer = '';
+        for(const sentence of sentences){
+          const s = sentence.trim();
+          if(!s) continue;
+          if((buffer + ' ' + s).trim().length <= maxLen){
+            buffer = (buffer + ' ' + s).trim();
+          }else{
+            if(buffer) parts.push(buffer);
+            if(s.length <= maxLen){
+              buffer = s;
+            }else{
+              for(let i=0;i<s.length;i+=maxLen){
+                parts.push(s.slice(i, i+maxLen));
+              }
+              buffer = '';
+            }
+          }
+        }
+        if(buffer) parts.push(buffer);
+        parts.push('\n');
+      }
+      if(parts.at(-1) === '\n') parts.pop();
+      return parts;
+    }
+    async function translateChunkMyMemory(chunk){
+      if(chunk === '\n') return '\n';
+      const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(chunk) + '&langpair=en|es';
+      const res = await fetch(url, {cache:'force-cache'});
+      if(!res.ok) throw new Error(`Error ${res.status} al traducir`);
+      const data = await res.json();
+      const translated = data?.responseData?.translatedText;
+      if(!translated) throw new Error(data?.responseDetails || 'Respuesta de traducción vacía');
+      return String(translated).replaceAll('&#39;', "'").replaceAll('&quot;', '"').replaceAll('&amp;', '&');
+    }
+    async function translateToSpanish(text, onProgress){
+      const cleaned = cleanText(text);
+      const cacheKey = 'ecg_month_translation_es_' + simpleHash(cleaned);
+      try{
+        const cached = localStorage.getItem(cacheKey);
+        if(cached) return {text: cached, cached: true};
+      }catch{}
+      const chunks = splitForTranslation(cleaned);
+      const translated = [];
+      for(let i=0;i<chunks.length;i++){
+        if(onProgress) onProgress(i + 1, chunks.length);
+        if(chunks[i] === '\n'){
+          translated.push('\n\n');
+        }else{
+          translated.push(await translateChunkMyMemory(chunks[i]));
+          await new Promise(resolve => setTimeout(resolve, 120));
+        }
+      }
+      const finalText = translated.join(' ').replace(/\s+\n\s+/g, '\n\n').replace(/\n\s+/g, '\n').trim();
+      try{ localStorage.setItem(cacheKey, finalText); }catch{}
+      return {text: finalText, cached: false};
+    }
+    async function translateField(kind, figIndex, btn){
+      const text = sectionText(kind, figIndex);
+      const cleaned = cleanText(text);
+      const target = translationTarget(kind, figIndex);
+      if(!cleaned){ toast('No hay texto para traducir'); return; }
+      if(!target){ toast('No se encontró el campo de traducción'); return; }
 
-      els.closeLightboxBtn.addEventListener('click', () => els.lightbox.classList.remove('open'));
-      els.lightbox.addEventListener('click', ev => { if(ev.target === els.lightbox) els.lightbox.classList.remove('open'); });
-      els.zoomInBtn.addEventListener('click', () => setZoom(zoom + .25));
-      els.zoomOutBtn.addEventListener('click', () => setZoom(zoom - .25));
-      els.zoomResetBtn.addEventListener('click', () => setZoom(1));
-      document.addEventListener('keydown', ev => {
-        if(ev.key === 'Escape') els.lightbox.classList.remove('open');
-        if(els.lightbox.classList.contains('open') && (ev.key === '+' || ev.key === '=')) setZoom(zoom + .25);
-        if(els.lightbox.classList.contains('open') && ev.key === '-') setZoom(zoom - .25);
-      });
+      if(target.dataset.done === '1'){
+        target.hidden = !target.hidden;
+        btn.textContent = target.hidden ? 'Ver traducción' : 'Ocultar traducción';
+        return;
+      }
+
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      target.hidden = false;
+      target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>traduciendo…</span></div><div class="translation-body">Preparando traducción.</div><div class="translation-note">La traducción se genera dentro de esta página y queda guardada en la caché local del navegador.</div>`;
+      try{
+        const result = await translateToSpanish(cleaned, (n,total) => {
+          btn.textContent = `Traduciendo ${n}/${total}`;
+          const body = target.querySelector('.translation-body');
+          if(body) body.textContent = `Traduciendo fragmento ${n} de ${total}…`;
+        });
+        target.dataset.done = '1';
+        target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>${result.cached ? 'caché local' : 'traducido'}</span></div><div class="translation-body">${escapeHtml(result.text)}</div><div class="translation-note">Traducción automática. Revisa términos médicos si vas a usarlo en un informe o docencia.</div>`;
+        btn.textContent = 'Ocultar traducción';
+        toast('Traducción insertada en la ficha');
+      }catch(err){
+        target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>error</span></div><div class="translation-error">No se pudo traducir dentro de la página: ${escapeHtml(err.message || err)}.</div><div class="translation-note">Puede deberse a límite temporal de la API pública, CORS o conexión. Inténtalo de nuevo más tarde.</div>`;
+        btn.textContent = originalLabel;
+        toast('Error de traducción');
+      }finally{
+        btn.disabled = false;
+      }
+    }
+    function openImage(src, title){
+      $('modalImg').src = src;
+      $('modalTitle').textContent = title;
+      $('modalOpen').href = src;
+      $('imageModal').classList.add('open');
+      $('imageModal').setAttribute('aria-hidden','false');
+    }
+    function closeImage(){
+      $('imageModal').classList.remove('open');
+      $('imageModal').setAttribute('aria-hidden','true');
+      $('modalImg').removeAttribute('src');
     }
 
-    setupQuickFilters();
-    bindEvents();
+    const filtersBox = document.querySelector('.filters');
+    const mobileFilterToggle = $('mobileFilterToggle');
+    const mobileFilterState = $('mobileFilterState');
+    const mobileQuery = window.matchMedia('(max-width:760px)');
+
+    function setMobileFiltersCollapsed(collapsed){
+      if(!filtersBox || !mobileFilterToggle) return;
+      filtersBox.classList.toggle('mobile-collapsed', collapsed);
+      mobileFilterToggle.setAttribute('aria-expanded', String(!collapsed));
+      if(mobileFilterState) mobileFilterState.textContent = collapsed ? 'Mostrar' : 'Ocultar';
+    }
+
+    function syncMobileFilters(){
+      if(mobileQuery.matches){
+        if(filtersBox && !filtersBox.dataset.mobileInitialized){
+          filtersBox.dataset.mobileInitialized = '1';
+          setMobileFiltersCollapsed(true);
+        }
+      }else{
+        setMobileFiltersCollapsed(false);
+        if(filtersBox) delete filtersBox.dataset.mobileInitialized;
+        document.querySelector('.layout')?.classList.remove('case-open');
+      }
+    }
+
+    mobileFilterToggle?.addEventListener('click', () => {
+      setMobileFiltersCollapsed(!filtersBox.classList.contains('mobile-collapsed'));
+    });
+    if(typeof mobileQuery.addEventListener === 'function') mobileQuery.addEventListener('change', syncMobileFilters);
+    else if(typeof mobileQuery.addListener === 'function') mobileQuery.addListener(syncMobileFilters);
+    syncMobileFilters();
+
+    function debounce(fn, delay=180){
+      let timer;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    }
+    const debouncedFilters = debounce(applyFilters, 180);
+    [els.q, els.author, els.arr].forEach(input => {
+      input.addEventListener('input', debouncedFilters);
+      input.addEventListener('change', applyFilters);
+    });
+    [els.species, els.sort].forEach(select => select.addEventListener('change', applyFilters));
+    els.loadLocalBtn.addEventListener('click', () => els.localFile.click());
+    els.localFile.addEventListener('change', async () => {
+      const file = els.localFile.files?.[0];
+      if(!file) return;
+      try{
+        const data = JSON.parse(await file.text());
+        setData(data, `Datos cargados desde archivo local: ${file.name}`);
+      }catch(err){
+        setStatus('bad', `No se pudo leer el JSON local: ${err.message}`);
+      }
+    });
+    $('modalClose').addEventListener('click', closeImage);
+    $('imageModal').addEventListener('click', (e) => { if(e.target.id === 'imageModal') closeImage(); });
+    document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeImage(); });
+
     loadJson();
   </script>
 </body>
