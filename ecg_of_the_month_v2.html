@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#070b12" />
-  <title>ECG of the Month · Navegador visual</title>
+  <title>ECG of the Month </title>
   <style>
     :root{
       color-scheme:dark;
@@ -293,6 +293,36 @@
     .section-head h3{margin:0; font-size:16px}
     .section-content{padding:14px; color:#dbe4f3}
     .text-block{white-space:pre-wrap; color:#dbe4f3}
+
+    .translation-box{
+      margin-top:12px;
+      border:1px solid rgba(255,153,0,.28);
+      border-left:4px solid var(--accent);
+      border-radius:16px;
+      background:linear-gradient(180deg, rgba(255,153,0,.105), rgba(15,23,42,.45));
+      padding:12px;
+      color:#fff7ed;
+      white-space:pre-wrap;
+      font-size:14px;
+      box-shadow:0 12px 28px rgba(0,0,0,.16);
+    }
+    .translation-box[hidden]{display:none}
+    .translation-box .translation-title{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      margin:0 0 8px;
+      color:var(--accent2);
+      font-weight:900;
+      font-size:12px;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .translation-box .translation-body{white-space:pre-wrap}
+    .translation-box .translation-error{color:#fecdd3}
+    .translation-note{color:var(--muted2); font-size:12px; margin-top:8px}
+    .btn[disabled]{opacity:.58; cursor:wait; transform:none}
     details.section summary{list-style:none; cursor:pointer}
     details.section summary::-webkit-details-marker{display:none}
     details.section:not([open]) .section-head{border-bottom:0}
@@ -767,7 +797,10 @@
               <button class="btn small" type="button" data-translate="case">Traducir al español</button>
             </div>
           </div>
-          <div class="section-content text-block" id="caseText">${escapeHtml(article.descripcion_del_caso || 'Sin descripción del caso.')}</div>
+          <div class="section-content">
+            <div class="text-block" id="caseText">${escapeHtml(article.descripcion_del_caso || 'Sin descripción del caso.')}</div>
+            <div class="translation-box" id="caseTranslation" hidden></div>
+          </div>
         </section>
 
         <details class="section">
@@ -783,6 +816,7 @@
               <button class="btn small" type="button" data-translate="interp">Traducir al español</button>
             </div>
             <div class="text-block" id="interpText">${escapeHtml(article.interpretacion_ecg || 'Sin interpretación ECG.')}</div>
+            <div class="translation-box" id="interpTranslation" hidden></div>
           </div>
         </details>
 
@@ -806,6 +840,7 @@
               <button class="btn small" type="button" data-translate="disc">Traducir al español</button>
             </div>
             <div class="text-block" id="discText">${escapeHtml(article.discusion || 'Sin discusión.')}</div>
+            <div class="translation-box" id="discTranslation" hidden></div>
           </div>
         </details>
 
@@ -829,6 +864,7 @@
       return `<article class="figure-card">
         ${src ? `<img loading="lazy" src="${escapeHtml(src)}" alt="${escapeHtml(fig.label || 'Figura ECG')}" data-full="${escapeHtml(src)}" data-title="${escapeHtml(fig.label || `Figura ${i+1}`)}" onerror="this.outerHTML='<div class=&quot;empty&quot;>Imagen no disponible</div>'">` : '<div class="empty">Imagen no disponible</div>'}
         <div class="fig-cap" id="figText${i}">${escapeHtml(cap)}</div>
+        <div class="translation-box" id="figTranslation${i}" hidden></div>
         <div class="fig-actions">
           <button class="btn small secondary" type="button" data-copy="fig" data-fig="${i}">Copiar</button>
           <button class="btn small" type="button" data-translate="fig" data-fig="${i}">Traducir al español</button>
@@ -865,8 +901,7 @@
         copyText(text);
       }));
       document.querySelectorAll('[data-translate]').forEach(btn => btn.addEventListener('click', () => {
-        const text = sectionText(btn.dataset.translate, btn.dataset.fig);
-        openTranslate(text);
+        translateField(btn.dataset.translate, btn.dataset.fig, btn);
       }));
     }
     function sectionText(kind, figIndex){
@@ -884,14 +919,165 @@
         toast('No se pudo copiar automáticamente');
       }
     }
-    async function openTranslate(text){
-      const cleaned = plainText(text);
+    function translationTarget(kind, figIndex){
+      if(kind === 'case') return $('caseTranslation');
+      if(kind === 'interp') return $('interpTranslation');
+      if(kind === 'disc') return $('discTranslation');
+      if(kind === 'fig') return $(`figTranslation${figIndex}`);
+      return null;
+    }
+    function translationTitle(kind){
+      if(kind === 'case') return 'Descripción del caso traducida al español';
+      if(kind === 'interp') return 'Interpretación ECG traducida al español';
+      if(kind === 'disc') return 'Discusión traducida al español';
+      if(kind === 'fig') return 'Descripción de la figura traducida al español';
+      return 'Traducción al español';
+    }
+    function simpleHash(text){
+      let h = 0x811c9dc5;
+      for(let i=0;i<text.length;i++){
+        h ^= text.charCodeAt(i);
+        h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+      }
+      return (h >>> 0).toString(16);
+    }
+    function splitForTranslation(text, maxLen=430){
+      const cleaned = cleanText(text);
+      if(cleaned.length <= maxLen) return [cleaned];
+      const parts = [];
+      const paragraphs = cleaned.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+      for(const paragraph of paragraphs){
+        if(paragraph.length <= maxLen){
+          parts.push(paragraph);
+          continue;
+        }
+        const sentences = paragraph.match(/[^.!?;:]+[.!?;:]?\s*/g) || [paragraph];
+        let buffer = '';
+        for(const sentence of sentences){
+          const s = sentence.trim();
+          if(!s) continue;
+          if((buffer + ' ' + s).trim().length <= maxLen){
+            buffer = (buffer + ' ' + s).trim();
+          }else{
+            if(buffer) parts.push(buffer);
+            if(s.length <= maxLen){
+              buffer = s;
+            }else{
+              for(let i=0;i<s.length;i+=maxLen){
+                parts.push(s.slice(i, i+maxLen));
+              }
+              buffer = '';
+            }
+          }
+        }
+        if(buffer) parts.push(buffer);
+        parts.push('\n');
+      }
+      if(parts.at(-1) === '\n') parts.pop();
+      return parts;
+    }
+    async function translateChunkMyMemory(chunk){
+      if(chunk === '\n') return '\n';
+      const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(chunk) + '&langpair=en|es';
+      const res = await fetch(url, {cache:'force-cache'});
+      if(!res.ok) throw new Error(`Error ${res.status} al traducir`);
+      const data = await res.json();
+      const translated = data?.responseData?.translatedText;
+      if(!translated) throw new Error(data?.responseDetails || 'Respuesta de traducción vacía');
+      return String(translated).replaceAll('&#39;', "'").replaceAll('&quot;', '"').replaceAll('&amp;', '&');
+    }
+    async function translateToSpanish(text, onProgress){
+      const cleaned = cleanText(text);
+      const cacheKey = 'ecg_month_translation_es_' + simpleHash(cleaned);
+      try{
+        const cached = localStorage.getItem(cacheKey);
+        if(cached) return {text: cached, cached: true};
+      }catch{}
+      const chunks = splitForTranslation(cleaned);
+      const translated = [];<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070b12" />
+  <title>ECG of the Month · Navegador visual</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#070b12;
+      --bg2:#0b1220;
+      --panel:rgba(15,23,42,.88);
+      --panel2:rgba(17,24,39,.96);
+      --panel3:rgba(2,6,23,.72);
+      --card:rgba(15,23,42,.74);
+      --line:rgba(148,163,184,.22);
+      --line2:rgba(255,153,0,.38);
+      --text:#e5e7eb;
+      --muted:#a7b3c7;
+      --muted2:#7f8da3;
+      --accent:#ff9900;
+      --accent2:#ffd08a;
+      --blue:#38bdf8;
+      --green:#36d399;
+      --red:#fb7185;
+      --shadow:0 24px 70px rgba(0,0,0,.42);
+      --radius:22px;
+      --radius2:16px;
+      --max:1480px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+
+      for(let i=0;i<chunks.length;i++){
+        if(onProgress) onProgress(i + 1, chunks.length);
+        if(chunks[i] === '\n'){
+          translated.push('\n\n');
+        }else{
+          translated.push(await translateChunkMyMemory(chunks[i]));
+          await new Promise(resolve => setTimeout(resolve, 120));
+        }
+      }
+      const finalText = translated.join(' ').replace(/\s+\n\s+/g, '\n\n').replace(/\n\s+/g, '\n').trim();
+      try{ localStorage.setItem(cacheKey, finalText); }catch{}
+      return {text: finalText, cached: false};
+    }
+    async function translateField(kind, figIndex, btn){
+      const text = sectionText(kind, figIndex);
+      const cleaned = cleanText(text);
+      const target = translationTarget(kind, figIndex);
       if(!cleaned){ toast('No hay texto para traducir'); return; }
-      try{ await navigator.clipboard.writeText(cleaned); }catch{}
-      const limited = cleaned.length > 4800 ? cleaned.slice(0,4800) : cleaned;
-      const url = 'https://translate.google.com/?sl=en&tl=es&text=' + encodeURIComponent(limited) + '&op=translate';
-      window.open(url, '_blank', 'noopener');
-      toast(cleaned.length > 4800 ? 'Texto completo copiado; Google Translate abre el inicio' : 'Abriendo traducción');
+      if(!target){ toast('No se encontró el campo de traducción'); return; }
+
+      if(target.dataset.done === '1'){
+        target.hidden = !target.hidden;
+        btn.textContent = target.hidden ? 'Ver traducción' : 'Ocultar traducción';
+        return;
+      }
+
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      target.hidden = false;
+      target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>traduciendo…</span></div><div class="translation-body">Preparando traducción.</div><div class="translation-note">La traducción se genera dentro de esta página y queda guardada en la caché local del navegador.</div>`;
+      try{
+        const result = await translateToSpanish(cleaned, (n,total) => {
+          btn.textContent = `Traduciendo ${n}/${total}`;
+          const body = target.querySelector('.translation-body');
+          if(body) body.textContent = `Traduciendo fragmento ${n} de ${total}…`;
+        });
+        target.dataset.done = '1';
+        target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>${result.cached ? 'caché local' : 'traducido'}</span></div><div class="translation-body">${escapeHtml(result.text)}</div><div class="translation-note">Traducción automática. Revisa términos médicos si vas a usarlo en un informe o docencia.</div>`;
+        btn.textContent = 'Ocultar traducción';
+        toast('Traducción insertada en la ficha');
+      }catch(err){
+        target.innerHTML = `<div class="translation-title"><span>${escapeHtml(translationTitle(kind))}</span><span>error</span></div><div class="translation-error">No se pudo traducir dentro de la página: ${escapeHtml(err.message || err)}.</div><div class="translation-note">Puede deberse a límite temporal de la API pública, CORS o conexión. Inténtalo de nuevo más tarde.</div>`;
+        btn.textContent = originalLabel;
+        toast('Error de traducción');
+      }finally{
+        btn.disabled = false;
+      }
     }
     function openImage(src, title){
       $('modalImg').src = src;
