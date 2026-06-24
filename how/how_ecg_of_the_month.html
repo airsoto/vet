@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#090f1a" />
+  <meta name="description" content="Cómo se extraen datos de AVMA Journals para crear una base de datos ECG of the Month." />
+  <title>Cómo se extraen los datos | ECG of the Month</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b12;
+      --bg2: #0b1220;
+      --panel: rgba(15, 23, 42, 0.92);
+      --panel2: rgba(17, 24, 39, 0.96);
+      --line: rgba(148, 163, 184, 0.22);
+      --line2: rgba(255, 153, 0, 0.35);
+      --text: #e5e7eb;
+      --muted: #a7b3c7;
+      --soft: #cbd5e1;
+      --accent: #ff9900;
+      --accent2: #fbbf24;
+      --good: #34d399;
+      --bad: #fb7185;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+      --radius: 22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 153, 0, 0.12), transparent 34rem),
+        radial-gradient(circle at 85% 18%, rgba(96, 165, 250, 0.12), transparent 30rem),
+        linear-gradient(135deg, #070b12 0%, #0b1220 52%, #111827 100%);
+    }
+
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 26px 0 38px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: clamp(22px, 4vw, 42px);
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(8, 13, 22, 0.88)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 52px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "ECG";
+      position: absolute;
+      right: -26px;
+      bottom: -42px;
+      font-size: clamp(82px, 17vw, 210px);
+      font-weight: 900;
+      letter-spacing: -0.1em;
+      color: rgba(255, 255, 255, 0.035);
+      pointer-events: none;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent2);
+      background: rgba(255, 153, 0, 0.09);
+      border: 1px solid rgba(255, 153, 0, 0.28);
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      margin: 14px 0 0;
+      max-width: 960px;
+      font-size: clamp(32px, 7vw, 72px);
+      line-height: 0.93;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      margin: 18px 0 0;
+      max-width: 860px;
+      color: var(--soft);
+      font-size: clamp(16px, 2.4vw, 20px);
+      line-height: 1.62;
+    }
+
+    .home a {
+      color: #e5e7eb;
+      opacity: 0.9;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn {
+      border: 1px solid rgba(255, 153, 0, 0.45);
+      background: linear-gradient(180deg, rgba(255, 153, 0, 0.18), rgba(255, 153, 0, 0.08));
+      color: #fff7ed;
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-weight: 750;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 28px rgba(255, 153, 0, 0.08);
+    }
+
+    .btn.secondary {
+      border-color: var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      text-decoration: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .card {
+      grid-column: span 12;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: clamp(17px, 2.6vw, 26px);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.22);
+    }
+
+    .card.compact { padding: 18px; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: clamp(20px, 3vw, 31px);
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+    }
+
+    .card h3 {
+      margin: 18px 0 8px;
+      color: var(--accent2);
+      font-size: 16px;
+    }
+
+    .card p, .card li {
+      color: var(--soft);
+      line-height: 1.65;
+    }
+
+    .muted { color: var(--muted); }
+    .accent { color: var(--accent2); }
+    .ok { color: var(--good); }
+    .warn { color: var(--bad); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.35);
+      border-radius: 18px;
+      padding: 15px;
+      min-height: 126px;
+    }
+
+    .step b {
+      display: inline-flex;
+      width: 30px;
+      height: 30px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(255, 153, 0, 0.15);
+      border: 1px solid rgba(255, 153, 0, 0.35);
+      color: var(--accent2);
+      margin-bottom: 9px;
+    }
+
+    .pillbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--soft);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .schema {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .field {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.035);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .field code {
+      display: block;
+      color: var(--accent2);
+      font-family: var(--mono);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .field span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .code-panel {
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 153, 0, 0.28);
+      background: #020617;
+      margin-top: 14px;
+    }
+
+    .code-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.20);
+      background: linear-gradient(180deg, rgba(255, 153, 0, 0.12), rgba(255,255,255,0.02));
+    }
+
+    .code-title {
+      font-family: var(--mono);
+      color: #fde68a;
+      font-size: 13px;
+    }
+
+    .code-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mini-btn {
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      background: rgba(15, 23, 42, 0.94);
+      color: #e5e7eb;
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mini-btn:hover { border-color: rgba(255, 153, 0, 0.6); }
+
+    pre {
+      margin: 0;
+      max-height: 70vh;
+      overflow: auto;
+      padding: 18px;
+      background:
+        linear-gradient(90deg, rgba(255,153,0,0.06), transparent 260px),
+        #020617;
+      color: #d1d5db;
+      font-family: var(--mono);
+      font-size: 12.8px;
+      line-height: 1.55;
+      tab-size: 4;
+      white-space: pre;
+    }
+
+    code { font-family: var(--mono); }
+
+    .terminal {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(2, 6, 23, 0.75);
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #d1d5db;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    .footer {
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(2, 6, 23, 0.72);
+      padding: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .footer a { color: var(--accent2); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(255, 153, 0, 0.38);
+      color: #fff7ed;
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: var(--shadow);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 50;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .span-4, .span-5, .span-7, .span-8 { grid-column: span 12; }
+      .flow { grid-template-columns: 1fr 1fr; }
+      .schema { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .wrap { width: min(100% - 18px, 1180px); padding-top: 12px; }
+      .hero { border-radius: 22px; }
+      .flow { grid-template-columns: 1fr; }
+      pre { font-size: 11.5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <span class="kicker">⚡ Base de datos · ECG of the Month · AVMA Journals</span>
+      <h1>Cómo se extraen los datos para crear la base de ECG del mes</h1>
+
+<!-- BLOQUE DESARROLLADO POR + HOME -->
+<div style="margin:10px 0 0 0;">
+<h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+<span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+</h2>
+<p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+<a href="https://airsoto.github.io/vet/"; target="_blank" rel="noopener">
+🏠 <span>volver a página de inicio</span>
+</a>
+</p>
+</div>
+
+      <p class="lead">
+        Esta página documenta el proceso técnico usado para recorrer los resultados de búsqueda de
+        <strong>AVMA Journals</strong>, entrar en cada artículo <em>ECG of the Month</em> y generar un archivo JSON
+        estructurado con autores, caso clínico, interpretación electrocardiográfica, figuras, discusión y referencias.
+      </p>
+      <div class="toolbar">
+        <a class="btn" href="#python">🐍 Ver Python completo</a>
+        <button class="btn secondary" onclick="downloadPython()">⬇️ Descargar Python</button>
+        <button class="btn secondary" onclick="copyPython()">📋 Copiar Python</button>
+        <a class="btn secondary" href="https://avmajournals.avma.org/search?q1=ECG+of+the+Month" target="_blank" rel="noopener">🔎 Abrir búsqueda AVMA</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="grid">
+        <article class="card span-7">
+          <h2>Objetivo del proyecto</h2>
+          <p>
+            El objetivo es convertir una colección dispersa de artículos de la sección
+            <span class="accent">ECG of the Month</span> en una base de datos legible por máquinas. El resultado final
+            es un JSON que puede alimentar una web docente, un buscador, un quiz clínico o una herramienta de revisión
+            electrocardiográfica veterinaria.
+          </p>
+          <div class="pillbar">
+            <span class="pill">🧠 Docencia ECG</span>
+            <span class="pill">📄 Artículos JAVMA</span>
+            <span class="pill">🖼️ Figuras ECG</span>
+            <span class="pill">🧬 JSON estructurado</span>
+            <span class="pill">🔗 Referencias con enlaces</span>
+          </div>
+        </article>
+
+        <article class="card span-5">
+          <h2>Fuente de datos</h2>
+          <p>
+            Punto de entrada: la búsqueda de AVMA Journals con la consulta
+            <code>ECG of the Month</code>. El script recorre desde la página 1 hasta la 36, usando URLs como:
+          </p>
+          <div class="terminal">https://avmajournals.avma.org/search?access=all&page=2&pageSize=10&q1=ECG+of+the+Month&sort=relevance</div>
+          <p class="muted">
+            El script no intenta saltarse restricciones de acceso. Si la web requiere sesión institucional, permite usar
+            cookies válidas del navegador mediante <code>--cookies</code>.
+          </p>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Flujo de extracción</h2>
+        <div class="flow">
+          <div class="step">
+            <b>1</b>
+            <h3>Páginas de búsqueda</h3>
+            <p>Recorre <code>page=1</code> a <code>page=36</code> y localiza enlaces de artículos.</p>
+          </div>
+          <div class="step">
+            <b>2</b>
+            <h3>Filtro ECG</h3>
+            <p>Valida que el título o tipo editorial sea realmente <em>ECG of the Month</em>.</p>
+          </div>
+          <div class="step">
+            <b>3</b>
+            <h3>Extracción HTML</h3>
+            <p>Lee autores, metadatos, cuerpo, figuras, discusión, notas y referencias.</p>
+          </div>
+          <div class="step">
+            <b>4</b>
+            <h3>Salida JSON</h3>
+            <p>Guarda un archivo estructurado reutilizable para una web o base docente.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card span-8">
+          <h2>Selectores HTML principales</h2>
+          <p>El scraper usa selectores estables de la página de AVMA. Los más importantes son:</p>
+          <div class="schema">
+            <div class="field"><code>meta[name="citation_*"]</code><span>DOI, PDF original, revista, volumen, número, fecha y páginas.</span></div>
+            <div class="field"><code>.component-content-contributors</code><span>Bloque de autores, credenciales, filiación y enlaces de búsqueda.</span></div>
+            <div class="field"><code>#articleBody</code><span>Cuerpo principal del artículo. Aquí se separan caso, secciones, figuras y referencias.</span></div>
+            <div class="field"><code>#articleBody &gt; p</code><span>Primeros párrafos antes del primer <code>h2</code>: descripción del caso clínico.</span></div>
+            <div class="field"><code>div.section h2</code><span>Permite localizar secciones como <em>ECG Interpretation</em> y <em>Discussion</em>.</span></div>
+            <div class="field"><code>div.figure</code><span>Cada figura ECG, su URL, versión full-size, enlace de descarga y caption.</span></div>
+            <div class="field"><code>.footnoteGroup .footnote</code><span>Notas técnicas de equipos, monitores o aclaraciones de la publicación.</span></div>
+            <div class="field"><code>section.refSection .reference</code><span>Referencias con texto completo y enlaces Crossref, Google Scholar y Export Citation.</span></div>
+          </div>
+        </article>
+
+        <article class="card span-4">
+          <h2>Campos creados</h2>
+          <p>El JSON de salida incluye, por cada artículo:</p>
+          <ul>
+            <li><code>title</code>, <code>article_url</code>, <code>doi</code>, <code>pdf_original_url</code></li>
+            <li><code>authors</code></li>
+            <li><code>descripcion_del_caso</code></li>
+            <li><code>interpretacion_ecg</code></li>
+            <li><code>figures[]</code></li>
+            <li><code>discusion</code></li>
+            <li><code>footnotes[]</code></li>
+            <li><code>referencias[]</code></li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card span-6">
+          <h2>Instalación recomendada en Ubuntu</h2>
+          <p>
+            En sistemas modernos puede aparecer el error <code>externally-managed-environment</code>. La forma limpia es usar
+            un entorno virtual:
+          </p>
+          <div class="terminal">cd ~/Downloads/111<br>
+sudo apt update<br>
+sudo apt install python3-full python3-venv -y<br>
+python3 -m venv .venv<br>
+source .venv/bin/activate<br>
+python -m pip install --upgrade pip<br>
+python -m pip install requests beautifulsoup4 lxml</div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Ejecución</h2>
+          <p>Para extraer todas las páginas de la búsqueda:</p>
+          <div class="terminal">python avma_ecg_scraper.py --page-start 1 --page-end 36 --output ecg_of_the_month.json</div>
+          <p>Para probar el parser con un HTML local ya guardado:</p>
+          <div class="terminal">python avma_ecg_scraper.py --html-file "html ejemplo.html" --output ejemplo.json</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Consideraciones técnicas y éticas</h2>
+        <p>
+          El script está diseñado para ser moderado: usa pausas, cabeceras normales de navegador y reintentos controlados.
+          No descarga masivamente imágenes ni PDFs; extrae sus URLs. Si el contenido está protegido por una sesión institucional,
+          debe usarse únicamente con acceso autorizado. ⚠️
+        </p>
+      </section>
+
+      <section class="card" id="python">
+        <h2>Python completo</h2>
+        <p>
+          Esta ventana contiene el script completo para extraer la base de datos. Puedes copiarlo o descargarlo directamente
+          desde esta página.
+        </p>
+        <div class="code-panel">
+          <div class="code-head">
+            <span class="code-title">avma_ecg_scraper.py</span>
+            <div class="code-actions">
+              <button class="mini-btn" onclick="copyPython()">📋 Copiar</button>
+              <button class="mini-btn" onclick="downloadPython()">⬇️ Descargar .py</button>
+              <a class="mini-btn" href="avma_ecg_scraper.py" download>🔗 Descargar archivo externo</a>
+            </div>
+          </div>
+          <pre><code id="pythonCode">#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+&quot;&quot;&quot;
+Scraper para AVMA Journals - ECG of the Month.
+
+Recorre las paginas de busqueda:
+  https://avmajournals.avma.org/search?access=all&amp;page=N&amp;pageSize=10&amp;q1=ECG+of+the+Month&amp;sort=relevance
+extrae los enlaces de articulos, entra en cada articulo y crea un JSON con:
+  autores, descripcion_del_caso, interpretacion_ecg, figuras, discusion, referencias, PDF, DOI, etc.
+
+Instalacion:
+  pip install requests beautifulsoup4 lxml
+
+Uso basico:
+  python avma_ecg_scraper.py --output ecg_of_the_month.json
+
+Prueba con un HTML local de ejemplo:
+  python avma_ecg_scraper.py --html-file &quot;html ejemplo.html&quot; --output ejemplo.json
+
+Si AVMA bloquea el acceso por sesion/login institucional, exporta tu cookie del navegador y usa:
+  python avma_ecg_scraper.py --cookies &quot;cookie1=valor; cookie2=valor&quot; --output ecg_of_the_month.json
+&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import html as html_lib
+import json
+import re
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urljoin, urlsplit, urlunsplit
+
+import requests
+from bs4 import BeautifulSoup, NavigableString, Tag
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+BASE_URL = &quot;https://avmajournals.avma.org&quot;
+SEARCH_URL_TEMPLATE = (
+    BASE_URL
+    + &quot;/search?access=all&amp;page={page}&amp;pageSize=10&amp;q1=ECG+of+the+Month&amp;sort=relevance&quot;
+)
+
+DEFAULT_HEADERS = {
+    &quot;User-Agent&quot;: (
+        &quot;Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 &quot;
+        &quot;(KHTML, like Gecko) Chrome/143.0 Safari/537.36&quot;
+    ),
+    &quot;Accept&quot;: &quot;text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8&quot;,
+    &quot;Accept-Language&quot;: &quot;en-US,en;q=0.9,es;q=0.8&quot;,
+    &quot;Cache-Control&quot;: &quot;no-cache&quot;,
+    &quot;Pragma&quot;: &quot;no-cache&quot;,
+    &quot;Referer&quot;: BASE_URL + &quot;/&quot;,
+}
+
+
+@dataclass
+class FetchResult:
+    url: str
+    html: str
+    status_code: int
+
+
+def clean_text(text: Optional[str]) -&gt; Optional[str]:
+    &quot;&quot;&quot;Normaliza texto sin destruir unidades ni simbolos.&quot;&quot;&quot;
+    if text is None:
+        return None
+    text = html_lib.unescape(text)
+    text = text.replace(&quot;\xa0&quot;, &quot; &quot;)
+    text = text.replace(&quot;\u2009&quot;, &quot; &quot;)
+    text = text.replace(&quot;\u202f&quot;, &quot; &quot;)
+    text = re.sub(r&quot;[\r\t\f\v]+&quot;, &quot; &quot;, text)
+    text = re.sub(r&quot;\n\s*\n+&quot;, &quot;\n\n&quot;, text)
+    text = re.sub(r&quot;[ ]+&quot;, &quot; &quot;, text)
+    text = re.sub(r&quot;\s+([,.;:?!])&quot;, r&quot;\1&quot;, text)
+    text = re.sub(r&quot;([(\[])\s+&quot;, r&quot;\1&quot;, text)
+    text = re.sub(r&quot;\s+([)\]])&quot;, r&quot;\1&quot;, text)
+    # No se eliminan espacios alrededor de guiones de forma global: evita convertir &quot;50- or&quot; en &quot;50-or&quot;.
+    text = text.strip()
+    return text or None
+
+
+def text_of(node: Optional[Tag], separator: str = &quot;&quot;) -&gt; Optional[str]:
+    &quot;&quot;&quot;Extrae texto de un nodo HTML evitando scripts, botones y bloques debug.&quot;&quot;&quot;
+    if node is None:
+        return None
+    # Clonar el nodo evita modificar el arbol original al eliminar subnodos.
+    clone_soup = BeautifulSoup(str(node), &quot;lxml&quot;)
+    for bad in clone_soup.select(
+        &quot;script, style, button, .debug, .screen-reader-text, .visibility-hidden .screen-reader-text&quot;
+    ):
+        bad.decompose()
+    return clean_text(clone_soup.get_text(separator=separator, strip=False))
+
+
+def normalize_for_match(text: Optional[str]) -&gt; str:
+    return re.sub(r&quot;\s+&quot;, &quot; &quot;, (text or &quot;&quot;).strip()).lower()
+
+
+def absolute_url(href: Optional[str], base: str = BASE_URL) -&gt; Optional[str]:
+    if not href:
+        return None
+    href = href.strip()
+    if not href:
+        return None
+    if href.startswith(&quot;//&quot;):
+        href = &quot;https:&quot; + href
+    return urljoin(base, href)
+
+
+def strip_query_and_fragment(url: str) -&gt; str:
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, &quot;&quot;, &quot;&quot;))
+
+
+def meta_content(soup: BeautifulSoup, name: Optional[str] = None, prop: Optional[str] = None) -&gt; Optional[str]:
+    attrs: dict[str, str] = {}
+    if name:
+        attrs[&quot;name&quot;] = name
+    if prop:
+        attrs[&quot;property&quot;] = prop
+    tag = soup.find(&quot;meta&quot;, attrs=attrs)
+    if tag and tag.get(&quot;content&quot;):
+        return clean_text(tag.get(&quot;content&quot;))
+    return None
+
+
+def all_meta_contents(soup: BeautifulSoup, name: str) -&gt; list[str]:
+    values: list[str] = []
+    for tag in soup.find_all(&quot;meta&quot;, attrs={&quot;name&quot;: name}):
+        value = clean_text(tag.get(&quot;content&quot;))
+        if value:
+            values.append(value)
+    return values
+
+
+def make_session(cookie_header: Optional[str] = None) -&gt; requests.Session:
+    session = requests.Session()
+    session.headers.update(DEFAULT_HEADERS)
+    if cookie_header:
+        session.headers[&quot;Cookie&quot;] = cookie_header
+
+    retry = Retry(
+        total=4,
+        connect=4,
+        read=4,
+        status=4,
+        backoff_factor=1.0,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=(&quot;GET&quot;, &quot;HEAD&quot;),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=8, pool_maxsize=8)
+    session.mount(&quot;https://&quot;, adapter)
+    session.mount(&quot;http://&quot;, adapter)
+    return session
+
+
+def fetch(session: requests.Session, url: str, timeout: int = 30, delay: float = 0.5) -&gt; FetchResult:
+    time.sleep(max(0.0, delay))
+    resp = session.get(url, timeout=timeout)
+    if resp.status_code in (401, 403):
+        raise RuntimeError(
+            f&quot;Acceso bloqueado ({resp.status_code}) para {url}. &quot;
+            &quot;Prueba con --cookies si necesitas una sesion institucional/autenticada.&quot;
+        )
+    if resp.status_code &gt;= 400:
+        raise RuntimeError(f&quot;HTTP {resp.status_code} al descargar {url}&quot;)
+    resp.encoding = resp.encoding or &quot;utf-8&quot;
+    return FetchResult(url=url, html=resp.text, status_code=resp.status_code)
+
+
+def collect_article_links_from_search_html(html: str, page_url: str) -&gt; list[str]:
+    &quot;&quot;&quot;Extrae posibles enlaces a articulos desde una pagina de resultados.
+
+    El buscador puede repetir enlaces dentro de la tarjeta; se deduplican y luego
+    cada articulo se valida por titulo/editorial type antes de extraerlo.
+    &quot;&quot;&quot;
+    soup = BeautifulSoup(html, &quot;lxml&quot;)
+    candidates_all: list[str] = []
+    candidates_ecg: list[str] = []
+
+    for a in soup.select(&#x27;a[href*=&quot;/view/journals/&quot;]&#x27;):
+        href = a.get(&quot;href&quot;)
+        abs_url = absolute_url(href, page_url)
+        if not abs_url:
+            continue
+        clean_url = strip_query_and_fragment(abs_url)
+        path = urlsplit(clean_url).path
+        if not path.endswith(&quot;.xml&quot;):
+            continue
+        if any(skip in path for skip in (&quot;.issue-&quot;, &quot;-overview.xml&quot;, &quot;/pdfviewer/&quot;)):
+            continue
+
+        candidates_all.append(clean_url)
+
+        a_text = text_of(a) or &quot;&quot;
+        parent = a.find_parent([&quot;article&quot;, &quot;li&quot;, &quot;div&quot;])
+        context = text_of(parent) if parent else a_text
+        if &quot;ecg of the month&quot; in normalize_for_match(a_text) or &quot;ecg of the month&quot; in normalize_for_match(context):
+            candidates_ecg.append(clean_url)
+
+    chosen = candidates_ecg or candidates_all
+    return dedupe_preserve_order(chosen)
+
+
+def dedupe_preserve_order(items: list[str]) -&gt; list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def extract_definition_value(soup: BeautifulSoup, class_name: str) -&gt; Optional[str]:
+    dd = soup.select_one(f&quot;dl.{class_name} dd&quot;)
+    return text_of(dd) if dd else None
+
+
+def extract_authors(soup: BeautifulSoup) -&gt; list[dict[str, Any]]:
+    authors: list[dict[str, Any]] = []
+
+    for details in soup.select(&quot;.component-content-contributors .contributor-details&quot;):
+        if not isinstance(details, Tag):
+            continue
+        name_el = details.select_one(&#x27;[data-testid=&quot;author-name&quot;]&#x27;)
+        name = text_of(name_el)
+        if not name:
+            continue
+
+        affiliation_el = details.select_one(&quot;.contributor-details-pop-up-affiliation .text&quot;)
+        affiliation = text_of(affiliation_el)
+
+        links: list[dict[str, Optional[str]]] = []
+        popup = details.select_one(&quot;.contributor-details-pop-up-affiliation&quot;)
+        if popup:
+            for link in popup.select(&quot;a[href]&quot;):
+                links.append(
+                    {
+                        &quot;label&quot;: text_of(link),
+                        &quot;url&quot;: absolute_url(link.get(&quot;href&quot;)),
+                    }
+                )
+
+        # Credenciales: en esta web suelen aparecer como texto directo despues del bloque del autor.
+        credential_parts: list[str] = []
+        for child in details.contents:
+            if isinstance(child, NavigableString):
+                credential_parts.append(str(child))
+            elif isinstance(child, Tag):
+                classes = child.get(&quot;class&quot;, [])
+                if &quot;contributor-details-block&quot; not in classes:
+                    credential_parts.append(child.get_text(&quot; &quot;, strip=True))
+        credentials = clean_text(&quot; &quot;.join(credential_parts))
+        if credentials:
+            credentials = re.sub(r&quot;^(,|and)\s*&quot;, &quot;&quot;, credentials).strip()
+            credentials = credentials or None
+
+        authors.append(
+            {
+                &quot;name&quot;: name,
+                &quot;credentials&quot;: credentials,
+                &quot;affiliation&quot;: affiliation,
+                &quot;links&quot;: links,
+            }
+        )
+
+    # Fallback si no esta visible el bloque de autores.
+    if not authors:
+        for name in all_meta_contents(soup, &quot;citation_author&quot;):
+            authors.append({&quot;name&quot;: name, &quot;credentials&quot;: None, &quot;affiliation&quot;: None, &quot;links&quot;: []})
+
+    return authors
+
+
+def article_body(soup: BeautifulSoup) -&gt; Optional[Tag]:
+    return soup.select_one(&quot;#articleBody&quot;)
+
+
+def extract_case_description(body: Optional[Tag]) -&gt; Optional[str]:
+    &quot;&quot;&quot;Primeros parrafos del cuerpo antes de la primera seccion/h2.&quot;&quot;&quot;
+    if body is None:
+        return None
+    parts: list[str] = []
+    for child in body.children:
+        if isinstance(child, NavigableString):
+            continue
+        if not isinstance(child, Tag):
+            continue
+        if child.name in {&quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;section&quot;}:
+            break
+        if child.name == &quot;div&quot; and (&quot;section&quot; in child.get(&quot;class&quot;, []) or child.find([&quot;h2&quot;, &quot;h3&quot;])):
+            break
+        if child.name == &quot;p&quot;:
+            t = text_of(child)
+            if t:
+                parts.append(t)
+    return &quot;\n\n&quot;.join(parts) if parts else None
+
+
+def find_section(body: Optional[Tag], heading_contains: str) -&gt; Optional[Tag]:
+    if body is None:
+        return None
+    target = normalize_for_match(heading_contains)
+    for h in body.find_all([&quot;h2&quot;, &quot;h3&quot;]):
+        h_text = normalize_for_match(text_of(h))
+        if target in h_text:
+            section = h.find_parent(
+                lambda tag: isinstance(tag, Tag)
+                and tag.name in {&quot;div&quot;, &quot;section&quot;}
+                and (&quot;section&quot; in tag.get(&quot;class&quot;, []) or tag.name == &quot;section&quot;)
+            )
+            return section or h.parent
+    return None
+
+
+def extract_section_text(body: Optional[Tag], heading_contains: str, include_heading: bool = False) -&gt; Optional[str]:
+    section = find_section(body, heading_contains)
+    if section is None:
+        return None
+
+    parts: list[str] = []
+    heading = section.find([&quot;h2&quot;, &quot;h3&quot;])
+    if include_heading and heading:
+        h_text = text_of(heading)
+        if h_text:
+            parts.append(h_text)
+
+    # Parrafos directos: evita meter pies de figura que estan dentro de div.figure.
+    direct_paragraphs = section.find_all(&quot;p&quot;, recursive=False)
+    for p in direct_paragraphs:
+        if &quot;citation&quot; in p.get(&quot;class&quot;, []):
+            continue
+        t = text_of(p)
+        if t:
+            parts.append(t)
+
+    # Fallback para estructuras menos limpias.
+    if len(parts) == (1 if include_heading else 0):
+        for p in section.select(&quot;:scope &gt; p&quot;):
+            t = text_of(p)
+            if t:
+                parts.append(t)
+
+    return &quot;\n\n&quot;.join(parts) if parts else None
+
+
+def extract_figures(body: Optional[Tag], page_url: str) -&gt; list[dict[str, Any]]:
+    if body is None:
+        return []
+    figures: list[dict[str, Any]] = []
+
+    for fig_div in body.select(&quot;div.figure&quot;):
+        fig_id = fig_div.get(&quot;id&quot;)
+        label = text_of(fig_div.select_one(&quot;figcaption&quot;))
+        number = None
+        number_source = &quot; &quot;.join(x for x in [fig_id or &quot;&quot;, label or &quot;&quot;] if x)
+        m = re.search(r&quot;figure\s*(\d+)|fig(?:ure)?(\d+)&quot;, number_source, flags=re.I)
+        if m:
+            number = int(next(g for g in m.groups() if g))
+
+        inline_url = None
+        full_url = None
+        for img in fig_div.select(&quot;img&quot;):
+            src = img.get(&quot;data-image-src&quot;) or img.get(&quot;src&quot;)
+            abs_src = absolute_url(src, page_url)
+            if not abs_src:
+                continue
+            if &quot;full-&quot; in abs_src and not full_url:
+                full_url = abs_src
+            elif &quot;inline-&quot; in abs_src and not inline_url:
+                inline_url = abs_src
+            elif not inline_url:
+                inline_url = abs_src
+
+        download_a = fig_div.select_one(&#x27;li.download-figure a[download][href], a[download][href*=&quot;.figure.&quot;]&#x27;)
+        image_download_url = absolute_url(download_a.get(&quot;href&quot;), page_url) if download_a else None
+
+        caption_wrapper = fig_div.select_one(&quot;.figure-text-wrapper&quot;) or fig_div
+        caption_parts: list[str] = []
+        if label:
+            caption_parts.append(label)
+        citation_text = None
+        for p in caption_wrapper.find_all(&quot;p&quot;, recursive=False):
+            t = text_of(p)
+            if not t:
+                continue
+            if &quot;citation&quot; in p.get(&quot;class&quot;, []):
+                citation_text = t
+            else:
+                caption_parts.append(t)
+
+        alt_text = None
+        img_alt = fig_div.select_one(&quot;img[alt]&quot;)
+        if img_alt:
+            alt_text = clean_text(img_alt.get(&quot;alt&quot;))
+        ppt_a = fig_div.select_one(&quot;a.export-figure-ppt[alt-text]&quot;)
+        if ppt_a and ppt_a.get(&quot;alt-text&quot;):
+            alt_text = clean_text(ppt_a.get(&quot;alt-text&quot;)) or alt_text
+
+        figures.append(
+            {
+                &quot;figure_number&quot;: number,
+                &quot;figure_id&quot;: fig_id,
+                &quot;label&quot;: label,
+                &quot;image_url_inline&quot;: inline_url,
+                &quot;image_url_full&quot;: full_url,
+                &quot;image_download_url&quot;: image_download_url,
+                &quot;descripcion_figura&quot;: &quot;\n&quot;.join(caption_parts) if caption_parts else None,
+                &quot;citation&quot;: citation_text,
+                &quot;alt_text&quot;: alt_text,
+            }
+        )
+
+    figures.sort(key=lambda f: (f[&quot;figure_number&quot;] is None, f[&quot;figure_number&quot;] or 9999))
+    return figures
+
+
+def extract_footnotes(body: Optional[Tag]) -&gt; list[dict[str, Optional[str]]]:
+    if body is None:
+        return []
+    footnotes: list[dict[str, Optional[str]]] = []
+    for fn in body.select(&quot;.footnoteGroup .footnote&quot;):
+        label = text_of(fn.select_one(&quot;.label&quot;))
+        text = text_of(fn.select_one(&quot;p&quot;))
+        footnotes.append({&quot;label&quot;: label, &quot;text&quot;: text})
+    return footnotes
+
+
+def extract_references(body: Optional[Tag], page_url: str) -&gt; list[dict[str, Any]]:
+    if body is None:
+        return []
+    ref_section = body.select_one(&quot;section.refSection&quot;)
+    if ref_section is None:
+        ref_section = find_section(body, &quot;References&quot;)
+    if ref_section is None:
+        return []
+
+    refs: list[dict[str, Any]] = []
+    for ref in ref_section.select(&quot;div.reference&quot;):
+        number = text_of(ref.select_one(&quot;.label&quot;))
+        citation_p = ref.select_one(&quot;p.citationText&quot;)
+        full_citation = text_of(citation_p)
+
+        citation_links: list[dict[str, Optional[str]]] = []
+        if citation_p:
+            for a in citation_p.select(&quot;a[href]&quot;):
+                citation_links.append({&quot;label&quot;: text_of(a), &quot;url&quot;: absolute_url(a.get(&quot;href&quot;), page_url)})
+
+        crossref_url = None
+        google_scholar_url = None
+        export_citation_url = None
+        action_links: list[dict[str, Optional[str]]] = []
+        for a in ref.select(&quot;ul.citationActions a[href]&quot;):
+            label = text_of(a) or &quot;&quot;
+            href = absolute_url(a.get(&quot;href&quot;), page_url)
+            action_links.append({&quot;label&quot;: label, &quot;url&quot;: href})
+            low = normalize_for_match(label)
+            classes = &quot; &quot;.join(a.get(&quot;class&quot;, []))
+            if &quot;crossref&quot; in low or &quot;doi&quot; in classes.lower():
+                crossref_url = href
+            elif &quot;google scholar&quot; in low or &quot;googlescholar&quot; in classes.lower():
+                google_scholar_url = href
+            elif &quot;export&quot; in low or &quot;exportcitation&quot; in classes.lower():
+                export_citation_url = href
+
+        refs.append(
+            {
+                &quot;number&quot;: number,
+                &quot;full_citation&quot;: full_citation,
+                &quot;authors&quot;: text_of(ref.select_one(&quot;.person-group&quot;)),
+                &quot;article_title&quot;: text_of(ref.select_one(&quot;.article-title&quot;)),
+                &quot;journal_or_source&quot;: text_of(ref.select_one(&quot;i&quot;)),
+                &quot;year&quot;: text_of(ref.select_one(&quot;.year&quot;)),
+                &quot;external_urls_in_citation&quot;: citation_links,
+                &quot;crossref_url&quot;: crossref_url,
+                &quot;google_scholar_url&quot;: google_scholar_url,
+                &quot;export_citation_url&quot;: export_citation_url,
+                &quot;action_links&quot;: action_links,
+            }
+        )
+
+    return refs
+
+
+def extract_pdf_url(soup: BeautifulSoup, page_url: str) -&gt; Optional[str]:
+    pdf = meta_content(soup, name=&quot;citation_pdf_url&quot;)
+    if pdf:
+        return absolute_url(pdf, page_url)
+    a = soup.select_one(&#x27;a.pdf-download[href], a[title=&quot;Download PDF&quot;][href], a[href*=&quot;/downloadpdf/&quot;]&#x27;)
+    return absolute_url(a.get(&quot;href&quot;), page_url) if a else None
+
+
+def extract_article(html: str, page_url: str) -&gt; dict[str, Any]:
+    soup = BeautifulSoup(html, &quot;lxml&quot;)
+    body = article_body(soup)
+
+    canonical = None
+    canonical_link = soup.find(&quot;link&quot;, rel=lambda x: x and &quot;canonical&quot; in x)
+    if canonical_link and canonical_link.get(&quot;href&quot;):
+        canonical = absolute_url(canonical_link.get(&quot;href&quot;), page_url)
+    article_url = strip_query_and_fragment(canonical or meta_content(soup, prop=&quot;og:url&quot;) or page_url)
+
+    title = meta_content(soup, name=&quot;citation_title&quot;) or meta_content(soup, prop=&quot;og:title&quot;)
+    editorial_type = extract_definition_value(soup, &quot;editorialType&quot;)
+
+    article = {
+        &quot;title&quot;: title,
+        &quot;editorial_type&quot;: editorial_type,
+        &quot;article_url&quot;: article_url,
+        &quot;doi&quot;: meta_content(soup, name=&quot;citation_doi&quot;) or meta_content(soup, name=&quot;dc.identifier&quot;),
+        &quot;journal&quot;: meta_content(soup, name=&quot;citation_journal_title&quot;),
+        &quot;publication_date&quot;: meta_content(soup, name=&quot;citation_publication_date&quot;)
+        or meta_content(soup, prop=&quot;article:published_time&quot;)
+        or extract_definition_value(soup, &quot;onlinepubdate&quot;),
+        &quot;volume&quot;: meta_content(soup, name=&quot;citation_volume&quot;),
+        &quot;issue&quot;: meta_content(soup, name=&quot;citation_issue&quot;),
+        &quot;pages&quot;: build_pages(
+            meta_content(soup, name=&quot;citation_firstpage&quot;),
+            meta_content(soup, name=&quot;citation_lastpage&quot;),
+            extract_definition_value(soup, &quot;pagerange&quot;),
+        ),
+        &quot;pdf_original_url&quot;: extract_pdf_url(soup, page_url),
+        &quot;autores&quot;: extract_authors(soup),
+        &quot;descripcion_del_caso&quot;: extract_case_description(body),
+        &quot;interpretacion_ecg&quot;: extract_section_text(body, &quot;ECG Interpretation&quot;, include_heading=False),
+        &quot;figuras&quot;: extract_figures(body, page_url),
+        &quot;discusion&quot;: extract_section_text(body, &quot;Discussion&quot;, include_heading=True),
+        &quot;notas_pie&quot;: extract_footnotes(body),
+        &quot;referencias&quot;: extract_references(body, page_url),
+    }
+
+    # Campos planos figura_1, descripcion_figura_1, figura_2... ademas del array &quot;figuras&quot;.
+    for fig in article[&quot;figuras&quot;]:
+        n = fig.get(&quot;figure_number&quot;)
+        if n is None:
+            continue
+        article[f&quot;figura_{n}&quot;] = fig.get(&quot;image_download_url&quot;) or fig.get(&quot;image_url_full&quot;) or fig.get(&quot;image_url_inline&quot;)
+        article[f&quot;descripcion_figura_{n}&quot;] = fig.get(&quot;descripcion_figura&quot;)
+
+    return article
+
+
+def build_pages(first: Optional[str], last: Optional[str], visible: Optional[str]) -&gt; Optional[str]:
+    if visible:
+        return visible
+    if first and last and first != last:
+        return f&quot;{first}-{last}&quot;
+    return first or last
+
+
+def is_ecg_of_the_month(article: dict[str, Any]) -&gt; bool:
+    haystack = &quot; | &quot;.join(
+        str(article.get(k) or &quot;&quot;) for k in (&quot;title&quot;, &quot;editorial_type&quot;)
+    ).lower()
+    return &quot;ecg of the month&quot; in haystack
+
+
+def save_json(path: Path, data: dict[str, Any]) -&gt; None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding=&quot;utf-8&quot;)
+
+
+def scrape_all(args: argparse.Namespace) -&gt; dict[str, Any]:
+    session = make_session(args.cookies)
+    errors: list[dict[str, str]] = []
+    article_links: list[str] = []
+
+    for page in range(args.page_start, args.page_end + 1):
+        page_url = SEARCH_URL_TEMPLATE.format(page=page)
+        try:
+            print(f&quot;[busqueda] pagina {page}: {page_url}&quot;, file=sys.stderr)
+            html = fetch(session, page_url, timeout=args.timeout, delay=args.delay).html
+            links = collect_article_links_from_search_html(html, page_url)
+            print(f&quot;  enlaces candidatos: {len(links)}&quot;, file=sys.stderr)
+            article_links.extend(links)
+        except Exception as exc:
+            msg = str(exc)
+            print(f&quot;  ERROR: {msg}&quot;, file=sys.stderr)
+            errors.append({&quot;stage&quot;: &quot;search&quot;, &quot;url&quot;: page_url, &quot;error&quot;: msg})
+
+    article_links = dedupe_preserve_order(article_links)
+    if args.limit:
+        article_links = article_links[: args.limit]
+
+    data: dict[str, Any] = {
+        &quot;source_url&quot;: SEARCH_URL_TEMPLATE.format(page=args.page_start),
+        &quot;page_start&quot;: args.page_start,
+        &quot;page_end&quot;: args.page_end,
+        &quot;generated_at&quot;: dt.datetime.now(dt.timezone.utc).isoformat(),
+        &quot;total_candidate_links&quot;: len(article_links),
+        &quot;articles&quot;: [],
+        &quot;errors&quot;: errors,
+    }
+
+    for idx, url in enumerate(article_links, start=1):
+        try:
+            print(f&quot;[articulo {idx}/{len(article_links)}] {url}&quot;, file=sys.stderr)
+            html = fetch(session, url, timeout=args.timeout, delay=args.delay).html
+            article = extract_article(html, url)
+            if not args.keep_non_ecg and not is_ecg_of_the_month(article):
+                print(&quot;  omitido: no parece ECG of the Month&quot;, file=sys.stderr)
+                continue
+            data[&quot;articles&quot;].append(article)
+            # Guardado incremental por seguridad.
+            save_json(Path(args.output), data)
+        except Exception as exc:
+            msg = str(exc)
+            print(f&quot;  ERROR: {msg}&quot;, file=sys.stderr)
+            data[&quot;errors&quot;].append({&quot;stage&quot;: &quot;article&quot;, &quot;url&quot;: url, &quot;error&quot;: msg})
+            save_json(Path(args.output), data)
+
+    data[&quot;total_articles_extracted&quot;] = len(data[&quot;articles&quot;])
+    save_json(Path(args.output), data)
+    return data
+
+
+def parse_local_html(args: argparse.Namespace) -&gt; dict[str, Any]:
+    html_path = Path(args.html_file)
+    html = html_path.read_text(encoding=args.encoding, errors=&quot;replace&quot;)
+    article = extract_article(html, args.article_url or BASE_URL)
+    data = {
+        &quot;source_url&quot;: str(html_path),
+        &quot;generated_at&quot;: dt.datetime.now(dt.timezone.utc).isoformat(),
+        &quot;total_articles_extracted&quot;: 1,
+        &quot;articles&quot;: [article],
+        &quot;errors&quot;: [],
+    }
+    save_json(Path(args.output), data)
+    return data
+
+
+def build_argparser() -&gt; argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=&quot;Extrae ECG of the Month de AVMA Journals a JSON.&quot;,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(&quot;--output&quot;, default=&quot;ecg_of_the_month.json&quot;, help=&quot;Archivo JSON de salida&quot;)
+    parser.add_argument(&quot;--page-start&quot;, type=int, default=1, help=&quot;Primera pagina de busqueda&quot;)
+    parser.add_argument(&quot;--page-end&quot;, type=int, default=36, help=&quot;Ultima pagina de busqueda&quot;)
+    parser.add_argument(&quot;--timeout&quot;, type=int, default=30, help=&quot;Timeout HTTP en segundos&quot;)
+    parser.add_argument(&quot;--delay&quot;, type=float, default=0.8, help=&quot;Pausa entre peticiones HTTP&quot;)
+    parser.add_argument(&quot;--limit&quot;, type=int, default=0, help=&quot;Limita el numero de articulos, 0 = sin limite&quot;)
+    parser.add_argument(&quot;--cookies&quot;, default=None, help=&quot;Cabecera Cookie copiada del navegador&quot;)
+    parser.add_argument(
+        &quot;--keep-non-ecg&quot;,
+        action=&quot;store_true&quot;,
+        help=&quot;No descarta articulos cuyo title/editorial_type no sea ECG of the Month&quot;,
+    )
+    parser.add_argument(&quot;--html-file&quot;, default=None, help=&quot;HTML local de un articulo para probar el parser&quot;)
+    parser.add_argument(&quot;--article-url&quot;, default=None, help=&quot;URL base/canonica si se usa --html-file&quot;)
+    parser.add_argument(&quot;--encoding&quot;, default=&quot;utf-8&quot;, help=&quot;Codificacion para --html-file&quot;)
+    return parser
+
+
+def main() -&gt; None:
+    parser = build_argparser()
+    args = parser.parse_args()
+
+    if args.page_start &lt; 1 or args.page_end &lt; args.page_start:
+        parser.error(&quot;Rango de paginas no valido&quot;)
+
+    if args.html_file:
+        data = parse_local_html(args)
+    else:
+        data = scrape_all(args)
+
+    print(
+        f&quot;OK: {data.get(&#x27;total_articles_extracted&#x27;, len(data.get(&#x27;articles&#x27;, [])))} articulos guardados en {args.output}&quot;,
+        file=sys.stderr,
+    )
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+        </div>
+      </section>
+    </main>
+
+<!-- FOOTER -->
+<footer class="footer">
+<p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+<p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+<h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto"; target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+<p><strong>_______________________________________________</strong></p>
+<p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+<p>_______________________________________________</p>
+<p>Un saludo.</p>
+<p>Angel Soto DVM PhD. airsoto@googlemail.com</p>
+</footer>
+</div>
+
+  <div class="toast" id="toast">Listo</div>
+
+  <script>
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function getPythonCode() {
+      return document.getElementById('pythonCode').textContent;
+    }
+
+    async function copyPython() {
+      const code = getPythonCode();
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast('Python copiado al portapapeles');
+      } catch (err) {
+        const area = document.createElement('textarea');
+        area.value = code;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+        showToast('Python copiado');
+      }
+    }
+
+    function downloadPython() {
+      const code = getPythonCode();
+      const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'avma_ecg_scraper.py';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Descargando avma_ecg_scraper.py');
+    }
+  </script>
+</body>
+</html>
