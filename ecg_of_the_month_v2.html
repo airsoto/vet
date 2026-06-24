@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#070b12" />
-  <title>ECG of the Month </title>
+  <title>ECG of the Month _ </title>
   <style>
     :root{
       color-scheme:dark;
@@ -192,7 +192,7 @@
 
     .layout{
       display:grid;
-      grid-template-columns:minmax(360px, 470px) minmax(0,1fr);
+      grid-template-columns:1fr;
       gap:18px;
       align-items:start;
     }
@@ -212,37 +212,39 @@
     .panel-head h2{margin:0; font-size:17px; letter-spacing:-.02em}
     .counter{color:var(--muted); font-size:12px; font-weight:800}
     .results{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      padding:12px;
-      max-height:calc(100vh - 315px);
-      overflow:auto;
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:14px;
+      padding:14px;
+      max-height:none;
+      overflow:visible;
     }
     .result-card{
-      display:grid;
-      grid-template-columns:118px minmax(0,1fr);
+      display:flex;
+      flex-direction:column;
       gap:12px;
+      min-height:100%;
       border:1px solid rgba(148,163,184,.17);
       background:linear-gradient(135deg, rgba(17,24,39,.86), rgba(2,6,23,.78));
-      border-radius:18px;
-      padding:10px;
+      border-radius:20px;
+      padding:12px;
       cursor:pointer;
-      transition:.18s transform, .18s border-color, .18s background;
+      transition:.18s transform, .18s border-color, .18s background, .18s box-shadow;
       position:relative;
       overflow:hidden;
     }
-    .result-card:hover{transform:translateY(-1px); border-color:rgba(255,153,0,.52); background:linear-gradient(135deg, rgba(31,41,55,.9), rgba(2,6,23,.72))}
-    .result-card.active{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10)}
+    .result-card:hover{transform:translateY(-2px); border-color:rgba(255,153,0,.52); background:linear-gradient(135deg, rgba(31,41,55,.9), rgba(2,6,23,.72)); box-shadow:0 18px 36px rgba(0,0,0,.22)}
+    .result-card.active{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10), 0 18px 42px rgba(0,0,0,.28)}
     .thumb-wrap{
-      border-radius:14px;
+      border-radius:16px;
       overflow:hidden;
-      background:rgba(255,255,255,.04);
+      background:#fff;
       border:1px solid rgba(148,163,184,.16);
-      aspect-ratio:1.25/1;
+      aspect-ratio:16/10;
       display:flex; align-items:center; justify-content:center;
+      width:100%;
     }
-    .thumb-wrap img{width:100%; height:100%; object-fit:cover; background:#fff; filter:contrast(1.05)}
+    .thumb-wrap img{width:100%; height:100%; object-fit:contain; background:#fff; filter:contrast(1.05)}
     .no-img{color:var(--muted2); font-size:12px; text-align:center; padding:8px}
     .card-title{margin:0; font-size:15px; line-height:1.2}
     .card-sub{margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.35}
@@ -384,15 +386,16 @@
       .filter-grid{grid-template-columns:1fr 1fr}
       .layout{grid-template-columns:1fr}
       .detail-panel{position:relative; top:auto; max-height:none}
-      .results{max-height:none}
+      .results{grid-template-columns:repeat(2, minmax(0,1fr)); max-height:none}
     }
     @media (max-width:700px){
       .page{width:min(100% - 16px, var(--max)); padding-top:10px}
       .hero{padding:18px}
       .filter-grid{grid-template-columns:1fr}
       .stats{grid-template-columns:1fr 1fr}
-      .result-card{grid-template-columns:96px minmax(0,1fr)}
-      .thumb-wrap{aspect-ratio:1/1}
+      .results{grid-template-columns:1fr}
+      .result-card{display:flex}
+      .thumb-wrap{aspect-ratio:16/10}
       .gallery{grid-template-columns:1fr}
     }
   </style>
@@ -422,7 +425,7 @@
       </div>
       <div class="hero-actions">
         <a class="btn" href="https://airsoto.github.io/vet/how/how_ecg_of_the_month.html" target="_blank" rel="noopener">⚙️ Cómo se ha creado la base de datos</a>
-        <a class="btn secondary" href="/json/ecg_of_the_month.json" target="_blank" rel="noopener">📄 Ver JSON</a>
+        <a class="btn secondary" href="json/ecg_of_the_month.json" target="_blank" rel="noopener">📄 Ver JSON</a>
         <button class="btn ghost" id="loadLocalBtn" type="button">📂 Cargar JSON local</button>
         <input type="file" id="localFile" accept="application/json,.json" hidden />
       </div>
@@ -522,11 +525,19 @@
   <div class="toast" id="toast">Copiado</div>
 
   <script>
-    const JSON_URLS = [
-      './json/ecg_of_the_month.json',
-      'json/ecg_of_the_month.json',
-      '/json/ecg_of_the_month.json'
-    ];
+    const JSON_URLS = (() => {
+      const file = 'ecg_of_the_month.json';
+      const origin = /^https?:$/.test(location.protocol) ? location.origin : '';
+      const here = location.href;
+      const candidates = [
+        new URL(`json/${file}`, here).href,
+        new URL(`./json/${file}`, here).href,
+        origin ? `${origin}/vet/json/${file}` : null,
+        origin ? `${origin}/json/${file}` : null,
+        'https://airsoto.github.io/vet/json/ecg_of_the_month.json'
+      ].filter(Boolean);
+      return [...new Set(candidates)];
+    })();
 
     const quickTerms = [
       'atrial fibrillation', 'AV block', 'third-degree', 'Ashman', 'atrial flutter',
@@ -635,7 +646,7 @@
     }
 
     async function loadJson(){
-      setStatus('', 'Cargando /json/ecg_of_the_month.json…');
+      setStatus('', 'Cargando JSON desde rutas GitHub Pages…');
       let lastError = null;
       for(const url of JSON_URLS){
         try{
@@ -647,7 +658,7 @@
         }catch(err){ lastError = err; }
       }
       setStatus('bad', `No se pudo cargar el JSON automáticamente. Usa “Cargar JSON local”. ${lastError ? lastError.message : ''}`);
-      els.results.innerHTML = '<div class="empty">No se pudo cargar el JSON desde GitHub Pages. Puedes probar en servidor o cargar el archivo localmente. 📂</div>';
+      els.results.innerHTML = `<div class="empty"><b>No se pudo cargar el JSON automáticamente.</b><br>Rutas probadas:<br>${JSON_URLS.map(u => `<code>${escapeHtml(u)}</code>`).join('<br>')}<br><br>Solución: comprueba que el archivo esté en <code>/vet/json/ecg_of_the_month.json</code> o usa el botón <b>Cargar JSON local</b>. 📂</div>`;
     }
 
     function setData(data, sourceLabel){
@@ -994,43 +1005,7 @@
         if(cached) return {text: cached, cached: true};
       }catch{}
       const chunks = splitForTranslation(cleaned);
-      const translated = [];<!DOCTYPE html>
-<html lang="es">
-<script defer src="goat.js"></script>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#070b12" />
-  <title>ECG of the Month · Navegador visual</title>
-  <style>
-    :root{
-      color-scheme:dark;
-      --bg:#070b12;
-      --bg2:#0b1220;
-      --panel:rgba(15,23,42,.88);
-      --panel2:rgba(17,24,39,.96);
-      --panel3:rgba(2,6,23,.72);
-      --card:rgba(15,23,42,.74);
-      --line:rgba(148,163,184,.22);
-      --line2:rgba(255,153,0,.38);
-      --text:#e5e7eb;
-      --muted:#a7b3c7;
-      --muted2:#7f8da3;
-      --accent:#ff9900;
-      --accent2:#ffd08a;
-      --blue:#38bdf8;
-      --green:#36d399;
-      --red:#fb7185;
-      --shadow:0 24px 70px rgba(0,0,0,.42);
-      --radius:22px;
-      --radius2:16px;
-      --max:1480px;
-    }
-    *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{
-      margin:0;
-
+      const translated = [];
       for(let i=0;i<chunks.length;i++){
         if(onProgress) onProgress(i + 1, chunks.length);
         if(chunks[i] === '\n'){
