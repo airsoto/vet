@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070b12" />
+  <title>ECG of the Month · Navegador visual</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#070b12;
+      --bg2:#0b1220;
+      --panel:rgba(15,23,42,.88);
+      --panel2:rgba(17,24,39,.96);
+      --panel3:rgba(2,6,23,.72);
+      --card:rgba(15,23,42,.74);
+      --line:rgba(148,163,184,.22);
+      --line2:rgba(255,153,0,.38);
+      --text:#e5e7eb;
+      --muted:#a7b3c7;
+      --muted2:#7f8da3;
+      --accent:#ff9900;
+      --accent2:#ffd08a;
+      --blue:#38bdf8;
+      --green:#36d399;
+      --red:#fb7185;
+      --shadow:0 24px 70px rgba(0,0,0,.42);
+      --radius:22px;
+      --radius2:16px;
+      --max:1480px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(255,153,0,.20), transparent 30%),
+        radial-gradient(circle at 86% 6%, rgba(56,189,248,.11), transparent 31%),
+        radial-gradient(circle at 55% 100%, rgba(255,153,0,.07), transparent 34%),
+        linear-gradient(180deg, #070b12 0%, #0a0f1b 55%, #060914 100%);
+      color:var(--text);
+      line-height:1.55;
+    }
+    a{color:var(--accent2); text-decoration:none}
+    a:hover{text-decoration:underline}
+    button,input,select{font:inherit}
+    .page{width:min(var(--max), calc(100% - 28px)); margin:0 auto; padding:24px 0 42px}
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border:1px solid var(--line);
+      border-radius:calc(var(--radius) + 4px);
+      padding:26px;
+      background:
+        linear-gradient(135deg, rgba(15,23,42,.96), rgba(2,6,23,.76)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 18px);
+      box-shadow:var(--shadow);
+    }
+    .hero:before{
+      content:"";
+      position:absolute;
+      width:310px;height:310px;
+      top:-165px;left:-130px;
+      background:radial-gradient(circle, rgba(255,153,0,.36), transparent 68%);
+      filter:blur(2px);
+      pointer-events:none;
+    }
+    .hero:after{
+      content:"ECG";
+      position:absolute;
+      right:22px; bottom:-26px;
+      font-size:clamp(92px, 17vw, 230px);
+      font-weight:900;
+      color:rgba(255,255,255,.035);
+      letter-spacing:-.08em;
+      pointer-events:none;
+    }
+    .topline{display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; position:relative; z-index:1}
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 12px;
+      border:1px solid rgba(255,153,0,.25);
+      border-radius:999px;
+      background:rgba(255,153,0,.10);
+      color:var(--accent2);
+      font-weight:800;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    h1{margin:0; max-width:1000px; font-size:clamp(31px, 5vw, 66px); line-height:.94; letter-spacing:-.055em}
+    .accent{color:var(--accent)}
+    .lead{max-width:1020px; margin:16px 0 0; color:var(--muted); font-size:clamp(15px, 2vw, 18px)}
+    .lead a{font-weight:800; border-bottom:1px dotted rgba(255,208,138,.5)}
+    .home a{color:#e5e7eb; opacity:.92}
+    .hero-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; position:relative; z-index:1}
+    .btn,.chip-btn{
+      border:1px solid var(--line2);
+      color:#101827;
+      background:linear-gradient(180deg, #ffb13c, #ff9900);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 10px 24px rgba(255,153,0,.12);
+      transition:.18s transform, .18s border-color, .18s background;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      text-decoration:none;
+    }
+    .btn:hover,.chip-btn:hover{transform:translateY(-1px); text-decoration:none}
+    .btn.secondary,.chip-btn.secondary{
+      color:var(--text);
+      background:rgba(15,23,42,.72);
+      border-color:var(--line);
+      box-shadow:none;
+    }
+    .btn.ghost{color:var(--accent2); background:transparent; border-color:rgba(255,153,0,.26); box-shadow:none}
+    .btn.small{padding:7px 10px; font-size:12px}
+    .statusbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-top:16px;
+      color:var(--muted);
+      font-size:13px;
+      position:relative; z-index:1;
+    }
+    .status-dot{width:9px;height:9px;border-radius:50%; background:var(--muted2); box-shadow:0 0 0 4px rgba(148,163,184,.08)}
+    .status-dot.ok{background:var(--green); box-shadow:0 0 0 4px rgba(54,211,153,.10)}
+    .status-dot.bad{background:var(--red); box-shadow:0 0 0 4px rgba(251,113,133,.10)}
+
+    .filters{
+      margin-top:18px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(15,23,42,.86), rgba(2,6,23,.58));
+      padding:16px;
+      box-shadow:0 18px 42px rgba(0,0,0,.18);
+      position:sticky;
+      top:8px;
+      z-index:50;
+      backdrop-filter:blur(12px);
+    }
+    .filter-grid{
+      display:grid;
+      grid-template-columns: 1.35fr .8fr .9fr .65fr .7fr;
+      gap:10px;
+      align-items:end;
+    }
+    .field label{display:block; color:var(--muted); font-size:12px; font-weight:800; margin:0 0 6px; letter-spacing:.02em}
+    .field input,.field select{
+      width:100%;
+      border:1px solid var(--line);
+      background:rgba(2,6,23,.68);
+      color:var(--text);
+      border-radius:14px;
+      padding:12px 12px;
+      outline:none;
+    }
+    .field input:focus,.field select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10)}
+    .quickline{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center}
+    .mini-label{color:var(--muted2); font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.06em}
+    .pill{
+      border:1px solid rgba(148,163,184,.18);
+      background:rgba(15,23,42,.7);
+      color:var(--muted);
+      border-radius:999px;
+      padding:6px 9px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .pill:hover,.pill.active{border-color:rgba(255,153,0,.5); color:var(--accent2); background:rgba(255,153,0,.1)}
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:12px;
+      margin:18px 0;
+    }
+    .stat{
+      border:1px solid var(--line);
+      border-radius:var(--radius2);
+      background:rgba(15,23,42,.62);
+      padding:14px;
+      box-shadow:0 14px 32px rgba(0,0,0,.13);
+    }
+    .stat b{display:block; font-size:clamp(23px, 3vw, 34px); color:#fff; line-height:1}
+    .stat span{display:block; color:var(--muted); font-size:12px; margin-top:6px; font-weight:800}
+
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(360px, 470px) minmax(0,1fr);
+      gap:18px;
+      align-items:start;
+    }
+    .results-panel,.detail-panel{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(15,23,42,.80), rgba(2,6,23,.58));
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panel-head{
+      display:flex; justify-content:space-between; gap:12px; align-items:center;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      background:rgba(2,6,23,.42);
+    }
+    .panel-head h2{margin:0; font-size:17px; letter-spacing:-.02em}
+    .counter{color:var(--muted); font-size:12px; font-weight:800}
+    .results{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px;
+      max-height:calc(100vh - 315px);
+      overflow:auto;
+    }
+    .result-card{
+      display:grid;
+      grid-template-columns:118px minmax(0,1fr);
+      gap:12px;
+      border:1px solid rgba(148,163,184,.17);
+      background:linear-gradient(135deg, rgba(17,24,39,.86), rgba(2,6,23,.78));
+      border-radius:18px;
+      padding:10px;
+      cursor:pointer;
+      transition:.18s transform, .18s border-color, .18s background;
+      position:relative;
+      overflow:hidden;
+    }
+    .result-card:hover{transform:translateY(-1px); border-color:rgba(255,153,0,.52); background:linear-gradient(135deg, rgba(31,41,55,.9), rgba(2,6,23,.72))}
+    .result-card.active{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,153,0,.10)}
+    .thumb-wrap{
+      border-radius:14px;
+      overflow:hidden;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(148,163,184,.16);
+      aspect-ratio:1.25/1;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .thumb-wrap img{width:100%; height:100%; object-fit:cover; background:#fff; filter:contrast(1.05)}
+    .no-img{color:var(--muted2); font-size:12px; text-align:center; padding:8px}
+    .card-title{margin:0; font-size:15px; line-height:1.2}
+    .card-sub{margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.35}
+    .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+    .tag{
+      border:1px solid rgba(148,163,184,.18);
+      color:var(--muted);
+      background:rgba(2,6,23,.38);
+      padding:4px 7px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      max-width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tag.orange{color:var(--accent2); border-color:rgba(255,153,0,.25); background:rgba(255,153,0,.08)}
+    .tag.blue{color:#bae6fd; border-color:rgba(56,189,248,.25); background:rgba(56,189,248,.08)}
+    .empty{
+      padding:34px 18px;
+      text-align:center;
+      color:var(--muted);
+    }
+
+    .detail-panel{min-height:520px; position:sticky; top:112px; max-height:calc(100vh - 128px); overflow:auto}
+    .detail-body{padding:18px}
+    .detail-title{margin:0; font-size:clamp(24px, 3.5vw, 42px); line-height:1.02; letter-spacing:-.045em}
+    .detail-meta{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 14px}
+    .link-row{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 0}
+    .authors-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-top:12px}
+    .author-card{border:1px solid rgba(148,163,184,.16); border-radius:16px; background:rgba(2,6,23,.42); padding:10px}
+    .author-card b{display:block; color:#fff; font-size:14px}
+    .author-card span{display:block; color:var(--muted); font-size:12px; margin-top:3px}
+    .section{
+      margin-top:14px;
+      border:1px solid rgba(148,163,184,.16);
+      border-radius:18px;
+      background:rgba(2,6,23,.35);
+      overflow:hidden;
+    }
+    .section-head{
+      display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(148,163,184,.12);
+      background:rgba(15,23,42,.46);
+    }
+    .section-head h3{margin:0; font-size:16px}
+    .section-content{padding:14px; color:#dbe4f3}
+    .text-block{white-space:pre-wrap; color:#dbe4f3}
+    details.section summary{list-style:none; cursor:pointer}
+    details.section summary::-webkit-details-marker{display:none}
+    details.section:not([open]) .section-head{border-bottom:0}
+    .summary-hint{color:var(--accent2); font-size:12px; font-weight:900}
+    details[open] .summary-hint:before{content:"Ocultar · "}
+    details:not([open]) .summary-hint:before{content:"Desplegar · "}
+
+    .gallery{display:grid; grid-template-columns:repeat(auto-fit, minmax(285px, 1fr)); gap:12px; margin-top:12px}
+    .figure-card{border:1px solid rgba(148,163,184,.18); border-radius:18px; overflow:hidden; background:rgba(2,6,23,.48)}
+    .figure-card img{
+      width:100%;
+      max-height:410px;
+      object-fit:contain;
+      display:block;
+      background:#fff;
+      cursor:zoom-in;
+      padding:6px;
+    }
+    .fig-cap{padding:12px; color:var(--muted); font-size:13px; white-space:pre-wrap}
+    .fig-actions{display:flex; gap:8px; flex-wrap:wrap; padding:0 12px 12px}
+    .refs{display:flex; flex-direction:column; gap:10px}
+    .ref-card{border:1px solid rgba(148,163,184,.15); border-radius:14px; background:rgba(15,23,42,.35); padding:10px}
+    .ref-card p{margin:0 0 8px; color:#dbe4f3; font-size:13px}
+
+    .modal{
+      position:fixed; inset:0; z-index:999;
+      display:none;
+      background:rgba(0,0,0,.88);
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .modal.open{display:flex}
+    .modal-inner{width:min(1500px, 100%); max-height:95vh; border:1px solid rgba(255,255,255,.16); border-radius:20px; background:#05070c; box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column}
+    .modal-bar{display:flex; gap:10px; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.1); color:var(--muted)}
+    .modal-img-wrap{overflow:auto; display:flex; justify-content:center; align-items:center; min-height:0; background:#fff}
+    .modal-img-wrap img{max-width:none; width:auto; height:auto; min-width:min(100%, 900px); max-height:none; display:block; padding:12px; background:#fff}
+    .toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:rgba(15,23,42,.96); border:1px solid var(--line2); color:var(--text);
+      padding:10px 14px; border-radius:999px; z-index:1000; display:none; box-shadow:var(--shadow);
+      font-size:13px; font-weight:800;
+    }
+    .toast.show{display:block}
+
+    .footer{
+      margin-top:26px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:18px;
+      background:rgba(2,6,23,.68);
+      color:var(--muted);
+      text-align:center;
+      font-size:13px;
+    }
+    .footer a{color:var(--accent2)}
+
+    @media (max-width:1080px){
+      .filter-grid{grid-template-columns:1fr 1fr}
+      .layout{grid-template-columns:1fr}
+      .detail-panel{position:relative; top:auto; max-height:none}
+      .results{max-height:none}
+    }
+    @media (max-width:700px){
+      .page{width:min(100% - 16px, var(--max)); padding-top:10px}
+      .hero{padding:18px}
+      .filter-grid{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr 1fr}
+      .result-card{grid-template-columns:96px minmax(0,1fr)}
+      .thumb-wrap{aspect-ratio:1/1}
+      .gallery{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="topline">
+        <div>
+          <span class="badge">🫀 Base de datos · ECG of the Month</span>
+          <h1><span class="accent">ECG of the Month</span><br/>navegador visual</h1>
+          <!-- BLOQUE DESARROLLADO POR + HOME -->
+          <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/"; target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+          </a>
+          </p>
+          </div>
+          <p class="lead">
+            <a href="https://avmajournals.avma.org/search?q1=ecg+of+the+month&searchBtn=" target="_blank" rel="noopener">Navegador visual para consultar los casos de ECG of the Month extraídos de AVMA Journals</a>. Busca por autor, especie, año o por términos de la interpretación ECG: fibrillation, AV block, Ashman, atrial flutter, ventricular tachycardia, pacemaker, etc.
+          </p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a class="btn" href="https://airsoto.github.io/vet/how/how_ecg_of_the_month.html" target="_blank" rel="noopener">⚙️ Cómo se ha creado la base de datos</a>
+        <a class="btn secondary" href="/json/ecg_of_the_month.json" target="_blank" rel="noopener">📄 Ver JSON</a>
+        <button class="btn ghost" id="loadLocalBtn" type="button">📂 Cargar JSON local</button>
+        <input type="file" id="localFile" accept="application/json,.json" hidden />
+      </div>
+      <div class="statusbar" id="statusbar">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Preparando carga de datos…</span>
+      </div>
+    </header>
+
+    <section class="filters" aria-label="Filtros de búsqueda">
+      <div class="filter-grid">
+        <div class="field">
+          <label for="qInput">Búsqueda libre</label>
+          <input id="qInput" type="search" placeholder="Ej.: Rottweiler, syncope, pacemaker, hyperthyroidism…" />
+        </div>
+        <div class="field">
+          <label for="authorInput">Autor</label>
+          <input id="authorInput" list="authorsList" type="search" placeholder="Ej.: Santilli, Kittleson…" />
+          <datalist id="authorsList"></datalist>
+        </div>
+        <div class="field">
+          <label for="arrInput">Arritmia / interpretación ECG</label>
+          <input id="arrInput" type="search" placeholder="Ej.: atrial fibrillation, AV block…" />
+        </div>
+        <div class="field">
+          <label for="speciesSelect">Especie</label>
+          <select id="speciesSelect"><option value="all">Todas</option></select>
+        </div>
+        <div class="field">
+          <label for="sortSelect">Orden</label>
+          <select id="sortSelect">
+            <option value="dateDesc">Más recientes</option>
+            <option value="dateAsc">Más antiguos</option>
+            <option value="figuresDesc">Más figuras</option>
+            <option value="authorsAsc">Autor A-Z</option>
+          </select>
+        </div>
+      </div>
+      <div class="quickline" id="quickline">
+        <span class="mini-label">Búsquedas rápidas</span>
+      </div>
+    </section>
+
+    <section class="stats" id="stats">
+      <div class="stat"><b id="statTotal">—</b><span>casos totales</span></div>
+      <div class="stat"><b id="statVisible">—</b><span>casos visibles</span></div>
+      <div class="stat"><b id="statSpecies">—</b><span>especies detectadas</span></div>
+      <div class="stat"><b id="statFigures">—</b><span>imágenes ECG</span></div>
+    </section>
+
+    <main class="layout">
+      <section class="results-panel">
+        <div class="panel-head">
+          <h2>Casos que cumplen la búsqueda</h2>
+          <span class="counter" id="resultCounter">0 resultados</span>
+        </div>
+        <div class="results" id="results"></div>
+      </section>
+
+      <section class="detail-panel" id="detailPanel">
+        <div class="panel-head">
+          <h2>Detalle del caso</h2>
+          <span class="counter">Pulsa una tarjeta</span>
+        </div>
+        <div class="detail-body" id="detailBody">
+          <div class="empty">Selecciona un ECG para cargar todos sus datos, imágenes, interpretación, discusión y referencias. 🔎</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto"; target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="modal" id="imageModal" aria-hidden="true">
+    <div class="modal-inner">
+      <div class="modal-bar">
+        <span id="modalTitle">Imagen ECG</span>
+        <div class="link-row" style="margin:0">
+          <a class="btn small secondary" id="modalOpen" href="#" target="_blank" rel="noopener">Abrir original</a>
+          <button class="btn small" id="modalClose" type="button">Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-img-wrap"><img id="modalImg" alt="ECG ampliado" /></div>
+    </div>
+  </div>
+  <div class="toast" id="toast">Copiado</div>
+
+  <script>
+    const JSON_URLS = [
+      './json/ecg_of_the_month.json',
+      'json/ecg_of_the_month.json',
+      '/json/ecg_of_the_month.json'
+    ];
+
+    const quickTerms = [
+      'atrial fibrillation', 'AV block', 'third-degree', 'Ashman', 'atrial flutter',
+      'ventricular tachycardia', 'junctional', 'pacemaker', 'accessory pathway',
+      'right bundle branch block', 'escape', 'ST segment', 'hyperthyroidism'
+    ];
+
+    let allArticles = [];
+    let filteredArticles = [];
+    let selectedKey = null;
+
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      statusDot: $('statusDot'), statusText: $('statusText'),
+      q: $('qInput'), author: $('authorInput'), arr: $('arrInput'), species: $('speciesSelect'), sort: $('sortSelect'),
+      authorsList: $('authorsList'), quickline: $('quickline'), results: $('results'), resultCounter: $('resultCounter'),
+      detailBody: $('detailBody'), statTotal: $('statTotal'), statVisible: $('statVisible'), statSpecies: $('statSpecies'), statFigures: $('statFigures'),
+      localFile: $('localFile'), loadLocalBtn: $('loadLocalBtn'), toast: $('toast')
+    };
+
+    function escapeHtml(value){
+      return String(value ?? '')
+        .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+        .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
+    function cleanText(value){
+      return String(value ?? '').replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+    }
+    function plainText(value){ return cleanText(value).replace(/\s+/g,' '); }
+    function shortText(value, max=190){
+      const t = plainText(value);
+      return t.length > max ? t.slice(0, max).replace(/\s+\S*$/,'') + '…' : t;
+    }
+    function getAuthors(article){ return Array.isArray(article.autores) ? article.autores : (Array.isArray(article.authors) ? article.authors : []); }
+    function authorNames(article){ return getAuthors(article).map(a => a?.name).filter(Boolean); }
+    function getFigures(article){
+      const figs = Array.isArray(article.figuras) ? [...article.figuras] : [];
+      for(let i=1;i<=12;i++){
+        const url = article[`figura_${i}`];
+        if(url && !figs.some(f => f.figure_number === i || f.image_download_url === url)){
+          figs.push({
+            figure_number:i,
+            label:`Figure ${i}`,
+            image_download_url:url,
+            descripcion_figura:article[`descripcion_figura_${i}`] || ''
+          });
+        }
+      }
+      return figs.sort((a,b)=>(a.figure_number || 99)-(b.figure_number || 99));
+    }
+    function usableImage(url){
+      if(!url) return '';
+      const lower = url.toLowerCase();
+      if(lower.endsWith('.tif') || lower.endsWith('.tiff')) return '';
+      return url;
+    }
+    function figureImage(fig){
+      return usableImage(fig?.image_url_full) || usableImage(fig?.image_url_inline) || usableImage(fig?.image_download_url) || '';
+    }
+    function firstFigure(article){ return getFigures(article)[0] || null; }
+    function yearOf(article){
+      const s = String(article.publication_date || '');
+      const m = s.match(/(19|20)\d{2}/);
+      return m ? m[0] : 's/f';
+    }
+    function dateValue(article){
+      const raw = String(article.publication_date || '').replaceAll('/','-');
+      const d = Date.parse(raw);
+      return Number.isFinite(d) ? d : 0;
+    }
+    function inferSpecies(article){
+      const text = `${article.descripcion_del_caso || ''} ${article.interpretacion_ecg || ''} ${getFigures(article).map(f=>f.descripcion_figura||'').join(' ')}`.toLowerCase();
+      const found = [];
+      const tests = [
+        ['Perro', /\b(dog|dogs|canine|bitch|puppy|retriever|boxer|rottweiler|collie|shih tzu|great pyrenees|labrador)\b/i],
+        ['Gato', /\b(cat|cats|feline|kitten|domestic shorthair|maine coon)\b/i],
+        ['Caballo', /\b(horse|horses|equine|foal|mare|stallion|gelding)\b/i],
+        ['Conejo', /\b(rabbit|rabbits|lapin)\b/i],
+        ['Hurón', /\b(ferret|ferrets)\b/i],
+        ['Ave', /\b(bird|avian|parrot|cockatiel|macaw)\b/i],
+        ['Bovino', /\b(cow|cattle|bovine|calf)\b/i]
+      ];
+      tests.forEach(([label, re]) => { if(re.test(text)) found.push(label); });
+      return found.length ? [...new Set(found)] : ['No especificada'];
+    }
+    function combinedSearchText(article){
+      return [
+        article.title, article.editorial_type, article.doi, article.journal, article.publication_date, article.pages,
+        authorNames(article).join(' '),
+        article.descripcion_del_caso, article.interpretacion_ecg, article.discusion,
+        getFigures(article).map(f => `${f.label || ''} ${f.descripcion_figura || ''}`).join(' '),
+        (article.referencias || []).map(r => r.full_citation || '').join(' ')
+      ].join(' ').toLowerCase();
+    }
+    function getKey(article){ return article.article_url || article.doi || `${article.title}-${article.publication_date}-${authorNames(article)[0] || ''}`; }
+
+    function setStatus(type, text){
+      els.statusDot.className = 'status-dot ' + (type || '');
+      els.statusText.textContent = text;
+    }
+    function toast(text){
+      els.toast.textContent = text;
+      els.toast.classList.add('show');
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => els.toast.classList.remove('show'), 1900);
+    }
+
+    async function loadJson(){
+      setStatus('', 'Cargando /json/ecg_of_the_month.json…');
+      let lastError = null;
+      for(const url of JSON_URLS){
+        try{
+          const res = await fetch(url, {cache:'no-store'});
+          if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const data = await res.json();
+          setData(data, `Datos cargados desde ${url}`);
+          return;
+        }catch(err){ lastError = err; }
+      }
+      setStatus('bad', `No se pudo cargar el JSON automáticamente. Usa “Cargar JSON local”. ${lastError ? lastError.message : ''}`);
+      els.results.innerHTML = '<div class="empty">No se pudo cargar el JSON desde GitHub Pages. Puedes probar en servidor o cargar el archivo localmente. 📂</div>';
+    }
+
+    function setData(data, sourceLabel){
+      const arr = Array.isArray(data) ? data : (Array.isArray(data.articles) ? data.articles : []);
+      allArticles = arr.map((article, index) => ({...article, __index:index, __species:inferSpecies(article), __key:getKey(article)}));
+      buildControls();
+      renderQuickTerms();
+      setStatus('ok', `${sourceLabel}. ${allArticles.length} casos disponibles.`);
+      applyFilters();
+    }
+
+    function buildControls(){
+      const authors = [...new Set(allArticles.flatMap(authorNames))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      els.authorsList.innerHTML = authors.map(a => `<option value="${escapeHtml(a)}"></option>`).join('');
+      const species = [...new Set(allArticles.flatMap(a => a.__species))].sort((a,b)=>a.localeCompare(b));
+      els.species.innerHTML = '<option value="all">Todas</option>' + species.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    }
+    function renderQuickTerms(){
+      els.quickline.innerHTML = '<span class="mini-label">Búsquedas rápidas</span>' + quickTerms.map(term => `<button class="pill" type="button" data-term="${escapeHtml(term)}">${escapeHtml(term)}</button>`).join('') + '<button class="pill" type="button" data-clear="1">Limpiar filtros</button>';
+      els.quickline.querySelectorAll('[data-term]').forEach(btn => btn.addEventListener('click', () => {
+        els.arr.value = btn.dataset.term;
+        applyFilters();
+      }));
+      els.quickline.querySelector('[data-clear]').addEventListener('click', clearFilters);
+    }
+    function clearFilters(){
+      els.q.value = '';
+      els.author.value = '';
+      els.arr.value = '';
+      els.species.value = 'all';
+      els.sort.value = 'dateDesc';
+      applyFilters();
+    }
+
+    function applyFilters(){
+      const q = els.q.value.trim().toLowerCase();
+      const author = els.author.value.trim().toLowerCase();
+      const arr = els.arr.value.trim().toLowerCase();
+      const species = els.species.value;
+      filteredArticles = allArticles.filter(article => {
+        const allText = combinedSearchText(article);
+        const authorText = authorNames(article).join(' ').toLowerCase();
+        const arrText = `${article.interpretacion_ecg || ''} ${article.discusion || ''} ${getFigures(article).map(f=>f.descripcion_figura||'').join(' ')}`.toLowerCase();
+        const speciesOk = species === 'all' || article.__species.includes(species);
+        return (!q || allText.includes(q)) && (!author || authorText.includes(author)) && (!arr || arrText.includes(arr)) && speciesOk;
+      });
+      sortFiltered();
+      if(!selectedKey || !filteredArticles.some(a => a.__key === selectedKey)){
+        selectedKey = filteredArticles[0]?.__key || null;
+      }
+      renderStats();
+      renderResults();
+      if(selectedKey) renderDetail(filteredArticles.find(a => a.__key === selectedKey));
+      else renderEmptyDetail();
+    }
+    function sortFiltered(){
+      const sort = els.sort.value;
+      filteredArticles.sort((a,b) => {
+        if(sort === 'dateAsc') return dateValue(a) - dateValue(b);
+        if(sort === 'figuresDesc') return getFigures(b).length - getFigures(a).length;
+        if(sort === 'authorsAsc') return (authorNames(a)[0] || '').localeCompare(authorNames(b)[0] || '');
+        return dateValue(b) - dateValue(a);
+      });
+    }
+    function renderStats(){
+      const speciesCount = new Set(allArticles.flatMap(a => a.__species)).size;
+      const figCount = filteredArticles.reduce((n,a)=>n+getFigures(a).length,0);
+      els.statTotal.textContent = allArticles.length;
+      els.statVisible.textContent = filteredArticles.length;
+      els.statSpecies.textContent = speciesCount;
+      els.statFigures.textContent = figCount;
+      els.resultCounter.textContent = `${filteredArticles.length} resultado${filteredArticles.length === 1 ? '' : 's'}`;
+    }
+    function renderResults(){
+      if(!filteredArticles.length){
+        els.results.innerHTML = '<div class="empty">No hay ECG que cumplan los filtros actuales. Prueba otro autor o término de arritmia.</div>';
+        return;
+      }
+      els.results.innerHTML = filteredArticles.map(article => cardHtml(article)).join('');
+      els.results.querySelectorAll('.result-card').forEach(card => {
+        card.addEventListener('click', () => {
+          selectedKey = card.dataset.key;
+          renderResults();
+          renderDetail(filteredArticles.find(a => a.__key === selectedKey));
+          if(window.innerWidth < 1080) $('detailPanel').scrollIntoView({behavior:'smooth', block:'start'});
+        });
+      });
+    }
+    function cardHtml(article){
+      const fig = firstFigure(article);
+      const src = figureImage(fig);
+      const authors = authorNames(article);
+      const authorLine = authors.length ? authors.slice(0,3).join(', ') + (authors.length > 3 ? ` +${authors.length-3}` : '') : 'Autores no indicados';
+      const species = article.__species.join(', ');
+      const active = article.__key === selectedKey ? ' active' : '';
+      const title = `${article.title || 'ECG of the Month'} · ${yearOf(article)}`;
+      return `
+        <article class="result-card${active}" data-key="${escapeHtml(article.__key)}">
+          <div class="thumb-wrap">${src ? `<img loading="lazy" src="${escapeHtml(src)}" alt="Imagen 1 del ECG" onerror="this.parentElement.innerHTML='<span class=&quot;no-img&quot;>Imagen no disponible</span>'">` : '<span class="no-img">Sin imagen</span>'}</div>
+          <div>
+            <h3 class="card-title">${escapeHtml(title)}</h3>
+            <p class="card-sub"><strong>Autores:</strong> ${escapeHtml(authorLine)}</p>
+            <p class="card-sub"><strong>Especie:</strong> ${escapeHtml(species)}</p>
+            <div class="chips">
+              <span class="tag orange">${escapeHtml(article.publication_date || 'sin fecha')}</span>
+              <span class="tag blue">${getFigures(article).length} imagen${getFigures(article).length === 1 ? '' : 'es'}</span>
+              ${article.doi ? `<span class="tag">DOI ${escapeHtml(article.doi)}</span>` : ''}
+            </div>
+          </div>
+        </article>`;
+    }
+    function renderEmptyDetail(){
+      els.detailBody.innerHTML = '<div class="empty">No hay ningún caso seleccionado.</div>';
+    }
+
+    function renderDetail(article){
+      if(!article) return renderEmptyDetail();
+      const figs = getFigures(article);
+      const authors = getAuthors(article);
+      els.detailBody.innerHTML = `
+        <h2 class="detail-title">${escapeHtml(article.title || 'ECG of the Month')}</h2>
+        <div class="detail-meta">
+          <span class="tag orange">${escapeHtml(article.publication_date || 'sin fecha')}</span>
+          <span class="tag blue">${escapeHtml(article.__species.join(', '))}</span>
+          ${article.volume || article.issue ? `<span class="tag">Vol. ${escapeHtml(article.volume || '?')} · Nº ${escapeHtml(article.issue || '?')}</span>` : ''}
+          ${article.pages ? `<span class="tag">Págs. ${escapeHtml(article.pages)}</span>` : ''}
+          ${article.doi ? `<span class="tag">DOI ${escapeHtml(article.doi)}</span>` : ''}
+        </div>
+        <div class="link-row">
+          ${article.article_url ? `<a class="btn small secondary" href="${escapeHtml(article.article_url)}" target="_blank" rel="noopener">Abrir artículo AVMA</a>` : ''}
+          ${article.pdf_original_url ? `<a class="btn small secondary" href="${escapeHtml(article.pdf_original_url)}" target="_blank" rel="noopener">PDF original</a>` : ''}
+          ${article.doi ? `<a class="btn small secondary" href="https://doi.org/${escapeHtml(article.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}
+        </div>
+
+        <section class="section">
+          <div class="section-head"><h3>Autores</h3></div>
+          <div class="section-content authors-grid">
+            ${authors.length ? authors.map(authorHtml).join('') : '<p class="text-block">No hay autores registrados.</p>'}
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h3>Descripción del caso</h3>
+            <div class="link-row" style="margin:0">
+              <button class="btn small secondary" type="button" data-copy="case">Copiar</button>
+              <button class="btn small" type="button" data-translate="case">Traducir al español</button>
+            </div>
+          </div>
+          <div class="section-content text-block" id="caseText">${escapeHtml(article.descripcion_del_caso || 'Sin descripción del caso.')}</div>
+        </section>
+
+        <details class="section">
+          <summary>
+            <div class="section-head">
+              <h3>Interpretación ECG</h3>
+              <span class="summary-hint">sección</span>
+            </div>
+          </summary>
+          <div class="section-content">
+            <div class="link-row" style="margin:0 0 10px">
+              <button class="btn small secondary" type="button" data-copy="interp">Copiar</button>
+              <button class="btn small" type="button" data-translate="interp">Traducir al español</button>
+            </div>
+            <div class="text-block" id="interpText">${escapeHtml(article.interpretacion_ecg || 'Sin interpretación ECG.')}</div>
+          </div>
+        </details>
+
+        <section class="section">
+          <div class="section-head"><h3>Figuras ECG</h3><span class="counter">${figs.length} imagen${figs.length === 1 ? '' : 'es'}</span></div>
+          <div class="section-content">
+            ${figs.length ? `<div class="gallery">${figs.map((fig,i)=>figureHtml(fig,i)).join('')}</div>` : '<p class="text-block">No hay figuras registradas.</p>'}
+          </div>
+        </section>
+
+        <details class="section">
+          <summary>
+            <div class="section-head">
+              <h3>Discusión</h3>
+              <span class="summary-hint">sección</span>
+            </div>
+          </summary>
+          <div class="section-content">
+            <div class="link-row" style="margin:0 0 10px">
+              <button class="btn small secondary" type="button" data-copy="disc">Copiar</button>
+              <button class="btn small" type="button" data-translate="disc">Traducir al español</button>
+            </div>
+            <div class="text-block" id="discText">${escapeHtml(article.discusion || 'Sin discusión.')}</div>
+          </div>
+        </details>
+
+        ${footnotesHtml(article)}
+        ${referencesHtml(article)}
+      `;
+      bindDetailButtons(article);
+    }
+    function authorHtml(a){
+      const links = Array.isArray(a.links) ? a.links : [];
+      return `<div class="author-card">
+        <b>${escapeHtml(a.name || 'Autor')}</b>
+        ${a.credentials ? `<span>${escapeHtml(a.credentials)}</span>` : ''}
+        ${a.affiliation ? `<span>${escapeHtml(a.affiliation)}</span>` : ''}
+        ${links.length ? `<div class="link-row">${links.map(l => `<a class="btn small secondary" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label || 'enlace')}</a>`).join('')}</div>` : ''}
+      </div>`;
+    }
+    function figureHtml(fig, i){
+      const src = figureImage(fig);
+      const cap = fig.descripcion_figura || fig.alt_text || '';
+      return `<article class="figure-card">
+        ${src ? `<img loading="lazy" src="${escapeHtml(src)}" alt="${escapeHtml(fig.label || 'Figura ECG')}" data-full="${escapeHtml(src)}" data-title="${escapeHtml(fig.label || `Figura ${i+1}`)}" onerror="this.outerHTML='<div class=&quot;empty&quot;>Imagen no disponible</div>'">` : '<div class="empty">Imagen no disponible</div>'}
+        <div class="fig-cap" id="figText${i}">${escapeHtml(cap)}</div>
+        <div class="fig-actions">
+          <button class="btn small secondary" type="button" data-copy="fig" data-fig="${i}">Copiar</button>
+          <button class="btn small" type="button" data-translate="fig" data-fig="${i}">Traducir al español</button>
+          ${fig.image_download_url ? `<a class="btn small secondary" href="${escapeHtml(fig.image_download_url)}" target="_blank" rel="noopener">Descargar / abrir</a>` : ''}
+        </div>
+      </article>`;
+    }
+    function footnotesHtml(article){
+      const notes = Array.isArray(article.notas_pie) ? article.notas_pie : [];
+      if(!notes.length) return '';
+      return `<details class="section"><summary><div class="section-head"><h3>Notas al pie</h3><span class="summary-hint">sección</span></div></summary><div class="section-content refs">${notes.map(n => `<div class="ref-card"><p><strong>${escapeHtml(n.label || '')}</strong> ${escapeHtml(n.text || '')}</p></div>`).join('')}</div></details>`;
+    }
+    function referencesHtml(article){
+      const refs = Array.isArray(article.referencias) ? article.referencias : [];
+      if(!refs.length) return '';
+      return `<details class="section"><summary><div class="section-head"><h3>Referencias</h3><span class="summary-hint">${refs.length} referencias</span></div></summary><div class="section-content refs">${refs.map(refHtml).join('')}</div></details>`;
+    }
+    function refHtml(ref){
+      const actions = Array.isArray(ref.action_links) ? ref.action_links : [];
+      return `<div class="ref-card">
+        <p>${escapeHtml(ref.full_citation || '')}</p>
+        <div class="link-row" style="margin:0">
+          ${ref.crossref_url ? `<a class="btn small secondary" href="${escapeHtml(ref.crossref_url)}" target="_blank" rel="noopener">Crossref</a>` : ''}
+          ${ref.google_scholar_url ? `<a class="btn small secondary" href="${escapeHtml(ref.google_scholar_url)}" target="_blank" rel="noopener">Google Scholar</a>` : ''}
+          ${ref.export_citation_url ? `<a class="btn small secondary" href="${escapeHtml(ref.export_citation_url)}" target="_blank" rel="noopener">Export Citation</a>` : ''}
+          ${actions.filter(a => !['Crossref','Search Google Scholar','Export Citation'].includes(a.label)).map(a => `<a class="btn small secondary" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.label || 'enlace')}</a>`).join('')}
+        </div>
+      </div>`;
+    }
+    function bindDetailButtons(article){
+      document.querySelectorAll('.figure-card img[data-full]').forEach(img => img.addEventListener('click', () => openImage(img.dataset.full, img.dataset.title || 'Figura ECG')));
+      document.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', () => {
+        const text = sectionText(btn.dataset.copy, btn.dataset.fig);
+        copyText(text);
+      }));
+      document.querySelectorAll('[data-translate]').forEach(btn => btn.addEventListener('click', () => {
+        const text = sectionText(btn.dataset.translate, btn.dataset.fig);
+        openTranslate(text);
+      }));
+    }
+    function sectionText(kind, figIndex){
+      if(kind === 'case') return $('caseText')?.textContent || '';
+      if(kind === 'interp') return $('interpText')?.textContent || '';
+      if(kind === 'disc') return $('discText')?.textContent || '';
+      if(kind === 'fig') return $(`figText${figIndex}`)?.textContent || '';
+      return '';
+    }
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        toast('Texto copiado');
+      }catch{
+        toast('No se pudo copiar automáticamente');
+      }
+    }
+    async function openTranslate(text){
+      const cleaned = plainText(text);
+      if(!cleaned){ toast('No hay texto para traducir'); return; }
+      try{ await navigator.clipboard.writeText(cleaned); }catch{}
+      const limited = cleaned.length > 4800 ? cleaned.slice(0,4800) : cleaned;
+      const url = 'https://translate.google.com/?sl=en&tl=es&text=' + encodeURIComponent(limited) + '&op=translate';
+      window.open(url, '_blank', 'noopener');
+      toast(cleaned.length > 4800 ? 'Texto completo copiado; Google Translate abre el inicio' : 'Abriendo traducción');
+    }
+    function openImage(src, title){
+      $('modalImg').src = src;
+      $('modalTitle').textContent = title;
+      $('modalOpen').href = src;
+      $('imageModal').classList.add('open');
+      $('imageModal').setAttribute('aria-hidden','false');
+    }
+    function closeImage(){
+      $('imageModal').classList.remove('open');
+      $('imageModal').setAttribute('aria-hidden','true');
+      $('modalImg').removeAttribute('src');
+    }
+
+    ['input','change'].forEach(ev => {
+      els.q.addEventListener(ev, applyFilters);
+      els.author.addEventListener(ev, applyFilters);
+      els.arr.addEventListener(ev, applyFilters);
+      els.species.addEventListener(ev, applyFilters);
+      els.sort.addEventListener(ev, applyFilters);
+    });
+    els.loadLocalBtn.addEventListener('click', () => els.localFile.click());
+    els.localFile.addEventListener('change', async () => {
+      const file = els.localFile.files?.[0];
+      if(!file) return;
+      try{
+        const data = JSON.parse(await file.text());
+        setData(data, `Datos cargados desde archivo local: ${file.name}`);
+      }catch(err){
+        setStatus('bad', `No se pudo leer el JSON local: ${err.message}`);
+      }
+    });
+    $('modalClose').addEventListener('click', closeImage);
+    $('imageModal').addEventListener('click', (e) => { if(e.target.id === 'imageModal') closeImage(); });
+    document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeImage(); });
+
+    loadJson();
+  </script>
+</body>
+</html>
