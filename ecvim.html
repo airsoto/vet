@@ -1,1 +1,1896 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador ECVIM-CA General Examination</title>
+  <meta name="description" content="Simulador de examen tipo ECVIM-CA General Examination basado en preguntas JSON." />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060914;
+      --bg-2: #0b1020;
+      --panel: rgba(15, 23, 42, 0.88);
+      --panel-2: rgba(17, 24, 39, 0.96);
+      --panel-3: rgba(30, 41, 59, 0.88);
+      --line: rgba(148, 163, 184, 0.22);
+      --line-strong: rgba(148, 163, 184, 0.42);
+      --text: #e5e7eb;
+      --muted: #a5b4c7;
+      --muted-2: #7f8ca3;
+      --accent: #ff9900;
+      --accent-2: #fbbf24;
+      --cyan: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+      --radius: 22px;
+      --radius-sm: 14px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 18% -10%, rgba(255, 153, 0, 0.22), transparent 34%),
+        radial-gradient(circle at 86% 0%, rgba(56, 189, 248, 0.15), transparent 30%),
+        radial-gradient(circle at 50% 110%, rgba(167, 139, 250, 0.16), transparent 36%),
+        linear-gradient(135deg, var(--bg), var(--bg-2));
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.32;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: radial-gradient(circle at center, black, transparent 78%);
+    }
+
+    a { color: #fbbf24; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .page {
+      width: min(var(--max), calc(100% - 26px));
+      margin: 0 auto;
+      padding: 22px 0 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.82));
+      border-radius: calc(var(--radius) + 6px);
+      padding: clamp(18px, 4vw, 34px);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "ECVIM";
+      position: absolute;
+      right: -24px;
+      top: 18px;
+      font-size: clamp(58px, 14vw, 180px);
+      font-weight: 900;
+      line-height: 0.85;
+      letter-spacing: -0.08em;
+      color: rgba(255, 255, 255, 0.025);
+      pointer-events: none;
+    }
+
+    .topline {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 11px;
+      border: 1px solid rgba(255,153,0,0.28);
+      border-radius: 999px;
+      background: rgba(255,153,0,0.09);
+      color: #fed7aa;
+      font-size: 13px;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      margin: 14px 0 0;
+      font-size: clamp(28px, 6vw, 62px);
+      line-height: 0.95;
+      letter-spacing: -0.055em;
+      max-width: 860px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .subtitle {
+      margin: 16px 0 0;
+      color: var(--muted);
+      max-width: 900px;
+      line-height: 1.55;
+      font-size: clamp(14px, 2vw, 17px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .official-note {
+      margin: 16px 0 0;
+      display: grid;
+      gap: 8px;
+      color: #dbeafe;
+      font-size: 13px;
+      line-height: 1.45;
+      position: relative;
+      z-index: 1;
+    }
+
+    .official-note strong { color: #fff; }
+
+    .quick-facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .fact {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.48);
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 84px;
+    }
+
+    .fact b {
+      display: block;
+      font-size: 24px;
+      letter-spacing: -0.04em;
+      color: white;
+    }
+
+    .fact span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+
+    .home a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #f8fafc;
+      opacity: 0.86;
+    }
+
+    .home a:hover { opacity: 1; color: #fbbf24; }
+
+    .panel {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(255,153,0,0.08), rgba(56,189,248,0.05));
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel-body { padding: 20px; }
+
+    .loader-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .status-box {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.38);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 100%;
+    }
+
+    .status-box h3 { margin: 0 0 8px; font-size: 16px; }
+    .status-box p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      grid-column: span 4;
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.small { grid-column: span 2; }
+    .field.wide { grid-column: span 6; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    select, input[type="number"], input[type="search"], input[type="file"] {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      background: rgba(2, 6, 23, 0.58);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 12px;
+      outline: none;
+      min-height: 45px;
+    }
+
+    select:focus, input:focus {
+      border-color: rgba(255, 153, 0, 0.72);
+      box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.12);
+    }
+
+    .checks {
+      grid-column: span 6;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .check {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.35);
+      padding: 10px 12px;
+      border-radius: 999px;
+      color: #dbeafe;
+      font-size: 13px;
+      user-select: none;
+    }
+
+    input[type="checkbox"] { accent-color: var(--accent); }
+
+    .button-row {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    button, .fake-button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, rgba(255,153,0,0.96), rgba(217,119,6,0.96));
+      color: #111827;
+      font-weight: 900;
+      border-radius: 14px;
+      padding: 11px 14px;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(255,153,0,0.14);
+      transition: transform 0.12s ease, filter 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      min-height: 44px;
+    }
+
+    button:hover, .fake-button:hover { transform: translateY(-1px); filter: brightness(1.04); }
+    button:active, .fake-button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .secondary {
+      background: rgba(15, 23, 42, 0.72);
+      color: #e5e7eb;
+      box-shadow: none;
+      border-color: var(--line-strong);
+    }
+
+    .danger {
+      background: rgba(239,68,68,0.13);
+      color: #fecaca;
+      box-shadow: none;
+      border-color: rgba(239,68,68,0.35);
+    }
+
+    .success {
+      background: rgba(34,197,94,0.14);
+      color: #bbf7d0;
+      box-shadow: none;
+      border-color: rgba(34,197,94,0.35);
+    }
+
+    .cyan {
+      background: rgba(56,189,248,0.14);
+      color: #bae6fd;
+      box-shadow: none;
+      border-color: rgba(56,189,248,0.35);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 10px 0 0;
+    }
+
+    .hidden { display: none !important; }
+
+    .exam-topbar {
+      position: sticky;
+      top: 8px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.82);
+      backdrop-filter: blur(18px);
+      border-radius: 19px;
+      margin-top: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .timer-wrap {
+      display: grid;
+      gap: 8px;
+    }
+
+    .timer-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .timer {
+      font-size: clamp(24px, 5vw, 40px);
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.07em;
+      font-variant-numeric: tabular-nums;
+      color: white;
+    }
+
+    .timer.warn { color: #fbbf24; }
+    .timer.danger-timer { color: #fca5a5; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 50% { opacity: 0.62; } }
+
+    .progress {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.18);
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.14);
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #fbbf24, #38bdf8);
+      transition: width 0.25s ease;
+    }
+
+    .metric-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: #dbeafe;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .question-layout {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 305px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .question-card {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .question-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(255,153,0,0.10), rgba(56,189,248,0.06));
+    }
+
+    .question-kicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.45);
+      color: #cbd5e1;
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tag.orange { color: #fed7aa; border-color: rgba(255,153,0,0.32); background: rgba(255,153,0,0.08); }
+    .tag.blue { color: #bfdbfe; border-color: rgba(96,165,250,0.32); background: rgba(96,165,250,0.08); }
+    .tag.green { color: #bbf7d0; border-color: rgba(34,197,94,0.32); background: rgba(34,197,94,0.08); }
+
+    .question-title {
+      margin: 0;
+      font-size: clamp(20px, 4vw, 34px);
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+    }
+
+    .question-body {
+      padding: 20px;
+    }
+
+    .enunciado {
+      margin: 0 0 18px;
+      color: #f8fafc;
+      font-size: clamp(16px, 2.2vw, 19px);
+      line-height: 1.62;
+    }
+
+    .options {
+      display: grid;
+      gap: 12px;
+    }
+
+    .option-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--text);
+      box-shadow: none;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      min-height: auto;
+      font-weight: 700;
+    }
+
+    .option-btn .letter {
+      width: 32px;
+      height: 32px;
+      border-radius: 11px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+      font-weight: 950;
+      border: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+
+    .option-btn .txt { line-height: 1.45; color: #e5e7eb; }
+    .option-btn:hover { border-color: rgba(255,153,0,0.45); }
+    .option-btn.selected { border-color: rgba(251,191,36,0.72); background: rgba(251,191,36,0.11); }
+    .option-btn.correct { border-color: rgba(34,197,94,0.75); background: rgba(34,197,94,0.13); }
+    .option-btn.wrong { border-color: rgba(239,68,68,0.75); background: rgba(239,68,68,0.14); }
+
+    .feedback {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(2, 6, 23, 0.36);
+    }
+
+    .feedback.good { border-color: rgba(34,197,94,0.48); }
+    .feedback.bad { border-color: rgba(239,68,68,0.48); }
+
+    .feedback-main {
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .feedback-main h3 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    .feedback-main p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .explain-list {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    details.explain {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.52);
+    }
+
+    details.explain[open] { background: rgba(15, 23, 42, 0.78); }
+
+    details.explain summary {
+      cursor: pointer;
+      padding: 11px 12px;
+      font-weight: 900;
+      color: #f8fafc;
+      list-style: none;
+    }
+
+    details.explain summary::-webkit-details-marker { display: none; }
+
+    details.explain summary::before {
+      content: "▸";
+      display: inline-block;
+      margin-right: 8px;
+      color: var(--accent);
+      transition: transform 0.15s ease;
+    }
+
+    details.explain[open] summary::before { transform: rotate(90deg); }
+
+    .explain-body {
+      padding: 0 12px 12px 31px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .key-point {
+      margin-top: 14px;
+      border: 1px solid rgba(56,189,248,0.30);
+      background: rgba(56,189,248,0.08);
+      border-radius: 16px;
+      padding: 13px;
+      color: #dbeafe;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .question-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-top: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.24);
+    }
+
+    .side-panel {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.80);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 100px;
+      overflow: hidden;
+    }
+
+    .side-panel h3 {
+      margin: 0;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      padding: 14px;
+      max-height: 440px;
+      overflow: auto;
+    }
+
+    .qnav {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.52);
+      color: #cbd5e1;
+      border-radius: 12px;
+      min-height: 38px;
+      padding: 0;
+      box-shadow: none;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .qnav.current { border-color: rgba(255,153,0,0.78); color: #fff; background: rgba(255,153,0,0.18); }
+    .qnav.answered { border-color: rgba(96,165,250,0.42); background: rgba(96,165,250,0.11); color: #dbeafe; }
+    .qnav.correct { border-color: rgba(34,197,94,0.52); background: rgba(34,197,94,0.14); color: #dcfce7; }
+    .qnav.wrong { border-color: rgba(239,68,68,0.52); background: rgba(239,68,68,0.14); color: #fee2e2; }
+
+    .legend {
+      padding: 0 14px 14px;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .legend span { display: inline-flex; gap: 7px; align-items: center; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; background: #334155; }
+    .dot.blue { background: #60a5fa; }
+    .dot.green { background: #22c55e; }
+    .dot.red { background: #ef4444; }
+    .dot.orange { background: #ff9900; }
+
+    .results-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 20px;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(255,153,0,0.11), rgba(34,197,94,0.08), rgba(56,189,248,0.06));
+    }
+
+    .score-title {
+      margin: 0;
+      font-size: clamp(28px, 6vw, 54px);
+      line-height: 0.96;
+      letter-spacing: -0.06em;
+    }
+
+    .score-subtitle {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .score-img {
+      width: 100%;
+      max-height: 230px;
+      object-fit: contain;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.38);
+      padding: 10px;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .score-box {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.36);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .score-box b {
+      display: block;
+      font-size: 28px;
+      letter-spacing: -0.05em;
+      color: white;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-box span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.3;
+    }
+
+    .pass-label, .fail-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-weight: 950;
+      margin-top: 14px;
+    }
+
+    .pass-label { color: #dcfce7; background: rgba(34,197,94,0.13); border: 1px solid rgba(34,197,94,0.45); }
+    .fail-label { color: #fee2e2; background: rgba(239,68,68,0.13); border: 1px solid rgba(239,68,68,0.45); }
+
+    .report-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 0 20px 20px;
+    }
+
+    .report-preview {
+      padding: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .report-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .report-item {
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.34);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .report-item.ok { border-color: rgba(34,197,94,0.48); }
+    .report-item.ko { border-color: rgba(239,68,68,0.48); }
+    .report-item.blank { border-color: rgba(245,158,11,0.48); }
+
+    .report-item-head {
+      padding: 13px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .report-item-head b { letter-spacing: -0.02em; }
+    .report-status { font-size: 12px; font-weight: 950; border-radius: 999px; padding: 6px 9px; }
+    .report-status.ok { color: #dcfce7; background: rgba(34,197,94,0.14); }
+    .report-status.ko { color: #fee2e2; background: rgba(239,68,68,0.14); }
+    .report-status.blank { color: #fef3c7; background: rgba(245,158,11,0.14); }
+
+    .report-item-body {
+      padding: 14px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .report-item-body p { margin: 0 0 8px; }
+    .report-item-body p:last-child { margin-bottom: 0; }
+
+    .mini-ref {
+      margin-top: 12px;
+      color: #cbd5e1;
+      font-size: 12.5px;
+      border-top: 1px dashed var(--line);
+      padding-top: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(2, 6, 23, 0.94);
+      border: 1px solid var(--line-strong);
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      z-index: 50;
+      transition: 0.18s ease;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .footer {
+      margin-top: 22px;
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.62);
+      border-radius: var(--radius);
+      padding: 18px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+    }
+
+    .footer p { margin: 8px 0; }
+    .footer h4 { margin: 8px 0; }
+
+    .empty-state {
+      border: 1px dashed var(--line-strong);
+      background: rgba(2, 6, 23, 0.28);
+      border-radius: 18px;
+      padding: 18px;
+      color: var(--muted);
+      line-height: 1.55;
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .quick-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .loader-grid { grid-template-columns: 1fr; }
+      .field, .field.small, .field.wide, .checks { grid-column: 1 / -1; }
+      .question-layout { grid-template-columns: 1fr; }
+      .side-panel { position: static; }
+      .exam-topbar { grid-template-columns: 1fr; }
+      .metric-strip { justify-content: flex-start; }
+      .results-hero { grid-template-columns: 1fr; }
+      .score-img { max-width: 260px; }
+      .score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 540px) {
+      .page { width: min(100% - 18px, var(--max)); padding-top: 10px; }
+      .quick-facts, .score-grid { grid-template-columns: 1fr; }
+      .panel-header { align-items: flex-start; flex-direction: column; }
+      .question-actions { justify-content: stretch; }
+      .question-actions button { flex: 1; }
+      .nav-grid { grid-template-columns: repeat(4, 1fr); }
+      .option-btn { grid-template-columns: 1fr; }
+      .option-btn .letter { width: 30px; height: 30px; }
+    }
+
+    @media print {
+      body { background: white; color: #111827; }
+      body::before, .hero, .panel:not(#resultsPanel), .exam-topbar, .footer, .report-actions { display: none !important; }
+      .page { width: 100%; padding: 0; }
+      #resultsPanel { border: 0; box-shadow: none; background: white; color: #111827; }
+      .report-item { break-inside: avoid; background: white; color: #111827; }
+      .report-item-body, .score-subtitle { color: #1f2937; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="topline">🩺 Simulador de estudio ECVIM-CA</div>
+      <h1>General Examination Trainer</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">
+        Exámenes aleatorios desde <code>/json/ecvim.json</code>, con corrección, explicación por alternativa,
+        cronómetro proporcional al formato oficial y descarga de informe final en HTML.
+      </p>
+
+      <div class="official-note">
+        <span>Basado en <a href="https://ecvim-ca.college/" target="_blank" rel="noopener">https://ecvim-ca.college/</a> — normas examen ECVIM.</span>
+        <span><strong>Referencia:</strong> el ECVIM-CA General Examination se plantea como 100 preguntas MCQ, 4 opciones, 4 horas, aproximadamente 60 % para aprobar. El punto de corte real puede cambiar por análisis estadístico anual.</span>
+        <span><strong>Nota:</strong> esta web es un simulador docente no oficial. No sustituye la documentación oficial del ECVIM-CA.</span>
+      </div>
+
+      <div class="quick-facts" aria-label="Resumen del formato oficial usado en el simulador">
+        <div class="fact"><b>100</b><span>preguntas MCQ en el formato general oficial</span></div>
+        <div class="fact"><b>4 h</b><span>tiempo total oficial para 100 preguntas</span></div>
+        <div class="fact"><b>2:24</b><span>minutos aproximados por pregunta</span></div>
+        <div class="fact"><b>≥ 6/10</b><span>aprobado simulado, equivalente aproximado al 60 %</span></div>
+      </div>
+    </header>
+
+    <section id="loaderPanel" class="panel" aria-live="polite">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Carga de preguntas</h2>
+          <p class="panel-subtitle">La web intenta cargar primero <code>/json/ecvim.json</code>.</p>
+        </div>
+        <span id="loadBadge" class="pill">⏳ Cargando JSON</span>
+      </div>
+      <div class="panel-body loader-grid">
+        <div class="status-box">
+          <h3 id="loadTitle">Preparando base de datos...</h3>
+          <p id="loadMsg">Se aceptan dos formatos: un objeto con clave <code>preguntas</code> o un array directo de preguntas.</p>
+          <p class="hint">Consejo: en GitHub Pages, si <code>/json/ecvim.json</code> no existe desde la raíz del dominio, se probará también con <code>json/ecvim.json</code> y <code>./json/ecvim.json</code>.</p>
+        </div>
+        <div class="status-box">
+          <h3>Carga manual opcional</h3>
+          <p>Útil si abres el archivo en local y el navegador bloquea <code>fetch()</code>.</p>
+          <input id="fileInput" type="file" accept="application/json,.json" />
+        </div>
+      </div>
+    </section>
+
+    <section id="setupPanel" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Configuración del examen</h2>
+          <p class="panel-subtitle" id="dbInfo">Base de datos cargada.</p>
+        </div>
+        <span class="pill" id="poolBadge">0 preguntas disponibles</span>
+      </div>
+      <div class="panel-body">
+        <div class="controls-grid">
+          <div class="field wide">
+            <label for="areaSelect">Área / especialidad</label>
+            <select id="areaSelect"></select>
+          </div>
+
+          <div class="field small">
+            <label for="numQuestions">N.º preguntas</label>
+            <input id="numQuestions" type="number" min="1" step="1" placeholder="Todas" />
+          </div>
+
+          <div class="field small">
+            <label for="modeSelect">Modo</label>
+            <select id="modeSelect">
+              <option value="training" selected>Entrenamiento</option>
+              <option value="exam">Examen</option>
+            </select>
+          </div>
+
+          <div class="checks">
+            <label class="check"><input id="showFeedback" type="checkbox" checked /> Mostrar corrección al responder</label>
+            <label class="check"><input id="shuffleOptions" type="checkbox" /> Barajar opciones</label>
+          </div>
+
+          <div class="field full">
+            <label for="searchInput">Filtro rápido dentro del área seleccionada</label>
+            <input id="searchInput" type="search" placeholder="Ej.: renal, cardiología, gato, farmacología, hiperadrenocorticismo..." />
+          </div>
+
+          <div class="button-row">
+            <button id="startBtn">▶️ Crear examen aleatorio</button>
+            <button id="official100Btn" class="secondary">🎯 Simulacro oficial: 100 preguntas</button>
+            <button id="allBtn" class="secondary">📚 Usar todas las preguntas</button>
+            <button id="reloadBtn" class="secondary">🔄 Recargar JSON</button>
+          </div>
+        </div>
+        <p id="setupHint" class="hint"></p>
+      </div>
+    </section>
+
+    <section id="examPanel" class="hidden" aria-live="polite">
+      <div class="exam-topbar">
+        <div class="timer-wrap">
+          <div class="timer-line">
+            <div id="timer" class="timer">00:00:00</div>
+            <span class="pill" id="timePerQuestion">2:24 por pregunta</span>
+            <span class="pill" id="examMeta">0 preguntas</span>
+          </div>
+          <div class="progress" aria-label="Progreso de respuestas"><span id="progressBar"></span></div>
+        </div>
+        <div class="metric-strip">
+          <span class="pill" id="answeredPill">0 contestadas</span>
+          <span class="pill" id="scoreLivePill">Nota provisional: —</span>
+          <button id="finishBtn" class="danger">🏁 Finalizar</button>
+        </div>
+      </div>
+
+      <div class="question-layout">
+        <article class="question-card">
+          <div class="question-head">
+            <div class="question-kicker" id="questionTags"></div>
+            <h2 class="question-title" id="questionTitle">Pregunta</h2>
+          </div>
+          <div class="question-body">
+            <p class="enunciado" id="questionText"></p>
+            <div class="options" id="optionsBox"></div>
+            <div id="feedbackBox"></div>
+          </div>
+          <div class="question-actions">
+            <button id="prevBtn" class="secondary">← Anterior</button>
+            <button id="nextBtn" class="secondary">Siguiente →</button>
+          </div>
+        </article>
+
+        <aside class="side-panel">
+          <h3>Navegador</h3>
+          <div id="questionNav" class="nav-grid"></div>
+          <div class="legend">
+            <span><i class="dot orange"></i> Actual</span>
+            <span><i class="dot blue"></i> Contestada</span>
+            <span><i class="dot green"></i> Acertada con feedback</span>
+            <span><i class="dot red"></i> Fallada con feedback</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="resultsPanel" class="panel hidden">
+      <div id="resultsContent"></div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto. Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const JSON_URLS = ["/json/ecvim.json", "json/ecvim.json", "./json/ecvim.json"];
+    const OFFICIAL_TOTAL_QUESTIONS = 100;
+    const OFFICIAL_SECONDS_TOTAL = 4 * 60 * 60;
+    const SECONDS_PER_QUESTION = OFFICIAL_SECONDS_TOTAL / OFFICIAL_TOTAL_QUESTIONS; // 144 s = 2:24
+    const PASS_MARK = 6;
+
+    const state = {
+      allQuestions: [],
+      filteredPool: [],
+      examQuestions: [],
+      answers: [],
+      current: 0,
+      loadedPath: "",
+      startedAt: null,
+      finishedAt: null,
+      endTimestamp: null,
+      durationSeconds: 0,
+      timerId: null,
+      finished: false,
+      optionOrders: []
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      loaderPanel: $("loaderPanel"),
+      setupPanel: $("setupPanel"),
+      examPanel: $("examPanel"),
+      resultsPanel: $("resultsPanel"),
+      loadBadge: $("loadBadge"),
+      loadTitle: $("loadTitle"),
+      loadMsg: $("loadMsg"),
+      fileInput: $("fileInput"),
+      dbInfo: $("dbInfo"),
+      poolBadge: $("poolBadge"),
+      areaSelect: $("areaSelect"),
+      numQuestions: $("numQuestions"),
+      modeSelect: $("modeSelect"),
+      showFeedback: $("showFeedback"),
+      shuffleOptions: $("shuffleOptions"),
+      searchInput: $("searchInput"),
+      startBtn: $("startBtn"),
+      official100Btn: $("official100Btn"),
+      allBtn: $("allBtn"),
+      reloadBtn: $("reloadBtn"),
+      setupHint: $("setupHint"),
+      timer: $("timer"),
+      timePerQuestion: $("timePerQuestion"),
+      examMeta: $("examMeta"),
+      answeredPill: $("answeredPill"),
+      scoreLivePill: $("scoreLivePill"),
+      progressBar: $("progressBar"),
+      finishBtn: $("finishBtn"),
+      questionTags: $("questionTags"),
+      questionTitle: $("questionTitle"),
+      questionText: $("questionText"),
+      optionsBox: $("optionsBox"),
+      feedbackBox: $("feedbackBox"),
+      prevBtn: $("prevBtn"),
+      nextBtn: $("nextBtn"),
+      questionNav: $("questionNav"),
+      resultsContent: $("resultsContent"),
+      toast: $("toast")
+    };
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function normalizeText(value) {
+      return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function secureRandom() {
+      if (window.crypto && crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        crypto.getRandomValues(arr);
+        return arr[0] / 4294967296;
+      }
+      return Math.random();
+    }
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(secureRandom() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function showToast(msg) {
+      els.toast.textContent = msg;
+      els.toast.classList.add("show");
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => els.toast.classList.remove("show"), 2300);
+    }
+
+    function setLoadStatus(kind, title, msg) {
+      const icon = kind === "ok" ? "✅" : kind === "error" ? "⚠️" : "⏳";
+      els.loadBadge.textContent = `${icon} ${title}`;
+      els.loadTitle.textContent = title;
+      els.loadMsg.innerHTML = msg;
+    }
+
+    async function loadQuestionsFromUrls() {
+      setLoadStatus("loading", "Cargando JSON", `Intentando cargar <code>${escapeHTML(JSON_URLS[0])}</code>...`);
+      let lastError = null;
+
+      for (const url of JSON_URLS) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          const questions = extractQuestions(data);
+          if (!questions.length) throw new Error("El JSON no contiene preguntas válidas.");
+          state.loadedPath = url;
+          applyQuestionDatabase(questions, `Cargado desde ${url}`);
+          return;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      setLoadStatus(
+        "error",
+        "No se pudo cargar automáticamente",
+        `No se encontró el JSON en las rutas previstas. Error final: <code>${escapeHTML(lastError?.message || "desconocido")}</code>.<br>Usa la carga manual o sube el archivo a <code>/json/ecvim.json</code>.`
+      );
+    }
+
+    function extractQuestions(data) {
+      const list = Array.isArray(data) ? data : Array.isArray(data?.preguntas) ? data.preguntas : [];
+      return list
+        .filter(q => q && typeof q === "object" && q.enunciado && q.opciones && q.respuesta_correcta)
+        .map((q, idx) => ({
+          id: q.id ?? idx + 1,
+          area: q.area || "Sin área",
+          subarea: q.subarea || "Sin subárea",
+          nivel_cognitivo: q.nivel_cognitivo || "No especificado",
+          dificultad: q.dificultad || "No especificada",
+          especie: q.especie || "No especificada",
+          tipo_pregunta: q.tipo_pregunta || "MCQ",
+          enunciado: q.enunciado,
+          opciones: q.opciones || {},
+          respuesta_correcta: String(q.respuesta_correcta || "").trim(),
+          explicacion: q.explicacion || {},
+          referencia_sugerida: q.referencia_sugerida || "",
+          punto_clave: q.punto_clave || ""
+        }));
+    }
+
+    function applyQuestionDatabase(questions, sourceLabel) {
+      state.allQuestions = questions;
+      state.filteredPool = [...questions];
+      populateAreas();
+      updatePoolInfo();
+      els.loaderPanel.classList.add("hidden");
+      els.setupPanel.classList.remove("hidden");
+      els.resultsPanel.classList.add("hidden");
+      els.examPanel.classList.add("hidden");
+      els.dbInfo.textContent = `${sourceLabel}. ${questions.length} preguntas válidas detectadas.`;
+      setLoadStatus("ok", "JSON cargado", `${questions.length} preguntas válidas detectadas.`);
+      showToast(`JSON cargado: ${questions.length} preguntas`);
+    }
+
+    function populateAreas() {
+      const areas = [...new Set(state.allQuestions.map(q => q.area || "Sin área"))].sort((a, b) => a.localeCompare(b, "es"));
+      els.areaSelect.innerHTML = [
+        `<option value="__all__">Todas las áreas / General Examination</option>`,
+        ...areas.map(area => `<option value="${escapeHTML(area)}">${escapeHTML(area)}</option>`)
+      ].join("");
+    }
+
+    function getCurrentPool() {
+      const selectedArea = els.areaSelect.value;
+      const term = normalizeText(els.searchInput.value);
+      let pool = selectedArea === "__all__"
+        ? [...state.allQuestions]
+        : state.allQuestions.filter(q => q.area === selectedArea);
+
+      if (term) {
+        pool = pool.filter(q => {
+          const haystack = normalizeText([
+            q.area, q.subarea, q.nivel_cognitivo, q.dificultad,
+            q.especie, q.tipo_pregunta, q.enunciado,
+            Object.values(q.opciones || {}).join(" "), q.punto_clave, q.referencia_sugerida
+          ].join(" "));
+          return haystack.includes(term);
+        });
+      }
+      return pool;
+    }
+
+    function requestedQuestionCount(poolLength) {
+      const raw = els.numQuestions.value;
+      if (!raw) return poolLength;
+      const n = Math.max(1, Math.floor(Number(raw) || 1));
+      return Math.min(n, poolLength);
+    }
+
+    function updatePoolInfo() {
+      const pool = getCurrentPool();
+      state.filteredPool = pool;
+      const n = requestedQuestionCount(pool.length);
+      const required = Math.ceil(n * 0.60);
+      const duration = Math.round(n * SECONDS_PER_QUESTION);
+      els.poolBadge.textContent = `${pool.length} preguntas disponibles`;
+      els.setupHint.innerHTML = pool.length
+        ? `Se crearán <strong>${n}</strong> preguntas aleatorias. Tiempo simulado: <strong>${formatTime(duration)}</strong>. Aprobado orientativo: <strong>${required}/${n}</strong> respuestas correctas, nota ≥ ${PASS_MARK}/10. No se descuentan respuestas incorrectas.`
+        : `No hay preguntas disponibles con el filtro actual.`;
+      els.startBtn.disabled = pool.length === 0;
+      els.official100Btn.disabled = pool.length === 0;
+      els.allBtn.disabled = pool.length === 0;
+    }
+
+    function optionKeysForQuestion(q) {
+      const preferred = ["A", "B", "C", "D"].filter(k => Object.prototype.hasOwnProperty.call(q.opciones || {}, k));
+      const extra = Object.keys(q.opciones || {}).filter(k => !preferred.includes(k));
+      return [...preferred, ...extra];
+    }
+
+    function buildOptionOrders() {
+      state.optionOrders = state.examQuestions.map(q => {
+        const keys = optionKeysForQuestion(q);
+        return els.shuffleOptions.checked ? shuffle(keys) : keys;
+      });
+    }
+
+    function startExam() {
+      const pool = getCurrentPool();
+      if (!pool.length) {
+        showToast("No hay preguntas con el filtro actual");
+        return;
+      }
+
+      const n = requestedQuestionCount(pool.length);
+      state.examQuestions = shuffle(pool).slice(0, n);
+      state.answers = state.examQuestions.map(() => ({ selected: null, answeredAt: null }));
+      state.current = 0;
+      state.startedAt = new Date();
+      state.finishedAt = null;
+      state.finished = false;
+      state.durationSeconds = Math.round(state.examQuestions.length * SECONDS_PER_QUESTION);
+      state.endTimestamp = Date.now() + state.durationSeconds * 1000;
+      buildOptionOrders();
+
+      els.setupPanel.classList.add("hidden");
+      els.resultsPanel.classList.add("hidden");
+      els.examPanel.classList.remove("hidden");
+      els.examPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      clearInterval(state.timerId);
+      state.timerId = setInterval(updateTimer, 500);
+      updateTimer();
+      renderQuestion();
+      renderQuestionNav();
+      updateExamMetrics();
+      showToast("Examen aleatorio creado");
+    }
+
+    function restartToSetup() {
+      clearInterval(state.timerId);
+      state.timerId = null;
+      state.finished = false;
+      els.examPanel.classList.add("hidden");
+      els.resultsPanel.classList.add("hidden");
+      els.setupPanel.classList.remove("hidden");
+      updatePoolInfo();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function updateTimer() {
+      if (!state.examQuestions.length || state.finished) return;
+      const remaining = Math.max(0, Math.ceil((state.endTimestamp - Date.now()) / 1000));
+      els.timer.textContent = formatTime(remaining);
+      els.timer.classList.toggle("warn", remaining <= state.durationSeconds * 0.15 && remaining > 60);
+      els.timer.classList.toggle("danger-timer", remaining <= 60);
+      if (remaining <= 0) finishExam(true);
+    }
+
+    function formatTime(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    }
+
+    function renderQuestion() {
+      const q = state.examQuestions[state.current];
+      if (!q) return;
+      const number = state.current + 1;
+      const total = state.examQuestions.length;
+      const answer = state.answers[state.current];
+      const reveal = shouldRevealNow(!!answer.selected);
+      const correctKey = String(q.respuesta_correcta).trim();
+
+      els.questionTitle.textContent = `Pregunta ${number} de ${total}`;
+      els.questionTags.innerHTML = [
+        `<span class="tag orange">${escapeHTML(q.area)}</span>`,
+        `<span class="tag blue">${escapeHTML(q.subarea)}</span>`,
+        `<span class="tag">${escapeHTML(q.especie)}</span>`,
+        `<span class="tag">${escapeHTML(q.dificultad)}</span>`,
+        `<span class="tag green">${escapeHTML(q.nivel_cognitivo)}</span>`,
+        `<span class="tag">${escapeHTML(q.tipo_pregunta)}</span>`
+      ].join("");
+      els.questionText.textContent = q.enunciado;
+
+      const keys = state.optionOrders[state.current] || optionKeysForQuestion(q);
+      els.optionsBox.innerHTML = keys.map((key, idx) => {
+        const selected = answer.selected === key;
+        let cls = "option-btn";
+        if (selected) cls += " selected";
+        if (reveal && key === correctKey) cls += " correct";
+        if (reveal && selected && key !== correctKey) cls += " wrong";
+        const displayLetter = String.fromCharCode(65 + idx);
+        return `
+          <button class="${cls}" data-key="${escapeHTML(key)}" type="button" aria-label="Opción ${displayLetter}">
+            <span class="letter">${displayLetter}</span>
+            <span class="txt"><strong>${escapeHTML(key)}.</strong> ${escapeHTML(q.opciones[key])}</span>
+          </button>
+        `;
+      }).join("");
+
+      els.optionsBox.querySelectorAll("button[data-key]").forEach(btn => {
+        btn.addEventListener("click", () => selectAnswer(btn.dataset.key));
+      });
+
+      els.feedbackBox.innerHTML = reveal ? buildFeedbackHTML(q, answer.selected) : "";
+      els.prevBtn.disabled = state.current === 0;
+      els.nextBtn.textContent = state.current === total - 1 ? "Ir al final →" : "Siguiente →";
+      updateExamMetrics();
+      renderQuestionNav();
+    }
+
+    function selectAnswer(key) {
+      if (state.finished) return;
+      state.answers[state.current] = { selected: key, answeredAt: new Date().toISOString() };
+      renderQuestion();
+      const q = state.examQuestions[state.current];
+      if (shouldRevealNow(true)) {
+        showToast(key === q.respuesta_correcta ? "Respuesta correcta" : "Respuesta incorrecta");
+      } else {
+        showToast("Respuesta registrada");
+      }
+    }
+
+    function shouldRevealNow(hasAnswer) {
+      return state.finished || (els.modeSelect.value === "training" && els.showFeedback.checked && hasAnswer);
+    }
+
+    function buildFeedbackHTML(q, selectedKey) {
+      const correctKey = String(q.respuesta_correcta).trim();
+      const ok = selectedKey === correctKey;
+      const exp = q.explicacion || {};
+      const correctText = q.opciones?.[correctKey] || "";
+      const selectedText = selectedKey ? q.opciones?.[selectedKey] : "Sin respuesta";
+      const keys = optionKeysForQuestion(q);
+
+      const details = keys.map(key => {
+        const isCorrect = key === correctKey;
+        const isSelected = key === selectedKey;
+        const titleBits = [
+          `Opción ${escapeHTML(key)}`,
+          isCorrect ? "correcta" : "no correcta",
+          isSelected ? "seleccionada" : ""
+        ].filter(Boolean).join(" · ");
+        const explanation = exp[`por_que_${key}`] || (isCorrect ? exp.por_que_correcta : "No hay explicación específica para esta opción en el JSON.");
+        const open = isCorrect || isSelected ? "open" : "";
+        return `
+          <details class="explain" ${open}>
+            <summary>${titleBits}</summary>
+            <div class="explain-body">${escapeHTML(explanation)}</div>
+          </details>
+        `;
+      }).join("");
+
+      return `
+        <section class="feedback ${ok ? "good" : "bad"}">
+          <div class="feedback-main">
+            <h3>${ok ? "✅ Respuesta acertada" : "❌ Respuesta fallada"}</h3>
+            <p><strong>Tu respuesta:</strong> ${escapeHTML(selectedKey || "—")} ${selectedKey ? `· ${escapeHTML(selectedText)}` : ""}</p>
+            <p><strong>Respuesta correcta:</strong> ${escapeHTML(correctKey)} · ${escapeHTML(correctText)}</p>
+            ${exp.por_que_correcta ? `<p><strong>Idea central:</strong> ${escapeHTML(exp.por_que_correcta)}</p>` : ""}
+          </div>
+          <div class="explain-list">${details}</div>
+          ${q.punto_clave ? `<div class="key-point"><strong>🔑 Punto clave:</strong> ${escapeHTML(q.punto_clave)}</div>` : ""}
+          ${q.referencia_sugerida ? `<div class="key-point"><strong>📚 Referencia sugerida:</strong> ${escapeHTML(q.referencia_sugerida)}</div>` : ""}
+        </section>
+      `;
+    }
+
+    function renderQuestionNav() {
+      els.questionNav.innerHTML = state.examQuestions.map((q, idx) => {
+        const ans = state.answers[idx];
+        const answered = !!ans?.selected;
+        const reveal = shouldRevealNow(answered);
+        let cls = "qnav";
+        if (idx === state.current) cls += " current";
+        if (answered) cls += " answered";
+        if (reveal && answered && ans.selected === q.respuesta_correcta) cls += " correct";
+        if (reveal && answered && ans.selected !== q.respuesta_correcta) cls += " wrong";
+        return `<button class="${cls}" type="button" data-index="${idx}" title="Pregunta ${idx + 1}">${idx + 1}</button>`;
+      }).join("");
+
+      els.questionNav.querySelectorAll("button[data-index]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.current = Number(btn.dataset.index);
+          renderQuestion();
+          window.scrollTo({ top: els.examPanel.offsetTop - 12, behavior: "smooth" });
+        });
+      });
+    }
+
+    function updateExamMetrics() {
+      const total = state.examQuestions.length || 1;
+      const answered = state.answers.filter(a => a.selected).length;
+      const correct = state.answers.reduce((sum, a, idx) => sum + (a.selected && a.selected === state.examQuestions[idx]?.respuesta_correcta ? 1 : 0), 0);
+      const examMode = els.modeSelect.value === "exam" && !state.finished;
+      const provisional = answered ? ((correct / total) * 10).toFixed(2) : "—";
+      const progress = (answered / total) * 100;
+      els.answeredPill.textContent = `${answered}/${total} contestadas`;
+      els.scoreLivePill.textContent = examMode ? "Nota oculta hasta finalizar" : `Nota provisional: ${provisional}`;
+      els.progressBar.style.width = `${progress}%`;
+      els.examMeta.textContent = `${total} preguntas · objetivo ${Math.ceil(total * 0.60)} aciertos`;
+      els.timePerQuestion.textContent = `2:24 por pregunta · ${formatTime(state.durationSeconds)}`;
+    }
+
+    function changeQuestion(delta) {
+      if (!state.examQuestions.length) return;
+      const next = state.current + delta;
+      if (next < 0) return;
+      if (next >= state.examQuestions.length) {
+        finishExam(false);
+        return;
+      }
+      state.current = next;
+      renderQuestion();
+      window.scrollTo({ top: els.examPanel.offsetTop - 12, behavior: "smooth" });
+    }
+
+    function calculateScore() {
+      const total = state.examQuestions.length;
+      const answered = state.answers.filter(a => a.selected).length;
+      const correct = state.answers.reduce((sum, a, idx) => sum + (a.selected && a.selected === state.examQuestions[idx]?.respuesta_correcta ? 1 : 0), 0);
+      const wrong = state.answers.reduce((sum, a, idx) => sum + (a.selected && a.selected !== state.examQuestions[idx]?.respuesta_correcta ? 1 : 0), 0);
+      const blank = total - answered;
+      const note = total ? (correct / total) * 10 : 0;
+      const required = Math.ceil(total * 0.60);
+      const passed = note >= PASS_MARK;
+      const elapsedSeconds = state.startedAt
+        ? Math.round(((state.finishedAt || new Date()) - state.startedAt) / 1000)
+        : 0;
+      return { total, answered, correct, wrong, blank, note, required, passed, elapsedSeconds };
+    }
+
+    function scoreImage(note) {
+      let img = "imagenes/m5.png";
+      if (note >= 9) img = "imagenes/9_10.png";
+      else if (note >= 7) img = "imagenes/7_9.png";
+      else if (note >= 5) img = "imagenes/5_7.png";
+      return img;
+    }
+
+    function finishExam(forceByTimer = false) {
+      if (!state.examQuestions.length) return;
+      const scoreNow = calculateScore();
+      if (!forceByTimer && scoreNow.blank > 0) {
+        const ok = confirm(`Quedan ${scoreNow.blank} preguntas sin contestar.\n¿Quieres finalizar el examen igualmente?`);
+        if (!ok) return;
+      }
+      clearInterval(state.timerId);
+      state.timerId = null;
+      state.finished = true;
+      state.finishedAt = new Date();
+      els.examPanel.classList.add("hidden");
+      els.resultsPanel.classList.remove("hidden");
+      renderResults(forceByTimer);
+      els.resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function renderResults(forceByTimer = false) {
+      const score = calculateScore();
+      const img = scoreImage(score.note);
+      const statusLabel = score.passed
+        ? `<span class="pass-label">✅ EXAMEN APROBADO</span>`
+        : `<span class="fail-label">❌ EXAMEN NO APROBADO</span>`;
+      const missing = Math.max(0, score.required - score.correct);
+
+      els.resultsContent.innerHTML = `
+        <div class="results-hero">
+          <div>
+            <h2 class="score-title">Resultado: ${score.note.toFixed(2)}/10</h2>
+            ${statusLabel}
+            <p class="score-subtitle">
+              ${forceByTimer ? "El tiempo se ha agotado. " : ""}
+              Criterio de simulación: aprobado con nota ≥ ${PASS_MARK}/10, equivalente aproximado a ${score.required}/${score.total} respuestas correctas. El punto de corte oficial puede variar cada año.
+            </p>
+            <p class="score-subtitle">
+              ${score.passed ? "Has alcanzado el umbral orientativo de aprobado." : `Te faltan ${missing} acierto(s) para alcanzar el umbral orientativo.`}
+            </p>
+          </div>
+          <img class="score-img" src="${escapeHTML(img)}" alt="Imagen asociada a la nota obtenida" onerror="this.style.display='none'" />
+        </div>
+
+        <div class="score-grid">
+          <div class="score-box"><b>${score.total}</b><span>preguntas</span></div>
+          <div class="score-box"><b>${score.correct}</b><span>correctas</span></div>
+          <div class="score-box"><b>${score.wrong}</b><span>falladas</span></div>
+          <div class="score-box"><b>${score.blank}</b><span>sin contestar</span></div>
+          <div class="score-box"><b>${formatTime(score.elapsedSeconds)}</b><span>tiempo usado</span></div>
+        </div>
+
+        <div class="report-actions">
+          <button id="downloadReportBtn" class="success">⬇️ Descargar informe HTML</button>
+          <button id="printReportBtn" class="cyan">🖨️ Imprimir / guardar PDF</button>
+          <button id="reviewWrongBtn" class="secondary">🔎 Revisar primera fallada</button>
+          <button id="newExamBtn" class="secondary">🔄 Nuevo examen</button>
+        </div>
+
+        <div class="report-preview">
+          <h3 style="margin:0; font-size:20px; letter-spacing:-0.02em;">Corrección detallada</h3>
+          <p class="hint">Verde = acertada. Rojo = fallada. Ámbar = sin contestar. Cada pregunta incluye solución y explicación por alternativa si existe en el JSON.</p>
+          <div class="report-list">${buildReportItemsHTML()}</div>
+        </div>
+      `;
+
+      $("downloadReportBtn").addEventListener("click", downloadReportHTML);
+      $("printReportBtn").addEventListener("click", () => window.print());
+      $("newExamBtn").addEventListener("click", restartToSetup);
+      $("reviewWrongBtn").addEventListener("click", reviewFirstWrong);
+    }
+
+    function buildReportItemsHTML() {
+      return state.examQuestions.map((q, idx) => {
+        const ans = state.answers[idx];
+        const selected = ans?.selected || "";
+        const correct = q.respuesta_correcta;
+        const ok = selected && selected === correct;
+        const blank = !selected;
+        const cls = blank ? "blank" : ok ? "ok" : "ko";
+        const label = blank ? "SIN CONTESTAR" : ok ? "ACERTADA" : "FALLADA";
+        const selectedText = selected ? q.opciones?.[selected] : "—";
+        const correctText = q.opciones?.[correct] || "";
+        return `
+          <article class="report-item ${cls}">
+            <div class="report-item-head">
+              <b>Pregunta ${idx + 1} · ${escapeHTML(q.area)} · ${escapeHTML(q.subarea)}</b>
+              <span class="report-status ${cls}">${label}</span>
+            </div>
+            <div class="report-item-body">
+              <p><strong>Enunciado:</strong> ${escapeHTML(q.enunciado)}</p>
+              <p><strong>Tu respuesta:</strong> ${escapeHTML(selected || "—")} ${selected ? `· ${escapeHTML(selectedText)}` : ""}</p>
+              <p><strong>Respuesta correcta:</strong> ${escapeHTML(correct)} · ${escapeHTML(correctText)}</p>
+              ${q.explicacion?.por_que_correcta ? `<p><strong>Explicación principal:</strong> ${escapeHTML(q.explicacion.por_que_correcta)}</p>` : ""}
+              ${buildCompactOptionExplanations(q)}
+              ${q.punto_clave ? `<p><strong>Punto clave:</strong> ${escapeHTML(q.punto_clave)}</p>` : ""}
+              ${q.referencia_sugerida ? `<p class="mini-ref"><strong>Referencia sugerida:</strong> ${escapeHTML(q.referencia_sugerida)}</p>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function buildCompactOptionExplanations(q) {
+      const keys = optionKeysForQuestion(q);
+      const items = keys.map(k => {
+        const explanation = q.explicacion?.[`por_que_${k}`] || (k === q.respuesta_correcta ? q.explicacion?.por_que_correcta : "");
+        if (!explanation) return "";
+        return `<p><strong>Por qué ${escapeHTML(k)}:</strong> ${escapeHTML(explanation)}</p>`;
+      }).filter(Boolean).join("");
+      return items ? `<div>${items}</div>` : "";
+    }
+
+    function reviewFirstWrong() {
+      const idx = state.answers.findIndex((a, i) => !a.selected || a.selected !== state.examQuestions[i].respuesta_correcta);
+      if (idx === -1) {
+        showToast("No hay fallos que revisar");
+        return;
+      }
+      state.current = idx;
+      els.resultsPanel.classList.add("hidden");
+      els.examPanel.classList.remove("hidden");
+      renderQuestion();
+      els.examPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function buildStandaloneReportHTML() {
+      const score = calculateScore();
+      const img = scoreImage(score.note);
+      const generated = new Date().toLocaleString("es-ES");
+      const source = state.loadedPath || "carga manual";
+      const items = state.examQuestions.map((q, idx) => {
+        const ans = state.answers[idx];
+        const selected = ans?.selected || "";
+        const correct = q.respuesta_correcta;
+        const ok = selected && selected === correct;
+        const blank = !selected;
+        const cls = blank ? "blank" : ok ? "ok" : "ko";
+        const label = blank ? "SIN CONTESTAR" : ok ? "ACERTADA" : "FALLADA";
+        const selectedText = selected ? q.opciones?.[selected] : "—";
+        const correctText = q.opciones?.[correct] || "";
+        return `
+          <section class="item ${cls}">
+            <div class="itemHead">
+              <h2>Pregunta ${idx + 1}</h2>
+              <span>${label}</span>
+            </div>
+            <p class="tags">${escapeHTML(q.area)} · ${escapeHTML(q.subarea)} · ${escapeHTML(q.especie)} · ${escapeHTML(q.dificultad)} · ${escapeHTML(q.nivel_cognitivo)}</p>
+            <p><strong>Enunciado:</strong> ${escapeHTML(q.enunciado)}</p>
+            <div class="optionsReport">${optionKeysForQuestion(q).map(k => `
+              <p class="opt ${k === correct ? "correct" : selected === k ? "selected" : ""}"><strong>${escapeHTML(k)}.</strong> ${escapeHTML(q.opciones?.[k])}</p>
+            `).join("")}</div>
+            <p><strong>Tu respuesta:</strong> ${escapeHTML(selected || "—")} ${selected ? `· ${escapeHTML(selectedText)}` : ""}</p>
+            <p><strong>Respuesta correcta:</strong> ${escapeHTML(correct)} · ${escapeHTML(correctText)}</p>
+            ${q.explicacion?.por_que_correcta ? `<p><strong>Explicación principal:</strong> ${escapeHTML(q.explicacion.por_que_correcta)}</p>` : ""}
+            ${buildStandaloneOptionExplanations(q)}
+            ${q.punto_clave ? `<p class="key"><strong>Punto clave:</strong> ${escapeHTML(q.punto_clave)}</p>` : ""}
+            ${q.referencia_sugerida ? `<p class="ref"><strong>Referencia sugerida:</strong> ${escapeHTML(q.referencia_sugerida)}</p>` : ""}
+          </section>
+        `;
+      }).join("");
+
+      return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe resultados ECVIM</title>
+<style>
+  :root { --bg:#07111f; --panel:#0f172a; --text:#e5e7eb; --muted:#a5b4c7; --line:#334155; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --accent:#ff9900; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
+  .wrap { width:min(1100px, calc(100% - 28px)); margin:0 auto; padding:26px 0 44px; }
+  header { border:1px solid var(--line); background:linear-gradient(135deg, rgba(255,153,0,.14), rgba(15,23,42,.96)); border-radius:22px; padding:22px; margin-bottom:18px; }
+  h1 { margin:0; font-size:clamp(28px, 5vw, 54px); letter-spacing:-.05em; line-height:.98; }
+  .meta { color:var(--muted); margin:10px 0 0; }
+  a { color:#fbbf24; }
+  .hero { display:grid; grid-template-columns:1fr 180px; gap:16px; align-items:center; }
+  .hero img { width:100%; border:1px solid var(--line); border-radius:16px; background:#020617; padding:8px; }
+  .status { display:inline-block; padding:8px 10px; border-radius:999px; font-weight:bold; margin-top:10px; }
+  .status.pass { color:#dcfce7; background:rgba(34,197,94,.16); border:1px solid rgba(34,197,94,.45); }
+  .status.fail { color:#fee2e2; background:rgba(239,68,68,.16); border:1px solid rgba(239,68,68,.45); }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:18px; }
+  .box { border:1px solid var(--line); background:rgba(2,6,23,.42); border-radius:16px; padding:12px; }
+  .box b { display:block; font-size:28px; color:white; }
+  .box span { color:var(--muted); font-size:12px; }
+  .item { border:1px solid var(--line); border-radius:18px; background:var(--panel); padding:16px; margin:14px 0; break-inside:avoid; }
+  .item.ok { border-color:rgba(34,197,94,.65); }
+  .item.ko { border-color:rgba(239,68,68,.70); }
+  .item.blank { border-color:rgba(245,158,11,.70); }
+  .itemHead { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:10px; }
+  .itemHead h2 { margin:0; font-size:20px; }
+  .itemHead span { border-radius:999px; padding:6px 9px; font-size:12px; font-weight:bold; align-self:flex-start; }
+  .item.ok .itemHead span { color:#dcfce7; background:rgba(34,197,94,.16); }
+  .item.ko .itemHead span { color:#fee2e2; background:rgba(239,68,68,.16); }
+  .item.blank .itemHead span { color:#fef3c7; background:rgba(245,158,11,.16); }
+  .tags { color:#bfdbfe; font-size:13px; }
+  .optionsReport { margin:10px 0; display:grid; gap:6px; }
+  .opt { margin:0; padding:9px 10px; border-radius:12px; border:1px solid var(--line); background:rgba(2,6,23,.32); }
+  .opt.correct { border-color:rgba(34,197,94,.7); background:rgba(34,197,94,.12); }
+  .opt.selected:not(.correct) { border-color:rgba(239,68,68,.7); background:rgba(239,68,68,.12); }
+  .key { border-left:4px solid #38bdf8; padding-left:10px; color:#dbeafe; }
+  .ref { color:#cbd5e1; font-size:13px; border-top:1px dashed var(--line); padding-top:10px; }
+  footer { color:var(--muted); margin-top:24px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; }
+  @media(max-width:800px){ .hero{grid-template-columns:1fr;} .hero img{max-width:220px;} .grid{grid-template-columns:repeat(2,1fr);} }
+  @media print { body{background:white;color:#111827;} header,.item{background:white;} .meta,.ref,.tags{color:#374151;} a{color:#111827;} .wrap{width:100%;padding:0;} }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="hero">
+        <div>
+          <h1>Informe de resultados ECVIM-CA</h1>
+          <p class="meta">Generado: ${escapeHTML(generated)} · Fuente: ${escapeHTML(source)}</p>
+          <p class="meta">Simulador docente basado en el formato general descrito por ECVIM-CA: 100 MCQ, 4 horas, 4 opciones, corte aproximado 60 %. Web oficial: <a href="https://ecvim-ca.college/">ecvim-ca.college</a>.</p>
+          <span class="status ${score.passed ? "pass" : "fail"}">${score.passed ? "EXAMEN APROBADO" : "EXAMEN NO APROBADO"}</span>
+        </div>
+        <img src="${escapeHTML(img)}" alt="Imagen asociada a la nota" onerror="this.style.display='none'">
+      </div>
+      <div class="grid">
+        <div class="box"><b>${score.note.toFixed(2)}</b><span>nota /10</span></div>
+        <div class="box"><b>${score.correct}</b><span>correctas</span></div>
+        <div class="box"><b>${score.wrong}</b><span>falladas</span></div>
+        <div class="box"><b>${score.blank}</b><span>sin contestar</span></div>
+        <div class="box"><b>${formatTime(score.elapsedSeconds)}</b><span>tiempo usado</span></div>
+      </div>
+    </header>
+    ${items}
+    <footer>
+      <p>Creado por: Angel Soto DVM PhD · airsoto@gmail.com</p>
+      <p>Simulador no oficial. Consulta siempre la normativa vigente en la web del ECVIM-CA.</p>
+    </footer>
+  </main>
+</body>
+</html>`;
+    }
+
+    function buildStandaloneOptionExplanations(q) {
+      return optionKeysForQuestion(q).map(k => {
+        const explanation = q.explicacion?.[`por_que_${k}`] || (k === q.respuesta_correcta ? q.explicacion?.por_que_correcta : "");
+        return explanation ? `<p><strong>Por qué ${escapeHTML(k)}:</strong> ${escapeHTML(explanation)}</p>` : "";
+      }).join("");
+    }
+
+    function downloadReportHTML() {
+      const html = buildStandaloneReportHTML();
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      a.href = url;
+      a.download = `resultado_ecvim_${stamp}.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Informe HTML descargado");
+    }
+
+    function handleManualFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          const questions = extractQuestions(data);
+          if (!questions.length) throw new Error("El archivo no contiene preguntas válidas.");
+          state.loadedPath = file.name;
+          applyQuestionDatabase(questions, `Cargado manualmente desde ${file.name}`);
+        } catch (err) {
+          setLoadStatus("error", "JSON manual no válido", escapeHTML(err.message));
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    function setupEvents() {
+      els.areaSelect.addEventListener("change", updatePoolInfo);
+      els.numQuestions.addEventListener("input", updatePoolInfo);
+      els.searchInput.addEventListener("input", updatePoolInfo);
+      els.startBtn.addEventListener("click", startExam);
+      els.official100Btn.addEventListener("click", () => {
+        els.numQuestions.value = OFFICIAL_TOTAL_QUESTIONS;
+        updatePoolInfo();
+        startExam();
+      });
+      els.allBtn.addEventListener("click", () => {
+        els.numQuestions.value = "";
+        updatePoolInfo();
+        startExam();
+      });
+      els.reloadBtn.addEventListener("click", () => {
+        els.loaderPanel.classList.remove("hidden");
+        els.setupPanel.classList.add("hidden");
+        els.examPanel.classList.add("hidden");
+        els.resultsPanel.classList.add("hidden");
+        loadQuestionsFromUrls();
+      });
+      els.fileInput.addEventListener("change", handleManualFile);
+      els.prevBtn.addEventListener("click", () => changeQuestion(-1));
+      els.nextBtn.addEventListener("click", () => changeQuestion(1));
+      els.finishBtn.addEventListener("click", () => finishExam(false));
+
+      document.addEventListener("keydown", (event) => {
+        if (els.examPanel.classList.contains("hidden") || state.finished) return;
+        const key = event.key.toUpperCase();
+        const currentKeys = state.optionOrders[state.current] || [];
+        if (["A", "B", "C", "D"].includes(key)) {
+          const displayIndex = key.charCodeAt(0) - 65;
+          const originalKey = currentKeys[displayIndex];
+          if (originalKey) selectAnswer(originalKey);
+        }
+        if (event.key === "ArrowRight") changeQuestion(1);
+        if (event.key === "ArrowLeft") changeQuestion(-1);
+      });
+    }
+
+    setupEvents();
+    loadQuestionsFromUrls();
+  </script>
+</body>
+</html>
