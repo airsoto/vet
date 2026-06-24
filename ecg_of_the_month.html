@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070b12" />
+  <title>ECG of the Month · Base de datos interactiva</title>
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg:#070b12;
+      --bg2:#0b1220;
+      --panel:rgba(15,23,42,.88);
+      --panel2:rgba(17,24,39,.96);
+      --card:rgba(15,23,42,.72);
+      --card2:rgba(2,6,23,.72);
+      --line:rgba(148,163,184,.22);
+      --line2:rgba(255,153,0,.38);
+      --text:#e5e7eb;
+      --muted:#a7b3c7;
+      --muted2:#7f8da3;
+      --accent:#ff9900;
+      --accent2:#ffd08a;
+      --good:#36d399;
+      --bad:#fb7185;
+      --blue:#38bdf8;
+      --shadow:0 24px 70px rgba(0,0,0,.42);
+      --radius:22px;
+      --radius2:16px;
+      --max:1420px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(255,153,0,.18), transparent 31%),
+        radial-gradient(circle at 90% 8%, rgba(56,189,248,.12), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(255,153,0,.08), transparent 32%),
+        linear-gradient(180deg, #070b12 0%, #0a0f1b 55%, #060914 100%);
+      color:var(--text);
+      line-height:1.55;
+    }
+
+    a{color:var(--accent2); text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    .page{
+      width:min(var(--max), calc(100% - 28px));
+      margin:0 auto;
+      padding:24px 0 40px;
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border:1px solid var(--line);
+      border-radius:calc(var(--radius) + 4px);
+      padding:26px;
+      background:
+        linear-gradient(135deg, rgba(15,23,42,.94), rgba(2,6,23,.74)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 18px);
+      box-shadow:var(--shadow);
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:-120px auto auto -120px;
+      width:260px;height:260px;
+      background:radial-gradient(circle, rgba(255,153,0,.32), transparent 68%);
+      pointer-events:none;
+      filter:blur(2px);
+    }
+
+    .topline{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      position:relative;
+      z-index:1;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(30px, 5vw, 64px);
+      line-height:.94;
+      letter-spacing:-.055em;
+      max-width:980px;
+    }
+
+    .accent{color:var(--accent)}
+    .lead{
+      max-width:980px;
+      margin:16px 0 0;
+      color:var(--muted);
+      font-size:clamp(15px, 2vw, 18px);
+    }
+
+    .home a{
+      color:#e5e7eb;
+      opacity:.92;
+    }
+
+    .hero-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:20px;
+      position:relative;
+      z-index:1;
+    }
+
+    .btn,
+    button.btn,
+    label.btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:42px;
+      padding:10px 14px;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      color:#fff;
+      background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.045));
+      cursor:pointer;
+      font-weight:700;
+      font-size:14px;
+      box-shadow:0 10px 26px rgba(0,0,0,.18);
+      transition:.18s ease;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn:hover{transform:translateY(-1px); border-color:rgba(255,153,0,.5); text-decoration:none}
+    .btn.primary{background:linear-gradient(135deg, #ff9900, #ffba4c); color:#111827; border-color:#ffba4c}
+    .btn.ghost{box-shadow:none; background:rgba(15,23,42,.48)}
+    .btn.small{min-height:34px; padding:7px 10px; font-size:12px}
+    .btn.danger{border-color:rgba(251,113,133,.32); color:#fecdd3}
+
+    .statusbar{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:12px;
+      margin:18px 0;
+    }
+
+    .stat{
+      border:1px solid var(--line);
+      background:rgba(15,23,42,.58);
+      border-radius:var(--radius2);
+      padding:14px;
+      min-height:84px;
+    }
+    .stat strong{display:block; font-size:clamp(24px, 4vw, 38px); line-height:1; letter-spacing:-.04em}
+    .stat span{display:block; margin-top:8px; color:var(--muted); font-size:13px}
+
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(320px, 450px) minmax(0, 1fr);
+      gap:18px;
+      align-items:start;
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(2,6,23,.58));
+      border-radius:var(--radius);
+      box-shadow:0 18px 50px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+
+    .controls{
+      position:sticky;
+      top:10px;
+      max-height:calc(100vh - 20px);
+      display:flex;
+      flex-direction:column;
+    }
+
+    .panel-head{
+      padding:16px 16px 12px;
+      border-bottom:1px solid var(--line);
+      background:rgba(2,6,23,.36);
+    }
+    .panel-head h2,
+    .panel-head h3{margin:0; font-size:18px; letter-spacing:-.02em}
+    .panel-head p{margin:6px 0 0; color:var(--muted); font-size:13px}
+
+    .searchbox{
+      display:grid;
+      gap:10px;
+      padding:14px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .field label{
+      display:block;
+      margin:0 0 6px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+    input,
+    select,
+    textarea{
+      width:100%;
+      min-height:42px;
+      border:1px solid rgba(148,163,184,.26);
+      border-radius:14px;
+      padding:10px 12px;
+      background:rgba(2,6,23,.65);
+      color:var(--text);
+      outline:none;
+      font:inherit;
+    }
+    input:focus, select:focus, textarea:focus{border-color:rgba(255,153,0,.66); box-shadow:0 0 0 3px rgba(255,153,0,.11)}
+
+    .field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:7px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.1);
+      color:#dbeafe;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .chip:hover{border-color:rgba(255,153,0,.5)}
+    .chip.active{background:rgba(255,153,0,.14); color:var(--accent2); border-color:rgba(255,153,0,.55)}
+    .chip.static{cursor:default; color:var(--muted)}
+
+    .results{
+      overflow:auto;
+      padding:10px;
+    }
+
+    .card{
+      border:1px solid rgba(148,163,184,.18);
+      background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(15,23,42,.42));
+      border-radius:18px;
+      padding:13px;
+      margin-bottom:10px;
+      cursor:pointer;
+      transition:.16s ease;
+    }
+    .card:hover{border-color:rgba(255,153,0,.5); transform:translateY(-1px)}
+    .card.active{border-color:var(--accent); background:linear-gradient(180deg, rgba(255,153,0,.14), rgba(15,23,42,.72))}
+    .card-title{font-weight:900; letter-spacing:-.02em; display:flex; justify-content:space-between; gap:8px}
+    .card-meta{color:var(--muted); font-size:12px; margin-top:4px}
+    .card-text{font-size:13px; color:#cbd5e1; margin:9px 0 0; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+    .tagrow{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px}
+    .tag{font-size:11px; padding:4px 7px; border-radius:999px; border:1px solid rgba(255,255,255,.1); color:#cbd5e1; background:rgba(255,255,255,.04)}
+    .tag.accent{border-color:rgba(255,153,0,.42); color:var(--accent2); background:rgba(255,153,0,.08)}
+
+    .detail{
+      min-height:620px;
+    }
+    .detail-body{padding:18px}
+    .empty{
+      display:grid;
+      place-items:center;
+      min-height:480px;
+      color:var(--muted);
+      text-align:center;
+      padding:22px;
+    }
+    .empty .icon{font-size:56px; margin-bottom:12px}
+
+    .article-head{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      margin-bottom:14px;
+    }
+    .article-head h2{
+      margin:0;
+      font-size:clamp(22px, 3vw, 36px);
+      line-height:1;
+      letter-spacing:-.04em;
+    }
+    .article-meta{color:var(--muted); margin-top:8px; font-size:14px}
+
+    .quicklinks{display:flex; gap:8px; flex-wrap:wrap}
+
+    .authors{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:12px 0 0;
+    }
+    .author-pill{
+      border:1px solid rgba(255,255,255,.11);
+      border-radius:14px;
+      padding:8px 10px;
+      background:rgba(2,6,23,.42);
+      color:#e5e7eb;
+      font-size:13px;
+    }
+    .author-pill small{display:block; color:var(--muted2); margin-top:2px}
+
+    details.section{
+      border:1px solid var(--line);
+      background:rgba(2,6,23,.35);
+      border-radius:18px;
+      margin:12px 0;
+      overflow:hidden;
+    }
+    details.section summary{
+      cursor:pointer;
+      padding:13px 15px;
+      font-weight:900;
+      color:#fff;
+      border-bottom:1px solid transparent;
+    }
+    details.section[open] summary{border-bottom-color:var(--line); color:var(--accent2)}
+    .section-content{padding:14px 15px; color:#d7dee9; white-space:pre-wrap}
+    .section-content.compact{max-height:390px; overflow:auto}
+
+    mark{
+      background:rgba(255,153,0,.33);
+      color:#fff;
+      border-radius:4px;
+      padding:0 2px;
+    }
+
+    .gallery{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+      gap:14px;
+      margin:14px 0 6px;
+    }
+    .figure-card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:rgba(2,6,23,.45);
+    }
+    .figure-img-wrap{
+      background:#f8fafc;
+      min-height:190px;
+      display:grid;
+      place-items:center;
+      padding:10px;
+      cursor:zoom-in;
+    }
+    .figure-img-wrap img{
+      max-width:100%;
+      width:100%;
+      height:auto;
+      object-fit:contain;
+      display:block;
+      border-radius:8px;
+      box-shadow:0 8px 26px rgba(0,0,0,.22);
+    }
+    .figure-caption{padding:12px 13px; font-size:13px; color:#dbe4f0; white-space:pre-wrap}
+    .figure-caption strong{color:var(--accent2)}
+    .figure-actions{display:flex; gap:8px; flex-wrap:wrap; padding:0 13px 13px}
+
+    .ref-list{display:grid; gap:10px}
+    .ref-item{
+      padding:12px;
+      border:1px solid rgba(148,163,184,.18);
+      background:rgba(15,23,42,.46);
+      border-radius:14px;
+    }
+    .ref-actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+
+    .toast{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      z-index:1000;
+      border:1px solid rgba(255,153,0,.45);
+      background:rgba(15,23,42,.96);
+      color:#fff;
+      border-radius:16px;
+      padding:12px 14px;
+      box-shadow:0 16px 40px rgba(0,0,0,.35);
+      transform:translateY(20px);
+      opacity:0;
+      pointer-events:none;
+      transition:.2s ease;
+    }
+    .toast.show{opacity:1; transform:translateY(0)}
+
+    .lightbox{
+      position:fixed;
+      inset:0;
+      z-index:999;
+      display:none;
+      background:rgba(0,0,0,.86);
+      backdrop-filter:blur(7px);
+      padding:20px;
+    }
+    .lightbox.open{display:grid; grid-template-rows:auto 1fr auto; gap:12px}
+    .lightbox-top{
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      color:#fff;
+    }
+    .lightbox-stage{
+      overflow:auto;
+      display:grid;
+      place-items:center;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;
+    }
+    .lightbox-stage img{
+      max-width:none;
+      transform-origin:center;
+      transition:.12s ease;
+      background:#fff;
+      border-radius:10px;
+      box-shadow:0 24px 80px rgba(0,0,0,.5);
+    }
+    .lightbox-caption{
+      color:#cbd5e1;
+      max-height:120px;
+      overflow:auto;
+      white-space:pre-wrap;
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:14px;
+      padding:10px 12px;
+      background:rgba(15,23,42,.72);
+    }
+
+    .footer{
+      margin-top:26px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:18px;
+      background:rgba(2,6,23,.62);
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+    }
+
+    .minihelp{
+      margin-top:12px;
+      color:var(--muted2);
+      font-size:12px;
+    }
+
+    .loading{
+      padding:16px;
+      border:1px dashed rgba(255,153,0,.35);
+      border-radius:16px;
+      background:rgba(255,153,0,.06);
+      color:var(--accent2);
+      margin:12px 0 0;
+    }
+
+    .hidden{display:none!important}
+
+    @media (max-width:980px){
+      .layout{grid-template-columns:1fr}
+      .controls{position:relative; top:auto; max-height:none}
+      .results{max-height:520px}
+      .statusbar{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+    @media (max-width:620px){
+      .page{width:min(100% - 16px, var(--max)); padding-top:10px}
+      .hero{padding:18px}
+      .statusbar{grid-template-columns:1fr}
+      .field-row{grid-template-columns:1fr}
+      .detail-body{padding:12px}
+      .gallery{grid-template-columns:1fr}
+    }
+
+    @media print{
+      body{background:#fff; color:#111}
+      .hero,.controls,.footer,.hero-actions,.quicklinks,.toast,.lightbox{display:none!important}
+      .layout{display:block}
+      .panel{box-shadow:none; border:none; background:#fff}
+      .detail-body{padding:0}
+      details.section{border:1px solid #ddd; background:#fff}
+      details.section summary{color:#111}
+      .section-content{color:#111}
+      a{color:#111}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="topline">
+        <div>
+          <h1><span class="accent">ECG of the Month</span><br>base de datos interactiva</h1>
+
+          <!-- BLOQUE DESARROLLADO POR + HOME -->
+          <div style="margin:10px 0 0 0;">
+          <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+          </h2>
+          <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/"; target="_blank" rel="noopener">
+          🏠 <span>volver a página de inicio</span>
+          </a>
+          </p>
+          </div>
+
+          <p class="lead">
+            Navegador visual para consultar los casos de <em>ECG of the Month</em> extraídos de AVMA Journals: autores, descripción clínica, interpretación ECG, figuras, discusión y referencias.
+          </p>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <a class="btn primary" href="https://airsoto.github.io/vet/how/how_ecg_of_the_month.html" target="_blank" rel="noopener">🧬 Cómo se ha creado la base de datos</a>
+        <a class="btn" href="/json/ecg_of_the_month.json" target="_blank" rel="noopener">📦 Abrir JSON</a>
+        <button class="btn ghost" id="downloadFilteredBtn" type="button">⬇️ Descargar selección</button>
+        <label class="btn ghost" for="localJsonInput">📁 Cargar JSON local</label>
+        <input id="localJsonInput" type="file" accept="application/json,.json" class="hidden" />
+      </div>
+      <div id="loadStatus" class="loading">Cargando datos desde <strong>./json/ecg_of_the_month.json</strong>…</div>
+    </header>
+
+    <section class="statusbar" aria-label="Resumen de la base de datos">
+      <div class="stat"><strong id="statTotal">0</strong><span>casos cargados</span></div>
+      <div class="stat"><strong id="statVisible">0</strong><span>casos visibles</span></div>
+      <div class="stat"><strong id="statFigures">0</strong><span>figuras ECG</span></div>
+      <div class="stat"><strong id="statYears">0</strong><span>años cubiertos</span></div>
+    </section>
+
+    <main class="layout">
+      <aside class="panel controls">
+        <div class="panel-head">
+          <h2>🔎 Búsqueda</h2>
+          <p>Filtra por autor, arritmia, especie, año o texto libre.</p>
+        </div>
+
+        <div class="searchbox">
+          <div class="field">
+            <label for="q">Texto libre</label>
+            <input id="q" type="search" placeholder="Ej.: Boxer, syncope, pacemaker, hyperthyroidism…" autocomplete="off" />
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="authorFilter">Autor</label>
+              <input id="authorFilter" type="search" placeholder="Ej.: Santilli, Rishniw…" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="arrhythmiaFilter">Arritmia / interpretación ECG</label>
+              <input id="arrhythmiaFilter" type="search" placeholder="Ej.: atrial fibrillation, AV block…" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="speciesFilter">Especie</label>
+              <select id="speciesFilter">
+                <option value="">Todas</option>
+                <option value="dog">Perro</option>
+                <option value="cat">Gato</option>
+                <option value="horse">Caballo</option>
+                <option value="rabbit">Conejo</option>
+                <option value="other">Otros / sin detectar</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="yearFilter">Año</label>
+              <select id="yearFilter"><option value="">Todos</option></select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="sortBy">Ordenar</label>
+              <select id="sortBy">
+                <option value="dateDesc">Fecha: más reciente</option>
+                <option value="dateAsc">Fecha: más antigua</option>
+                <option value="authorAsc">Autor A-Z</option>
+                <option value="figuresDesc">Más figuras</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="itemsPerPage">Mostrar</label>
+              <select id="itemsPerPage">
+                <option value="25">25 casos</option>
+                <option value="50">50 casos</option>
+                <option value="100">100 casos</option>
+                <option value="9999">Todos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Filtros rápidos</label>
+            <div class="chips" id="quickFilters"></div>
+          </div>
+
+          <div class="chips">
+            <button class="btn small" id="clearFiltersBtn" type="button">🧹 Limpiar filtros</button>
+            <button class="btn small" id="randomBtn" type="button">🎲 Caso aleatorio</button>
+          </div>
+
+          <p class="minihelp">Consejo: busca por “third-degree AV block”, “atrial fibrillation”, “ventricular tachycardia”, “Ashman”, “junctional”, “artifact”…</p>
+        </div>
+
+        <div class="panel-head">
+          <h3>📚 Resultados</h3>
+          <p id="resultSummary">Sin datos cargados.</p>
+        </div>
+        <div class="results" id="results"></div>
+      </aside>
+
+      <section class="panel detail" aria-live="polite">
+        <div class="panel-head">
+          <h2>📈 Ficha del ECG</h2>
+          <p>Selecciona un caso para ver la información completa y sus imágenes.</p>
+        </div>
+        <div class="detail-body" id="detail">
+          <div class="empty">
+            <div>
+              <div class="icon">🫀</div>
+              <h2>Selecciona un ECG of the Month</h2>
+              <p>La ficha mostrará descripción clínica, interpretación, figuras ampliables, discusión, notas y referencias.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto"; target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de imagen ECG">
+    <div class="lightbox-top">
+      <strong id="lightboxTitle">Figura ECG</strong>
+      <div class="chips">
+        <button class="btn small" id="zoomOutBtn" type="button">−</button>
+        <button class="btn small" id="zoomResetBtn" type="button">100%</button>
+        <button class="btn small" id="zoomInBtn" type="button">+</button>
+        <a class="btn small" id="openImageBtn" href="#" target="_blank" rel="noopener">Abrir imagen</a>
+        <button class="btn small danger" id="closeLightboxBtn" type="button">Cerrar ✕</button>
+      </div>
+    </div>
+    <div class="lightbox-stage" id="lightboxStage">
+      <img id="lightboxImg" alt="ECG ampliado" />
+    </div>
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    'use strict';
+
+    const DATA_URLS = ['./json/ecg_of_the_month.json', '/json/ecg_of_the_month.json', 'json/ecg_of_the_month.json'];
+    const QUICK_FILTERS = [
+      'atrial fibrillation', 'atrial flutter', 'AV block', 'third-degree', 'second-degree',
+      'ventricular tachycardia', 'premature complexes', 'junctional', 'pacemaker',
+      'Ashman', 'accessory pathway', 'artifact', 'bundle branch block', 'sinus rhythm'
+    ];
+
+    let db = [];
+    let filtered = [];
+    let selectedId = null;
+    let visibleLimit = 25;
+    let zoom = 1;
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const els = {
+      q: $('#q'),
+      authorFilter: $('#authorFilter'),
+      arrhythmiaFilter: $('#arrhythmiaFilter'),
+      speciesFilter: $('#speciesFilter'),
+      yearFilter: $('#yearFilter'),
+      sortBy: $('#sortBy'),
+      itemsPerPage: $('#itemsPerPage'),
+      results: $('#results'),
+      detail: $('#detail'),
+      resultSummary: $('#resultSummary'),
+      loadStatus: $('#loadStatus'),
+      statTotal: $('#statTotal'),
+      statVisible: $('#statVisible'),
+      statFigures: $('#statFigures'),
+      statYears: $('#statYears'),
+      quickFilters: $('#quickFilters'),
+      clearFiltersBtn: $('#clearFiltersBtn'),
+      randomBtn: $('#randomBtn'),
+      downloadFilteredBtn: $('#downloadFilteredBtn'),
+      localJsonInput: $('#localJsonInput'),
+      toast: $('#toast'),
+      lightbox: $('#lightbox'),
+      lightboxImg: $('#lightboxImg'),
+      lightboxTitle: $('#lightboxTitle'),
+      lightboxCaption: $('#lightboxCaption'),
+      openImageBtn: $('#openImageBtn'),
+      closeLightboxBtn: $('#closeLightboxBtn'),
+      zoomInBtn: $('#zoomInBtn'),
+      zoomOutBtn: $('#zoomOutBtn'),
+      zoomResetBtn: $('#zoomResetBtn'),
+      lightboxStage: $('#lightboxStage')
+    };
+
+    function escapeHtml(str=''){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
+
+    function normalize(str=''){
+      return String(str || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase();
+    }
+
+    function compact(str=''){
+      return String(str || '').replace(/\s+/g,' ').trim();
+    }
+
+    function textBlock(str=''){
+      return escapeHtml(String(str || '').trim() || 'No disponible.');
+    }
+
+    function dateYear(article){
+      const d = article.publication_date || article.date || '';
+      const m = String(d).match(/(19|20)\d{2}/);
+      return m ? m[0] : '';
+    }
+
+    function dateValue(article){
+      const d = String(article.publication_date || '').replaceAll('/','-');
+      const t = Date.parse(d);
+      return Number.isFinite(t) ? t : 0;
+    }
+
+    function getAuthors(article){
+      const arr = article.autores || article.authors || [];
+      if (Array.isArray(arr)) return arr.filter(Boolean);
+      return [];
+    }
+
+    function getAuthorText(article){
+      return getAuthors(article).map(a => [a.name, a.credentials, a.affiliation].filter(Boolean).join(' ')).join(' | ');
+    }
+
+    function getFigures(article){
+      const figs = Array.isArray(article.figuras) ? article.figuras.slice() : [];
+      const existing = new Set(figs.map(f => String(f.figure_number || f.figure_id || f.image_download_url || '')));
+      Object.keys(article).forEach(k => {
+        const m = k.match(/^figura_(\d+)$/);
+        if (!m || !article[k]) return;
+        const n = Number(m[1]);
+        if (existing.has(String(n))) return;
+        figs.push({
+          figure_number:n,
+          label:`Figure ${n}`,
+          image_download_url:article[k],
+          image_url_full:article[k],
+          descripcion_figura:article[`descripcion_figura_${n}`] || ''
+        });
+      });
+      return figs.sort((a,b)=>(a.figure_number||0)-(b.figure_number||0));
+    }
+
+    function bestImageUrl(fig){
+      const candidates = [fig.image_url_full, fig.image_url_inline, fig.image_download_url].filter(Boolean);
+      const noTif = candidates.find(u => !/\.tiff?(\?|$)/i.test(u));
+      return noTif || candidates[0] || '';
+    }
+
+    function getImageFallbacks(fig){
+      return [fig.image_url_full, fig.image_url_inline, fig.image_download_url]
+        .filter(Boolean)
+        .filter((v,i,a)=>a.indexOf(v)===i);
+    }
+
+    function detectSpecies(article){
+      const blob = normalize([article.descripcion_del_caso, article.interpretacion_ecg, article.discusion].join(' '));
+      if (/\b(cat|feline|gato|domestic shorthair)\b/.test(blob)) return 'cat';
+      if (/\b(dog|canine|perro|boxer|retriever|collie|rottweiler|shih tzu|great pyrenees)\b/.test(blob)) return 'dog';
+      if (/\b(horse|equine|caballo)\b/.test(blob)) return 'horse';
+      if (/\b(rabbit|conejo)\b/.test(blob)) return 'rabbit';
+      return 'other';
+    }
+
+    function speciesLabel(s){
+      return {dog:'Perro', cat:'Gato', horse:'Caballo', rabbit:'Conejo', other:'Otros'}[s] || 'Otros';
+    }
+
+    function articleBlob(article){
+      return normalize([
+        article.title, article.editorial_type, article.article_url, article.doi, article.journal,
+        article.publication_date, article.volume, article.issue, article.pages,
+        getAuthorText(article), article.descripcion_del_caso, article.interpretacion_ecg,
+        article.discusion, JSON.stringify(article.referencias || [])
+      ].join(' '));
+    }
+
+    function matchQuery(article, value){
+      if (!value) return true;
+      const terms = normalize(value).split(/\s+/).filter(Boolean);
+      const blob = articleBlob(article);
+      return terms.every(t => blob.includes(t));
+    }
+
+    function matchAuthor(article, value){
+      if (!value) return true;
+      return normalize(getAuthorText(article)).includes(normalize(value));
+    }
+
+    function matchArrhythmia(article, value){
+      if (!value) return true;
+      const terms = normalize(value).split(/\s+/).filter(Boolean);
+      const blob = normalize([article.interpretacion_ecg, article.discusion, article.descripcion_del_caso].join(' '));
+      return terms.every(t => blob.includes(t));
+    }
+
+    function inferArrhythmiaBadges(article){
+      const blob = normalize([article.interpretacion_ecg, article.discusion].join(' '));
+      const rules = [
+        ['atrial fibrillation','FA / AF'],
+        ['atrial flutter','Flutter'],
+        ['third-degree atrioventricular','AV block III'],
+        ['third-degree av block','AV block III'],
+        ['second-degree atrioventricular','AV block II'],
+        ['bundle branch block','Bloqueo rama'],
+        ['ventricular tachycardia','VT'],
+        ['ventricular premature','VPC/VEB'],
+        ['atrial premature','APC'],
+        ['junctional premature','JPC'],
+        ['ashman','Ashman'],
+        ['accessory pathway','Vía accesoria'],
+        ['pacemaker','Marcapasos'],
+        ['artifact','Artefacto'],
+        ['sinus rhythm','Ritmo sinusal']
+      ];
+      const out = [];
+      rules.forEach(([needle,label]) => { if (blob.includes(needle) && !out.includes(label)) out.push(label); });
+      return out.slice(0,5);
+    }
+
+    function enrich(rawArticles){
+      return rawArticles.map((a, idx) => ({
+        ...a,
+        _id: a.doi || a.article_url || `ecg-${idx}`,
+        _idx: idx,
+        _year: dateYear(a),
+        _species: detectSpecies(a),
+        _figures: getFigures(a),
+        _badges: inferArrhythmiaBadges(a)
+      }));
+    }
+
+    async function loadJson(){
+      let lastError = '';
+      for (const url of DATA_URLS){
+        try{
+          const res = await fetch(url, {cache:'no-store'});
+          if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const json = await res.json();
+          setData(json, `Datos cargados desde ${url}`);
+          return;
+        }catch(err){
+          lastError = `${url}: ${err.message}`;
+        }
+      }
+      els.loadStatus.innerHTML = `⚠️ No se pudo cargar el JSON automáticamente. Usa <strong>Cargar JSON local</strong> o revisa que exista <code>/json/ecg_of_the_month.json</code>.<br><small>${escapeHtml(lastError)}</small>`;
+      els.loadStatus.style.borderColor = 'rgba(251,113,133,.45)';
+      els.loadStatus.style.color = '#fecdd3';
+    }
+
+    function setData(json, message='Datos cargados'){
+      const articles = Array.isArray(json) ? json : (json.articles || []);
+      db = enrich(articles);
+      filtered = db.slice();
+      selectedId = db[0]?._id || null;
+      els.loadStatus.innerHTML = `✅ ${escapeHtml(message)} · <strong>${db.length}</strong> casos disponibles.`;
+      setupYears();
+      updateStats();
+      applyFilters();
+      if (selectedId) renderDetail(db.find(a=>a._id===selectedId));
+    }
+
+    function setupYears(){
+      const years = [...new Set(db.map(a=>a._year).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
+      els.yearFilter.innerHTML = '<option value="">Todos</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+
+    function updateStats(){
+      const years = new Set(db.map(a=>a._year).filter(Boolean));
+      const figs = db.reduce((acc,a)=>acc + a._figures.length, 0);
+      els.statTotal.textContent = db.length;
+      els.statVisible.textContent = filtered.length;
+      els.statFigures.textContent = figs;
+      els.statYears.textContent = years.size;
+    }
+
+    function setupQuickFilters(){
+      els.quickFilters.innerHTML = QUICK_FILTERS.map(f => `<button type="button" class="chip" data-filter="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('');
+      $$('.chip[data-filter]', els.quickFilters).forEach(btn => {
+        btn.addEventListener('click', () => {
+          els.arrhythmiaFilter.value = btn.dataset.filter;
+          applyFilters();
+        });
+      });
+    }
+
+    function applyFilters(){
+      const q = els.q.value.trim();
+      const author = els.authorFilter.value.trim();
+      const arr = els.arrhythmiaFilter.value.trim();
+      const species = els.speciesFilter.value;
+      const year = els.yearFilter.value;
+      visibleLimit = Number(els.itemsPerPage.value || 25);
+
+      filtered = db.filter(article => {
+        return matchQuery(article, q)
+          && matchAuthor(article, author)
+          && matchArrhythmia(article, arr)
+          && (!species || article._species === species)
+          && (!year || article._year === year);
+      });
+
+      const sort = els.sortBy.value;
+      filtered.sort((a,b) => {
+        if(sort === 'dateAsc') return dateValue(a) - dateValue(b);
+        if(sort === 'dateDesc') return dateValue(b) - dateValue(a);
+        if(sort === 'authorAsc') return getAuthorText(a).localeCompare(getAuthorText(b));
+        if(sort === 'figuresDesc') return b._figures.length - a._figures.length;
+        return 0;
+      });
+
+      if (!filtered.find(a => a._id === selectedId)) selectedId = filtered[0]?._id || null;
+      renderResults();
+      updateStats();
+      if (selectedId) renderDetail(filtered.find(a=>a._id===selectedId) || db.find(a=>a._id===selectedId));
+      else renderEmpty();
+    }
+
+    function renderResults(){
+      const shown = filtered.slice(0, visibleLimit);
+      els.resultSummary.textContent = `${filtered.length} casos encontrados · mostrando ${shown.length}.`;
+      if(!shown.length){
+        els.results.innerHTML = '<div class="empty" style="min-height:200px"><div><div class="icon">∅</div><p>No hay casos con esos filtros.</p></div></div>';
+        return;
+      }
+      els.results.innerHTML = shown.map(article => {
+        const authors = getAuthors(article).map(a=>a.name).filter(Boolean).slice(0,3).join(', ');
+        const figs = article._figures.length;
+        const badges = article._badges.map(b=>`<span class="tag accent">${escapeHtml(b)}</span>`).join('');
+        const desc = compact(article.interpretacion_ecg || article.descripcion_del_caso || article.discusion || '');
+        const active = article._id === selectedId ? 'active' : '';
+        return `
+          <article class="card ${active}" data-id="${escapeHtml(article._id)}">
+            <div class="card-title">
+              <span>${escapeHtml(article.title || 'ECG of the Month')}</span>
+              <span class="tag">${escapeHtml(article._year || 's/f')}</span>
+            </div>
+            <div class="card-meta">${escapeHtml(authors || 'Autores no disponibles')} · ${escapeHtml(article.journal || '')}</div>
+            <p class="card-text">${escapeHtml(desc)}</p>
+            <div class="tagrow">
+              <span class="tag">${escapeHtml(speciesLabel(article._species))}</span>
+              <span class="tag">${figs} figura${figs===1?'':'s'}</span>
+              ${badges}
+            </div>
+          </article>`;
+      }).join('');
+      $$('.card', els.results).forEach(card => {
+        card.addEventListener('click', () => {
+          selectedId = card.dataset.id;
+          renderResults();
+          const article = db.find(a=>a._id===selectedId);
+          renderDetail(article);
+          if (window.innerWidth < 980) document.querySelector('.detail').scrollIntoView({behavior:'smooth', block:'start'});
+        });
+      });
+    }
+
+    function renderEmpty(){
+      els.detail.innerHTML = `
+        <div class="empty">
+          <div><div class="icon">∅</div><h2>Sin resultados</h2><p>Cambia los filtros para recuperar casos.</p></div>
+        </div>`;
+    }
+
+    function renderDetail(article){
+      if(!article){ renderEmpty(); return; }
+      const authors = getAuthors(article);
+      const figs = article._figures || [];
+      const refs = Array.isArray(article.referencias) ? article.referencias : [];
+      const notes = Array.isArray(article.notas_pie) ? article.notas_pie : [];
+      const badges = article._badges.map(b=>`<span class="chip static">${escapeHtml(b)}</span>`).join('');
+
+      els.detail.innerHTML = `
+        <div class="article-head">
+          <div>
+            <h2>${escapeHtml(article.title || 'ECG of the Month')}</h2>
+            <div class="article-meta">
+              ${escapeHtml(article.publication_date || 'Fecha no disponible')} · Vol. ${escapeHtml(article.volume || '?')} · Nº ${escapeHtml(article.issue || '?')} · pp. ${escapeHtml(article.pages || '?')}
+              ${article.doi ? ` · DOI: ${escapeHtml(article.doi)}` : ''}
+            </div>
+            <div class="authors">${authors.map(renderAuthor).join('')}</div>
+            <div class="chips" style="margin-top:10px">
+              <span class="chip static">${escapeHtml(speciesLabel(article._species))}</span>
+              ${badges}
+            </div>
+          </div>
+          <div class="quicklinks">
+            ${article.article_url ? `<a class="btn small" href="${escapeHtml(article.article_url)}" target="_blank" rel="noopener">Artículo original</a>` : ''}
+            ${article.pdf_original_url ? `<a class="btn small" href="${escapeHtml(article.pdf_original_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
+            <button class="btn small" type="button" id="copyCaseBtn">Copiar ficha</button>
+            <button class="btn small" type="button" id="printBtn">Imprimir</button>
+          </div>
+        </div>
+
+        <details class="section" open>
+          <summary>🩺 Descripción del caso</summary>
+          <div class="section-content">${textBlock(article.descripcion_del_caso)}</div>
+        </details>
+
+        <details class="section" open>
+          <summary>📈 Interpretación ECG</summary>
+          <div class="section-content">${textBlock(article.interpretacion_ecg)}</div>
+        </details>
+
+        <details class="section" open>
+          <summary>🖼️ Figuras ECG (${figs.length})</summary>
+          <div class="section-content" style="white-space:normal">${renderGallery(figs)}</div>
+        </details>
+
+        <details class="section">
+          <summary>💬 Discusión</summary>
+          <div class="section-content compact">${textBlock(article.discusion || article.discussion)}</div>
+        </details>
+
+        ${notes.length ? `<details class="section"><summary>📝 Notas a pie</summary><div class="section-content">${notes.map(n=>`<p><strong>${escapeHtml(n.label||'')}</strong> ${escapeHtml(n.text||'')}</p>`).join('')}</div></details>` : ''}
+
+        <details class="section">
+          <summary>📚 Referencias (${refs.length})</summary>
+          <div class="section-content" style="white-space:normal">${renderReferences(refs)}</div>
+        </details>
+      `;
+
+      $('#copyCaseBtn')?.addEventListener('click', () => copyArticle(article));
+      $('#printBtn')?.addEventListener('click', () => window.print());
+      $$('.figure-img-wrap', els.detail).forEach(wrap => {
+        wrap.addEventListener('click', () => {
+          const fig = figs[Number(wrap.dataset.index)];
+          openLightbox(fig);
+        });
+      });
+      setupImageFallbacks(els.detail);
+    }
+
+    function renderAuthor(a){
+      const links = Array.isArray(a.links) ? a.links : [];
+      const scholar = links.find(l => normalize(l.label).includes('scholar'));
+      const pubmed = links.find(l => normalize(l.label).includes('pubmed'));
+      return `<span class="author-pill">
+        <strong>${escapeHtml(a.name || 'Autor')}</strong>${a.credentials ? `, ${escapeHtml(a.credentials)}` : ''}
+        ${a.affiliation ? `<small>${escapeHtml(a.affiliation)}</small>` : ''}
+        <small>${scholar ? `<a href="${escapeHtml(scholar.url)}" target="_blank" rel="noopener">Scholar</a>` : ''}${scholar && pubmed ? ' · ' : ''}${pubmed ? `<a href="${escapeHtml(pubmed.url)}" target="_blank" rel="noopener">PubMed</a>` : ''}</small>
+      </span>`;
+    }
+
+    function renderGallery(figs){
+      if(!figs.length) return '<p>No hay figuras disponibles.</p>';
+      return `<div class="gallery">${figs.map((fig, idx) => {
+        const url = bestImageUrl(fig);
+        const fallbacks = getImageFallbacks(fig).join('|');
+        const caption = fig.descripcion_figura || fig.alt_text || fig.caption || '';
+        return `<article class="figure-card">
+          <div class="figure-img-wrap" data-index="${idx}" title="Clic para ampliar">
+            ${url ? `<img src="${escapeHtml(url)}" data-fallbacks="${escapeHtml(fallbacks)}" alt="${escapeHtml(fig.alt_text || fig.label || 'Figura ECG')}" loading="lazy">` : '<span style="color:#111">Sin imagen</span>'}
+          </div>
+          <div class="figure-caption"><strong>${escapeHtml(fig.label || `Figure ${fig.figure_number || idx+1}`)}</strong><br>${escapeHtml(caption.replace(/^Figure\s*\d+—?\s*/i,''))}</div>
+          <div class="figure-actions">
+            ${fig.image_url_full ? `<a class="btn small" href="${escapeHtml(fig.image_url_full)}" target="_blank" rel="noopener">Full</a>` : ''}
+            ${fig.image_download_url ? `<a class="btn small" href="${escapeHtml(fig.image_download_url)}" target="_blank" rel="noopener">Descargar</a>` : ''}
+          </div>
+        </article>`;
+      }).join('')}</div>`;
+    }
+
+    function setupImageFallbacks(root=document){
+      $$('img[data-fallbacks]', root).forEach(img => {
+        img.dataset.fallbackIndex = img.dataset.fallbackIndex || '0';
+        img.addEventListener('error', () => {
+          const list = (img.dataset.fallbacks || '').split('|').filter(Boolean);
+          let i = Number(img.dataset.fallbackIndex || 0) + 1;
+          while (i < list.length && list[i] === img.src) i++;
+          if (i < list.length){
+            img.dataset.fallbackIndex = String(i);
+            img.src = list[i];
+          } else {
+            img.alt = 'No se pudo cargar la imagen';
+            img.replaceWith(Object.assign(document.createElement('div'), {
+              textContent:'Imagen no disponible',
+              className:'image-error'
+            }));
+          }
+        }, {once:false});
+      });
+    }
+
+    function renderReferences(refs){
+      if(!refs.length) return '<p>No hay referencias disponibles.</p>';
+      return `<div class="ref-list">${refs.map((r,i)=>{
+        const actions = Array.isArray(r.action_links) ? r.action_links : [];
+        const links = [
+          r.crossref_url ? {label:'Crossref', url:r.crossref_url} : null,
+          r.google_scholar_url ? {label:'Google Scholar', url:r.google_scholar_url} : null,
+          r.export_citation_url ? {label:'Export Citation', url:r.export_citation_url} : null,
+          ...(Array.isArray(r.external_urls_in_citation) ? r.external_urls_in_citation.map(x=>({label:x.label || 'URL externa', url:x.url})) : []),
+          ...actions
+        ].filter(Boolean).filter((v, idx, arr)=> arr.findIndex(x=>x.label===v.label && x.url===v.url) === idx);
+        return `<div class="ref-item">
+          <div><strong>${escapeHtml(r.number || String(i+1))}</strong> ${escapeHtml(r.full_citation || '')}</div>
+          <div class="ref-actions">${links.map(l=>`<a class="btn small" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`).join('')}</div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+
+    function copyArticle(article){
+      const txt = [
+        `${article.title || 'ECG of the Month'} (${article.publication_date || ''})`,
+        `DOI: ${article.doi || ''}`,
+        `Autores: ${getAuthors(article).map(a=>a.name).join(', ')}`,
+        '',
+        'DESCRIPCIÓN DEL CASO:', article.descripcion_del_caso || '',
+        '',
+        'INTERPRETACIÓN ECG:', article.interpretacion_ecg || '',
+        '',
+        'DISCUSIÓN:', article.discusion || ''
+      ].join('\n');
+      navigator.clipboard?.writeText(txt).then(()=>toast('Ficha copiada al portapapeles.'));
+    }
+
+    function openLightbox(fig){
+      if(!fig) return;
+      zoom = 1;
+      const url = bestImageUrl(fig);
+      const fallbacks = getImageFallbacks(fig).join('|');
+      els.lightboxImg.src = url;
+      els.lightboxImg.dataset.fallbacks = fallbacks;
+      els.lightboxImg.dataset.fallbackIndex = '0';
+      els.lightboxImg.style.transform = 'scale(1)';
+      els.lightboxTitle.textContent = fig.label || `Figura ${fig.figure_number || ''}`;
+      els.lightboxCaption.textContent = fig.descripcion_figura || fig.alt_text || '';
+      els.openImageBtn.href = fig.image_url_full || fig.image_download_url || url || '#';
+      els.lightbox.classList.add('open');
+      setupImageFallbacks(els.lightbox);
+    }
+
+    function setZoom(next){
+      zoom = Math.min(4, Math.max(.45, next));
+      els.lightboxImg.style.transform = `scale(${zoom})`;
+      els.zoomResetBtn.textContent = `${Math.round(zoom*100)}%`;
+    }
+
+    function toast(msg){
+      els.toast.textContent = msg;
+      els.toast.classList.add('show');
+      setTimeout(()=>els.toast.classList.remove('show'), 2200);
+    }
+
+    function downloadJson(filename, payload){
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function bindEvents(){
+      ['input','change'].forEach(ev => {
+        [els.q, els.authorFilter, els.arrhythmiaFilter, els.speciesFilter, els.yearFilter, els.sortBy, els.itemsPerPage]
+          .forEach(el => el.addEventListener(ev, applyFilters));
+      });
+
+      els.clearFiltersBtn.addEventListener('click', () => {
+        els.q.value = '';
+        els.authorFilter.value = '';
+        els.arrhythmiaFilter.value = '';
+        els.speciesFilter.value = '';
+        els.yearFilter.value = '';
+        els.sortBy.value = 'dateDesc';
+        applyFilters();
+      });
+
+      els.randomBtn.addEventListener('click', () => {
+        const pool = filtered.length ? filtered : db;
+        if(!pool.length) return;
+        const article = pool[Math.floor(Math.random()*pool.length)];
+        selectedId = article._id;
+        renderResults();
+        renderDetail(article);
+      });
+
+      els.downloadFilteredBtn.addEventListener('click', () => {
+        downloadJson('ecg_of_the_month_filtrado.json', {
+          generated_at: new Date().toISOString(),
+          total: filtered.length,
+          articles: filtered
+        });
+      });
+
+      els.localJsonInput.addEventListener('change', async (ev) => {
+        const file = ev.target.files?.[0];
+        if(!file) return;
+        const text = await file.text();
+        try{
+          setData(JSON.parse(text), `Datos cargados desde ${file.name}`);
+        }catch(err){
+          toast('No se pudo leer el JSON local.');
+        }
+      });
+
+      els.closeLightboxBtn.addEventListener('click', () => els.lightbox.classList.remove('open'));
+      els.lightbox.addEventListener('click', ev => { if(ev.target === els.lightbox) els.lightbox.classList.remove('open'); });
+      els.zoomInBtn.addEventListener('click', () => setZoom(zoom + .25));
+      els.zoomOutBtn.addEventListener('click', () => setZoom(zoom - .25));
+      els.zoomResetBtn.addEventListener('click', () => setZoom(1));
+      document.addEventListener('keydown', ev => {
+        if(ev.key === 'Escape') els.lightbox.classList.remove('open');
+        if(els.lightbox.classList.contains('open') && (ev.key === '+' || ev.key === '=')) setZoom(zoom + .25);
+        if(els.lightbox.classList.contains('open') && ev.key === '-') setZoom(zoom - .25);
+      });
+    }
+
+    setupQuickFilters();
+    bindEvents();
+    loadJson();
+  </script>
+</body>
+</html>
