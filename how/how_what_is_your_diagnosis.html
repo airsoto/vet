@@ -1,0 +1,1522 @@
+<!doctype html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cómo se extrae What Is Your Diagnosis? | AVMA Journals</title>
+  <meta name="description" content="Explicación técnica del script Python que extrae artículos What Is Your Diagnosis? de AVMA Journals y genera un JSON estructurado.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b13;
+      --bg-2: #0d1320;
+      --panel: rgba(18, 27, 43, .88);
+      --panel-2: rgba(11, 18, 31, .96);
+      --text: #e6edf7;
+      --muted: #9aa8bc;
+      --line: rgba(148, 163, 184, .22);
+      --line-2: rgba(255,255,255,.1);
+      --brand: #ff9900;
+      --brand-2: #7dd3fc;
+      --green: #86efac;
+      --red: #fca5a5;
+      --shadow: 0 24px 70px rgba(0,0,0,.35);
+      --radius: 22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(125, 211, 252, .16), transparent 28%),
+        radial-gradient(circle at 85% 18%, rgba(255, 153, 0, .12), transparent 30%),
+        linear-gradient(180deg, #05070c 0%, var(--bg) 42%, #05070c 100%);
+      color: var(--text);
+      line-height: 1.62;
+    }
+
+    a { color: #93c5fd; text-decoration: none; }
+    a:hover { color: #bfdbfe; text-decoration: underline; }
+
+    .page {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 32px 0 0;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(16,24,40,.95), rgba(9,13,23,.96));
+      border-radius: 28px;
+      padding: clamp(22px, 5vw, 48px);
+      box-shadow: var(--shadow);
+    }
+    .hero:before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background:
+        linear-gradient(90deg, transparent, rgba(255,153,0,.08), transparent),
+        repeating-linear-gradient(120deg, transparent 0 18px, rgba(255,255,255,.025) 18px 19px);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; }
+    .kicker {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,153,0,.35);
+      border-radius: 999px;
+      background: rgba(255,153,0,.08);
+      color: #ffd6a0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    h1 {
+      margin: 0;
+      max-width: 980px;
+      font-size: clamp(30px, 6vw, 68px);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+    .hero p.lead {
+      max-width: 860px;
+      margin: 18px 0 0;
+      font-size: clamp(15px, 2.8vw, 20px);
+      color: var(--muted);
+    }
+    .home a {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      color: #cfe8ff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 26px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.24); text-decoration: none; }
+    .btn.primary { background: linear-gradient(135deg, #ff9900, #f97316); color: #111827; border-color: transparent; }
+    .btn.secondary { background: rgba(125,211,252,.12); border-color: rgba(125,211,252,.28); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .card {
+      grid-column: span 12;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 18px 45px rgba(0,0,0,.24);
+      padding: clamp(18px, 3vw, 26px);
+    }
+    .card.compact { padding: 18px; }
+    @media (min-width: 850px) {
+      .span-4 { grid-column: span 4; }
+      .span-5 { grid-column: span 5; }
+      .span-6 { grid-column: span 6; }
+      .span-7 { grid-column: span 7; }
+      .span-8 { grid-column: span 8; }
+    }
+    h2 { margin: 0 0 12px; font-size: clamp(22px, 3.2vw, 34px); line-height: 1.08; letter-spacing: -.02em; }
+    h3 { margin: 0 0 10px; font-size: 18px; }
+    p { margin: 0 0 12px; }
+    .muted { color: var(--muted); }
+    .pillrow { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.045);
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .steps { counter-reset: step; display: grid; gap: 12px; }
+    .step {
+      position: relative;
+      padding: 14px 14px 14px 54px;
+      border: 1px solid var(--line-2);
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+    }
+    .step:before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 14px; top: 14px;
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      background: rgba(255,153,0,.16);
+      color: #ffd6a0;
+      font-weight: 900;
+      font-family: var(--mono);
+    }
+    .step strong { display: block; margin-bottom: 4px; color: #fff; }
+
+    .schema {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .schema-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 230px) 1fr;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--line-2);
+      border-radius: 12px;
+      background: rgba(255,255,255,.035);
+      font-size: 14px;
+    }
+    .schema-row code { color: #fcd34d; font-family: var(--mono); }
+    @media (max-width: 640px) {
+      .schema-row { grid-template-columns: 1fr; }
+    }
+
+    .code-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin: 14px 0 10px;
+    }
+    .toolbar-left, .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .search {
+      min-width: min(100%, 290px);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(0,0,0,.32);
+      color: var(--text);
+      padding: 10px 13px;
+      outline: none;
+    }
+    .console-wrap {
+      border: 1px solid rgba(125, 211, 252, .2);
+      border-radius: 18px;
+      background: #050a12;
+      overflow: hidden;
+    }
+    .console-head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line-2);
+      background: linear-gradient(180deg, rgba(15,23,42,.95), rgba(2,6,23,.95));
+      color: #94a3b8;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .dot { width: 11px; height: 11px; border-radius: 999px; background: #64748b; }
+    .dot.red { background: #f87171; } .dot.yellow { background: #fbbf24; } .dot.green { background: #34d399; }
+    pre {
+      margin: 0;
+      max-height: 680px;
+      overflow: auto;
+      padding: 18px;
+      background: #030711;
+      color: #d1e7ff;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      tab-size: 4;
+      white-space: pre;
+    }
+    pre.wrap { white-space: pre-wrap; word-break: break-word; }
+    mark { background: rgba(255,153,0,.3); color: #fff; border-radius: 3px; padding: 0 2px; }
+    code.inline { font-family: var(--mono); color: #fde68a; }
+
+    .example {
+      border: 1px dashed rgba(255,153,0,.35);
+      background: rgba(255,153,0,.06);
+      border-radius: 16px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #f8fafc;
+      overflow:auto;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.035);
+    }
+    details + details { margin-top: 10px; }
+    summary { cursor: pointer; font-weight: 900; }
+    summary::marker { color: var(--brand); }
+
+    .footer {
+      margin: 28px 0 0;
+      padding: 28px 16px 42px;
+      border-top: 1px solid var(--line);
+      color: #cbd5e1;
+      font-size: 13px;
+      text-align: center;
+    }
+    .footer a { color: #ffd28a; }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      max-width: min(420px, calc(100vw - 36px));
+      padding: 12px 14px;
+      border: 1px solid rgba(134,239,172,.35);
+      border-radius: 14px;
+      background: rgba(5, 46, 22, .92);
+      color: #dcfce7;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="page" id="pageRoot">
+    <header class="hero">
+      <div class="kicker">🧪 AVMA Journals · extractor didáctico</div>
+      <h1>Cómo se extrae la información de “What Is Your Diagnosis?”</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+
+      <p class="lead">
+        Esta página documenta el proceso de extracción automatizada de artículos de AVMA Journals tipo
+        <strong>What Is Your Diagnosis?</strong> y variantes como <strong>What Is Your Neurologic Diagnosis?</strong>.
+        El objetivo es convertir cada entrada en un JSON estructurado con autores, historia clínica,
+        secciones diagnósticas, figuras, PDF y referencias.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="#script">Ver script Python</a>
+        <button class="btn secondary" id="downloadScriptTop">⬇️ Descargar script</button>
+        <button class="btn" id="downloadHtmlTop">⬇️ Descargar esta página</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="grid" aria-label="Resumen técnico">
+        <article class="card span-7">
+          <h2>Referencia de origen</h2>
+          <p>
+            La fuente es la búsqueda pública de <strong>AVMA Journals</strong>, filtrada por la consulta
+            <code class="inline">what is your diagnosis</code>. El script recorre páginas de resultados y abre cada
+            artículo candidato para analizar su HTML interno.
+          </p>
+          <div class="pillrow">
+            <a class="pill" target="_blank" rel="noopener" href="https://avmajournals.avma.org/search?access=all&pageSize=10&q3=what+is+your+diagnosis&sort=relevance">🔎 Búsqueda AVMA</a>
+            <a class="pill" target="_blank" rel="noopener" href="https://avmajournals.avma.org/view/journals/javma/237/4/javma.237.4.363.xml">📄 Ejemplo de artículo</a>
+            <span class="pill">🧬 HTML + metadatos citation_*</span>
+            <span class="pill">🖼️ Figuras incluidas</span>
+          </div>
+        </article>
+
+        <article class="card span-5">
+          <h2>Uso previsto</h2>
+          <p>
+            El extractor está pensado para generar un archivo <code class="inline">what_is_your_diagnosis.json</code>
+            con fines docentes y de organización de casos. Si el sitio requiere acceso institucional, el script usa
+            una sesión de navegador local autorizada mediante Playwright.
+          </p>
+          <p class="muted">No elimina restricciones de acceso: usa la sesión que el usuario tenga disponible en su navegador.</p>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card span-6">
+          <h2>Qué datos se extraen</h2>
+          <div class="schema">
+            <div class="schema-row"><code>titulo</code><span>Nombre real del artículo: “What Is Your Diagnosis?”, “What Is Your Neurologic Diagnosis?”, etc.</span></div>
+            <div class="schema-row"><code>autores</code><span>Lista de autores y credenciales visibles en el bloque de contribuyentes.</span></div>
+            <div class="schema-row"><code>historia_clinica</code><span>Texto de la sección <strong>History</strong>, con signos clínicos, exploración y pruebas iniciales.</span></div>
+            <div class="schema-row"><code>figuras</code><span>Todas las imágenes detectadas, con URL, texto de figura, alt-text y enlace de descarga.</span></div>
+            <div class="schema-row"><code>pdf</code><span>Enlace directo al PDF del artículo obtenido desde <code class="inline">citation_pdf_url</code> o desde el botón “Download PDF”.</span></div>
+            <div class="schema-row"><code>secciones</code><span>Todos los encabezados <code class="inline">h2</code> del cuerpo del artículo, incluso si cambian según la especialidad.</span></div>
+            <div class="schema-row"><code>comentarios</code><span>Texto de la sección <strong>Comments</strong> cuando existe.</span></div>
+            <div class="schema-row"><code>referencias</code><span>Citas bibliográficas con enlaces a Google Scholar y Export Citation.</span></div>
+          </div>
+        </article>
+
+        <article class="card span-6">
+          <h2>Cómo funciona el script</h2>
+          <div class="steps">
+            <div class="step"><strong>Genera URLs de búsqueda</strong>Construye las páginas 1 a 100 usando <code class="inline">q3=what is your diagnosis</code>.</div>
+            <div class="step"><strong>Abre la web con Playwright</strong>Usa Chromium y una carpeta de perfil local para conservar cookies y acceso institucional.</div>
+            <div class="step"><strong>Detecta enlaces candidatos</strong>Extrae URLs de artículos desde enlaces del DOM y también mediante regex sobre el HTML crudo.</div>
+            <div class="step"><strong>Valida el título</strong>Comprueba que <code class="inline">citation_title</code> encaje con el patrón “What Is Your … Diagnosis?”.</div>
+            <div class="step"><strong>Lee metadatos académicos</strong>Usa etiquetas <code class="inline">citation_title</code>, <code class="inline">citation_pdf_url</code>, <code class="inline">citation_doi</code>, volumen, número y páginas.</div>
+            <div class="step"><strong>Parsea el cuerpo clínico</strong>Busca <code class="inline">#articleBody</code> y recorre secciones, figuras y referencias.</div>
+            <div class="step"><strong>Guarda de forma incremental</strong>Actualiza el JSON tras cada artículo, de modo que puede reanudarse si se interrumpe.</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>Estructura JSON resultante</h2>
+          <p class="muted">Ejemplo simplificado. El script real conserva más campos técnicos para facilitar búsqueda, depuración y reutilización.</p>
+          <pre class="example">{
+  "titulo": "What Is Your Diagnosis?",
+  "subtipo": "What Is Your Diagnosis?",
+  "revista": "Journal of the American Veterinary Medical Association",
+  "fecha_publicacion": "2010/08/15",
+  "doi": "10.2460/javma.237.4.363",
+  "paginas": "363–364",
+  "autores": [
+    { "nombre": "Amalia Agut", "credenciales": "DVM, PhD" }
+  ],
+  "historia_clinica": "A 5-month-old sexually intact female Boxer...",
+  "figuras": [
+    {
+      "id": "figure1",
+      "titulo": "Figure 1—",
+      "imagen": "https://avmajournals.avma.org/view/journals/javma/237/4/javma.237.4.363.figure.1.jpg",
+      "texto": "Right lateral (A) and ventrodorsal (B) radiographic views..."
+    }
+  ],
+  "pdf": "https://avmajournals.avma.org/downloadpdf/view/journals/javma/237/4/javma.237.4.363.pdf",
+  "secciones": {
+    "History": "...",
+    "Radiographic Findings and Interpretation": "...",
+    "Comments": "..."
+  },
+  "referencias": [
+    {
+      "numero": "1",
+      "texto": "Johnson-Neitman JL, Huber ML, Amann JF...",
+      "google_scholar": "http://scholar.google.com/...",
+      "export_citation": "https://avmajournals.avma.org/exportcitation/..."
+    }
+  ]
+}</pre>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card span-6">
+          <h2>Campos variables</h2>
+          <p>
+            No todos los artículos usan exactamente los mismos encabezados. En radiología suele aparecer
+            <strong>Radiographic Findings and Interpretation</strong>, pero en neurología u otras series puede cambiar.
+          </p>
+          <p>
+            Por eso el script no depende de un único título fijo: guarda todas las secciones <code class="inline">h2</code>
+            en el objeto <code class="inline">secciones</code> y además crea accesos directos cuando reconoce nombres frecuentes.
+          </p>
+        </article>
+
+        <article class="card span-6">
+          <h2>Figuras e imágenes</h2>
+          <p>
+            Cada bloque <code class="inline">div.figure</code> puede contener una imagen inline, una imagen full-size y un enlace de descarga.
+            El extractor prioriza el enlace descargable y normaliza la URL para que quede absoluta.
+          </p>
+          <p>
+            También extrae el pie de figura, por ejemplo <strong>Figure 1—</strong>, y el texto descriptivo asociado.
+          </p>
+        </article>
+      </section>
+
+      <section class="card" id="script" style="margin-top:20px;">
+        <h2>Script Python completo</h2>
+        <p class="muted">
+          Código preparado para extraer los artículos, guardar el JSON incremental y conservar enlaces de figuras, PDF, Google Scholar y Export Citation.
+        </p>
+        <div class="code-toolbar">
+          <div class="toolbar-left">
+            <input class="search" id="codeSearch" type="search" placeholder="Buscar en el script…">
+            <button class="btn" id="clearSearch">Limpiar</button>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn secondary" id="copyScript">📋 Copiar</button>
+            <button class="btn primary" id="downloadScript">⬇️ Descargar .py</button>
+            <button class="btn" id="downloadReq">⬇️ requirements.txt</button>
+            <button class="btn" id="toggleWrap">↩︎ Ajustar líneas</button>
+          </div>
+        </div>
+        <div class="console-wrap">
+          <div class="console-head"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span>avma_diagnosis_scraper.py</span></div>
+          <pre id="codePre"><code id="scriptCode"></code></pre>
+        </div>
+        <textarea id="pythonScript" hidden>#!/usr/bin/env python3
+"""
+Extrae artículos de tipo "What Is Your Diagnosis?" y variantes, por ejemplo
+"What Is Your Neurologic Diagnosis?", desde AVMA Journals.
+
+Características:
+- Recorre las páginas 1 a 100 del buscador (configurable).
+- Usa Playwright para evitar el problema de páginas vacías/403 con requests.
+- Valida cada candidato por el meta tag citation_title.
+- Extrae autores y credenciales, historia clínica, todas las secciones,
+  todas las figuras, PDF y referencias con enlaces de Google Scholar y
+  Export Citation.
+- Guarda el JSON de forma incremental y permite reanudar una ejecución.
+
+Instalación:
+    pip install beautifulsoup4 lxml playwright
+    python -m playwright install chromium
+
+Primera ejecución, mostrando el navegador por si hace falta iniciar sesión:
+    python avma_diagnosis_scraper.py --headed --pause-for-login
+
+Ejecuciones posteriores:
+    python avma_diagnosis_scraper.py
+
+Prueba del parser con un HTML guardado:
+    python avma_diagnosis_scraper.py --test-html articulo.html
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import html as html_module
+import json
+import logging
+import random
+import re
+import sys
+import time
+from pathlib import Path
+from typing import Any, Iterable
+from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
+
+from bs4 import BeautifulSoup, FeatureNotFound, NavigableString, Tag
+
+try:
+    from playwright.sync_api import (
+        BrowserContext,
+        Page,
+        TimeoutError as PlaywrightTimeoutError,
+        sync_playwright,
+    )
+except ImportError:  # Permite usar --test-html sin Playwright instalado.
+    BrowserContext = Any  # type: ignore[misc,assignment]
+    Page = Any  # type: ignore[misc,assignment]
+    PlaywrightTimeoutError = TimeoutError  # type: ignore[assignment]
+    sync_playwright = None
+
+
+BASE_URL = "https://avmajournals.avma.org"
+DEFAULT_OUTPUT = "what_is_your_diagnosis.json"
+DEFAULT_PROFILE = "avma_playwright_profile"
+DEFAULT_DEBUG_DIR = "avma_debug"
+
+ARTICLE_PATH_RE = re.compile(
+    r"^/view/journals/[^/]+/[^/]+/[^/]+/[^/?#]+\.xml$",
+    re.IGNORECASE,
+)
+RAW_ARTICLE_URL_RE = re.compile(
+    r"(?:(?:https?:)?//avmajournals\.avma\.org)?"
+    r"/view/journals/[^/\s\&quot;&#x27;&lt;&gt;]+/[^/\s\&quot;&#x27;&lt;&gt;]+/[^/\s\&quot;&#x27;&lt;&gt;]+/"
+    r"[^/?#\s\&quot;&#x27;&lt;&gt;]+\.xml(?:\?[^\s\&quot;&#x27;&lt;&gt;]*)?",
+    re.IGNORECASE,
+)
+TARGET_TITLE_RE = re.compile(
+    r"\bwhat\s+is\s+your\b.*\bdiagnosis\b",
+    re.IGNORECASE,
+)
+
+SUPERSCRIPT_MAP = str.maketrans(
+    {
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
+        "+": "⁺",
+        "-": "⁻",
+        "=": "⁼",
+        "(": "⁽",
+        ")": "⁾",
+    }
+)
+
+BLOCKED_MARKERS = (
+    "access denied",
+    "forbidden",
+    "captcha",
+    "verify you are human",
+    "unusual traffic",
+)
+
+
+# ---------------------------------------------------------------------------
+# Utilidades generales
+# ---------------------------------------------------------------------------
+
+
+def make_soup(raw_html: str) -&gt; BeautifulSoup:
+    try:
+        return BeautifulSoup(raw_html, "lxml")
+    except FeatureNotFound:
+        return BeautifulSoup(raw_html, "html.parser")
+
+
+def clean_inline(text: str | None) -&gt; str:
+    """Normaliza espacios sin destruir la puntuación."""
+    if not text:
+        return ""
+    text = html_module.unescape(text)
+    text = text.replace("\xa0", " ")
+    text = re.sub(r"[\t\r\f\v ]+", " ", text)
+    text = re.sub(r" *\n *", " ", text)
+    text = re.sub(r"\s+([,.;:!?%\)\]\}])", r"\1", text)
+    text = re.sub(r"([\(\[\{])\s+", r"\1", text)
+    return text.strip()
+
+
+def tag_text(tag: Tag | None) -&gt; str:
+    """Extrae texto y convierte &lt;sup&gt;3&lt;/sup&gt; en ³ antes de aplanarlo."""
+    if tag is None:
+        return ""
+
+    fragment = make_soup(str(tag))
+    for sup in fragment.find_all("sup"):
+        value = clean_inline(sup.get_text("", strip=True))
+        sup.replace_with(value.translate(SUPERSCRIPT_MAP))
+
+    return clean_inline(fragment.get_text("", strip=False))
+
+
+def unique_in_order(values: Iterable[str]) -&gt; list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
+def normalize_heading(value: str) -&gt; str:
+    value = clean_inline(value).casefold()
+    value = re.sub(r"[^a-z0-9]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def absolute_url(url: str | None, base: str = BASE_URL) -&gt; str | None:
+    if not url:
+        return None
+    return urljoin(base, html_module.unescape(url.strip()))
+
+
+def canonical_article_url(url: str | None) -&gt; str | None:
+    """Devuelve la URL del artículo sin query ni fragmento, o None."""
+    if not url:
+        return None
+
+    full = absolute_url(url)
+    if not full:
+        return None
+
+    parts = urlsplit(full)
+    path = parts.path
+    if not ARTICLE_PATH_RE.match(path):
+        return None
+
+    filename = path.rsplit("/", 1)[-1].casefold()
+    if "overview" in filename or ".issue-" in filename or "issue-" in filename:
+        return None
+
+    return urlunsplit(("https", "avmajournals.avma.org", path, "", ""))
+
+
+def is_target_title(title: str | None) -&gt; bool:
+    return bool(title and TARGET_TITLE_RE.search(clean_inline(title)))
+
+
+def is_blocked_html(raw_html: str) -&gt; bool:
+    sample = clean_inline(raw_html[:20_000]).casefold()
+    return any(marker in sample for marker in BLOCKED_MARKERS)
+
+
+def atomic_write_json(path: Path, data: Any) -&gt; None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+    tmp.replace(path)
+
+
+# ---------------------------------------------------------------------------
+# URLs del buscador
+# ---------------------------------------------------------------------------
+
+
+def build_search_url(page_number: int, page_size: int = 10) -&gt; str:
+    params: dict[str, str | int] = {
+        "access": "all",
+        "pageSize": page_size,
+        "q3": "what is your diagnosis",
+        "sort": "relevance",
+    }
+    if page_number &gt; 1:
+        params["page"] = page_number
+    return f"{BASE_URL}/search?{urlencode(params)}"
+
+
+def extract_article_links(search_html: str) -&gt; list[str]:
+    """Extrae candidatos por DOM y por regex; luego canoniza y deduplica."""
+    soup = make_soup(search_html)
+    candidates: list[str] = []
+
+    for anchor in soup.find_all("a", href=True):
+        href = anchor.get("href")
+        canonical = canonical_article_url(href)
+        if canonical:
+            candidates.append(canonical)
+
+    decoded_html = html_module.unescape(search_html)
+    for match in RAW_ARTICLE_URL_RE.findall(decoded_html):
+        canonical = canonical_article_url(match)
+        if canonical:
+            candidates.append(canonical)
+
+    return unique_in_order(candidates)
+
+
+# ---------------------------------------------------------------------------
+# Metadatos del artículo
+# ---------------------------------------------------------------------------
+
+
+def meta_content(
+    soup: BeautifulSoup,
+    *,
+    name: str | None = None,
+    property_name: str | None = None,
+) -&gt; str | None:
+    attrs: dict[str, str] = {}
+    if name:
+        attrs["name"] = name
+    elif property_name:
+        attrs["property"] = property_name
+    else:
+        return None
+
+    tag = soup.find("meta", attrs=attrs)
+    if isinstance(tag, Tag) and tag.get("content"):
+        return clean_inline(str(tag["content"]))
+    return None
+
+
+def all_meta_contents(soup: BeautifulSoup, name: str) -&gt; list[str]:
+    return [
+        clean_inline(str(tag["content"]))
+        for tag in soup.find_all("meta", attrs={"name": name})
+        if isinstance(tag, Tag) and tag.get("content")
+    ]
+
+
+def parse_pages(first: str | None, last: str | None) -&gt; str | None:
+    if first and last and first != last:
+        return f"{first}–{last}"
+    return first or last
+
+
+def extract_meta_data(soup: BeautifulSoup, article_url: str) -&gt; dict[str, Any]:
+    first_page = meta_content(soup, name="citation_firstpage")
+    last_page = meta_content(soup, name="citation_lastpage")
+
+    return {
+        "titulo": meta_content(soup, name="citation_title")
+        or meta_content(soup, property_name="og:title")
+        or "",
+        "revista": meta_content(soup, name="citation_journal_title")
+        or meta_content(soup, property_name="article:section")
+        or "",
+        "editorial_type": find_metadata_value(soup, "Editorial Type"),
+        "fecha_publicacion": meta_content(soup, name="citation_publication_date")
+        or meta_content(soup, property_name="article:published_time")
+        or find_metadata_value(soup, "Online Publication Date"),
+        "fecha_publicacion_texto": find_metadata_value(soup, "Online Publication Date"),
+        "volumen": meta_content(soup, name="citation_volume"),
+        "numero": meta_content(soup, name="citation_issue"),
+        "paginas": parse_pages(first_page, last_page) or find_metadata_value(soup, "Page(s)"),
+        "primera_pagina": first_page,
+        "ultima_pagina": last_page,
+        "doi": meta_content(soup, name="citation_doi")
+        or meta_content(soup, name="dc.identifier"),
+        "pdf": extract_pdf_url(soup),
+        "url": article_url,
+        "canonical_url": absolute_url(
+            soup.find("link", attrs={"rel": "canonical"}).get("href")  # type: ignore[union-attr]
+        )
+        if soup.find("link", attrs={"rel": "canonical"})
+        else article_url,
+        "autores_meta": all_meta_contents(soup, "citation_author"),
+    }
+
+
+def find_metadata_value(soup: BeautifulSoup, label: str) -&gt; str | None:
+    target = normalize_heading(label)
+    for dl in soup.find_all("dl"):
+        dt = dl.find("dt")
+        dd = dl.find("dd")
+        if not dt or not dd:
+            continue
+        current = normalize_heading(tag_text(dt).rstrip(":"))
+        if current == target:
+            return tag_text(dd)
+    return None
+
+
+def extract_pdf_url(soup: BeautifulSoup) -&gt; str | None:
+    pdf = meta_content(soup, name="citation_pdf_url")
+    if pdf:
+        return absolute_url(pdf)
+
+    link = soup.select_one("a.pdf-download[href], a[title*=&#x27;Download PDF&#x27;][href]")
+    if isinstance(link, Tag):
+        return absolute_url(str(link.get("href")))
+
+    iframe = soup.select_one("iframe[title^=&#x27;PDF of&#x27;][src]")
+    if isinstance(iframe, Tag):
+        return absolute_url(str(iframe.get("src")))
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Autores
+# ---------------------------------------------------------------------------
+
+
+def direct_text_after_author(block: Tag) -&gt; str:
+    """Captura credenciales que aparecen como texto inmediatamente tras el span."""
+    parts: list[str] = []
+    for sibling in block.next_siblings:
+        if isinstance(sibling, NavigableString):
+            parts.append(str(sibling))
+            continue
+        if isinstance(sibling, Tag):
+            # Las credenciales terminan antes del separador o del siguiente bloque.
+            if "contributor-separator" in sibling.get("class", []):
+                break
+            if "contributor-details" in sibling.get("class", []):
+                break
+            text = tag_text(sibling)
+            if text:
+                parts.append(text)
+    return clean_inline(" ".join(parts).strip(" ,"))
+
+
+def extract_authors(soup: BeautifulSoup) -&gt; list[dict[str, str | None]]:
+    authors: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+
+    for span in soup.select('[data-testid="author-name"]'):
+        if not isinstance(span, Tag):
+            continue
+        name = tag_text(span)
+        if not name or name in seen:
+            continue
+        seen.add(name)
+
+        block = span.find_parent(class_="contributor-details-block") or span.parent
+        parent = block.find_parent(class_="contributor-details") if isinstance(block, Tag) else None
+        credentials = direct_text_after_author(parent) if isinstance(parent, Tag) else None
+
+        affiliation_tag = None
+        if isinstance(parent, Tag):
+            affiliation_tag = parent.select_one(".contributor-details-pop-up-affiliation .text")
+
+        authors.append(
+            {
+                "nombre": name,
+                "credenciales": credentials or None,
+                "afiliacion": tag_text(affiliation_tag) if isinstance(affiliation_tag, Tag) else None,
+            }
+        )
+
+    if authors:
+        return authors
+
+    # Fallback por meta tags.
+    for name in all_meta_contents(soup, "citation_author"):
+        if name not in seen:
+            seen.add(name)
+            authors.append({"nombre": name, "credenciales": None, "afiliacion": None})
+
+    return authors
+
+
+# ---------------------------------------------------------------------------
+# Cuerpo, secciones y figuras
+# ---------------------------------------------------------------------------
+
+
+def remove_noise_from_clone(node: Tag) -&gt; Tag:
+    clone = copy.copy(node)
+    fragment = make_soup(str(clone))
+    root = fragment.find(node.name, attrs={"id": node.get("id")}) or fragment
+
+    for selector in [
+        ".citation",
+        ".citationActions",
+        ".debug",
+        ".download-figure",
+        ".figure-popover",
+        "pf-box",
+        "button",
+        ".screen-reader-text",
+    ]:
+        for tag in root.select(selector):
+            tag.decompose()
+    return root  # type: ignore[return-value]
+
+
+def section_text(section: Tag, *, include_title: bool = True) -&gt; str:
+    cleaned = remove_noise_from_clone(section)
+
+    # No mezclar el texto de figuras dentro del texto corrido de la sección.
+    for fig in cleaned.select("div.figure, figure"):
+        fig.decompose()
+
+    parts: list[str] = []
+    if include_title:
+        heading = cleaned.find("h2")
+        if heading:
+            parts.append(tag_text(heading))
+
+    for child in cleaned.find_all(["p", "h3", "h4", "ul", "ol"], recursive=True):
+        if child.find_parent("section", class_="refSection"):
+            continue
+        if child.find_parent(class_="footnoteGroup"):
+            continue
+        text = tag_text(child)
+        if text and text not in parts:
+            parts.append(text)
+
+    return "\n\n".join(parts).strip()
+
+
+def extract_sections(article_body: Tag | None) -&gt; list[dict[str, str]]:
+    if not article_body:
+        return []
+
+    sections: list[dict[str, str]] = []
+    section_nodes = article_body.select("div.section")
+
+    if not section_nodes:
+        text = section_text(article_body, include_title=False)
+        return [{"titulo": "Full Text", "clave": "full text", "texto": text}] if text else []
+
+    for section in section_nodes:
+        if not isinstance(section, Tag):
+            continue
+        heading = section.find("h2")
+        title = tag_text(heading) or f"Section {len(sections) + 1}"
+        sections.append(
+            {
+                "titulo": title,
+                "clave": normalize_heading(title),
+                "texto": section_text(section, include_title=True),
+            }
+        )
+    return sections
+
+
+def section_lookup(sections: list[dict[str, str]], *aliases: str) -&gt; str | None:
+    keys = {normalize_heading(alias) for alias in aliases}
+    for section in sections:
+        if section.get("clave") in keys:
+            return section.get("texto") or None
+    return None
+
+
+def find_section_contains(sections: list[dict[str, str]], words: Iterable[str]) -&gt; str | None:
+    lowered_words = [word.casefold() for word in words]
+    for section in sections:
+        title = section.get("titulo", "").casefold()
+        if all(word in title for word in lowered_words):
+            return section.get("texto") or None
+    return None
+
+
+def best_image_url(figure: Tag) -&gt; str | None:
+    # Prioridad: enlace de descarga directo.
+    download_link = figure.select_one("li.download-figure a[download][href], a[download][href]")
+    if isinstance(download_link, Tag):
+        href = str(download_link.get("href"))
+        if href:
+            return absolute_url(href)
+
+    # Después imagen full-size.
+    full_img = None
+    for img in figure.find_all("img"):
+        if not isinstance(img, Tag):
+            continue
+        candidate = str(img.get("data-image-src") or img.get("src") or "")
+        if "/full-" in candidate or ".figure." in candidate:
+            full_img = candidate
+    if full_img:
+        return absolute_url(full_img)
+
+    # Fallback: primera imagen.
+    img = figure.find("img")
+    if isinstance(img, Tag):
+        return absolute_url(str(img.get("data-image-src") or img.get("src") or ""))
+    return None
+
+
+def extract_figures(article_body: Tag | None) -&gt; list[dict[str, Any]]:
+    if not article_body:
+        return []
+
+    figures: list[dict[str, Any]] = []
+    for fig_div in article_body.select("div.figure"):
+        if not isinstance(fig_div, Tag):
+            continue
+
+        figcaption = fig_div.find("figcaption")
+        caption_title = tag_text(figcaption)
+        caption_parts: list[str] = []
+        text_wrapper = fig_div.select_one(".figure-text-wrapper")
+        if isinstance(text_wrapper, Tag):
+            for p in text_wrapper.find_all("p", recursive=False):
+                if "citation" in p.get("class", []):
+                    continue
+                text = tag_text(p)
+                if text:
+                    caption_parts.append(text)
+
+        img = fig_div.find("img")
+        alt = clean_inline(str(img.get("alt"))) if isinstance(img, Tag) and img.get("alt") else None
+
+        figures.append(
+            {
+                "id": str(fig_div.get("id") or f"figure{len(figures) + 1}"),
+                "titulo": caption_title or alt,
+                "texto": "\n\n".join(caption_parts).strip(),
+                "imagen": best_image_url(fig_div),
+                "alt": alt,
+                "data_image_srcs": unique_in_order(
+                    absolute_url(str(tag.get("data-image-src"))) or ""
+                    for tag in fig_div.find_all("img")
+                    if isinstance(tag, Tag) and tag.get("data-image-src")
+                ),
+                "download": absolute_url(
+                    str(fig_div.select_one("a[download][href]").get("href"))
+                )
+                if fig_div.select_one("a[download][href]")
+                else None,
+            }
+        )
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
+# Referencias
+# ---------------------------------------------------------------------------
+
+
+def extract_references(soup: BeautifulSoup) -&gt; list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    ref_sections = soup.select("section.refSection")
+    if not ref_sections:
+        return refs
+
+    for ref in ref_sections[0].select("div.reference"):
+        if not isinstance(ref, Tag):
+            continue
+        number = tag_text(ref.select_one(".enumerator"))
+        if not number:
+            label = ref.find("span", class_="label")
+            number = tag_text(label)
+        number = number.rstrip(".") or str(len(refs) + 1)
+
+        citation = tag_text(ref.select_one("p.citationText")) or tag_text(ref)
+
+        scholar = ref.select_one("a.googleScholar[href]")
+        export = ref.select_one("a.exportCitation[href]")
+        doi = ref.select_one("a.doi[href]")
+
+        refs.append(
+            {
+                "numero": number,
+                "texto": citation,
+                "google_scholar": absolute_url(str(scholar.get("href")))
+                if isinstance(scholar, Tag)
+                else None,
+                "export_citation": absolute_url(str(export.get("href")))
+                if isinstance(export, Tag)
+                else None,
+                "doi_url": absolute_url(str(doi.get("href"))) if isinstance(doi, Tag) else None,
+            }
+        )
+
+    return refs
+
+
+# ---------------------------------------------------------------------------
+# Parser principal de artículo
+# ---------------------------------------------------------------------------
+
+
+def parse_article_html(raw_html: str, article_url: str) -&gt; dict[str, Any] | None:
+    soup = make_soup(raw_html)
+    meta = extract_meta_data(soup, article_url)
+
+    title = meta.get("titulo") or meta.get("editorial_type")
+    if not is_target_title(str(title)):
+        logging.info("Saltado por título no objetivo: %s", title)
+        return None
+
+    body = soup.find("div", id="articleBody")
+    article_body = body if isinstance(body, Tag) else None
+
+    sections = extract_sections(article_body)
+    figures = extract_figures(article_body)
+    refs = extract_references(soup)
+    authors = extract_authors(soup)
+
+    history = section_lookup(sections, "History")
+    comments = section_lookup(sections, "Comments", "Comment")
+    interpretation = (
+        section_lookup(sections, "Radiographic Findings and Interpretation")
+        or find_section_contains(sections, ["findings", "interpretation"])
+        or find_section_contains(sections, ["diagnosis"])
+    )
+
+    return {
+        **meta,
+        "subtipo": title,
+        "autores": authors,
+        "autores_texto": ", ".join(
+            f"{a[&#x27;nombre&#x27;]} {a[&#x27;credenciales&#x27;]}".strip()
+            for a in authors
+            if a.get("nombre")
+        ),
+        "historia_clinica": history,
+        "diagnostico_interpretacion": interpretation,
+        "comentario": comments,
+        "figuras": figures,
+        "figura_1": figures[0] if figures else None,
+        "referencias": refs,
+        "secciones": sections,
+        "secciones_por_titulo": {section["titulo"]: section["texto"] for section in sections},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Playwright
+# ---------------------------------------------------------------------------
+
+
+def open_page_with_retries(
+    page: Page,
+    url: str,
+    *,
+    wait_until: str = "domcontentloaded",
+    retries: int = 3,
+    timeout_ms: int = 45_000,
+) -&gt; str:
+    last_error: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            page.goto(url, wait_until=wait_until, timeout=timeout_ms)
+            page.wait_for_timeout(700 + random.randint(150, 650))
+            html = page.content()
+            if is_blocked_html(html):
+                raise RuntimeError("La página parece bloqueada o requiere verificación humana.")
+            return html
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            logging.warning("Intento %s/%s fallido para %s: %s", attempt, retries, url, exc)
+            page.wait_for_timeout(1200 * attempt)
+    raise RuntimeError(f"No se pudo abrir {url}: {last_error}")
+
+
+def dismiss_cookie_banner(page: Page) -&gt; None:
+    for selector in [
+        "[data-testid=&#x27;cookieBannerDismiss&#x27;]",
+        "text=Dismiss this warning",
+        "button:has-text(&#x27;Accept&#x27;)",
+        "button:has-text(&#x27;I agree&#x27;)",
+    ]:
+        try:
+            locator = page.locator(selector).first
+            if locator.count() &gt; 0:
+                locator.click(timeout=2000)
+                page.wait_for_timeout(400)
+                return
+        except Exception:
+            continue
+
+
+def collect_links_from_search_pages(
+    context: BrowserContext,
+    *,
+    start_page: int,
+    end_page: int,
+    page_size: int,
+    debug_dir: Path,
+) -&gt; list[str]:
+    page = context.new_page()
+    links: list[str] = []
+
+    for page_number in range(start_page, end_page + 1):
+        url = build_search_url(page_number, page_size=page_size)
+        logging.info("Buscando página %s: %s", page_number, url)
+        try:
+            html = open_page_with_retries(page, url)
+            dismiss_cookie_banner(page)
+            html = page.content()
+            found = extract_article_links(html)
+            logging.info("Página %s: %s enlaces candidatos", page_number, len(found))
+            links.extend(found)
+
+            if not found:
+                debug_dir.mkdir(parents=True, exist_ok=True)
+                (debug_dir / f"search_page_{page_number:03d}.html").write_text(
+                    html, encoding="utf-8"
+                )
+        except Exception as exc:  # noqa: BLE001
+            logging.error("Error en página de búsqueda %s: %s", page_number, exc)
+
+        page.wait_for_timeout(random.randint(450, 1200))
+
+    page.close()
+    return unique_in_order(links)
+
+
+def scrape_articles(
+    context: BrowserContext,
+    links: list[str],
+    *,
+    output_path: Path,
+    debug_dir: Path,
+    existing: list[dict[str, Any]] | None = None,
+) -&gt; list[dict[str, Any]]:
+    results = existing[:] if existing else []
+    done_urls = {item.get("url") for item in results if item.get("url")}
+
+    page = context.new_page()
+    total = len(links)
+
+    for index, article_url in enumerate(links, start=1):
+        if article_url in done_urls:
+            logging.info("[%s/%s] Ya existe, salto: %s", index, total, article_url)
+            continue
+
+        logging.info("[%s/%s] Artículo: %s", index, total, article_url)
+        try:
+            html = open_page_with_retries(page, article_url)
+            dismiss_cookie_banner(page)
+            html = page.content()
+            parsed = parse_article_html(html, article_url)
+            if parsed:
+                results.append(parsed)
+                done_urls.add(article_url)
+                atomic_write_json(output_path, results)
+                logging.info("Guardado: %s", parsed.get("titulo"))
+            else:
+                logging.info("No objetivo: %s", article_url)
+        except Exception as exc:  # noqa: BLE001
+            logging.error("Error procesando %s: %s", article_url, exc)
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                (debug_dir / f"article_error_{index:04d}.html").write_text(
+                    page.content(), encoding="utf-8"
+                )
+            except Exception:
+                pass
+
+        page.wait_for_timeout(random.randint(650, 1600))
+
+    page.close()
+    return results
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def load_existing(path: Path, resume: bool) -&gt; list[dict[str, Any]]:
+    if not resume or not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            logging.info("Reanudando con %s artículos ya guardados", len(data))
+            return data
+    except Exception as exc:  # noqa: BLE001
+        logging.warning("No se pudo leer JSON previo: %s", exc)
+    return []
+
+
+def run_test_html(path: Path, output: Path) -&gt; None:
+    html = path.read_text(encoding="utf-8")
+    parsed = parse_article_html(html, "file://" + str(path))
+    if parsed is None:
+        raise SystemExit("El HTML no parece ser un artículo objetivo.")
+    atomic_write_json(output, parsed)
+    print(json.dumps(parsed, ensure_ascii=False, indent=2))
+
+
+def parse_args(argv: list[str]) -&gt; argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Extrae artículos What Is Your Diagnosis? de AVMA Journals."
+    )
+    parser.add_argument("--start-page", type=int, default=1)
+    parser.add_argument("--end-page", type=int, default=100)
+    parser.add_argument("--page-size", type=int, default=10)
+    parser.add_argument("--output", default=DEFAULT_OUTPUT)
+    parser.add_argument("--profile", default=DEFAULT_PROFILE)
+    parser.add_argument("--debug-dir", default=DEFAULT_DEBUG_DIR)
+    parser.add_argument("--headed", action="store_true", help="Muestra Chromium.")
+    parser.add_argument(
+        "--pause-for-login",
+        action="store_true",
+        help="Pausa para iniciar sesión manualmente antes del scraping.",
+    )
+    parser.add_argument("--no-resume", action="store_true", help="No reanuda JSON previo.")
+    parser.add_argument(
+        "--test-html",
+        help="Parsea un archivo HTML local y sale. Útil para pruebas.",
+    )
+    parser.add_argument("--log-level", default="INFO")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -&gt; int:
+    args = parse_args(argv or sys.argv[1:])
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), logging.INFO),
+        format="%(levelname)s: %(message)s",
+    )
+
+    output_path = Path(args.output)
+    debug_dir = Path(args.debug_dir)
+
+    if args.test_html:
+        run_test_html(Path(args.test_html), output_path)
+        return 0
+
+    if sync_playwright is None:
+        raise SystemExit(
+            "Playwright no está instalado. Ejecuta: pip install playwright &amp;&amp; python -m playwright install chromium"
+        )
+
+    existing = load_existing(output_path, resume=not args.no_resume)
+
+    with sync_playwright() as p:
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=args.profile,
+            headless=not args.headed,
+            viewport={"width": 1440, "height": 1100},
+            locale="en-US",
+        )
+
+        try:
+            if args.pause_for_login:
+                page = context.new_page()
+                page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45_000)
+                print(
+                    "\nInicia sesión o confirma el acceso institucional en la ventana de Chromium."
+                    "\nCuando termines, pulsa ENTER aquí para continuar...\n"
+                )
+                input()
+                page.close()
+
+            links = collect_links_from_search_pages(
+                context,
+                start_page=args.start_page,
+                end_page=args.end_page,
+                page_size=args.page_size,
+                debug_dir=debug_dir,
+            )
+            logging.info("Total de enlaces únicos candidatos: %s", len(links))
+
+            results = scrape_articles(
+                context,
+                links,
+                output_path=output_path,
+                debug_dir=debug_dir,
+                existing=existing,
+            )
+            atomic_write_json(output_path, results)
+            logging.info("Terminado. Artículos guardados: %s", len(results))
+
+        finally:
+            context.close()
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+</textarea>
+        <textarea id="requirementsText" hidden>beautifulsoup4
+lxml
+playwright
+</textarea>
+      </section>
+
+      <section class="grid">
+        <article class="card span-12">
+          <h2>Ejecución local</h2>
+          <details open>
+            <summary>Instalar dependencias</summary>
+            <pre class="example">pip install beautifulsoup4 lxml playwright
+python -m playwright install chromium</pre>
+          </details>
+          <details open>
+            <summary>Primera ejecución con navegador visible</summary>
+            <pre class="example">python avma_diagnosis_scraper.py --headed --pause-for-login</pre>
+          </details>
+          <details>
+            <summary>Ejecuciones posteriores</summary>
+            <pre class="example">python avma_diagnosis_scraper.py --start-page 1 --end-page 100 --output what_is_your_diagnosis.json</pre>
+          </details>
+        </article>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Listo</div>
+
+  <script>
+    const scriptRaw = document.getElementById('pythonScript').value;
+    const reqRaw = document.getElementById('requirementsText').value;
+    const codeEl = document.getElementById('scriptCode');
+    const codePre = document.getElementById('codePre');
+    const searchInput = document.getElementById('codeSearch');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      window.clearTimeout(showToast._t);
+      showToast._t = window.setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function escapeRegExp(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function renderCode(query = '') {
+      if (!query.trim()) {
+        codeEl.textContent = scriptRaw;
+        return;
+      }
+      const re = new RegExp(escapeRegExp(query.trim()), 'gi');
+      const escaped = scriptRaw
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      codeEl.innerHTML = escaped.replace(re, match => `<mark>${match}</mark>`);
+    }
+
+    function downloadText(filename, text, type = 'text/plain;charset=utf-8') {
+      const blob = new Blob([text], {type});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    renderCode();
+
+    document.getElementById('copyScript').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(scriptRaw);
+      showToast('Script copiado al portapapeles');
+    });
+    document.getElementById('downloadScript').addEventListener('click', () => downloadText('avma_diagnosis_scraper.py', scriptRaw));
+    document.getElementById('downloadScriptTop').addEventListener('click', () => downloadText('avma_diagnosis_scraper.py', scriptRaw));
+    document.getElementById('downloadReq').addEventListener('click', () => downloadText('requirements_avma_scraper.txt', reqRaw));
+    document.getElementById('toggleWrap').addEventListener('click', () => {
+      codePre.classList.toggle('wrap');
+      showToast(codePre.classList.contains('wrap') ? 'Ajuste de línea activado' : 'Ajuste de línea desactivado');
+    });
+    document.getElementById('clearSearch').addEventListener('click', () => {
+      searchInput.value = '';
+      renderCode();
+      searchInput.focus();
+    });
+    searchInput.addEventListener('input', () => renderCode(searchInput.value));
+
+    function currentHtmlForDownload() {
+      const clone = document.documentElement.cloneNode(true);
+      return '<!doctype html>\n' + clone.outerHTML;
+    }
+    document.getElementById('downloadHtmlTop').addEventListener('click', () => downloadText('how_what_is_your_diagnosis.html', currentHtmlForDownload(), 'text/html;charset=utf-8'));
+  </script>
+</body>
+</html>
