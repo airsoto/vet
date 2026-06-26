@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Van Gogh Gallery Explorer</title>
+  <meta name="description" content="Galería minimalista para navegar por cuadros de Vincent van Gogh desde json/vangogh.json." />
+  <style>
+    :root {
+      --bg: #08090c;
+      --panel: rgba(255,255,255,.055);
+      --panel-2: rgba(255,255,255,.085);
+      --line: rgba(255,255,255,.12);
+      --text: #f4f1e8;
+      --muted: #bdb6a8;
+      --soft: #918a7e;
+      --accent: #ff9900;
+      --accent-2: #ffd27a;
+      --danger: #ff5d5d;
+      --shadow: 0 24px 70px rgba(0,0,0,.55);
+      --radius: 22px;
+      --thumb: 190px;
+      --gap: 14px;
+      --blur: blur(18px);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,153,0,.16), transparent 32rem),
+        radial-gradient(circle at 80% 5%, rgba(80,120,255,.12), transparent 34rem),
+        linear-gradient(180deg, #0b0c10 0%, #050507 100%);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body.lightbox-open {
+      overflow: hidden;
+    }
+
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: #fff;
+    }
+
+    .page {
+      width: min(1500px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 44px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 10px);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.025)),
+        rgba(255,255,255,.035);
+      box-shadow: var(--shadow);
+      padding: clamp(22px, 4vw, 44px);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      background:
+        linear-gradient(120deg, rgba(255,153,0,.18), transparent 30%),
+        radial-gradient(circle at 88% 12%, rgba(255,255,255,.14), transparent 18rem);
+      pointer-events: none;
+    }
+
+    .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(0,0,0,.2);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 0;
+      font-size: clamp(36px, 8vw, 86px);
+      line-height: .92;
+      letter-spacing: -.07em;
+      max-width: 980px;
+    }
+
+    .subtitle {
+      max-width: 860px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: clamp(15px, 2.4vw, 18px);
+      line-height: 1.62;
+    }
+
+    .home a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #ddd;
+    }
+
+    .home a:hover {
+      color: var(--accent);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(0,0,0,.2);
+      min-height: 92px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: clamp(24px, 5vw, 42px);
+      letter-spacing: -.05em;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 10px;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin: 18px 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(8,9,12,.78);
+      backdrop-filter: var(--blur);
+      box-shadow: 0 12px 40px rgba(0,0,0,.28);
+    }
+
+    .field,
+    .select,
+    .button {
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,255,255,.055);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    .field {
+      width: 100%;
+      padding: 0 14px;
+    }
+
+    .field::placeholder {
+      color: var(--soft);
+    }
+
+    .select {
+      width: 100%;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    .select option {
+      background: #111217;
+      color: var(--text);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 14px;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,153,0,.45);
+      background: rgba(255,153,0,.12);
+    }
+
+    .button.active {
+      border-color: rgba(255,153,0,.7);
+      background: rgba(255,153,0,.16);
+      color: #fff;
+    }
+
+    .button.danger:hover {
+      border-color: rgba(255,93,93,.55);
+      background: rgba(255,93,93,.12);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .chips {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.045);
+      color: var(--muted);
+      padding: 8px 11px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: color .15s ease, background .15s ease, border-color .15s ease;
+    }
+
+    .chip:hover,
+    .chip.active {
+      color: #fff;
+      background: rgba(255,153,0,.12);
+      border-color: rgba(255,153,0,.45);
+    }
+
+    .range-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      accent-color: var(--accent);
+      width: 120px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 6px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-row strong {
+      color: var(--text);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--thumb), 1fr));
+      gap: var(--gap);
+      align-items: start;
+    }
+
+    .gallery.compact {
+      --gap: 8px;
+    }
+
+    .gallery.masonry {
+      display: block;
+      column-width: var(--thumb);
+      column-gap: var(--gap);
+    }
+
+    .gallery.masonry .card {
+      break-inside: avoid;
+      margin: 0 0 var(--gap);
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255,255,255,.045);
+      box-shadow: 0 10px 25px rgba(0,0,0,.18);
+      cursor: zoom-in;
+      transform: translateZ(0);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px) scale(1.015);
+      border-color: rgba(255,153,0,.55);
+      box-shadow: 0 25px 60px rgba(0,0,0,.45);
+      background: rgba(255,153,0,.055);
+      z-index: 3;
+    }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      height: auto;
+      object-fit: cover;
+      display: block;
+      filter: saturate(.95) contrast(1.02);
+      transition: transform .45s ease, filter .45s ease, opacity .2s ease;
+      background: #151515;
+    }
+
+    .gallery.masonry .card img {
+      aspect-ratio: auto;
+      object-fit: contain;
+      background: rgba(255,255,255,.035);
+    }
+
+    .card:hover img {
+      transform: scale(1.08);
+      filter: saturate(1.12) contrast(1.04);
+    }
+
+    .card-body {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 45px 12px 12px;
+      background: linear-gradient(0deg, rgba(0,0,0,.82), rgba(0,0,0,.42) 58%, transparent);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .show-titles .card-body,
+    .card:hover .card-body,
+    .card:focus-visible .card-body {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card-title {
+      display: block;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.2;
+      color: #fff;
+      text-shadow: 0 2px 10px rgba(0,0,0,.7);
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      color: #ddd0bd;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .fav {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      background: rgba(0,0,0,.36);
+      color: rgba(255,255,255,.7);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      opacity: 0;
+      transform: scale(.9);
+      transition: opacity .15s ease, transform .15s ease, background .15s ease, color .15s ease;
+    }
+
+    .card:hover .fav,
+    .card:focus-visible .fav,
+    .fav.saved {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .fav.saved {
+      color: var(--accent);
+      background: rgba(255,153,0,.16);
+      border-color: rgba(255,153,0,.5);
+    }
+
+    .empty,
+    .loading,
+    .error {
+      border: 1px dashed var(--line);
+      border-radius: 22px;
+      padding: 34px 20px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255,255,255,.035);
+    }
+
+    .error strong {
+      color: #fff;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0,0,0,.88);
+      backdrop-filter: blur(12px);
+    }
+
+    .lightbox.active {
+      display: flex;
+      animation: fadeIn .16s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .viewer {
+      width: min(1380px, 100%);
+      height: min(900px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 14px;
+      animation: lift .22s ease both;
+    }
+
+    @keyframes lift {
+      from { transform: translateY(12px) scale(.985); opacity: .3; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .image-stage {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,.06), transparent 22rem),
+        #050505;
+      display: grid;
+      place-items: center;
+    }
+
+    .image-stage img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform-origin: center center;
+      transition: transform .15s ease;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .side {
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+      background: rgba(12,13,17,.86);
+      backdrop-filter: var(--blur);
+    }
+
+    .side h2 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.1;
+      letter-spacing: -.035em;
+    }
+
+    .side p {
+      color: var(--muted);
+      line-height: 1.48;
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 9px;
+      margin: 18px 0;
+    }
+
+    .meta-item {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 11px;
+      background: rgba(255,255,255,.045);
+    }
+
+    .meta-item span {
+      display: block;
+      color: var(--soft);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 5px;
+    }
+
+    .meta-item strong {
+      color: var(--text);
+      font-size: 13px;
+      word-break: break-word;
+      font-weight: 650;
+    }
+
+    .viewer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .close,
+    .nav-btn {
+      position: absolute;
+      z-index: 110;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      background: rgba(0,0,0,.48);
+      color: #fff;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: transform .15s ease, background .15s ease;
+    }
+
+    .close:hover,
+    .nav-btn:hover {
+      transform: scale(1.05);
+      background: rgba(255,153,0,.22);
+    }
+
+    .close {
+      top: 16px;
+      right: 16px;
+    }
+
+    .nav-btn.prev {
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .nav-btn.prev:hover {
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .nav-btn.next {
+      right: 392px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .nav-btn.next:hover {
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .mini-strip {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 10px 0 2px;
+      scrollbar-color: rgba(255,153,0,.55) transparent;
+    }
+
+    .mini-strip img {
+      width: 54px;
+      height: 54px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      opacity: .48;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .mini-strip img.active,
+    .mini-strip img:hover {
+      opacity: 1;
+      border-color: rgba(255,153,0,.7);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 120;
+      opacity: 0;
+      pointer-events: none;
+      border: 1px solid rgba(255,153,0,.35);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(10,10,12,.9);
+      color: #fff;
+      box-shadow: 0 14px 45px rgba(0,0,0,.4);
+      transition: opacity .18s ease, transform .18s ease;
+      font-size: 13px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .footer {
+      margin: 42px 0 0;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer p {
+      margin: 10px 0;
+    }
+
+    @media (max-width: 980px) {
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .toolbar .field {
+        grid-column: 1 / -1;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .viewer {
+        grid-template-columns: 1fr;
+        height: 100%;
+      }
+
+      .image-stage {
+        min-height: 55vh;
+      }
+
+      .side {
+        max-height: 35vh;
+      }
+
+      .nav-btn.next {
+        right: 18px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        width: min(100% - 18px, 1500px);
+        padding-top: 9px;
+      }
+
+      .hero {
+        padding: 22px;
+        border-radius: 24px;
+      }
+
+      h1 {
+        letter-spacing: -.055em;
+      }
+
+      .toolbar {
+        position: relative;
+        top: 0;
+        grid-template-columns: 1fr;
+        border-radius: 18px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .stat {
+        padding: 13px;
+        min-height: 80px;
+      }
+
+      .gallery {
+        grid-template-columns: repeat(auto-fill, minmax(min(132px, 100%), 1fr));
+        gap: 9px;
+      }
+
+      .card {
+        border-radius: 15px;
+      }
+
+      .card img {
+        aspect-ratio: 1 / 1;
+      }
+
+      .card-body {
+        padding: 36px 9px 9px;
+      }
+
+      .card-title {
+        font-size: 11px;
+      }
+
+      .card-meta {
+        font-size: 10px;
+      }
+
+      .range-wrap,
+      input[type="range"] {
+        width: 100%;
+      }
+
+      .viewer {
+        gap: 8px;
+      }
+
+      .lightbox {
+        padding: 8px;
+      }
+
+      .image-stage,
+      .side {
+        border-radius: 18px;
+      }
+
+      .side h2 {
+        font-size: 20px;
+      }
+
+      .viewer-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .close {
+        top: 10px;
+        right: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="eyebrow">🖼️ Galería interactiva · Archive.org</span>
+      <h1>Van Gogh Gallery Explorer</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/"; target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+
+      <p class="subtitle">
+        Navegador visual minimalista de cuadros de Vincent van Gogh. Usa el buscador, filtra por periodo,
+        cambia el tamaño de las miniaturas o abre cada obra en modo visor con zoom y navegación por teclado.
+      </p>
+
+      <section class="stats" aria-label="Resumen de la colección">
+        <div class="stat"><strong id="statTotal">—</strong><span>obras cargadas</span></div>
+        <div class="stat"><strong id="statPeriods">—</strong><span>periodos detectados</span></div>
+        <div class="stat"><strong id="statShown">—</strong><span>visibles ahora</span></div>
+        <div class="stat"><strong id="statFavs">0</strong><span>favoritos guardados</span></div>
+      </section>
+    </header>
+
+    <nav class="toolbar" aria-label="Controles principales">
+      <input class="field" id="searchInput" type="search" placeholder="Buscar: sunflowers, Arles, portrait, wheat..." autocomplete="off" />
+      <select class="select" id="periodSelect" aria-label="Filtrar por periodo">
+        <option value="">Todos los periodos</option>
+      </select>
+      <select class="select" id="typeSelect" aria-label="Filtrar por tipo">
+        <option value="">Todos los tipos</option>
+      </select>
+      <button class="button" id="randomBtn" type="button">🎲 Aleatoria</button>
+    </nav>
+
+    <section class="controls" aria-label="Opciones de visualización">
+      <div class="chips" id="quickChips">
+        <button class="chip active" data-chip="">Todo</button>
+        <button class="chip" data-chip="sunflower">🌻 Sunflowers</button>
+        <button class="chip" data-chip="self-portrait">Autorretratos</button>
+        <button class="chip" data-chip="Arles">Arles</button>
+        <button class="chip" data-chip="Auvers">Auvers</button>
+        <button class="chip" data-chip="wheat">Trigo</button>
+      </div>
+
+      <label class="range-wrap">
+        tamaño
+        <input id="sizeRange" type="range" min="110" max="310" value="190" />
+      </label>
+
+      <button class="button" id="layoutBtn" type="button">▦ Mosaico</button>
+      <button class="button" id="titlesBtn" type="button">🏷️ Títulos</button>
+      <button class="button" id="favsBtn" type="button">★ Favoritos</button>
+      <button class="button danger" id="resetBtn" type="button">↺ Reset</button>
+    </section>
+
+    <div class="status-row">
+      <span id="statusText">Cargando colección…</span>
+      <span id="sortWrap">
+        Orden:
+        <select class="select" id="sortSelect" style="width:auto; height:34px; border-radius:11px;">
+          <option value="period">Periodo</option>
+          <option value="name">Nombre</option>
+          <option value="sizeDesc">Tamaño ↓</option>
+          <option value="sizeAsc">Tamaño ↑</option>
+        </select>
+      </span>
+    </div>
+
+    <main id="gallery" class="gallery" aria-live="polite">
+      <div class="loading">Cargando imágenes desde <strong>json/vangogh.json</strong>…</div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto"; target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <section class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="Visor de obra ampliada">
+    <button class="close" id="closeBtn" type="button" aria-label="Cerrar visor">✕</button>
+    <button class="nav-btn prev" id="prevBtn" type="button" aria-label="Obra anterior">‹</button>
+    <button class="nav-btn next" id="nextBtn" type="button" aria-label="Obra siguiente">›</button>
+
+    <div class="viewer">
+      <div class="image-stage" id="imageStage">
+        <img id="viewerImg" src="" alt="" />
+      </div>
+
+      <aside class="side">
+        <h2 id="viewerTitle">—</h2>
+        <p id="viewerIntro"></p>
+
+        <div class="meta-list">
+          <div class="meta-item"><span>Periodo / carpeta</span><strong id="viewerPeriod">—</strong></div>
+          <div class="meta-item"><span>Años</span><strong id="viewerYears">—</strong></div>
+          <div class="meta-item"><span>Tipo</span><strong id="viewerType">—</strong></div>
+          <div class="meta-item"><span>Archivo</span><strong id="viewerFile">—</strong></div>
+          <div class="meta-item"><span>Tamaño</span><strong id="viewerSize">—</strong></div>
+          <div class="meta-item"><span>Fuente</span><strong id="viewerSource">—</strong></div>
+        </div>
+
+        <div class="viewer-actions">
+          <button class="button" id="zoomInBtn" type="button">＋ zoom</button>
+          <button class="button" id="zoomOutBtn" type="button">－ zoom</button>
+          <button class="button" id="fitBtn" type="button">⛶ ajustar</button>
+          <button class="button" id="copyBtn" type="button">🔗 copiar URL</button>
+          <a class="button" id="openBtn" href="#" target="_blank" rel="noopener">↗ abrir imagen</a>
+          <button class="button" id="favViewerBtn" type="button">★ favorito</button>
+        </div>
+
+        <p style="font-size:12px; color:var(--soft); margin-top:16px;">
+          Teclas: ← / → navegar · Esc cerrar · + / − zoom · doble clic ajustar.
+        </p>
+
+        <div class="mini-strip" id="miniStrip" aria-label="Miniaturas cercanas"></div>
+      </aside>
+    </div>
+  </section>
+
+  <div class="toast" id="toast">Copiado</div>
+
+  <script>
+    const JSON_PATHS = ["json/vangogh.json", "/json/vangogh.json", "vangogh.json"];
+
+    const state = {
+      raw: null,
+      items: [],
+      filtered: [],
+      periods: [],
+      types: [],
+      query: "",
+      period: "",
+      type: "",
+      sort: "period",
+      showTitles: false,
+      masonry: false,
+      favOnly: false,
+      current: 0,
+      zoom: 1,
+      favorites: new Set(JSON.parse(localStorage.getItem("vangoghFavorites") || "[]"))
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      gallery: $("gallery"),
+      search: $("searchInput"),
+      period: $("periodSelect"),
+      type: $("typeSelect"),
+      random: $("randomBtn"),
+      layout: $("layoutBtn"),
+      titles: $("titlesBtn"),
+      favs: $("favsBtn"),
+      reset: $("resetBtn"),
+      size: $("sizeRange"),
+      sort: $("sortSelect"),
+      status: $("statusText"),
+      statTotal: $("statTotal"),
+      statPeriods: $("statPeriods"),
+      statShown: $("statShown"),
+      statFavs: $("statFavs"),
+      chips: $("quickChips"),
+      lightbox: $("lightbox"),
+      close: $("closeBtn"),
+      prev: $("prevBtn"),
+      next: $("nextBtn"),
+      viewerImg: $("viewerImg"),
+      viewerTitle: $("viewerTitle"),
+      viewerIntro: $("viewerIntro"),
+      viewerPeriod: $("viewerPeriod"),
+      viewerYears: $("viewerYears"),
+      viewerType: $("viewerType"),
+      viewerFile: $("viewerFile"),
+      viewerSize: $("viewerSize"),
+      viewerSource: $("viewerSource"),
+      open: $("openBtn"),
+      copy: $("copyBtn"),
+      zoomIn: $("zoomInBtn"),
+      zoomOut: $("zoomOutBtn"),
+      fit: $("fitBtn"),
+      favViewer: $("favViewerBtn"),
+      miniStrip: $("miniStrip"),
+      toast: $("toast")
+    };
+
+    function normalise(str) {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function safeText(value, fallback = "—") {
+      return value === null || value === undefined || value === "" ? fallback : String(value);
+    }
+
+    function getItems(data) {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.imagenes)) return data.imagenes;
+      if (Array.isArray(data.images)) return data.images;
+      if (Array.isArray(data.paintings)) return data.paintings;
+      return [];
+    }
+
+    async function loadJson() {
+      let lastError = null;
+
+      for (const path of JSON_PATHS) {
+        try {
+          const response = await fetch(path, { cache: "no-store" });
+          if (!response.ok) throw new Error(`${path}: ${response.status}`);
+          const data = await response.json();
+          state.raw = data;
+          state.items = getItems(data).map((item, index) => ({
+            ...item,
+            __index: index,
+            __id: item.id || `vangogh-${index + 1}`,
+            __name: item.nombre || item.title || item.name || item.archivo || `Obra ${index + 1}`,
+            __url: item.url_imagen || item.url || item.image || item.src || "",
+            __period: item.periodo_o_carpeta || item.period || item.folder || "Sin periodo",
+            __years: item.periodo_anios || item.years || "",
+            __type: item.tipo || item.type || "obra",
+            __sizeBytes: Number(item.tamano_bytes_aprox || item.size_bytes || 0)
+          })).filter(item => item.__url);
+
+          if (!state.items.length) throw new Error("No se encontraron imágenes en el JSON.");
+          return path;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error("No se pudo cargar el JSON.");
+    }
+
+    function initFilters() {
+      state.periods = [...new Set(state.items.map(item => item.__period).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      state.types = [...new Set(state.items.map(item => item.__type).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+      els.period.innerHTML = `<option value="">Todos los periodos</option>` + state.periods.map(period =>
+        `<option value="${escapeAttr(period)}">${escapeHtml(period)}</option>`
+      ).join("");
+
+      els.type.innerHTML = `<option value="">Todos los tipos</option>` + state.types.map(type =>
+        `<option value="${escapeAttr(type)}">${escapeHtml(type)}</option>`
+      ).join("");
+
+      els.statTotal.textContent = state.items.length;
+      els.statPeriods.textContent = state.periods.length;
+      updateFavStat();
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/`/g, "&#096;");
+    }
+
+    function applyFilters() {
+      const q = normalise(state.query);
+      let result = state.items.filter(item => {
+        const text = normalise([
+          item.__name,
+          item.__period,
+          item.__years,
+          item.__type,
+          item.archivo,
+          item.ruta_original,
+          item.fuente
+        ].join(" "));
+
+        const matchQuery = !q || text.includes(q);
+        const matchPeriod = !state.period || item.__period === state.period;
+        const matchType = !state.type || item.__type === state.type;
+        const matchFav = !state.favOnly || state.favorites.has(item.__id);
+
+        return matchQuery && matchPeriod && matchType && matchFav;
+      });
+
+      result = sortItems(result);
+      state.filtered = result;
+      renderGallery();
+      updateStatus();
+    }
+
+    function sortItems(list) {
+      return [...list].sort((a, b) => {
+        if (state.sort === "name") return a.__name.localeCompare(b.__name);
+        if (state.sort === "sizeDesc") return (b.__sizeBytes || 0) - (a.__sizeBytes || 0);
+        if (state.sort === "sizeAsc") return (a.__sizeBytes || 0) - (b.__sizeBytes || 0);
+
+        const period = a.__period.localeCompare(b.__period);
+        if (period !== 0) return period;
+        return a.__name.localeCompare(b.__name);
+      });
+    }
+
+    function renderGallery() {
+      els.gallery.classList.toggle("show-titles", state.showTitles);
+      els.gallery.classList.toggle("masonry", state.masonry);
+      els.gallery.classList.toggle("compact", Number(els.size.value) < 150);
+
+      if (!state.filtered.length) {
+        els.gallery.innerHTML = `<div class="empty">No hay obras visibles con esos filtros.</div>`;
+        return;
+      }
+
+      els.gallery.innerHTML = state.filtered.map((item, visibleIndex) => `
+        <article class="card" tabindex="0" data-index="${visibleIndex}" title="${escapeAttr(item.__name)}">
+          <img src="${escapeAttr(item.__url)}" alt="${escapeAttr(item.__name)}" loading="lazy" decoding="async"
+               onerror="this.style.opacity=.18; this.alt='Imagen no disponible';">
+          <button class="fav ${state.favorites.has(item.__id) ? "saved" : ""}" type="button" data-fav="${escapeAttr(item.__id)}" aria-label="Marcar favorito">★</button>
+          <div class="card-body">
+            <strong class="card-title">${escapeHtml(item.__name)}</strong>
+            <div class="card-meta">
+              <span>${escapeHtml(item.__period)}</span>
+              <span>·</span>
+              <span>${escapeHtml(item.__years || item.__type)}</span>
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function updateStatus() {
+      els.statShown.textContent = state.filtered.length;
+      els.status.innerHTML = `<strong>${state.filtered.length}</strong> de <strong>${state.items.length}</strong> obras visibles`;
+      if (state.query) els.status.innerHTML += ` · búsqueda: <strong>${escapeHtml(state.query)}</strong>`;
+      if (state.period) els.status.innerHTML += ` · periodo: <strong>${escapeHtml(state.period)}</strong>`;
+      if (state.favOnly) els.status.innerHTML += ` · solo favoritos`;
+      updateFavStat();
+    }
+
+    function updateFavStat() {
+      els.statFavs.textContent = state.favorites.size;
+    }
+
+    function saveFavorites() {
+      localStorage.setItem("vangoghFavorites", JSON.stringify([...state.favorites]));
+      updateFavStat();
+    }
+
+    function toggleFavorite(id) {
+      if (state.favorites.has(id)) state.favorites.delete(id);
+      else state.favorites.add(id);
+      saveFavorites();
+      applyFilters();
+      updateViewerFavButton();
+    }
+
+    function openViewer(index) {
+      if (!state.filtered.length) return;
+      state.current = Math.max(0, Math.min(index, state.filtered.length - 1));
+      state.zoom = 1;
+      const item = state.filtered[state.current];
+
+      els.viewerImg.src = item.__url;
+      els.viewerImg.alt = item.__name;
+      els.viewerImg.style.transform = "scale(1)";
+      els.viewerTitle.textContent = item.__name;
+      els.viewerIntro.textContent = `${safeText(item.artista, "Vincent van Gogh")} · ${safeText(item.__period)}${item.__years ? " · " + item.__years : ""}`;
+      els.viewerPeriod.textContent = safeText(item.__period);
+      els.viewerYears.textContent = safeText(item.__years);
+      els.viewerType.textContent = safeText(item.__type);
+      els.viewerFile.textContent = safeText(item.archivo || item.ruta_original);
+      els.viewerSize.textContent = safeText(item.tamano || (item.__sizeBytes ? `${Math.round(item.__sizeBytes / 1024)} kB` : ""));
+      els.viewerSource.textContent = safeText(item.fuente || "Archive.org / Academic Torrents");
+      els.open.href = item.__url;
+
+      updateViewerFavButton();
+      renderMiniStrip();
+
+      els.lightbox.classList.add("active");
+      els.lightbox.setAttribute("aria-hidden", "false");
+      document.body.classList.add("lightbox-open");
+    }
+
+    function closeViewer() {
+      els.lightbox.classList.remove("active");
+      els.lightbox.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("lightbox-open");
+      els.viewerImg.src = "";
+    }
+
+    function changeViewer(direction) {
+      if (!state.filtered.length) return;
+      const nextIndex = (state.current + direction + state.filtered.length) % state.filtered.length;
+      openViewer(nextIndex);
+    }
+
+    function updateZoom(delta) {
+      state.zoom = Math.max(.5, Math.min(4, state.zoom + delta));
+      els.viewerImg.style.transform = `scale(${state.zoom})`;
+    }
+
+    function fitZoom() {
+      state.zoom = 1;
+      els.viewerImg.style.transform = "scale(1)";
+    }
+
+    function updateViewerFavButton() {
+      const item = state.filtered[state.current];
+      if (!item) return;
+      const saved = state.favorites.has(item.__id);
+      els.favViewer.classList.toggle("active", saved);
+      els.favViewer.textContent = saved ? "★ favorito" : "☆ favorito";
+    }
+
+    function renderMiniStrip() {
+      const start = Math.max(0, state.current - 8);
+      const end = Math.min(state.filtered.length, state.current + 9);
+      els.miniStrip.innerHTML = state.filtered.slice(start, end).map((item, offset) => {
+        const absolute = start + offset;
+        return `<img src="${escapeAttr(item.__url)}" alt="${escapeAttr(item.__name)}" data-mini="${absolute}" class="${absolute === state.current ? "active" : ""}" loading="lazy">`;
+      }).join("");
+    }
+
+    function showToast(text) {
+      const toast = $("toast");
+      toast.textContent = text;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 1500);
+    }
+
+    function randomItem() {
+      const list = state.filtered.length ? state.filtered : state.items;
+      if (!list.length) return;
+      const item = list[Math.floor(Math.random() * list.length)];
+      const index = state.filtered.indexOf(item);
+      openViewer(index >= 0 ? index : 0);
+    }
+
+    function resetFilters() {
+      state.query = "";
+      state.period = "";
+      state.type = "";
+      state.favOnly = false;
+      els.search.value = "";
+      els.period.value = "";
+      els.type.value = "";
+      els.sort.value = "period";
+      state.sort = "period";
+      els.favs.classList.remove("active");
+      document.querySelectorAll(".chip").forEach((chip, index) => chip.classList.toggle("active", index === 0));
+      applyFilters();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function bindEvents() {
+      let searchTimer = null;
+      els.search.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          state.query = els.search.value;
+          applyFilters();
+        }, 90);
+      });
+
+      els.period.addEventListener("change", () => {
+        state.period = els.period.value;
+        applyFilters();
+      });
+
+      els.type.addEventListener("change", () => {
+        state.type = els.type.value;
+        applyFilters();
+      });
+
+      els.sort.addEventListener("change", () => {
+        state.sort = els.sort.value;
+        applyFilters();
+      });
+
+      els.size.addEventListener("input", () => {
+        document.documentElement.style.setProperty("--thumb", `${els.size.value}px`);
+        els.gallery.classList.toggle("compact", Number(els.size.value) < 150);
+      });
+
+      els.layout.addEventListener("click", () => {
+        state.masonry = !state.masonry;
+        els.layout.classList.toggle("active", state.masonry);
+        els.layout.textContent = state.masonry ? "▥ Cuadrícula" : "▦ Mosaico";
+        renderGallery();
+      });
+
+      els.titles.addEventListener("click", () => {
+        state.showTitles = !state.showTitles;
+        els.titles.classList.toggle("active", state.showTitles);
+        renderGallery();
+      });
+
+      els.favs.addEventListener("click", () => {
+        state.favOnly = !state.favOnly;
+        els.favs.classList.toggle("active", state.favOnly);
+        applyFilters();
+      });
+
+      els.reset.addEventListener("click", resetFilters);
+      els.random.addEventListener("click", randomItem);
+
+      els.chips.addEventListener("click", (event) => {
+        const chip = event.target.closest("[data-chip]");
+        if (!chip) return;
+        document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        state.query = chip.dataset.chip || "";
+        els.search.value = state.query;
+        applyFilters();
+      });
+
+      els.gallery.addEventListener("click", (event) => {
+        const fav = event.target.closest("[data-fav]");
+        if (fav) {
+          event.stopPropagation();
+          toggleFavorite(fav.dataset.fav);
+          return;
+        }
+
+        const card = event.target.closest(".card");
+        if (card) openViewer(Number(card.dataset.index));
+      });
+
+      els.gallery.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const card = event.target.closest(".card");
+        if (!card) return;
+        event.preventDefault();
+        openViewer(Number(card.dataset.index));
+      });
+
+      els.close.addEventListener("click", closeViewer);
+      els.prev.addEventListener("click", () => changeViewer(-1));
+      els.next.addEventListener("click", () => changeViewer(1));
+
+      els.lightbox.addEventListener("click", (event) => {
+        if (event.target === els.lightbox) closeViewer();
+      });
+
+      els.zoomIn.addEventListener("click", () => updateZoom(.25));
+      els.zoomOut.addEventListener("click", () => updateZoom(-.25));
+      els.fit.addEventListener("click", fitZoom);
+      $("imageStage").addEventListener("dblclick", fitZoom);
+
+      els.copy.addEventListener("click", async () => {
+        const item = state.filtered[state.current];
+        if (!item) return;
+        try {
+          await navigator.clipboard.writeText(item.__url);
+          showToast("URL copiada");
+        } catch {
+          showToast("No se pudo copiar");
+        }
+      });
+
+      els.favViewer.addEventListener("click", () => {
+        const item = state.filtered[state.current];
+        if (item) toggleFavorite(item.__id);
+      });
+
+      els.miniStrip.addEventListener("click", (event) => {
+        const mini = event.target.closest("[data-mini]");
+        if (mini) openViewer(Number(mini.dataset.mini));
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (!els.lightbox.classList.contains("active")) return;
+
+        if (event.key === "Escape") closeViewer();
+        if (event.key === "ArrowLeft") changeViewer(-1);
+        if (event.key === "ArrowRight") changeViewer(1);
+        if (event.key === "+" || event.key === "=") updateZoom(.25);
+        if (event.key === "-" || event.key === "_") updateZoom(-.25);
+      });
+    }
+
+    async function init() {
+      bindEvents();
+
+      try {
+        const loadedPath = await loadJson();
+        initFilters();
+        applyFilters();
+        els.status.innerHTML = `JSON cargado desde <strong>${escapeHtml(loadedPath)}</strong>`;
+        setTimeout(updateStatus, 1200);
+      } catch (error) {
+        console.error(error);
+        els.gallery.innerHTML = `
+          <div class="error">
+            <strong>No se pudo cargar json/vangogh.json</strong>
+            Revisa que el archivo exista en la carpeta <code>json/</code>, que el nombre sea exacto y que GitHub Pages lo esté sirviendo correctamente.
+          </div>`;
+        els.status.textContent = "Error de carga del JSON";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
