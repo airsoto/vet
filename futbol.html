@@ -1,1 +1,1880 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#08111f" />
+  <title>Comparador histórico de selecciones de fútbol</title>
+  <style>
+    :root{
+      --bg:#07111f;
+      --bg2:#0b1526;
+      --card:#101c2e;
+      --card2:#13243a;
+      --line:rgba(255,255,255,.12);
+      --line2:rgba(255,255,255,.2);
+      --txt:#f4f7fb;
+      --muted:#aab8cc;
+      --soft:#d7e2f2;
+      --a:#33d6a6;
+      --b:#6aa6ff;
+      --draw:#ffd166;
+      --danger:#ff6b6b;
+      --orange:#ff9900;
+      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --radius:22px;
+      --tap:48px;
+    }
 
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(51,214,166,.20), transparent 30%),
+        radial-gradient(circle at 90% 10%, rgba(106,166,255,.22), transparent 36%),
+        linear-gradient(180deg, var(--bg), #050915 72%, #04070e);
+      color:var(--txt);
+      min-height:100vh;
+      -webkit-text-size-adjust:100%;
+      text-rendering:geometricPrecision;
+    }
+
+    a{color:#9fd2ff}
+    .page{
+      width:min(1120px, 100%);
+      margin:0 auto;
+      padding:18px 14px 36px;
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:22px 18px;
+      background:
+        linear-gradient(135deg, rgba(16,28,46,.94), rgba(11,21,38,.76)),
+        radial-gradient(circle at top right, rgba(255,153,0,.12), transparent 35%);
+      box-shadow:var(--shadow);
+    }
+    .hero::before{
+      content:"⚽";
+      position:absolute;
+      right:-18px;
+      top:-34px;
+      font-size:160px;
+      opacity:.055;
+      transform:rotate(-18deg);
+      pointer-events:none;
+    }
+    .kicker{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:7px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid var(--line);
+      color:var(--soft);
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:.02em;
+    }
+    h1{
+      margin:12px 0 8px;
+      font-size:clamp(28px, 7vw, 58px);
+      line-height:.94;
+      letter-spacing:-.06em;
+    }
+    .subtitle{
+      max-width:820px;
+      color:var(--muted);
+      font-size:clamp(14px, 3.5vw, 17px);
+      line-height:1.45;
+      margin:0;
+    }
+
+    .sourceBox{
+      margin:16px 0 0;
+      padding:13px 14px;
+      border:1px solid rgba(255,153,0,.32);
+      border-radius:18px;
+      background:rgba(255,153,0,.08);
+      color:#ffe5be;
+      font-size:13.5px;
+      line-height:1.45;
+    }
+    .sourceBox strong{color:#fff2dc}
+    .home a{
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      color:#dff1ff;
+      text-decoration:none;
+      border-bottom:1px dashed rgba(223,241,255,.45);
+    }
+
+    .panel{
+      margin-top:14px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:rgba(16,28,46,.76);
+      box-shadow:0 16px 38px rgba(0,0,0,.22);
+      overflow:hidden;
+    }
+    .panelHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:14px;
+      border-bottom:1px solid var(--line);
+      background:linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    }
+    .panelHead h2{
+      font-size:16px;
+      margin:0;
+      letter-spacing:-.01em;
+    }
+    .status{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-size:12.5px;
+      text-align:right;
+    }
+    .dot{
+      width:9px;
+      height:9px;
+      border-radius:50%;
+      background:var(--draw);
+      box-shadow:0 0 0 4px rgba(255,209,102,.13);
+      flex:0 0 auto;
+    }
+    .dot.ok{background:var(--a); box-shadow:0 0 0 4px rgba(51,214,166,.14)}
+    .dot.err{background:var(--danger); box-shadow:0 0 0 4px rgba(255,107,107,.14)}
+
+    .controls{
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      gap:12px;
+      padding:14px;
+      align-items:stretch;
+    }
+    .teamBox{
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      min-width:0;
+    }
+    .teamHeader{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+      min-height:52px;
+    }
+    .flag{
+      width:54px;
+      height:38px;
+      border-radius:10px;
+      object-fit:cover;
+      border:1px solid rgba(255,255,255,.28);
+      box-shadow:0 8px 18px rgba(0,0,0,.26);
+      background:#fff;
+      flex:0 0 auto;
+    }
+    .flagTiny{
+      width:30px;
+      height:22px;
+      border-radius:6px;
+      object-fit:cover;
+      border:1px solid rgba(255,255,255,.2);
+      vertical-align:middle;
+      background:#fff;
+    }
+    .flagFallback{
+      width:54px;
+      height:38px;
+      border-radius:10px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(255,255,255,.24);
+      background:linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.05));
+      font-weight:900;
+      font-size:14px;
+      color:#fff;
+      flex:0 0 auto;
+    }
+    .flagFallback.small{
+      width:30px;
+      height:22px;
+      border-radius:6px;
+      font-size:10px;
+    }
+    .teamName{
+      min-width:0;
+    }
+    .teamName small{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:3px;
+    }
+    .teamName strong{
+      display:block;
+      font-size:18px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .formRow{
+      display:grid;
+      gap:8px;
+    }
+    label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+    select, input[type="search"], input[type="file"]{
+      width:100%;
+      min-height:var(--tap);
+      border:1px solid var(--line2);
+      border-radius:15px;
+      background:#07111f;
+      color:var(--txt);
+      padding:0 12px;
+      font-size:16px;
+      outline:none;
+    }
+    input[type="file"]{
+      padding:12px;
+      height:auto;
+      min-height:0;
+      font-size:14px;
+    }
+    select:focus, input:focus{
+      border-color:rgba(106,166,255,.72);
+      box-shadow:0 0 0 4px rgba(106,166,255,.14);
+    }
+
+    .swapWrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .swapBtn{
+      width:54px;
+      height:54px;
+      border-radius:18px;
+      border:1px solid var(--line2);
+      color:var(--txt);
+      background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+      font-size:22px;
+      cursor:pointer;
+      box-shadow:0 10px 24px rgba(0,0,0,.20);
+      -webkit-tap-highlight-color:transparent;
+    }
+    .swapBtn:active{transform:scale(.96)}
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:0 14px 14px;
+    }
+    button, .ghostBtn{
+      min-height:var(--tap);
+      border:1px solid var(--line2);
+      border-radius:15px;
+      padding:0 14px;
+      background:rgba(255,255,255,.08);
+      color:var(--txt);
+      font-weight:800;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      -webkit-tap-highlight-color:transparent;
+    }
+    button.primary{
+      background:linear-gradient(135deg, rgba(51,214,166,.96), rgba(106,166,255,.92));
+      border-color:transparent;
+      color:#04101a;
+      box-shadow:0 14px 28px rgba(51,214,166,.14);
+    }
+    button:disabled{
+      opacity:.48;
+      cursor:not-allowed;
+    }
+
+    .manualLoad{
+      display:none;
+      padding:14px;
+      border-top:1px solid var(--line);
+      background:rgba(255,107,107,.08);
+    }
+    .manualLoad.show{display:block}
+    .manualLoad p{
+      color:#ffd5d5;
+      margin:0 0 10px;
+      font-size:13.5px;
+      line-height:1.45;
+    }
+
+    .results{
+      margin-top:14px;
+      display:grid;
+      gap:14px;
+    }
+    .summaryGrid{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:14px;
+    }
+    .bigResult{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:rgba(16,28,46,.78);
+      padding:16px;
+      box-shadow:0 16px 38px rgba(0,0,0,.22);
+    }
+    .versusTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .versusTitle h2{
+      margin:0;
+      font-size:clamp(20px, 5vw, 34px);
+      letter-spacing:-.04em;
+      line-height:1;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:28px;
+      padding:5px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      background:rgba(255,255,255,.09);
+      border:1px solid var(--line);
+      color:var(--soft);
+      white-space:nowrap;
+    }
+    .winnerLine{
+      margin:0 0 12px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
+    }
+
+    .probBar{
+      display:flex;
+      overflow:hidden;
+      height:46px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.05);
+    }
+    .seg{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-width:0;
+      color:#06111d;
+      font-weight:1000;
+      font-size:13px;
+      transition:width .35s ease;
+      white-space:nowrap;
+      overflow:hidden;
+    }
+    .seg.a{background:linear-gradient(90deg, var(--a), #7ce8c7)}
+    .seg.draw{background:linear-gradient(90deg, var(--draw), #ffe5a3)}
+    .seg.b{background:linear-gradient(90deg, var(--b), #a9caff)}
+    .legend{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:8px;
+      margin-top:10px;
+    }
+    .legendItem{
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px;
+      background:rgba(255,255,255,.04);
+      min-width:0;
+    }
+    .legendItem small{
+      color:var(--muted);
+      display:block;
+      font-size:12px;
+      margin-bottom:3px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .legendItem strong{
+      font-size:22px;
+      letter-spacing:-.03em;
+    }
+
+    .statsCard{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:rgba(16,28,46,.78);
+      padding:16px;
+      box-shadow:0 16px 38px rgba(0,0,0,.20);
+    }
+    .statGrid{
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:10px;
+    }
+    .stat{
+      padding:12px;
+      border-radius:16px;
+      background:rgba(255,255,255,.055);
+      border:1px solid var(--line);
+      min-height:74px;
+    }
+    .stat span{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      margin-bottom:5px;
+    }
+    .stat strong{
+      display:block;
+      font-size:22px;
+      letter-spacing:-.03em;
+      line-height:1.05;
+    }
+    .stat em{
+      display:block;
+      font-style:normal;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:4px;
+    }
+
+    .globalHistory .versusTitle{
+      margin-bottom:6px;
+    }
+    .globalGrid{
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:12px;
+      margin-top:14px;
+    }
+    .globalTeam{
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:13px;
+      background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      min-width:0;
+    }
+    .globalTeamHead{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:12px;
+    }
+    .globalTeamHead small{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      margin-bottom:2px;
+    }
+    .globalTeamHead strong{
+      display:block;
+      font-size:18px;
+      line-height:1.1;
+    }
+    .globalRows{
+      display:grid;
+      gap:9px;
+    }
+    .globalRow{
+      border:1px solid var(--line);
+      border-radius:15px;
+      padding:10px;
+      background:rgba(255,255,255,.04);
+    }
+    .globalRowTop{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:7px;
+    }
+    .globalRowTop span{
+      color:var(--muted);
+      font-size:12px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .globalRowTop strong{
+      font-size:21px;
+      letter-spacing:-.03em;
+      white-space:nowrap;
+    }
+    .miniProb{
+      height:9px;
+      overflow:hidden;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid var(--line);
+      margin-bottom:7px;
+    }
+    .miniProb i{
+      display:block;
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--a), var(--b));
+    }
+    .globalRow em{
+      display:block;
+      font-style:normal;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .microCards{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:10px;
+      margin-top:14px;
+    }
+    .micro{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px;
+      background:rgba(255,255,255,.045);
+      min-width:0;
+    }
+    .micro small{
+      color:var(--muted);
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .micro strong{
+      display:block;
+      font-size:15px;
+      line-height:1.25;
+    }
+    .micro span{
+      display:block;
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .detailsPanel{
+      display:none;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:rgba(16,28,46,.76);
+      overflow:hidden;
+    }
+    .detailsPanel.show{display:block}
+    .detailTools{
+      display:grid;
+      grid-template-columns:1fr 1fr auto auto;
+      gap:10px;
+      padding:14px;
+      border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+    }
+    .matchList{
+      display:grid;
+      gap:10px;
+      padding:14px;
+    }
+    .matchCard{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border-radius:18px;
+      padding:12px;
+    }
+    .matchTop{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:10px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .matchTeams{
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      gap:10px;
+      align-items:center;
+    }
+    .matchTeam{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      font-weight:800;
+    }
+    .matchTeam.away{
+      justify-content:flex-end;
+      text-align:right;
+    }
+    .matchTeam span{
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+    }
+    .score{
+      min-width:72px;
+      min-height:44px;
+      border-radius:14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:20px;
+      font-weight:1000;
+      letter-spacing:.03em;
+      background:#06101c;
+      border:1px solid var(--line2);
+      color:#fff;
+    }
+    .matchMeta{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+
+    .empty{
+      border:1px dashed var(--line2);
+      border-radius:22px;
+      padding:24px 16px;
+      text-align:center;
+      color:var(--muted);
+      background:rgba(255,255,255,.035);
+    }
+    .empty strong{
+      color:#fff;
+      display:block;
+      margin-bottom:6px;
+    }
+
+    .smallNote{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.45;
+      margin:12px 0 0;
+    }
+
+    .footer {
+      margin-top:28px;
+      padding:18px;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:rgba(16,28,46,.72);
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+      text-align:center;
+    }
+    .footer a{color:#cde9ff}
+    .footer h4{margin:8px 0}
+    .footer p{margin:8px 0}
+
+    @media (max-width: 760px){
+      .page{padding:10px 9px 24px}
+      .hero{padding:18px 14px; border-radius:24px}
+      .controls{
+        grid-template-columns:1fr;
+      }
+      .swapWrap{
+        order:2;
+      }
+      .teamBox:first-child{order:1}
+      .teamBox:last-child{order:3}
+      .swapBtn{
+        width:100%;
+        max-width:none;
+        height:48px;
+        border-radius:16px;
+      }
+      .summaryGrid{
+        grid-template-columns:1fr;
+      }
+      .legend, .microCards, .globalGrid{
+        grid-template-columns:1fr;
+      }
+      .statGrid{
+        grid-template-columns:1fr 1fr;
+      }
+      .detailTools{
+        grid-template-columns:1fr;
+      }
+      .matchTeams{
+        grid-template-columns:1fr;
+        gap:8px;
+      }
+      .score{
+        order:2;
+        width:100%;
+      }
+      .matchTeam.away{
+        justify-content:flex-start;
+        text-align:left;
+      }
+      .matchTeam.away .flagTiny,
+      .matchTeam.away .flagFallback{
+        order:0;
+      }
+      .actions button,
+      .actions .ghostBtn{
+        flex:1 1 100%;
+      }
+      .versusTitle{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+    }
+
+    @media (max-width: 380px){
+      .statGrid{grid-template-columns:1fr}
+      .teamName strong{font-size:16px}
+      .flag, .flagFallback{width:48px;height:34px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="kicker">⚽ Fútbol internacional · cara a cara histórico</span>
+      <h1>Comparador histórico de selecciones</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+
+      <p class="subtitle">
+        Selecciona dos países o selecciones y calcula su balance histórico directo: victorias, empates,
+        goles, porcentaje histórico de victoria, rendimiento global de cada equipo y listado completo de enfrentamientos. 📊
+      </p>
+
+      <div class="sourceBox">
+        <strong>Referencia de datos:</strong>
+        Este conjunto de datos incluye 49.393 resultados de partidos internacionales de fútbol, desde el primer partido oficial en 1872 hasta 2025. Los partidos abarcan desde la Copa Mundial de la FIFA hasta la FIFI Wild Cup y amistosos regulares. Son estrictamente partidos internacionales masculinos absolutos; no incluye Juegos Olímpicos ni partidos en los que al menos uno de los equipos fuera la selección B, sub-23 o un combinado de liga.
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="selectorTitle">
+      <div class="panelHead">
+        <h2 id="selectorTitle">1) Elige dos selecciones</h2>
+        <div class="status" id="loadStatus"><span class="dot"></span><span>Cargando JSON…</span></div>
+      </div>
+
+      <div class="controls">
+        <article class="teamBox">
+          <div class="teamHeader">
+            <div id="flagA"></div>
+            <div class="teamName">
+              <small>Equipo A</small>
+              <strong id="nameA">—</strong>
+            </div>
+          </div>
+          <div class="formRow">
+            <label for="searchA">Buscar</label>
+            <input id="searchA" type="search" inputmode="search" placeholder="Filtrar selección…" autocomplete="off" />
+            <label for="teamA">Selección A</label>
+            <select id="teamA" disabled></select>
+          </div>
+        </article>
+
+        <div class="swapWrap">
+          <button id="swapTeams" class="swapBtn" title="Intercambiar equipos" disabled>⇄</button>
+        </div>
+
+        <article class="teamBox">
+          <div class="teamHeader">
+            <div id="flagB"></div>
+            <div class="teamName">
+              <small>Equipo B</small>
+              <strong id="nameB">—</strong>
+            </div>
+          </div>
+          <div class="formRow">
+            <label for="searchB">Buscar</label>
+            <input id="searchB" type="search" inputmode="search" placeholder="Filtrar selección…" autocomplete="off" />
+            <label for="teamB">Selección B</label>
+            <select id="teamB" disabled></select>
+          </div>
+        </article>
+      </div>
+
+      <div class="actions">
+        <button id="compareBtn" class="primary" disabled>Analizar enfrentamientos</button>
+        <button id="detailsBtn" disabled>Ver detalles históricos</button>
+        <button id="shareBtn" disabled>Copiar enlace</button>
+      </div>
+
+      <div class="manualLoad" id="manualLoad">
+        <p>
+          No se ha podido cargar automáticamente <strong>resultsfoot_results.json</strong>. Si abres el HTML directamente con doble clic, Chrome puede bloquear la carga local.
+          Sube aquí el archivo JSON o ejecútalo desde un servidor local/GitHub Pages.
+        </p>
+        <input id="fileInput" type="file" accept="application/json,.json" />
+      </div>
+    </section>
+
+    <main class="results" id="resultsArea"></main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>_______________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script type="application/json" id="country-flags-json">[{"Country":"Afghanistan","País":"Afganistán","Alpha-2 code":"AF","Alpha-3 code":"AFG","URL":"https://www.worldometers.info//img/flags/small/tn_af-flag.gif"},{"Country":"Albania","País":"Albania","Alpha-2 code":"AL","Alpha-3 code":"ALB","URL":"https://www.worldometers.info//img/flags/small/tn_al-flag.gif"},{"Country":"Algeria","País":"Argelia","Alpha-2 code":"DZ","Alpha-3 code":"DZA","URL":"https://www.worldometers.info//img/flags/small/tn_ag-flag.gif"},{"Country":"Andorra","País":"Andorra","Alpha-2 code":"AD","Alpha-3 code":"AND","URL":"https://www.worldometers.info//img/flags/small/tn_an-flag.gif"},{"Country":"Angola","País":"Angola","Alpha-2 code":"AO","Alpha-3 code":"AGO","URL":"https://www.worldometers.info//img/flags/small/tn_ao-flag.gif"},{"Country":"Antigua and Barbuda","País":"Antigua y Barbuda","Alpha-2 code":"AG","Alpha-3 code":"ATG","URL":"https://www.worldometers.info//img/flags/small/tn_ac-flag.gif"},{"Country":"Argentina","País":"Argentina","Alpha-2 code":"AR","Alpha-3 code":"ARG","URL":"https://www.worldometers.info//img/flags/small/tn_ar-flag.gif"},{"Country":"Armenia","País":"Armenia","Alpha-2 code":"AM","Alpha-3 code":"ARM","URL":"https://www.worldometers.info//img/flags/small/tn_am-flag.gif"},{"Country":"Australia","País":"Australia","Alpha-2 code":"AU","Alpha-3 code":"AUS","URL":"https://www.worldometers.info//img/flags/small/tn_as-flag.gif"},{"Country":"Austria","País":"Austria","Alpha-2 code":"AT","Alpha-3 code":"AUT","URL":"https://www.worldometers.info//img/flags/small/tn_au-flag.gif"},{"Country":"Azerbaijan","País":"Azerbaiyán","Alpha-2 code":"AZ","Alpha-3 code":"AZE","URL":"https://www.worldometers.info//img/flags/small/tn_aj-flag.gif"},{"Country":"Bahamas (the)","País":"Bahamas","Alpha-2 code":"BS","Alpha-3 code":"BHS","URL":"https://www.worldometers.info//img/flags/small/tn_bf-flag.gif"},{"Country":"Bahrain","País":"Baréin","Alpha-2 code":"BH","Alpha-3 code":"BHR","URL":"https://www.worldometers.info//img/flags/small/tn_ba-flag.gif"},{"Country":"Bangladesh","País":"Bangladés","Alpha-2 code":"BD","Alpha-3 code":"BGD","URL":"https://www.worldometers.info//img/flags/small/tn_bg-flag.gif"},{"Country":"Barbados","País":"Barbados","Alpha-2 code":"BB","Alpha-3 code":"BRB","URL":"https://www.worldometers.info//img/flags/small/tn_bb-flag.gif"},{"Country":"Belarus","País":"Bielorrusia","Alpha-2 code":"BY","Alpha-3 code":"BLR","URL":"https://www.worldometers.info//img/flags/small/tn_bo-flag.gif"},{"Country":"Belgium","País":"Bélgica","Alpha-2 code":"BE","Alpha-3 code":"BEL","URL":"https://www.worldometers.info//img/flags/small/tn_be-flag.gif"},{"Country":"Belize","País":"Belice","Alpha-2 code":"BZ","Alpha-3 code":"BLZ","URL":"https://www.worldometers.info//img/flags/small/tn_bh-flag.gif"},{"Country":"Benin","País":"Benín","Alpha-2 code":"BJ","Alpha-3 code":"BEN","URL":"https://www.worldometers.info//img/flags/small/tn_bn-flag.gif"},{"Country":"Bhutan","País":"Bután","Alpha-2 code":"BT","Alpha-3 code":"BTN","URL":"https://www.worldometers.info//img/flags/small/tn_bt-flag.gif"},{"Country":"Bolivia (Plurinational State of)","País":"Bolivia ","Alpha-2 code":"BO","Alpha-3 code":"BOL","URL":"https://www.worldometers.info//img/flags/small/tn_bl-flag.gif"},{"Country":"Bosnia and Herzegovina","País":"Bosnia y Herzegovina","Alpha-2 code":"BA","Alpha-3 code":"BIH","URL":"https://www.worldometers.info//img/flags/small/tn_bk-flag.gif"},{"Country":"Botswana","País":"Botsuana","Alpha-2 code":"BW","Alpha-3 code":"BWA","URL":"https://www.worldometers.info//img/flags/small/tn_bc-flag.gif"},{"Country":"Brazil","País":"Brasil","Alpha-2 code":"BR","Alpha-3 code":"BRA","URL":"https://www.worldometers.info//img/flags/small/tn_br-flag.gif"},{"Country":"Brunei Darussalam","País":"Brunéi Darussalam","Alpha-2 code":"BN","Alpha-3 code":"BRN","URL":"https://www.worldometers.info//img/flags/small/tn_bx-flag.gif"},{"Country":"Bulgaria","País":"Bulgaria","Alpha-2 code":"BG","Alpha-3 code":"BGR","URL":"https://www.worldometers.info//img/flags/small/tn_bu-flag.gif"},{"Country":"Burkina Faso","País":"Burkina Faso","Alpha-2 code":"BF","Alpha-3 code":"BFA","URL":"https://www.worldometers.info//img/flags/small/tn_uv-flag.gif"},{"Country":"Burundi","País":"Burundi","Alpha-2 code":"BI","Alpha-3 code":"BDI","URL":"https://www.worldometers.info//img/flags/small/tn_by-flag.gif"},{"Country":"Cabo Verde","País":"Cabo Verde","Alpha-2 code":"CV","Alpha-3 code":"CPV","URL":"https://www.worldometers.info//img/flags/small/tn_cv-flag.gif"},{"Country":"Cambodia","País":"Camboya","Alpha-2 code":"KH","Alpha-3 code":"KHM","URL":"https://www.worldometers.info//img/flags/small/tn_cb-flag.gif"},{"Country":"Cameroon","País":"Camerún","Alpha-2 code":"CM","Alpha-3 code":"CMR","URL":"https://www.worldometers.info//img/flags/small/tn_cm-flag.gif"},{"Country":"Canada","País":"Canadá","Alpha-2 code":"CA","Alpha-3 code":"CAN","URL":"https://www.worldometers.info//img/flags/small/tn_ca-flag.gif"},{"Country":"Central African Republic (the)","País":"República Centroafricana","Alpha-2 code":"CF","Alpha-3 code":"CAF","URL":"https://www.worldometers.info//img/flags/small/tn_ct-flag.gif"},{"Country":"Chad","País":"Chad","Alpha-2 code":"TD","Alpha-3 code":"TCD","URL":"https://www.worldometers.info//img/flags/small/tn_cd-flag.gif"},{"Country":"Chile","País":"Chile","Alpha-2 code":"CL","Alpha-3 code":"CHL","URL":"https://www.worldometers.info//img/flags/small/tn_ci-flag.gif"},{"Country":"China","País":"China","Alpha-2 code":"CN","Alpha-3 code":"CHN","URL":"https://www.worldometers.info//img/flags/small/tn_ch-flag.gif"},{"Country":"Colombia","País":"Colombia","Alpha-2 code":"CO","Alpha-3 code":"COL","URL":"https://www.worldometers.info//img/flags/small/tn_co-flag.gif"},{"Country":"Comoros (the)","País":"Comoras","Alpha-2 code":"KM","Alpha-3 code":"COM","URL":"https://www.worldometers.info//img/flags/small/tn_cn-flag.gif"},{"Country":"Congo (the Democratic Republic of the)","País":"Congo (República Democrática del)","Alpha-2 code":"CD","Alpha-3 code":"COD","URL":"https://www.worldometers.info//img/flags/small/tn_congo-flag.gif"},{"Country":"Congo (the)","País":"Congo","Alpha-2 code":"CG","Alpha-3 code":"COG","URL":"https://www.worldometers.info//img/flags/small/tn_cg-flag.gif"},{"Country":"Costa Rica","País":"Costa Rica","Alpha-2 code":"CR","Alpha-3 code":"CRI","URL":"https://www.worldometers.info//img/flags/small/tn_cs-flag.gif"},{"Country":"Côte d'Ivoire","País":"Costa de Marfil","Alpha-2 code":"CI","Alpha-3 code":"CIV","URL":"https://www.worldometers.info//img/flags/small/tn_iv-flag.gif"},{"Country":"Croatia","País":"Croacia","Alpha-2 code":"HR","Alpha-3 code":"HRV","URL":"https://www.worldometers.info//img/flags/small/tn_hr-flag.gif"},{"Country":"Cuba","País":"Cuba","Alpha-2 code":"CU","Alpha-3 code":"CUB","URL":"https://www.worldometers.info//img/flags/small/tn_cu-flag.gif"},{"Country":"Cyprus","País":"Chipre","Alpha-2 code":"CY","Alpha-3 code":"CYP","URL":"https://www.worldometers.info//img/flags/small/tn_cy-flag.gif"},{"Country":"Czechia","País":"Chequia","Alpha-2 code":"CZ","Alpha-3 code":"CZE","URL":"https://www.worldometers.info//img/flags/small/tn_ez-flag.gif"},{"Country":"Denmark","País":"Dinamarca","Alpha-2 code":"DK","Alpha-3 code":"DNK","URL":"https://www.worldometers.info//img/flags/small/tn_da-flag.gif"},{"Country":"Djibouti","País":"Yibuti","Alpha-2 code":"DJ","Alpha-3 code":"DJI","URL":"https://www.worldometers.info//img/flags/small/tn_dj-flag.gif"},{"Country":"Dominica","País":"Dominica","Alpha-2 code":"DM","Alpha-3 code":"DMA","URL":"https://www.worldometers.info//img/flags/small/tn_do-flag.gif"},{"Country":"Dominican Republic (the)","País":"República Dominicana","Alpha-2 code":"DO","Alpha-3 code":"DOM","URL":"https://www.worldometers.info//img/flags/small/tn_dr-flag.gif"},{"Country":"Ecuador","País":"Ecuador","Alpha-2 code":"EC","Alpha-3 code":"ECU","URL":"https://www.worldometers.info//img/flags/small/tn_ec-flag.gif"},{"Country":"Egypt","País":"Egipto","Alpha-2 code":"EG","Alpha-3 code":"EGY","URL":"https://www.worldometers.info//img/flags/small/tn_eg-flag.gif"},{"Country":"El Salvador","País":"El Salvador","Alpha-2 code":"SV","Alpha-3 code":"SLV","URL":"https://www.worldometers.info//img/flags/small/tn_es-flag.gif"},{"Country":"Equatorial Guinea","País":"Guinea Ecuatorial","Alpha-2 code":"GQ","Alpha-3 code":"GNQ","URL":"https://www.worldometers.info//img/flags/small/tn_ek-flag.gif"},{"Country":"Eritrea","País":"Eritrea","Alpha-2 code":"ER","Alpha-3 code":"ERI","URL":"https://www.worldometers.info//img/flags/small/tn_er-flag.gif"},{"Country":"Estonia","País":"Estonia","Alpha-2 code":"EE","Alpha-3 code":"EST","URL":"https://www.worldometers.info//img/flags/small/tn_en-flag.gif"},{"Country":"Eswatini","País":"Esuatini","Alpha-2 code":"SZ","Alpha-3 code":"SWZ","URL":"https://www.worldometers.info//img/flags/small/tn_wz-flag.gif"},{"Country":"Ethiopia","País":"Etiopía","Alpha-2 code":"ET","Alpha-3 code":"ETH","URL":"https://www.worldometers.info//img/flags/small/tn_et-flag.gif"},{"Country":"Fiji","País":"Fiyi","Alpha-2 code":"FJ","Alpha-3 code":"FJI","URL":"https://www.worldometers.info//img/flags/small/tn_fj-flag.gif"},{"Country":"Finland","País":"Finlandia","Alpha-2 code":"FI","Alpha-3 code":"FIN","URL":"https://www.worldometers.info//img/flags/small/tn_fi-flag.gif"},{"Country":"France","País":"Francia","Alpha-2 code":"FR","Alpha-3 code":"FRA","URL":"https://www.worldometers.info//img/flags/small/tn_fr-flag.gif"},{"Country":"Gabon","País":"Gabón","Alpha-2 code":"GA","Alpha-3 code":"GAB","URL":"https://www.worldometers.info//img/flags/small/tn_gb-flag.gif"},{"Country":"Gambia (the)","País":"Gambia","Alpha-2 code":"GM","Alpha-3 code":"GMB","URL":"https://www.worldometers.info//img/flags/small/tn_ga-flag.gif"},{"Country":"Georgia","País":"Georgia","Alpha-2 code":"GE","Alpha-3 code":"GEO","URL":"https://www.worldometers.info//img/flags/small/tn_gg-flag.gif"},{"Country":"Germany","País":"Alemania","Alpha-2 code":"DE","Alpha-3 code":"DEU","URL":"https://www.worldometers.info//img/flags/small/tn_gm-flag.gif"},{"Country":"Ghana","País":"Ghana","Alpha-2 code":"GH","Alpha-3 code":"GHA","URL":"https://www.worldometers.info//img/flags/small/tn_gh-flag.gif"},{"Country":"Greece","País":"Grecia","Alpha-2 code":"GR","Alpha-3 code":"GRC","URL":"https://www.worldometers.info//img/flags/small/tn_gr-flag.gif"},{"Country":"Grenada","País":"Granada","Alpha-2 code":"GD","Alpha-3 code":"GRD","URL":"https://www.worldometers.info//img/flags/small/tn_gj-flag.gif"},{"Country":"Guatemala","País":"Guatemala","Alpha-2 code":"GT","Alpha-3 code":"GTM","URL":"https://www.worldometers.info//img/flags/small/tn_gt-flag.gif"},{"Country":"Guinea","País":"Guinea","Alpha-2 code":"GN","Alpha-3 code":"GIN","URL":"https://www.worldometers.info//img/flags/small/tn_gv-flag.gif"},{"Country":"Guinea-Bissau","País":"Guinea-Bisáu","Alpha-2 code":"GW","Alpha-3 code":"GNB","URL":"https://www.worldometers.info//img/flags/small/tn_pu-flag.gif"},{"Country":"Guyana","País":"Guyana","Alpha-2 code":"GY","Alpha-3 code":"GUY","URL":"https://www.worldometers.info//img/flags/small/tn_gy-flag.gif"},{"Country":"Haiti","País":"Haití","Alpha-2 code":"HT","Alpha-3 code":"HTI","URL":"https://www.worldometers.info//img/flags/small/tn_ha-flag.gif"},{"Country":"Holy See (the)","País":"Santa Sede","Alpha-2 code":"VA","Alpha-3 code":"VAT","URL":"https://www.worldometers.info//img/flags/small/tn_vt-flag.gif"},{"Country":"Honduras","País":"Honduras","Alpha-2 code":"HN","Alpha-3 code":"HND","URL":"https://www.worldometers.info//img/flags/small/tn_ho-flag.gif"},{"Country":"Hungary","País":"Hungría","Alpha-2 code":"HU","Alpha-3 code":"HUN","URL":"https://www.worldometers.info//img/flags/small/tn_hu-flag.gif"},{"Country":"Iceland","País":"Islandia","Alpha-2 code":"IS","Alpha-3 code":"ISL","URL":"https://www.worldometers.info//img/flags/small/tn_ic-flag.gif"},{"Country":"India","País":"India","Alpha-2 code":"IN","Alpha-3 code":"IND","URL":"https://www.worldometers.info//img/flags/small/tn_in-flag.gif"},{"Country":"Indonesia","País":"Indonesia","Alpha-2 code":"ID","Alpha-3 code":"IDN","URL":"https://www.worldometers.info//img/flags/small/tn_id-flag.gif"},{"Country":"Iran (Islamic Republic of)","País":"Irán (República Islámica del)","Alpha-2 code":"IR","Alpha-3 code":"IRN","URL":"https://www.worldometers.info//img/flags/small/tn_ir-flag.gif"},{"Country":"Iraq","País":"Iraq","Alpha-2 code":"IQ","Alpha-3 code":"IRQ","URL":"https://www.worldometers.info//img/flags/small/tn_iz-flag.gif"},{"Country":"Ireland","País":"Irlanda","Alpha-2 code":"IE","Alpha-3 code":"IRL","URL":"https://www.worldometers.info//img/flags/small/tn_ei-flag.gif"},{"Country":"Israel","País":"Israel","Alpha-2 code":"IL","Alpha-3 code":"ISR","URL":"https://www.worldometers.info//img/flags/small/tn_is-flag.gif"},{"Country":"Italy","País":"Italia","Alpha-2 code":"IT","Alpha-3 code":"ITA","URL":"https://www.worldometers.info//img/flags/small/tn_it-flag.gif"},{"Country":"Jamaica","País":"Jamaica","Alpha-2 code":"JM","Alpha-3 code":"JAM","URL":"https://www.worldometers.info//img/flags/small/tn_jm-flag.gif"},{"Country":"Japan","País":"Japón","Alpha-2 code":"JP","Alpha-3 code":"JPN","URL":"https://www.worldometers.info//img/flags/small/tn_ja-flag.gif"},{"Country":"Jordan","País":"Jordania","Alpha-2 code":"JO","Alpha-3 code":"JOR","URL":"https://www.worldometers.info//img/flags/small/tn_jo-flag.gif"},{"Country":"Kazakhstan","País":"Kazajistán","Alpha-2 code":"KZ","Alpha-3 code":"KAZ","URL":"https://www.worldometers.info//img/flags/small/tn_kz-flag.gif"},{"Country":"Kenya","País":"Kenia","Alpha-2 code":"KE","Alpha-3 code":"KEN","URL":"https://www.worldometers.info//img/flags/small/tn_ke-flag.gif"},{"Country":"Kiribati","País":"Kiribati","Alpha-2 code":"KI","Alpha-3 code":"KIR","URL":"https://www.worldometers.info//img/flags/small/tn_kr-flag.gif"},{"Country":"Korea (the Democratic People's Republic of)","País":"Corea (República Popular Democrática de)","Alpha-2 code":"KP","Alpha-3 code":"PRK","URL":"https://www.worldometers.info//img/flags/small/tn_kn-flag.gif"},{"Country":"Korea (the Republic of)","País":"Corea (República de)","Alpha-2 code":"KR","Alpha-3 code":"KOR","URL":"https://www.worldometers.info//img/flags/small/tn_ks-flag.gif"},{"Country":"Kuwait","País":"Kuwait","Alpha-2 code":"KW","Alpha-3 code":"KWT","URL":"https://www.worldometers.info//img/flags/small/tn_ku-flag.gif"},{"Country":"Kyrgyzstan","País":"Kirguistán","Alpha-2 code":"KG","Alpha-3 code":"KGZ","URL":"https://www.worldometers.info//img/flags/small/tn_kg-flag.gif"},{"Country":"Lao People's Democratic Republic (the)","País":"República Democrática Popular Lao","Alpha-2 code":"LA","Alpha-3 code":"LAO","URL":"https://www.worldometers.info//img/flags/small/tn_la-flag.gif"},{"Country":"Latvia","País":"Letonia","Alpha-2 code":"LV","Alpha-3 code":"LVA","URL":"https://www.worldometers.info//img/flags/small/tn_lg-flag.gif"},{"Country":"Lebanon","País":"Líbano","Alpha-2 code":"LB","Alpha-3 code":"LBN","URL":"https://www.worldometers.info//img/flags/small/tn_le-flag.gif"},{"Country":"Lesotho","País":"Lesoto","Alpha-2 code":"LS","Alpha-3 code":"LSO","URL":"https://www.worldometers.info//img/flags/small/tn_lt-flag.gif"},{"Country":"Liberia","País":"Liberia","Alpha-2 code":"LR","Alpha-3 code":"LBR","URL":"https://www.worldometers.info//img/flags/small/tn_li-flag.gif"},{"Country":"Libya","País":"Libia","Alpha-2 code":"LY","Alpha-3 code":"LBY","URL":"https://www.worldometers.info//img/flags/small/tn_ly-flag.gif"},{"Country":"Liechtenstein","País":"Liechtenstein","Alpha-2 code":"LI","Alpha-3 code":"LIE","URL":"https://www.worldometers.info//img/flags/small/tn_ls-flag.gif"},{"Country":"Lithuania","País":"Lituania","Alpha-2 code":"LT","Alpha-3 code":"LTU","URL":"https://www.worldometers.info//img/flags/small/tn_lh-flag.gif"},{"Country":"Luxembourg","País":"Luxemburgo","Alpha-2 code":"LU","Alpha-3 code":"LUX","URL":"https://www.worldometers.info//img/flags/small/tn_lu-flag.gif"},{"Country":"Madagascar","País":"Madagascar","Alpha-2 code":"MG","Alpha-3 code":"MDG","URL":"https://www.worldometers.info//img/flags/small/tn_ma-flag.gif"},{"Country":"Malawi","País":"Malaui","Alpha-2 code":"MW","Alpha-3 code":"MWI","URL":"https://www.worldometers.info//img/flags/small/tn_mi-flag.gif"},{"Country":"Malaysia","País":"Malasia","Alpha-2 code":"MY","Alpha-3 code":"MYS","URL":"https://www.worldometers.info//img/flags/small/tn_my-flag.gif"},{"Country":"Maldives","País":"Maldivas","Alpha-2 code":"MV","Alpha-3 code":"MDV","URL":"https://www.worldometers.info//img/flags/small/tn_mv-flag.gif"},{"Country":"Mali","País":"Malí","Alpha-2 code":"ML","Alpha-3 code":"MLI","URL":"https://www.worldometers.info//img/flags/small/tn_ml-flag.gif"},{"Country":"Malta","País":"Malta","Alpha-2 code":"MT","Alpha-3 code":"MLT","URL":"https://www.worldometers.info//img/flags/small/tn_mt-flag.gif"},{"Country":"Marshall Islands (the)","País":"Islas Marshall","Alpha-2 code":"MH","Alpha-3 code":"MHL","URL":"https://www.worldometers.info//img/flags/small/tn_rm-flag.gif"},{"Country":"Mauritania","País":"Mauritania","Alpha-2 code":"MR","Alpha-3 code":"MRT","URL":"https://www.worldometers.info//img/flags/small/tn_mr-flag.gif"},{"Country":"Mauritius","País":"Mauricio","Alpha-2 code":"MU","Alpha-3 code":"MUS","URL":"https://www.worldometers.info//img/flags/small/tn_mp-flag.gif"},{"Country":"Mexico","País":"México","Alpha-2 code":"MX","Alpha-3 code":"MEX","URL":"https://www.worldometers.info//img/flags/small/tn_mx-flag.gif"},{"Country":"Micronesia (Federated States of)","País":"Micronesia (Estados Federados de)","Alpha-2 code":"FM","Alpha-3 code":"FSM","URL":"https://www.worldometers.info//img/flags/small/tn_fm-flag.gif"},{"Country":"Moldova (the Republic of)","País":"Moldavia","Alpha-2 code":"MD","Alpha-3 code":"MDA","URL":"https://www.worldometers.info//img/flags/small/tn_md-flag.gif"},{"Country":"Monaco","País":"Mónaco","Alpha-2 code":"MC","Alpha-3 code":"MCO","URL":"https://www.worldometers.info//img/flags/small/tn_mn-flag.gif"},{"Country":"Mongolia","País":"Mongolia","Alpha-2 code":"MN","Alpha-3 code":"MNG","URL":"https://www.worldometers.info//img/flags/small/tn_mg-flag.gif"},{"Country":"Montenegro","País":"Montenegro","Alpha-2 code":"ME","Alpha-3 code":"MNE","URL":"https://www.worldometers.info//img/flags/small/tn_mj-flag.gif"},{"Country":"Morocco","País":"Marruecos","Alpha-2 code":"MA","Alpha-3 code":"MAR","URL":"https://www.worldometers.info//img/flags/small/tn_mo-flag.gif"},{"Country":"Mozambique","País":"Mozambique","Alpha-2 code":"MZ","Alpha-3 code":"MOZ","URL":"https://www.worldometers.info//img/flags/small/tn_mz-flag.gif"},{"Country":"Myanmar","País":"Myanmar","Alpha-2 code":"MM","Alpha-3 code":"MMR","URL":"https://www.worldometers.info//img/flags/small/tn_bm-flag.gif"},{"Country":"Namibia","País":"Namibia","Alpha-2 code":"NA","Alpha-3 code":"NAM","URL":"https://www.worldometers.info//img/flags/small/tn_wa-flag.gif"},{"Country":"Nauru","País":"Nauru","Alpha-2 code":"NR","Alpha-3 code":"NRU","URL":"https://www.worldometers.info//img/flags/small/tn_nr-flag.gif"},{"Country":"Nepal","País":"Nepal","Alpha-2 code":"NP","Alpha-3 code":"NPL","URL":"https://www.worldometers.info//img/flags/small/tn_np-flag.gif"},{"Country":"Netherlands (the)","País":"Países Bajos","Alpha-2 code":"NL","Alpha-3 code":"NLD","URL":"https://www.worldometers.info//img/flags/small/tn_nl-flag.gif"},{"Country":"New Zealand","País":"Nueva Zelanda","Alpha-2 code":"NZ","Alpha-3 code":"NZL","URL":"https://www.worldometers.info//img/flags/small/tn_nz-flag.gif"},{"Country":"Nicaragua","País":"Nicaragua","Alpha-2 code":"NI","Alpha-3 code":"NIC","URL":"https://www.worldometers.info//img/flags/small/tn_nu-flag.gif"},{"Country":"Niger (the)","País":"Níger","Alpha-2 code":"NE","Alpha-3 code":"NER","URL":"https://www.worldometers.info//img/flags/small/tn_ng-flag.gif"},{"Country":"Nigeria","País":"Nigeria","Alpha-2 code":"NG","Alpha-3 code":"NGA","URL":"https://www.worldometers.info//img/flags/small/tn_ni-flag.gif"},{"Country":"Norway","País":"Noruega","Alpha-2 code":"NO","Alpha-3 code":"NOR","URL":"https://www.worldometers.info//img/flags/small/tn_no-flag.gif"},{"Country":"Oman","País":"Omán","Alpha-2 code":"OM","Alpha-3 code":"OMN","URL":"https://www.worldometers.info//img/flags/small/tn_mu-flag.gif"},{"Country":"Pakistan","País":"Pakistán","Alpha-2 code":"PK","Alpha-3 code":"PAK","URL":"https://www.worldometers.info//img/flags/small/tn_pk-flag.gif"},{"Country":"Palau","País":"Palaos","Alpha-2 code":"PW","Alpha-3 code":"PLW","URL":"https://www.worldometers.info//img/flags/small/tn_ps-flag.gif"},{"Country":"Palestine, State of","País":"Palestina, Estado de","Alpha-2 code":"PS","Alpha-3 code":"PSE","URL":"https://www.worldometers.info//img/flags/small/tn_palestine-flag.gif"},{"Country":"Panama","País":"Panamá","Alpha-2 code":"PA","Alpha-3 code":"PAN","URL":"https://www.worldometers.info//img/flags/small/tn_pm-flag.gif"},{"Country":"Papua New Guinea","País":"Papúa Nueva Guinea","Alpha-2 code":"PG","Alpha-3 code":"PNG","URL":"https://www.worldometers.info//img/flags/small/tn_pp-flag.gif"},{"Country":"Paraguay","País":"Paraguay","Alpha-2 code":"PY","Alpha-3 code":"PRY","URL":"https://www.worldometers.info//img/flags/small/tn_pa-flag.gif"},{"Country":"Peru","País":"Perú","Alpha-2 code":"PE","Alpha-3 code":"PER","URL":"https://www.worldometers.info//img/flags/small/tn_pe-flag.gif"},{"Country":"Philippines (the)","País":"Filipinas","Alpha-2 code":"PH","Alpha-3 code":"PHL","URL":"https://www.worldometers.info//img/flags/small/tn_rp-flag.gif"},{"Country":"Poland","País":"Polonia","Alpha-2 code":"PL","Alpha-3 code":"POL","URL":"https://www.worldometers.info//img/flags/small/tn_pl-flag.gif"},{"Country":"Portugal","País":"Portugal","Alpha-2 code":"PT","Alpha-3 code":"PRT","URL":"https://www.worldometers.info//img/flags/small/tn_po-flag.gif"},{"Country":"Qatar","País":"Catar","Alpha-2 code":"QA","Alpha-3 code":"QAT","URL":"https://www.worldometers.info//img/flags/small/tn_qa-flag.gif"},{"Country":"Republic of North Macedonia","País":"República de Macedonia del Norte","Alpha-2 code":"MK","Alpha-3 code":"MKD","URL":"https://www.worldometers.info//img/flags/small/tn_mk-flag.gif"},{"Country":"Romania","País":"Rumanía","Alpha-2 code":"RO","Alpha-3 code":"ROU","URL":"https://www.worldometers.info//img/flags/small/tn_ro-flag.gif"},{"Country":"Russian Federation (the)","País":"Federación de Rusia","Alpha-2 code":"RU","Alpha-3 code":"RUS","URL":"https://www.worldometers.info//img/flags/small/tn_rs-flag.gif"},{"Country":"Rwanda","País":"Ruanda","Alpha-2 code":"RW","Alpha-3 code":"RWA","URL":"https://www.worldometers.info//img/flags/small/tn_rw-flag.gif"},{"Country":"Saint Kitts and Nevis","País":"San Cristóbal y Nieves","Alpha-2 code":"KN","Alpha-3 code":"KNA","URL":"https://www.worldometers.info//img/flags/small/tn_sc-flag.gif"},{"Country":"Saint Lucia","País":"Santa Lucía","Alpha-2 code":"LC","Alpha-3 code":"LCA","URL":"https://www.worldometers.info//img/flags/small/tn_st-flag.gif"},{"Country":"Saint Vincent and the Grenadines","País":"San Vicente y las Granadinas","Alpha-2 code":"VC","Alpha-3 code":"VCT","URL":"https://www.worldometers.info//img/flags/small/tn_vc-flag.gif"},{"Country":"Samoa","País":"Samoa","Alpha-2 code":"WS","Alpha-3 code":"WSM","URL":"https://www.worldometers.info//img/flags/small/tn_ws-flag.gif"},{"Country":"San Marino","País":"San Marino","Alpha-2 code":"SM","Alpha-3 code":"SMR","URL":"https://www.worldometers.info//img/flags/small/tn_sm-flag.gif"},{"Country":"Sao Tome and Principe","País":"Santo Tomé y Príncipe","Alpha-2 code":"ST","Alpha-3 code":"STP","URL":"https://www.worldometers.info//img/flags/small/tn_tp-flag.gif"},{"Country":"Saudi Arabia","País":"Arabia Saudita","Alpha-2 code":"SA","Alpha-3 code":"SAU","URL":"https://www.worldometers.info//img/flags/small/tn_sa-flag.gif"},{"Country":"Senegal","País":"Senegal","Alpha-2 code":"SN","Alpha-3 code":"SEN","URL":"https://www.worldometers.info//img/flags/small/tn_sg-flag.gif"},{"Country":"Serbia","País":"Serbia","Alpha-2 code":"RS","Alpha-3 code":"SRB","URL":"https://www.worldometers.info//img/flags/small/tn_ri-flag.gif"},{"Country":"Seychelles","País":"Seychelles","Alpha-2 code":"SC","Alpha-3 code":"SYC","URL":"https://www.worldometers.info//img/flags/small/tn_se-flag.gif"},{"Country":"Sierra Leone","País":"Sierra Leona","Alpha-2 code":"SL","Alpha-3 code":"SLE","URL":"https://www.worldometers.info//img/flags/small/tn_sl-flag.gif"},{"Country":"Singapore","País":"Singapur","Alpha-2 code":"SG","Alpha-3 code":"SGP","URL":"https://www.worldometers.info//img/flags/small/tn_sn-flag.gif"},{"Country":"Slovakia","País":"Eslovaquia","Alpha-2 code":"SK","Alpha-3 code":"SVK","URL":"https://www.worldometers.info//img/flags/small/tn_lo-flag.gif"},{"Country":"Slovenia","País":"Eslovenia","Alpha-2 code":"SI","Alpha-3 code":"SVN","URL":"https://www.worldometers.info//img/flags/small/tn_si-flag.gif"},{"Country":"Solomon Islands","País":"Islas Salomón","Alpha-2 code":"SB","Alpha-3 code":"SLB","URL":"https://www.worldometers.info//img/flags/small/tn_bp-flag.gif"},{"Country":"Somalia","País":"Somalia","Alpha-2 code":"SO","Alpha-3 code":"SOM","URL":"https://www.worldometers.info//img/flags/small/tn_so-flag.gif"},{"Country":"South Africa","País":"Sudáfrica","Alpha-2 code":"ZA","Alpha-3 code":"ZAF","URL":"https://www.worldometers.info//img/flags/small/tn_sf-flag.gif"},{"Country":"South Sudan","País":"Sudán del Sur","Alpha-2 code":"SS","Alpha-3 code":"SSD","URL":"https://www.worldometers.info//img/flags/small/tn_od-flag.gif"},{"Country":"Spain","País":"España","Alpha-2 code":"ES","Alpha-3 code":"ESP","URL":"https://www.worldometers.info//img/flags/small/tn_sp-flag.gif"},{"Country":"Sri Lanka","País":"Sri Lanka","Alpha-2 code":"LK","Alpha-3 code":"LKA","URL":"https://www.worldometers.info//img/flags/small/tn_ce-flag.gif"},{"Country":"Sudan (the)","País":"Sudán","Alpha-2 code":"SD","Alpha-3 code":"SDN","URL":"https://www.worldometers.info//img/flags/small/tn_su-flag.gif"},{"Country":"Suriname","País":"Surinam","Alpha-2 code":"SR","Alpha-3 code":"SUR","URL":"https://www.worldometers.info//img/flags/small/tn_ns-flag.gif"},{"Country":"Sweden","País":"Suecia","Alpha-2 code":"SE","Alpha-3 code":"SWE","URL":"https://www.worldometers.info//img/flags/small/tn_sw-flag.gif"},{"Country":"Switzerland","País":"Suiza","Alpha-2 code":"CH","Alpha-3 code":"CHE","URL":"https://www.worldometers.info//img/flags/small/tn_sz-flag.gif"},{"Country":"Syrian Arab Republic","País":"República Árabe Siria","Alpha-2 code":"SY","Alpha-3 code":"SYR","URL":"https://www.worldometers.info//img/flags/small/tn_sy-flag.gif"},{"Country":"Tajikistan","País":"Tayikistán","Alpha-2 code":"TJ","Alpha-3 code":"TJK","URL":"https://www.worldometers.info//img/flags/small/tn_ti-flag.gif"},{"Country":"Tanzania, United Republic of","País":"Tanzania, República Unida de","Alpha-2 code":"TZ","Alpha-3 code":"TZA","URL":"https://www.worldometers.info//img/flags/small/tn_tz-flag.gif"},{"Country":"Thailand","País":"Tailandia","Alpha-2 code":"TH","Alpha-3 code":"THA","URL":"https://www.worldometers.info//img/flags/small/tn_th-flag.gif"},{"Country":"Timor-Leste","País":"Timor-Leste","Alpha-2 code":"TL","Alpha-3 code":"TLS","URL":"https://www.worldometers.info//img/flags/small/tn_tt-flag.gif"},{"Country":"Togo","País":"Togo","Alpha-2 code":"TG","Alpha-3 code":"TGO","URL":"https://www.worldometers.info//img/flags/small/tn_to-flag.gif"},{"Country":"Tonga","País":"Tonga","Alpha-2 code":"TO","Alpha-3 code":"TON","URL":"https://www.worldometers.info//img/flags/small/tn_tn-flag.gif"},{"Country":"Trinidad and Tobago","País":"Trinidad y Tobago","Alpha-2 code":"TT","Alpha-3 code":"TTO","URL":"https://www.worldometers.info//img/flags/small/tn_td-flag.gif"},{"Country":"Tunisia","País":"Túnez","Alpha-2 code":"TN","Alpha-3 code":"TUN","URL":"https://www.worldometers.info//img/flags/small/tn_ts-flag.gif"},{"Country":"Turkey","País":"Turquía","Alpha-2 code":"TR","Alpha-3 code":"TUR","URL":"https://www.worldometers.info//img/flags/small/tn_tu-flag.gif"},{"Country":"Turkmenistan","País":"Turkmenistán","Alpha-2 code":"TM","Alpha-3 code":"TKM","URL":"https://www.worldometers.info//img/flags/small/tn_tx-flag.gif"},{"Country":"Tuvalu","País":"Tuvalu","Alpha-2 code":"TV","Alpha-3 code":"TUV","URL":"https://www.worldometers.info//img/flags/small/tn_tv-flag.gif"},{"Country":"Uganda","País":"Uganda","Alpha-2 code":"UG","Alpha-3 code":"UGA","URL":"https://www.worldometers.info//img/flags/small/tn_ug-flag.gif"},{"Country":"Ukraine","País":"Ucrania","Alpha-2 code":"UA","Alpha-3 code":"UKR","URL":"https://www.worldometers.info//img/flags/small/tn_up-flag.gif"},{"Country":"United Arab Emirates (the)","País":"Emiratos Árabes Unidos","Alpha-2 code":"AE","Alpha-3 code":"ARE","URL":"https://www.worldometers.info//img/flags/small/tn_ae-flag.gif"},{"Country":"United Kingdom of Great Britain and Northern Ireland (the)","País":"Reino Unido","Alpha-2 code":"GB","Alpha-3 code":"GBR","URL":"https://www.worldometers.info//img/flags/small/tn_uk-flag.gif"},{"Country":"United States of America (the)","País":"Estados Unidos de América","Alpha-2 code":"US","Alpha-3 code":"USA","URL":"https://www.worldometers.info//img/flags/small/tn_us-flag.gif"},{"Country":"Uruguay","País":"Uruguay","Alpha-2 code":"UY","Alpha-3 code":"URY","URL":"https://www.worldometers.info//img/flags/small/tn_uy-flag.gif"},{"Country":"Uzbekistan","País":"Uzbekistán","Alpha-2 code":"UZ","Alpha-3 code":"UZB","URL":"https://www.worldometers.info//img/flags/small/tn_uz-flag.gif"},{"Country":"Vanuatu","País":"Vanuatu","Alpha-2 code":"VU","Alpha-3 code":"VUT","URL":"https://www.worldometers.info//img/flags/small/tn_nh-flag.gif"},{"Country":"Venezuela (Bolivarian Republic of)","País":"Venezuela","Alpha-2 code":"VE","Alpha-3 code":"VEN","URL":"https://www.worldometers.info//img/flags/small/tn_ve-flag.gif"},{"Country":"Viet Nam","País":"Vietnam","Alpha-2 code":"VN","Alpha-3 code":"VNM","URL":"https://www.worldometers.info//img/flags/small/tn_vm-flag.gif"},{"Country":"Yemen","País":"Yemen","Alpha-2 code":"YE","Alpha-3 code":"YEM","URL":"https://www.worldometers.info//img/flags/small/tn_ym-flag.gif"},{"Country":"Zambia","País":"Zambia","Alpha-2 code":"ZM","Alpha-3 code":"ZMB","URL":"https://www.worldometers.info//img/flags/small/tn_za-flag.gif"},{"Country":"Zimbabwe","País":"Zimbabue","Alpha-2 code":"ZW","Alpha-3 code":"ZWE","URL":"https://www.worldometers.info//img/flags/small/tn_zi-flag.gif"}]</script>
+
+  <script>
+    "use strict";
+
+    const DATA_PATHS = [
+      "json/resultsfoot_results.json",
+      "./json/resultsfoot_results.json",
+      "/vet/json/resultsfoot_results.json",
+      "resultsfoot_results.json",
+      "./resultsfoot_results.json",
+      "/vet/resultsfoot_results.json"
+    ];
+
+    const dom = {
+      loadStatus: document.getElementById("loadStatus"),
+      manualLoad: document.getElementById("manualLoad"),
+      fileInput: document.getElementById("fileInput"),
+      teamA: document.getElementById("teamA"),
+      teamB: document.getElementById("teamB"),
+      searchA: document.getElementById("searchA"),
+      searchB: document.getElementById("searchB"),
+      flagA: document.getElementById("flagA"),
+      flagB: document.getElementById("flagB"),
+      nameA: document.getElementById("nameA"),
+      nameB: document.getElementById("nameB"),
+      swapTeams: document.getElementById("swapTeams"),
+      compareBtn: document.getElementById("compareBtn"),
+      detailsBtn: document.getElementById("detailsBtn"),
+      shareBtn: document.getElementById("shareBtn"),
+      resultsArea: document.getElementById("resultsArea")
+    };
+
+    const state = {
+      rawMatches: [],
+      matches: [],
+      teams: [],
+      lastComparison: null,
+      detailsOpen: false,
+      detailSort: "desc",
+      detailTournament: "all",
+      detailSearch: "",
+      sourcePath: "",
+      invalidScoreCount: 0
+    };
+
+    const collator = new Intl.Collator("es", { sensitivity: "base", numeric: true });
+
+    function escapeHTML(value){
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function normalizeText(value){
+      return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’']/g, "")
+        .replace(/\(.*?\)/g, " ")
+        .replace(/\b(the|of|and|de|del|la|el|los|las|republic|state|federation|united)\b/gi, " ")
+        .replace(/[^a-z0-9]+/gi, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    function initials(name){
+      const cleaned = String(name || "?").replace(/[^\p{L}\p{N}\s-]/gu, " ").trim();
+      const parts = cleaned.split(/\s+/).filter(Boolean);
+      if(!parts.length) return "?";
+      if(parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+
+    function alpha2ToEmoji(alpha2){
+      if(!/^[a-z]{2}$/i.test(alpha2 || "")) return "";
+      return String(alpha2).toUpperCase().replace(/[A-Z]/g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+    }
+
+    function safeUrl(url){
+      try{
+        const u = new URL(String(url));
+        if(u.protocol === "https:" || u.protocol === "http:") return u.href.replace("info//img", "info/img");
+      }catch(_){}
+      return "";
+    }
+
+    const COUNTRY_FLAGS = JSON.parse(document.getElementById("country-flags-json").textContent);
+    const countryByName = new Map();
+    const countryByAlpha2 = new Map();
+
+    COUNTRY_FLAGS.forEach(item => {
+      const candidates = [
+        item.Country,
+        item["País"],
+        String(item.Country || "").replace(/\s*\(the\)\s*/gi, ""),
+        String(item.Country || "").replace(/\s*\(.*?\)\s*/g, "").trim()
+      ].filter(Boolean);
+      candidates.forEach(name => countryByName.set(normalizeText(name), item));
+      if(item["Alpha-2 code"]) countryByAlpha2.set(String(item["Alpha-2 code"]).toUpperCase(), item);
+    });
+
+    const COUNTRY_ALIASES = {
+      "Bahamas": "Bahamas (the)",
+      "Bolivia": "Bolivia (Plurinational State of)",
+      "Brunei": "Brunei Darussalam",
+      "Cape Verde": "Cabo Verde",
+      "Central African Republic": "Central African Republic (the)",
+      "Comoros": "Comoros (the)",
+      "Czech Republic": "Czechia",
+      "DR Congo": "Congo (the Democratic Republic of the)",
+      "Democratic Republic of Congo": "Congo (the Democratic Republic of the)",
+      "East Timor": "Timor-Leste",
+      "Gambia": "Gambia (the)",
+      "Iran": "Iran (Islamic Republic of)",
+      "Ivory Coast": "Côte d'Ivoire",
+      "Laos": "Lao People's Democratic Republic (the)",
+      "Macedonia": "Republic of North Macedonia",
+      "Moldova": "Moldova (the Republic of)",
+      "Netherlands": "Netherlands (the)",
+      "North Korea": "Korea (the Democratic People's Republic of)",
+      "Republic of Ireland": "Ireland",
+      "Russia": "Russian Federation (the)",
+      "South Korea": "Korea (the Republic of)",
+      "Syria": "Syrian Arab Republic",
+      "Tanzania": "Tanzania, United Republic of",
+      "United Arab Emirates": "United Arab Emirates (the)",
+      "United States": "United States of America (the)",
+      "USA": "United States of America (the)",
+      "Vatican City": "Holy See (the)",
+      "Venezuela": "Venezuela (Bolivarian Republic of)",
+      "Vietnam": "Viet Nam",
+      "Vietnam Republic": "Viet Nam"
+    };
+
+    const FLAG_OVERRIDES = {
+      "American Samoa": { name:"Samoa Americana", alpha2:"AS", url:"https://flagcdn.com/w80/as.png" },
+      "Anguilla": { name:"Anguila", alpha2:"AI", url:"https://flagcdn.com/w80/ai.png" },
+      "Aruba": { name:"Aruba", alpha2:"AW", url:"https://flagcdn.com/w80/aw.png" },
+      "Bermuda": { name:"Bermudas", alpha2:"BM", url:"https://flagcdn.com/w80/bm.png" },
+      "British Virgin Islands": { name:"Islas Vírgenes Británicas", alpha2:"VG", url:"https://flagcdn.com/w80/vg.png" },
+      "Cayman Islands": { name:"Islas Caimán", alpha2:"KY", url:"https://flagcdn.com/w80/ky.png" },
+      "Cook Islands": { name:"Islas Cook", alpha2:"CK", url:"https://flagcdn.com/w80/ck.png" },
+      "Curaçao": { name:"Curaçao", alpha2:"CW", url:"https://flagcdn.com/w80/cw.png" },
+      "England": { name:"Inglaterra", url:"https://flagcdn.com/w80/gb-eng.png" },
+      "Faroe Islands": { name:"Islas Feroe", alpha2:"FO", url:"https://flagcdn.com/w80/fo.png" },
+      "French Guiana": { name:"Guayana Francesa", alpha2:"GF", url:"https://flagcdn.com/w80/gf.png" },
+      "Gibraltar": { name:"Gibraltar", alpha2:"GI", url:"https://flagcdn.com/w80/gi.png" },
+      "Greenland": { name:"Groenlandia", alpha2:"GL", url:"https://flagcdn.com/w80/gl.png" },
+      "Guadeloupe": { name:"Guadalupe", alpha2:"GP", url:"https://flagcdn.com/w80/gp.png" },
+      "Guam": { name:"Guam", alpha2:"GU", url:"https://flagcdn.com/w80/gu.png" },
+      "Hong Kong": { name:"Hong Kong", alpha2:"HK", url:"https://flagcdn.com/w80/hk.png" },
+      "Kosovo": { name:"Kosovo", alpha2:"XK", url:"https://flagcdn.com/w80/xk.png" },
+      "Macau": { name:"Macao", alpha2:"MO", url:"https://flagcdn.com/w80/mo.png" },
+      "Martinique": { name:"Martinica", alpha2:"MQ", url:"https://flagcdn.com/w80/mq.png" },
+      "Montserrat": { name:"Montserrat", alpha2:"MS", url:"https://flagcdn.com/w80/ms.png" },
+      "New Caledonia": { name:"Nueva Caledonia", alpha2:"NC", url:"https://flagcdn.com/w80/nc.png" },
+      "Niue": { name:"Niue", alpha2:"NU", url:"https://flagcdn.com/w80/nu.png" },
+      "Northern Ireland": { name:"Irlanda del Norte", url:"https://flagcdn.com/w80/gb-nir.png" },
+      "Puerto Rico": { name:"Puerto Rico", alpha2:"PR", url:"https://flagcdn.com/w80/pr.png" },
+      "Réunion": { name:"Reunión", alpha2:"RE", url:"https://flagcdn.com/w80/re.png" },
+      "Scotland": { name:"Escocia", url:"https://flagcdn.com/w80/gb-sct.png" },
+      "Sint Maarten": { name:"Sint Maarten", alpha2:"SX", url:"https://flagcdn.com/w80/sx.png" },
+      "Tahiti": { name:"Tahití", alpha2:"PF", url:"https://flagcdn.com/w80/pf.png" },
+      "Taiwan": { name:"Taiwán", alpha2:"TW", url:"https://flagcdn.com/w80/tw.png" },
+      "Turks and Caicos Islands": { name:"Islas Turcas y Caicos", alpha2:"TC", url:"https://flagcdn.com/w80/tc.png" },
+      "United States Virgin Islands": { name:"Islas Vírgenes de EE. UU.", alpha2:"VI", url:"https://flagcdn.com/w80/vi.png" },
+      "Wales": { name:"Gales", url:"https://flagcdn.com/w80/gb-wls.png" },
+      "Wallis Islands and Futuna": { name:"Wallis y Futuna", alpha2:"WF", url:"https://flagcdn.com/w80/wf.png" },
+
+      "Abkhazia": { name:"Abjasia" },
+      "Alderney": { name:"Alderney" },
+      "Andalusia": { name:"Andalucía" },
+      "Basque Country": { name:"País Vasco" },
+      "Canary Islands": { name:"Islas Canarias" },
+      "Catalonia": { name:"Cataluña" },
+      "Czechoslovakia": { name:"Checoslovaquia" },
+      "East Germany": { name:"Alemania Oriental" },
+      "Soviet Union": { name:"Unión Soviética" },
+      "West Germany": { name:"Alemania Occidental" },
+      "Yugoslavia": { name:"Yugoslavia" }
+    };
+
+    function findCountryRecord(team){
+      const alias = COUNTRY_ALIASES[team] || team;
+      let record = countryByName.get(normalizeText(alias));
+      if(record) return record;
+      record = countryByName.get(normalizeText(team));
+      return record || null;
+    }
+
+    function getTeamMeta(team){
+      const override = FLAG_OVERRIDES[team];
+      if(override){
+        return {
+          team,
+          display: override.name || team,
+          url: safeUrl(override.url || ""),
+          emoji: override.alpha2 ? alpha2ToEmoji(override.alpha2) : "",
+          code: override.alpha2 || "",
+          initials: initials(override.name || team)
+        };
+      }
+
+      const record = findCountryRecord(team);
+      if(record){
+        const alpha2 = record["Alpha-2 code"] || "";
+        return {
+          team,
+          display: record["País"] || record.Country || team,
+          url: safeUrl(record.URL),
+          emoji: alpha2ToEmoji(alpha2),
+          code: alpha2,
+          initials: initials(record["País"] || record.Country || team)
+        };
+      }
+
+      return {
+        team,
+        display: team,
+        url: "",
+        emoji: "",
+        code: "",
+        initials: initials(team)
+      };
+    }
+
+    function flagHTML(team, small=false){
+      const meta = getTeamMeta(team);
+      const cls = small ? "flagTiny" : "flag";
+      if(meta.url){
+        const fallback = escapeHTML(meta.emoji || meta.initials);
+        return `<img class="${cls}" src="${escapeHTML(meta.url)}" alt="Bandera de ${escapeHTML(meta.display)}" loading="lazy" onerror="this.outerHTML='<span class=&quot;flagFallback ${small ? "small" : ""}&quot;>${fallback}</span>'">`;
+      }
+      const text = meta.emoji || meta.initials;
+      return `<span class="flagFallback ${small ? "small" : ""}" title="${escapeHTML(meta.display)}">${escapeHTML(text)}</span>`;
+    }
+
+    function optionText(team){
+      const meta = getTeamMeta(team);
+      const emoji = meta.emoji ? meta.emoji + " " : "";
+      return meta.display === team ? `${emoji}${team}` : `${emoji}${meta.display} · ${team}`;
+    }
+
+    function setStatus(kind, text){
+      const dotClass = kind === "ok" ? "dot ok" : kind === "err" ? "dot err" : "dot";
+      dom.loadStatus.innerHTML = `<span class="${dotClass}"></span><span>${escapeHTML(text)}</span>`;
+    }
+
+    function parseScore(value){
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    }
+
+    function normaliseMatch(row, index){
+      const homeScore = parseScore(row.home_score);
+      const awayScore = parseScore(row.away_score);
+      return {
+        id: index,
+        date: String(row.date || "").trim(),
+        home: String(row.home_team || "").trim(),
+        away: String(row.away_team || "").trim(),
+        homeScore,
+        awayScore,
+        rawHomeScore: row.home_score,
+        rawAwayScore: row.away_score,
+        tournament: String(row.tournament || "Sin torneo").trim() || "Sin torneo",
+        validScore: homeScore !== null && awayScore !== null
+      };
+    }
+
+    async function fetchJSON(path){
+      const res = await fetch(path, { cache:"no-store" });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    async function loadData(){
+      let lastError = null;
+      for(const path of DATA_PATHS){
+        try{
+          const data = await fetchJSON(path);
+          initialiseData(data, path);
+          return;
+        }catch(err){
+          lastError = err;
+        }
+      }
+      setStatus("err", "Carga automática fallida");
+      dom.manualLoad.classList.add("show");
+      renderEmpty("No se ha podido leer el JSON", "Coloca resultsfoot_results.json en json/resultsfoot_results.json dentro de tu GitHub, o cárgalo manualmente con el selector de archivo.");
+      console.warn("No se pudo cargar automáticamente el JSON.", lastError);
+    }
+
+    function initialiseData(data, sourcePath){
+      if(!Array.isArray(data)) throw new Error("El JSON debe ser un array de partidos.");
+
+      state.sourcePath = sourcePath || "archivo cargado";
+      state.rawMatches = data;
+      state.matches = data
+        .map(normaliseMatch)
+        .filter(m => m.home && m.away);
+      state.invalidScoreCount = state.matches.filter(m => !m.validScore).length;
+
+      const teamSet = new Set();
+      state.matches.forEach(m => {
+        teamSet.add(m.home);
+        teamSet.add(m.away);
+      });
+
+      state.teams = Array.from(teamSet).sort((a,b) => collator.compare(optionText(a), optionText(b)));
+
+      fillTeamSelect(dom.teamA, dom.searchA.value);
+      fillTeamSelect(dom.teamB, dom.searchB.value);
+
+      const params = new URLSearchParams(location.search);
+      const savedA = params.get("a") || localStorage.getItem("footballCompareA") || "Spain";
+      const savedB = params.get("b") || localStorage.getItem("footballCompareB") || "Portugal";
+
+      setSelectValue(dom.teamA, savedA, "Spain", 0);
+      setSelectValue(dom.teamB, savedB, "Portugal", 1);
+
+      dom.teamA.disabled = false;
+      dom.teamB.disabled = false;
+      dom.swapTeams.disabled = false;
+      dom.compareBtn.disabled = false;
+      dom.detailsBtn.disabled = false;
+      dom.shareBtn.disabled = false;
+      dom.manualLoad.classList.remove("show");
+
+      setStatus("ok", `${state.matches.length.toLocaleString("es-ES")} registros · ${state.teams.length} selecciones`);
+      updateTeamCards();
+      compare();
+    }
+
+    function setSelectValue(select, preferred, fallback, fallbackIndex){
+      const values = new Set(state.teams);
+      if(values.has(preferred)){
+        select.value = preferred;
+      }else if(values.has(fallback)){
+        select.value = fallback;
+      }else{
+        select.value = state.teams[fallbackIndex] || state.teams[0] || "";
+      }
+    }
+
+    function fillTeamSelect(select, filter){
+      const selected = select.value;
+      const q = normalizeText(filter || "");
+      const filtered = state.teams.filter(team => {
+        if(!q) return true;
+        const meta = getTeamMeta(team);
+        return normalizeText(`${team} ${meta.display}`).includes(q);
+      });
+
+      select.textContent = "";
+      if(selected && !filtered.includes(selected) && state.teams.includes(selected)){
+        const opt = document.createElement("option");
+        opt.value = selected;
+        opt.textContent = optionText(selected);
+        select.appendChild(opt);
+      }
+
+      filtered.forEach(team => {
+        const opt = document.createElement("option");
+        opt.value = team;
+        opt.textContent = optionText(team);
+        select.appendChild(opt);
+      });
+
+      if(selected && Array.from(select.options).some(o => o.value === selected)){
+        select.value = selected;
+      }
+    }
+
+    function updateTeamCards(){
+      const a = dom.teamA.value;
+      const b = dom.teamB.value;
+      const metaA = getTeamMeta(a);
+      const metaB = getTeamMeta(b);
+
+      dom.flagA.innerHTML = flagHTML(a);
+      dom.flagB.innerHTML = flagHTML(b);
+      dom.nameA.textContent = metaA.display || "—";
+      dom.nameB.textContent = metaB.display || "—";
+    }
+
+    function h2hMatches(a, b){
+      return state.matches.filter(m =>
+        m.validScore &&
+        ((m.home === a && m.away === b) || (m.home === b && m.away === a))
+      );
+    }
+
+    function dateValue(date){
+      if(!date) return -99999999;
+      const num = Number(String(date).replaceAll("-", ""));
+      return Number.isFinite(num) ? num : -99999999;
+    }
+
+    function compare(){
+      if(!state.matches.length) return;
+      const a = dom.teamA.value;
+      const b = dom.teamB.value;
+
+      if(!a || !b){
+        renderEmpty("Selecciona dos equipos", "El comparador necesita dos selecciones válidas.");
+        return;
+      }
+
+      localStorage.setItem("footballCompareA", a);
+      localStorage.setItem("footballCompareB", b);
+
+      updateTeamCards();
+
+      if(a === b){
+        state.lastComparison = null;
+        dom.detailsBtn.disabled = true;
+        renderEmpty("Elige dos selecciones distintas", "La comparación histórica se calcula entre dos equipos diferentes.");
+        return;
+      }
+      dom.detailsBtn.disabled = false;
+
+      const matches = h2hMatches(a, b);
+      const stats = buildStats(a, b, matches);
+      state.lastComparison = { a, b, matches, stats };
+      state.detailTournament = "all";
+      state.detailSearch = "";
+      renderComparison();
+      updateUrl(false);
+    }
+
+    function buildStats(a, b, matches){
+      const stats = {
+        total: matches.length,
+        aWins: 0,
+        bWins: 0,
+        draws: 0,
+        goalsA: 0,
+        goalsB: 0,
+        homeA: 0,
+        homeB: 0,
+        first: null,
+        last: null,
+        bestA: null,
+        bestB: null,
+        recent: []
+      };
+
+      const sortedAsc = [...matches].sort((m1,m2) => dateValue(m1.date) - dateValue(m2.date));
+      stats.first = sortedAsc[0] || null;
+      stats.last = sortedAsc[sortedAsc.length - 1] || null;
+      stats.recent = [...matches].sort((m1,m2) => dateValue(m2.date) - dateValue(m1.date)).slice(0, 10);
+
+      matches.forEach(m => {
+        const aHome = m.home === a;
+        const goalsA = aHome ? m.homeScore : m.awayScore;
+        const goalsB = aHome ? m.awayScore : m.homeScore;
+        stats.goalsA += goalsA;
+        stats.goalsB += goalsB;
+        if(aHome) stats.homeA++;
+        else stats.homeB++;
+
+        if(goalsA > goalsB){
+          stats.aWins++;
+          if(!stats.bestA || (goalsA - goalsB) > stats.bestA.diff) stats.bestA = { match:m, diff:goalsA-goalsB };
+        }else if(goalsB > goalsA){
+          stats.bWins++;
+          if(!stats.bestB || (goalsB - goalsA) > stats.bestB.diff) stats.bestB = { match:m, diff:goalsB-goalsA };
+        }else{
+          stats.draws++;
+        }
+      });
+
+      const total = stats.total || 1;
+      stats.pctA = stats.total ? (stats.aWins / total * 100) : 0;
+      stats.pctB = stats.total ? (stats.bWins / total * 100) : 0;
+      stats.pctDraw = stats.total ? (stats.draws / total * 100) : 0;
+      stats.goalDiffA = stats.goalsA - stats.goalsB;
+
+      const recentStats = buildStatsSimple(a, b, stats.recent);
+      stats.recentStats = recentStats;
+      stats.globalA = buildTeamGlobalStats(a);
+      stats.globalB = buildTeamGlobalStats(b);
+
+      return stats;
+    }
+
+    function buildStatsSimple(a, b, matches){
+      const out = { aWins:0, bWins:0, draws:0, total:matches.length };
+      matches.forEach(m => {
+        const aHome = m.home === a;
+        const ga = aHome ? m.homeScore : m.awayScore;
+        const gb = aHome ? m.awayScore : m.homeScore;
+        if(ga > gb) out.aWins++;
+        else if(gb > ga) out.bWins++;
+        else out.draws++;
+      });
+      return out;
+    }
+
+    function emptyTeamBucket(){
+      return { total:0, wins:0, draws:0, losses:0, goalsFor:0, goalsAgainst:0, winPct:0 };
+    }
+
+    function isFriendlyMatch(match){
+      return normalizeText(match?.tournament || "") === "friendly";
+    }
+
+    function addTeamResult(bucket, goalsFor, goalsAgainst){
+      bucket.total++;
+      bucket.goalsFor += goalsFor;
+      bucket.goalsAgainst += goalsAgainst;
+      if(goalsFor > goalsAgainst) bucket.wins++;
+      else if(goalsFor < goalsAgainst) bucket.losses++;
+      else bucket.draws++;
+    }
+
+    function finishTeamBucket(bucket){
+      bucket.winPct = bucket.total ? (bucket.wins / bucket.total * 100) : 0;
+      bucket.goalDiff = bucket.goalsFor - bucket.goalsAgainst;
+      return bucket;
+    }
+
+    function buildTeamGlobalStats(team){
+      const out = {
+        all: emptyTeamBucket(),
+        friendly: emptyTeamBucket(),
+        official: emptyTeamBucket()
+      };
+
+      state.matches.forEach(match => {
+        if(!match.validScore) return;
+        if(match.home !== team && match.away !== team) return;
+
+        const isHome = match.home === team;
+        const goalsFor = isHome ? match.homeScore : match.awayScore;
+        const goalsAgainst = isHome ? match.awayScore : match.homeScore;
+        addTeamResult(out.all, goalsFor, goalsAgainst);
+        addTeamResult(isFriendlyMatch(match) ? out.friendly : out.official, goalsFor, goalsAgainst);
+      });
+
+      finishTeamBucket(out.all);
+      finishTeamBucket(out.friendly);
+      finishTeamBucket(out.official);
+      return out;
+    }
+
+    function globalStatHTML(label, bucket){
+      const pct = bucket.total ? bucket.winPct : 0;
+      const barWidth = bucket.total ? Math.max(pct, .5) : 0;
+      return `
+        <div class="globalRow">
+          <div class="globalRowTop">
+            <span>${escapeHTML(label)}</span>
+            <strong>${bucket.total ? formatPct(pct) : "—"}</strong>
+          </div>
+          <div class="miniProb" aria-label="Porcentaje de victorias"><i style="width:${barWidth}%"></i></div>
+          <em>${bucket.wins.toLocaleString("es-ES")} victorias / ${bucket.total.toLocaleString("es-ES")} partidos · E:${bucket.draws.toLocaleString("es-ES")} · D:${bucket.losses.toLocaleString("es-ES")}</em>
+        </div>
+      `;
+    }
+
+    function globalTeamCard(team, teamStats){
+      const meta = getTeamMeta(team);
+      return `
+        <article class="globalTeam">
+          <div class="globalTeamHead">
+            ${flagHTML(team, true)}
+            <div>
+              <small>Selección</small>
+              <strong>${escapeHTML(meta.display)}</strong>
+            </div>
+          </div>
+          <div class="globalRows">
+            ${globalStatHTML("Toda la historia", teamStats.all)}
+            ${globalStatHTML("Amistosos", teamStats.friendly)}
+            ${globalStatHTML("Partidos oficiales", teamStats.official)}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderGlobalHistorySection(a, b, stats){
+      return `
+        <section class="bigResult globalHistory">
+          <div class="versusTitle">
+            <h2>Rendimiento global histórico</h2>
+            <span class="badge">victorias / partidos de cada selección</span>
+          </div>
+          <p class="smallNote">
+            Estos porcentajes no son del cara a cara: se calculan para cada equipo en todos sus partidos del JSON.
+            “Partidos oficiales” = todos los torneos excepto los registros marcados como <em>Friendly</em>.
+          </p>
+          <div class="globalGrid">
+            ${globalTeamCard(a, stats.globalA)}
+            ${globalTeamCard(b, stats.globalB)}
+          </div>
+        </section>
+      `;
+    }
+
+    function formatPct(value){
+      return `${value.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+    }
+
+    function formatDate(date){
+      if(!date) return "Sin fecha";
+      try{
+        const [y,m,d] = date.split("-").map(Number);
+        if(y && m && d) return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-ES", { day:"2-digit", month:"short", year:"numeric", timeZone:"UTC" });
+      }catch(_){}
+      return date;
+    }
+
+    function matchLabel(match, a, b){
+      if(!match) return "—";
+      return `${formatDate(match.date)} · ${match.home} ${match.homeScore}-${match.awayScore} ${match.away}`;
+    }
+
+    function resultClass(match, a){
+      if(!match) return "draw";
+      const aHome = match.home === a;
+      const ga = aHome ? match.homeScore : match.awayScore;
+      const gb = aHome ? match.awayScore : match.homeScore;
+      if(ga > gb) return "a";
+      if(ga < gb) return "b";
+      return "draw";
+    }
+
+    function renderComparison(){
+      const comp = state.lastComparison;
+      if(!comp){
+        renderEmpty("Sin comparación", "Selecciona dos selecciones para analizar su historial.");
+        return;
+      }
+
+      const { a, b, matches, stats } = comp;
+      const metaA = getTeamMeta(a);
+      const metaB = getTeamMeta(b);
+
+      if(!matches.length){
+        dom.resultsArea.innerHTML = `
+          <section class="empty">
+            <strong>No hay enfrentamientos directos con marcador</strong>
+            <span>No se han encontrado partidos históricos con resultado numérico entre ${escapeHTML(metaA.display)} y ${escapeHTML(metaB.display)}.</span>
+          </section>
+          ${renderGlobalHistorySection(a, b, stats)}
+        `;
+        return;
+      }
+
+      const leader = stats.aWins > stats.bWins
+        ? `${metaA.display} domina el cara a cara histórico`
+        : stats.bWins > stats.aWins
+          ? `${metaB.display} domina el cara a cara histórico`
+          : "El cara a cara histórico está equilibrado";
+
+      const recentText = stats.recentStats.total
+        ? `${metaA.display}: ${stats.recentStats.aWins} · Empates: ${stats.recentStats.draws} · ${metaB.display}: ${stats.recentStats.bWins}`
+        : "—";
+
+      dom.resultsArea.innerHTML = `
+        <section class="summaryGrid">
+          <article class="bigResult">
+            <div class="versusTitle">
+              <h2>${flagHTML(a, true)} ${escapeHTML(metaA.display)} <span style="color:var(--muted);">vs</span> ${escapeHTML(metaB.display)} ${flagHTML(b, true)}</h2>
+              <span class="badge">${stats.total.toLocaleString("es-ES")} partidos</span>
+            </div>
+            <p class="winnerLine">
+              <strong>${escapeHTML(leader)}.</strong>
+              La “probabilidad” mostrada es una proporción histórica de resultados directos, no una predicción deportiva actual.
+            </p>
+
+            <div class="probBar" aria-label="Porcentaje histórico de resultados">
+              <div class="seg a" style="width:${Math.max(stats.pctA, .5)}%" title="${escapeHTML(metaA.display)}: ${formatPct(stats.pctA)}">${stats.pctA >= 9 ? formatPct(stats.pctA) : ""}</div>
+              <div class="seg draw" style="width:${Math.max(stats.pctDraw, .5)}%" title="Empates: ${formatPct(stats.pctDraw)}">${stats.pctDraw >= 9 ? formatPct(stats.pctDraw) : ""}</div>
+              <div class="seg b" style="width:${Math.max(stats.pctB, .5)}%" title="${escapeHTML(metaB.display)}: ${formatPct(stats.pctB)}">${stats.pctB >= 9 ? formatPct(stats.pctB) : ""}</div>
+            </div>
+
+            <div class="legend">
+              <div class="legendItem">
+                <small>${escapeHTML(metaA.display)} gana</small>
+                <strong>${formatPct(stats.pctA)}</strong>
+              </div>
+              <div class="legendItem">
+                <small>Empate</small>
+                <strong>${formatPct(stats.pctDraw)}</strong>
+              </div>
+              <div class="legendItem">
+                <small>${escapeHTML(metaB.display)} gana</small>
+                <strong>${formatPct(stats.pctB)}</strong>
+              </div>
+            </div>
+
+            <p class="smallNote">
+              Cálculo: victorias de cada selección y empates / partidos directos con marcador numérico.
+              Registros sin marcador o con “NA” ignorados: ${state.invalidScoreCount.toLocaleString("es-ES")}.
+            </p>
+          </article>
+
+          <aside class="statsCard">
+            <div class="statGrid">
+              <div class="stat">
+                <span>Victorias ${escapeHTML(metaA.display)}</span>
+                <strong>${stats.aWins.toLocaleString("es-ES")}</strong>
+                <em>${stats.goalsA.toLocaleString("es-ES")} goles a favor</em>
+              </div>
+              <div class="stat">
+                <span>Victorias ${escapeHTML(metaB.display)}</span>
+                <strong>${stats.bWins.toLocaleString("es-ES")}</strong>
+                <em>${stats.goalsB.toLocaleString("es-ES")} goles a favor</em>
+              </div>
+              <div class="stat">
+                <span>Empates</span>
+                <strong>${stats.draws.toLocaleString("es-ES")}</strong>
+                <em>${formatPct(stats.pctDraw)} del total</em>
+              </div>
+              <div class="stat">
+                <span>Diferencia goles</span>
+                <strong>${stats.goalDiffA > 0 ? "+" : ""}${stats.goalDiffA.toLocaleString("es-ES")}</strong>
+                <em>desde ${escapeHTML(metaA.display)}</em>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        ${renderGlobalHistorySection(a, b, stats)}
+
+        <section class="bigResult">
+          <div class="microCards">
+            <div class="micro">
+              <small>Primer partido</small>
+              <strong>${escapeHTML(matchLabel(stats.first, a, b))}</strong>
+              <span>${stats.first ? escapeHTML(stats.first.tournament) : "—"}</span>
+            </div>
+            <div class="micro">
+              <small>Último partido</small>
+              <strong>${escapeHTML(matchLabel(stats.last, a, b))}</strong>
+              <span>${stats.last ? escapeHTML(stats.last.tournament) : "—"}</span>
+            </div>
+            <div class="micro">
+              <small>Últimos 10 directos</small>
+              <strong>${escapeHTML(recentText)}</strong>
+              <span>Resumen reciente dentro del historial</span>
+            </div>
+          </div>
+
+          <div class="microCards">
+            <div class="micro">
+              <small>Mayor victoria ${escapeHTML(metaA.display)}</small>
+              <strong>${escapeHTML(stats.bestA ? matchLabel(stats.bestA.match, a, b) : "—")}</strong>
+              <span>${stats.bestA ? `Diferencia: +${stats.bestA.diff}` : "Sin victorias"}</span>
+            </div>
+            <div class="micro">
+              <small>Mayor victoria ${escapeHTML(metaB.display)}</small>
+              <strong>${escapeHTML(stats.bestB ? matchLabel(stats.bestB.match, a, b) : "—")}</strong>
+              <span>${stats.bestB ? `Diferencia: +${stats.bestB.diff}` : "Sin victorias"}</span>
+            </div>
+            <div class="micro">
+              <small>Localías</small>
+              <strong>${escapeHTML(metaA.display)} local: ${stats.homeA} · ${escapeHTML(metaB.display)} local: ${stats.homeB}</strong>
+              <span>Partidos directos por sede local</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="detailsPanel ${state.detailsOpen ? "show" : ""}" id="detailsPanel">
+          <div class="panelHead">
+            <h2>Detalles históricos</h2>
+            <span class="badge">${matches.length.toLocaleString("es-ES")} resultados</span>
+          </div>
+          <div class="detailTools">
+            <input id="detailSearch" type="search" placeholder="Filtrar por torneo, año, equipo…" value="${escapeHTML(state.detailSearch)}" />
+            <select id="tournamentFilter"></select>
+            <button id="sortDetails">${state.detailSort === "desc" ? "Más reciente primero" : "Más antiguo primero"}</button>
+            <button id="csvBtn">CSV</button>
+          </div>
+          <div class="matchList" id="matchList"></div>
+        </section>
+      `;
+
+      renderTournamentFilter();
+      renderMatchList();
+      wireDetailControls();
+    }
+
+    function renderTournamentFilter(){
+      const comp = state.lastComparison;
+      const select = document.getElementById("tournamentFilter");
+      if(!comp || !select) return;
+
+      const tournaments = Array.from(new Set(comp.matches.map(m => m.tournament))).sort(collator.compare);
+      select.textContent = "";
+
+      const all = document.createElement("option");
+      all.value = "all";
+      all.textContent = "Todos los torneos";
+      select.appendChild(all);
+
+      tournaments.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        select.appendChild(opt);
+      });
+
+      select.value = state.detailTournament;
+    }
+
+    function filteredDetailMatches(){
+      const comp = state.lastComparison;
+      if(!comp) return [];
+      const q = normalizeText(state.detailSearch);
+      let rows = comp.matches.filter(m => {
+        const byTournament = state.detailTournament === "all" || m.tournament === state.detailTournament;
+        if(!byTournament) return false;
+        if(!q) return true;
+        return normalizeText(`${m.date} ${m.home} ${m.away} ${m.tournament} ${m.homeScore}-${m.awayScore}`).includes(q);
+      });
+
+      rows.sort((a,b) => {
+        const diff = dateValue(a.date) - dateValue(b.date);
+        return state.detailSort === "asc" ? diff : -diff;
+      });
+
+      return rows;
+    }
+
+    function renderMatchList(){
+      const comp = state.lastComparison;
+      const list = document.getElementById("matchList");
+      if(!comp || !list) return;
+
+      const { a, b } = comp;
+      const rows = filteredDetailMatches();
+      if(!rows.length){
+        list.innerHTML = `<div class="empty"><strong>Sin resultados en este filtro</strong>Prueba con otro torneo o borra el texto de búsqueda.</div>`;
+        return;
+      }
+
+      list.innerHTML = rows.map(m => {
+        const cls = resultClass(m, a);
+        const winnerLabel = cls === "a" ? getTeamMeta(a).display : cls === "b" ? getTeamMeta(b).display : "Empate";
+        return `
+          <article class="matchCard">
+            <div class="matchTop">
+              <div class="matchMeta">
+                <span class="badge">${escapeHTML(formatDate(m.date))}</span>
+                <span class="badge">${escapeHTML(m.tournament)}</span>
+              </div>
+              <span>${escapeHTML(winnerLabel)}</span>
+            </div>
+            <div class="matchTeams">
+              <div class="matchTeam">
+                ${flagHTML(m.home, true)}
+                <span>${escapeHTML(getTeamMeta(m.home).display)}</span>
+              </div>
+              <div class="score">${m.homeScore}-${m.awayScore}</div>
+              <div class="matchTeam away">
+                <span>${escapeHTML(getTeamMeta(m.away).display)}</span>
+                ${flagHTML(m.away, true)}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function wireDetailControls(){
+      const search = document.getElementById("detailSearch");
+      const tournament = document.getElementById("tournamentFilter");
+      const sortBtn = document.getElementById("sortDetails");
+      const csvBtn = document.getElementById("csvBtn");
+
+      if(search){
+        search.addEventListener("input", () => {
+          state.detailSearch = search.value;
+          renderMatchList();
+        });
+      }
+
+      if(tournament){
+        tournament.addEventListener("change", () => {
+          state.detailTournament = tournament.value;
+          renderMatchList();
+        });
+      }
+
+      if(sortBtn){
+        sortBtn.addEventListener("click", () => {
+          state.detailSort = state.detailSort === "desc" ? "asc" : "desc";
+          renderComparison();
+        });
+      }
+
+      if(csvBtn){
+        csvBtn.addEventListener("click", downloadCSV);
+      }
+    }
+
+    function renderEmpty(title, message){
+      dom.resultsArea.innerHTML = `
+        <section class="empty">
+          <strong>${escapeHTML(title)}</strong>
+          <span>${escapeHTML(message)}</span>
+        </section>
+      `;
+    }
+
+    function toggleDetails(){
+      state.detailsOpen = !state.detailsOpen;
+      dom.detailsBtn.textContent = state.detailsOpen ? "Ocultar detalles históricos" : "Ver detalles históricos";
+      renderComparison();
+      if(state.detailsOpen){
+        setTimeout(() => document.getElementById("detailsPanel")?.scrollIntoView({ behavior:"smooth", block:"start" }), 60);
+      }
+    }
+
+    function swapTeams(){
+      const a = dom.teamA.value;
+      dom.teamA.value = dom.teamB.value;
+      dom.teamB.value = a;
+      compare();
+    }
+
+    function updateUrl(push=true){
+      const comp = state.lastComparison;
+      if(!comp) return;
+      const params = new URLSearchParams(location.search);
+      params.set("a", comp.a);
+      params.set("b", comp.b);
+      const url = `${location.pathname}?${params.toString()}`;
+      if(push) history.pushState(null, "", url);
+      else history.replaceState(null, "", url);
+    }
+
+    async function copyShareLink(){
+      updateUrl(true);
+      const url = location.href;
+      try{
+        await navigator.clipboard.writeText(url);
+        dom.shareBtn.textContent = "Enlace copiado ✅";
+        setTimeout(() => dom.shareBtn.textContent = "Copiar enlace", 1800);
+      }catch(_){
+        prompt("Copia este enlace:", url);
+      }
+    }
+
+    function downloadCSV(){
+      const rows = filteredDetailMatches();
+      const header = ["date","home_team","away_team","home_score","away_score","tournament"];
+      const csv = [
+        header.join(","),
+        ...rows.map(m => [m.date, m.home, m.away, m.homeScore, m.awayScore, m.tournament]
+          .map(v => `"${String(v ?? "").replaceAll('"', '""')}"`).join(","))
+      ].join("\n");
+
+      const comp = state.lastComparison;
+      const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `historico_${(comp?.a || "equipoA").replace(/\s+/g,"_")}_vs_${(comp?.b || "equipoB").replace(/\s+/g,"_")}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function attachEvents(){
+      dom.teamA.addEventListener("change", compare);
+      dom.teamB.addEventListener("change", compare);
+      dom.searchA.addEventListener("input", () => fillTeamSelect(dom.teamA, dom.searchA.value));
+      dom.searchB.addEventListener("input", () => fillTeamSelect(dom.teamB, dom.searchB.value));
+      dom.swapTeams.addEventListener("click", swapTeams);
+      dom.compareBtn.addEventListener("click", compare);
+      dom.detailsBtn.addEventListener("click", toggleDetails);
+      dom.shareBtn.addEventListener("click", copyShareLink);
+
+      dom.fileInput.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const data = JSON.parse(text);
+          initialiseData(data, file.name);
+        }catch(err){
+          setStatus("err", "JSON manual no válido");
+          renderEmpty("Archivo JSON no válido", err.message || "No se ha podido leer el archivo.");
+        }
+      });
+    }
+
+    attachEvents();
+    loadData();
+  </script>
+</body>
+</html>
