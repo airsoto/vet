@@ -1,734 +1,2009 @@
 <!DOCTYPE html>
 <html lang="es">
-<script defer src="goat.js"></script>
-
 <head>
-
   <meta charset="UTF-8" />
-  <title>Espirógrafo interactivo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Espirógrafo interactivo · Mejorado</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090912" />
+  <meta name="description" content="Espirógrafo interactivo en HTML, CSS y JavaScript. Optimizado para móvil e iPhone." />
+  <script defer src="goat.js"></script>
+
   <style>
     :root {
-      --bg: #0b0b10;
-      --panel: #171722;
-      --accent: #f5c84c;
-      --accent-soft: rgba(245, 200, 76, 0.18);
-      --text-main: #f5f5f5;
-      --text-sub: #a3a3b8;
-      --border-soft: #2a2a3a;
+      --bg: #070710;
+      --bg-2: #10101d;
+      --panel: rgba(20, 20, 32, 0.86);
+      --panel-strong: rgba(10, 10, 18, 0.92);
+      --card: rgba(255, 255, 255, 0.055);
+      --accent: #f7c84b;
+      --accent-2: #ff8f3d;
+      --accent-soft: rgba(247, 200, 75, 0.16);
+      --text-main: #f7f7fb;
+      --text-sub: #aaaabe;
+      --text-muted: #77778c;
+      --border: rgba(255, 255, 255, 0.11);
+      --border-strong: rgba(247, 200, 75, 0.32);
       --danger: #ff6b6b;
       --success: #4ade80;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+      --radius: 22px;
+      --tap: 46px;
     }
 
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
-      background: radial-gradient(circle at top left, #1b1b2f 0, #060712 55%);
+      margin: 0;
+      min-height: 100dvh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(247, 200, 75, 0.16), transparent 34%),
+        radial-gradient(circle at 95% 15%, rgba(112, 86, 255, 0.20), transparent 36%),
+        radial-gradient(circle at 50% 100%, rgba(255, 143, 61, 0.12), transparent 40%),
+        linear-gradient(145deg, #05050b, #101020 58%, #060610);
+      padding:
+        max(14px, env(safe-area-inset-top))
+        max(14px, env(safe-area-inset-right))
+        calc(18px + env(safe-area-inset-bottom))
+        max(14px, env(safe-area-inset-left));
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
     }
 
-    .app {
-      background: rgba(6, 7, 18, 0.95);
-      border-radius: 1.25rem;
-      border: 1px solid rgba(245, 200, 76, 0.12);
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
-      padding: 1.5rem;
-      width: min(1100px, 100%);
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: radial-gradient(circle at center, black, transparent 82%);
+      z-index: -1;
+    }
+
+    button,
+    input,
+    select,
+    summary {
+      font: inherit;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .hero {
       display: grid;
-      grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-      gap: 1.5rem;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 16px;
     }
 
-    @media (max-width: 900px) {
-      .app {
-        grid-template-columns: 1fr;
-      }
+    .title-wrap {
+      min-width: 0;
     }
 
     h1 {
-      font-size: 1.4rem;
-      margin-bottom: 0.4rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      margin: 0 0 8px;
+      font-size: clamp(1.55rem, 4vw, 2.55rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
     }
 
-    h1 span.badge {
-      font-size: 0.75rem;
-      padding: 0.15rem 0.5rem;
+    .title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 10px;
       border-radius: 999px;
       background: var(--accent-soft);
       color: var(--accent);
-      border: 1px solid rgba(245, 200, 76, 0.4);
+      border: 1px solid var(--border-strong);
+      font-size: 0.76rem;
+      font-weight: 750;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
     }
 
     .subtitle {
-      font-size: 0.85rem;
+      margin: 10px 0 0;
+      max-width: 780px;
       color: var(--text-sub);
-      margin-bottom: 1rem;
+      font-size: clamp(0.92rem, 2.3vw, 1rem);
+      line-height: 1.45;
     }
 
-    .panel {
-      background: var(--panel);
-      border-radius: 1rem;
-      padding: 1rem;
-      border: 1px solid var(--border-soft);
+    .credit {
+      margin-top: 10px;
+      display: grid;
+      gap: 2px;
+    }
+
+    .credit h2 {
+      margin: 0;
+      font-size: clamp(13px, 3vw, 14px);
+      font-weight: 650;
+      color: #ff9900;
+    }
+
+    .credit p {
+      margin: 0;
+      font-size: clamp(12px, 2.8vw, 13px);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.035));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .controls-card {
+      position: sticky;
+      top: 14px;
+      padding: 14px;
+      max-height: calc(100dvh - 28px);
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(247, 200, 75, 0.45) transparent;
+    }
+
+    .stage-card {
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
     }
 
     .panel-title {
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
+      margin: 0;
       color: var(--text-sub);
-      margin-bottom: 0.6rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 800;
     }
 
-    .controls-grid {
+    .mini-help {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.3;
+    }
+
+    .button-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-      max-height: 70vh;
-      overflow-y: auto;
-      padding-right: 0.2rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
     }
 
-    .control-group {
+    .button-row {
       display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      padding: 0.35rem 0.5rem 0.55rem;
-      border-radius: 0.75rem;
-      background: rgba(10, 10, 20, 0.65);
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
     }
 
-    .control-header {
+    button {
+      min-height: var(--tap);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 0 14px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.07);
+      cursor: pointer;
+      font-size: 0.86rem;
+      font-weight: 750;
+      letter-spacing: -0.01em;
+      transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, filter 0.12s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button:hover {
+      border-color: rgba(247, 200, 75, 0.48);
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    button.primary {
+      color: #211407;
+      background: linear-gradient(135deg, #ffe48a, #f7c84b 46%, #ff963d);
+      box-shadow: 0 14px 34px rgba(247, 200, 75, 0.18);
+    }
+
+    button.secondary {
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    button.ghost {
+      min-height: 38px;
+      padding: 0 11px;
+      font-size: 0.78rem;
+      border-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-sub);
+    }
+
+    button.danger {
+      border-color: rgba(255, 107, 107, 0.55);
+      color: #ffd1d1;
+    }
+
+    button.success {
+      border-color: rgba(74, 222, 128, 0.35);
+      color: #c7ffd9;
+    }
+
+    .icon {
+      line-height: 1;
+    }
+
+    details.fold {
+      border: 1px solid rgba(255, 255, 255, 0.075);
+      background: rgba(0, 0, 0, 0.18);
+      border-radius: 16px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    details.fold[open] {
+      border-color: rgba(247, 200, 75, 0.20);
+      background: rgba(0, 0, 0, 0.24);
+    }
+
+    details.fold > summary {
+      list-style: none;
+      cursor: pointer;
+      min-height: 46px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-main);
+      font-size: 0.91rem;
+      font-weight: 800;
+    }
+
+    details.fold > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.fold > summary::after {
+      content: "⌄";
+      color: var(--accent);
+      font-size: 1.05rem;
+      transition: transform 0.18s ease;
+    }
+
+    details.fold[open] > summary::after {
+      transform: rotate(180deg);
+    }
+
+    .control-body {
+      padding: 0 10px 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .control {
+      display: grid;
+      gap: 7px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.045);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .control.inline {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+    }
+
+    .control-head {
       display: flex;
       justify-content: space-between;
+      gap: 8px;
       align-items: baseline;
-      gap: 0.5rem;
-      font-size: 0.8rem;
+      font-size: 0.84rem;
     }
 
     .control-label {
-      font-weight: 500;
+      color: var(--text-main);
+      font-weight: 650;
     }
 
     .control-value {
       color: var(--accent);
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      font-weight: 800;
     }
 
     input[type="range"] {
       width: 100%;
+      height: 30px;
       accent-color: var(--accent);
+      cursor: pointer;
     }
 
     input[type="color"] {
       width: 100%;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-soft);
-      background: #05050a;
-      padding: 0.1rem;
-      height: 2rem;
+      height: 44px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.35);
       cursor: pointer;
     }
 
     select {
       width: 100%;
-      background: #05050a;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-soft);
+      min-height: 44px;
       color: var(--text-main);
-      padding: 0.4rem 0.5rem;
-      font-size: 0.8rem;
+      background: rgba(0, 0, 0, 0.34);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0 12px;
       outline: none;
     }
 
-    .controls-row {
-      display: flex;
-      gap: 0.5rem;
+    .switch-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 10px;
+      background: rgba(255, 255, 255, 0.045);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      min-height: 46px;
     }
 
-    .controls-row > * {
-      flex: 1;
+    .switch-row span {
+      font-size: 0.84rem;
+      font-weight: 650;
     }
 
-    .buttons {
+    input[type="checkbox"] {
+      appearance: none;
+      width: 50px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.14s ease, border-color 0.14s ease;
+    }
+
+    input[type="checkbox"]::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      top: 2px;
+      left: 2px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 3px 9px rgba(0, 0, 0, 0.35);
+      transition: transform 0.14s ease;
+    }
+
+    input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    input[type="checkbox"]:checked::after {
+      transform: translateX(20px);
+      background: #201408;
+    }
+
+    .stage-top {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
     }
 
-    button {
-      border-radius: 999px;
-      border: 1px solid transparent;
-      padding: 0.45rem 0.85rem;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
+    .stat-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      background: #101018;
+      gap: 7px;
+      min-height: 32px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.065);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: var(--text-sub);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chip strong {
       color: var(--text-main);
-      transition: transform 0.08s ease, box-shadow 0.08s ease,
-        background 0.1s ease, border-color 0.1s ease;
     }
 
-    button span.icon {
-      font-size: 0.9em;
-    }
-
-    button.primary {
-      background: linear-gradient(120deg, #f7d977, #f1b546);
-      color: #201408;
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
-        0 10px 25px rgba(0, 0, 0, 0.7);
-    }
-
-    button.primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.85);
-    }
-
-    button.secondary {
-      border-color: var(--border-soft);
-      background: #101018;
-    }
-
-    button.secondary:hover {
-      border-color: rgba(245, 200, 76, 0.6);
-      background: #14141f;
-    }
-
-    button.danger {
-      border-color: rgba(255, 107, 107, 0.8);
-      color: #ffd6d6;
-    }
-
-    button.danger:hover {
-      background: rgba(255, 107, 107, 0.12);
-    }
-
-    .canvas-wrapper {
+    .canvas-frame {
       position: relative;
-      border-radius: 1rem;
+      display: grid;
+      place-items: center;
+      padding: clamp(8px, 1.8vw, 16px);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(247, 200, 75, 0.08), transparent 56%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.34));
+      border: 1px solid rgba(255, 255, 255, 0.09);
       overflow: hidden;
-      background: radial-gradient(circle at center, #101020, #050509);
-      border: 1px solid var(--border-soft);
+      min-height: 320px;
     }
 
-    #spiroCanvas {
-      width: 100%;
-      display: block;
-      max-height: 70vh;
-      margin: 0 auto;
-      background: #05050a;
-    }
-
-    .canvas-overlay {
+    .canvas-frame::before {
+      content: "";
       position: absolute;
-      inset: 0;
+      inset: -45%;
+      background: conic-gradient(from 0deg, transparent, rgba(247, 200, 75, 0.10), transparent, rgba(112, 86, 255, 0.10), transparent);
+      filter: blur(18px);
+      opacity: 0.5;
+      animation: softSpin 18s linear infinite;
       pointer-events: none;
-      background: radial-gradient(circle at top left, rgba(245, 200, 76, 0.08), transparent 55%);
-      mix-blend-mode: screen;
     }
 
-    .status-bar {
+    @keyframes softSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    canvas {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 72dvh, 760px);
+      aspect-ratio: 1 / 1;
+      height: auto;
+      display: block;
+      border-radius: 18px;
+      background: #05050a;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+        0 22px 60px rgba(0, 0, 0, 0.45);
+      touch-action: manipulation;
+    }
+
+    .hud {
       position: absolute;
-      inset-inline: 0.8rem;
-      bottom: 0.7rem;
+      z-index: 3;
+      left: 20px;
+      right: 20px;
+      bottom: 18px;
+      pointer-events: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ffe48a, #f7c84b, #ff8f3d);
+      border-radius: inherit;
+      transition: width 0.08s linear;
+    }
+
+    .hud-row {
       display: flex;
       justify-content: space-between;
-      font-size: 0.75rem;
+      gap: 10px;
       color: var(--text-sub);
+      font-size: 0.78rem;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
+    }
+
+    .dot.ok {
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.16);
+    }
+
+    .dot.warn {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(247, 200, 75, 0.16);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .info-box {
+      min-height: 76px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.052);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .info-box .k {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .info-box .v {
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .desktop-actions {
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .mobile-actionbar {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 50;
+      transform: translateX(-50%);
+      max-width: min(92vw, 520px);
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(15, 15, 24, 0.92);
+      border: 1px solid rgba(247, 200, 75, 0.35);
+      color: var(--text-main);
+      box-shadow: var(--shadow);
+      font-size: 0.88rem;
+      text-align: center;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      opacity: 0;
       pointer-events: none;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      transition: opacity 0.18s ease, transform 0.18s ease;
     }
 
-    .status-bar span.highlight {
-      color: var(--accent);
-    }
-
-    .status-bar span.ok {
-      color: var(--success);
-    }
-
-    .status-bar span.stop {
-      color: var(--danger);
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
     }
 
     .footer {
-      margin-top: 1.5rem;
-      width: min(1100px, 100%);
-      font-size: 0.8rem;
+      width: min(1180px, 100%);
+      margin: 20px auto 0;
       color: var(--text-sub);
+      font-size: 0.82rem;
+      line-height: 1.45;
+      opacity: 0.92;
+      padding: 14px 0 4px;
     }
 
-    .footer a {
-      color: var(--accent);
-      text-decoration: none;
+    .footer p {
+      margin: 5px 0;
     }
 
-    .footer a:hover {
-      text-decoration: underline;
+    .footer .coffee {
+      text-align: center;
+      margin: 10px 0;
     }
 
-    .home a {
-      color: var(--accent);
-      text-decoration: none;
+    .footer .rule {
+      color: rgba(255, 255, 255, 0.22);
+      letter-spacing: 0.08em;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
-    .home a:hover {
-      text-decoration: underline;
+    @media (max-width: 980px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-actions {
+        justify-content: flex-start;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-card {
+        order: -1;
+      }
+
+      .controls-card {
+        position: static;
+        max-height: none;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      body {
+        padding-bottom: calc(86px + env(safe-area-inset-bottom));
+      }
+
+      .shell {
+        width: 100%;
+      }
+
+      .hero {
+        margin-bottom: 12px;
+      }
+
+      .title-row {
+        gap: 8px;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+      }
+
+      .hero-actions {
+        display: none;
+      }
+
+      .app {
+        gap: 12px;
+      }
+
+      .card,
+      .stage-card,
+      .controls-card {
+        border-radius: 18px;
+      }
+
+      .stage-card,
+      .controls-card {
+        padding: 10px;
+      }
+
+      .stage-top {
+        align-items: flex-start;
+      }
+
+      .canvas-frame {
+        min-height: 0;
+        padding: 8px;
+      }
+
+      canvas {
+        width: min(100%, 88vw, 59dvh);
+        border-radius: 16px;
+      }
+
+      .hud {
+        left: 14px;
+        right: 14px;
+        bottom: 12px;
+      }
+
+      .hud-row {
+        font-size: 0.72rem;
+      }
+
+      .button-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .control.inline {
+        grid-template-columns: 1fr;
+      }
+
+      .desktop-actions {
+        display: none;
+      }
+
+      .mobile-actionbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 7px;
+        padding:
+          9px
+          max(10px, env(safe-area-inset-right))
+          calc(9px + env(safe-area-inset-bottom))
+          max(10px, env(safe-area-inset-left));
+        background: rgba(7, 7, 14, 0.82);
+        border-top: 1px solid rgba(255, 255, 255, 0.11);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+      }
+
+      .mobile-actionbar button {
+        min-height: 50px;
+        padding: 0 8px;
+        border-radius: 16px;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 0.72rem;
+      }
+
+      .mobile-actionbar .icon {
+        font-size: 1rem;
+      }
+
+      .toast {
+        bottom: calc(86px + env(safe-area-inset-bottom));
+      }
+
+      .footer {
+        font-size: 0.76rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .canvas-frame::before {
+        animation: none;
+      }
+
+      button,
+      .progress > span,
+      .toast {
+        transition: none;
+      }
     }
   </style>
 </head>
-<body>
-  <div class="app">
-    <div>
-      <h1>
-        Espirógrafo interactivo
-        <span class="badge">HTML · CSS · JS</span>
-      </h1>
 
-      <!-- BLOQUE DESARROLLADO POR + HOME -->
-      <div style="margin:10px 0 0 0;">
-        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
-          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
-        </h2>
-        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
-          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
-            🏠 <span>volver a página de inicio</span>
-          </a>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div class="title-wrap">
+        <div class="title-row">
+          <h1>Espirógrafo interactivo</h1>
+          <span class="badge">🌀 HTML · CSS · JS</span>
+        </div>
+
+        <!-- BLOQUE DESARROLLADO POR + HOME -->
+        <div class="credit">
+          <h2>Desarrollado por: Ángel Soto</h2>
+          <p>
+            <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+              🏠 <span>volver a página de inicio</span>
+            </a>
+          </p>
+        </div>
+
+        <p class="subtitle">
+          Crea curvas tipo espirógrafo, guarda la imagen, exporta SVG o comparte el PNG desde el iPhone.
+          Incluye presets, cierre perfecto, guías y vista instantánea.
         </p>
       </div>
 
-      <p class="subtitle">
-        Ajusta los parámetros, elige el modo de color y deja que la figura se
-        dibuje poco a poco. Guarda tu diseño como imagen cuando te guste.
-      </p>
+      <div class="hero-actions" aria-label="Acciones rápidas">
+        <button class="primary" data-action="start"><span class="icon">▶️</span><span class="btn-label">Animar</span></button>
+        <button class="secondary" data-action="instant"><span class="icon">⚡</span><span>Completo</span></button>
+        <button class="secondary" data-action="random"><span class="icon">🎲</span><span>Aleatorio</span></button>
+      </div>
+    </header>
 
-      <div class="panel">
-        <div class="panel-title">Parámetros</div>
-        <div class="controls-grid">
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Tipo de traza</span>
+    <main class="app">
+      <aside class="card controls-card">
+        <div class="panel-header">
+          <h2 class="panel-title">Controles</h2>
+          <span class="mini-help">Optimizado para pantalla táctil</span>
+        </div>
+
+        <div class="button-grid" aria-label="Presets">
+          <button class="ghost" data-preset="classic">🌼 Flor clásica</button>
+          <button class="ghost" data-preset="mandala">✨ Mandala fina</button>
+          <button class="ghost" data-preset="star">⭐ Estrella</button>
+          <button class="ghost" data-preset="orbit">🪐 Órbita</button>
+          <button class="ghost" data-preset="neon">💡 Neón</button>
+          <button class="ghost" data-preset="rosette">🌸 Roseta</button>
+        </div>
+
+        <details class="fold" open>
+          <summary>Geometría</summary>
+          <div class="control-body">
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Tipo de traza</span>
+              </div>
+              <select id="typeSelect">
+                <option value="hypo">Hipotrocoide · rueda dentro</option>
+                <option value="epi">Epitrocoide · rueda fuera</option>
+              </select>
             </div>
-            <select id="typeSelect">
-              <option value="hypo">Hipotrocoide (rueda dentro)</option>
-              <option value="epi">Epitrocoide (rueda fuera)</option>
-            </select>
-          </div>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Radio fijo R</span>
-              <span class="control-value" id="RValue"></span>
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Radio fijo R</span>
+                <span class="control-value" id="RValue"></span>
+              </div>
+              <input type="range" id="RRange" min="30" max="220" value="120" />
             </div>
-            <input type="range" id="RRange" min="30" max="200" value="120" />
-          </div>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Radio móvil r</span>
-              <span class="control-value" id="rValue"></span>
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Radio móvil r</span>
+                <span class="control-value" id="rValue"></span>
+              </div>
+              <input type="range" id="rRange" min="5" max="140" value="45" />
             </div>
-            <input type="range" id="rRange" min="5" max="120" value="45" />
-          </div>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Distancia punta d</span>
-              <span class="control-value" id="dValue"></span>
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Distancia punta d</span>
+                <span class="control-value" id="dValue"></span>
+              </div>
+              <input type="range" id="dRange" min="3" max="180" value="70" />
             </div>
-            <input type="range" id="dRange" min="5" max="150" value="70" />
-          </div>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Vueltas (complejidad)</span>
-              <span class="control-value" id="turnsValue"></span>
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Vueltas</span>
+                <span class="control-value" id="turnsValue"></span>
+              </div>
+              <input type="range" id="turnsRange" min="1" max="60" value="3" />
             </div>
-            <input
-              type="range"
-              id="turnsRange"
-              min="1"
-              max="40"
-              value="15"
-            />
-          </div>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Velocidad de trazado</span>
-              <span class="control-value" id="speedValue"></span>
+            <div class="button-row">
+              <button class="secondary" data-action="close"><span class="icon">🎯</span><span>Cierre perfecto</span></button>
+              <button class="secondary" data-action="random"><span class="icon">🎲</span><span>Aleatorio</span></button>
             </div>
-            <input
-              type="range"
-              id="speedRange"
-              min="1"
-              max="10"
-              value="5"
-            />
           </div>
+        </details>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Grosor del trazo</span>
-              <span class="control-value" id="widthValue"></span>
+        <details class="fold" open>
+          <summary>Dibujo</summary>
+          <div class="control-body">
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Velocidad</span>
+                <span class="control-value" id="speedValue"></span>
+              </div>
+              <input type="range" id="speedRange" min="1" max="12" value="6" />
             </div>
-            <input
-              type="range"
-              id="widthRange"
-              min="1"
-              max="8"
-              value="2"
-            />
-          </div>
 
-          <div class="controls-row">
-            <div class="control-group">
-              <div class="control-header">
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Grosor</span>
+                <span class="control-value" id="widthValue"></span>
+              </div>
+              <input type="range" id="widthRange" min="1" max="10" value="2" />
+            </div>
+
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Opacidad</span>
+                <span class="control-value" id="opacityValue"></span>
+              </div>
+              <input type="range" id="opacityRange" min="20" max="100" value="96" />
+            </div>
+
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Calidad de exportación</span>
+              </div>
+              <select id="qualitySelect">
+                <option value="1400">Rápida · 1.400 puntos</option>
+                <option value="2800" selected>Equilibrada · 2.800 puntos</option>
+                <option value="5200">Alta · 5.200 puntos</option>
+                <option value="8200">Muy alta · 8.200 puntos</option>
+              </select>
+            </div>
+
+            <div class="switch-row">
+              <span>Mostrar guías geométricas</span>
+              <input type="checkbox" id="guideToggle" />
+            </div>
+
+            <div class="switch-row">
+              <span>Brillo tipo neón</span>
+              <input type="checkbox" id="glowToggle" checked />
+            </div>
+          </div>
+        </details>
+
+        <details class="fold" open>
+          <summary>Color y encuadre</summary>
+          <div class="control-body">
+            <div class="control">
+              <div class="control-head">
                 <span class="control-label">Modo de color</span>
               </div>
               <select id="colorMode">
                 <option value="single">Color único</option>
-                <option value="rainbow">Arcoíris continuo</option>
+                <option value="rainbow" selected>Arcoíris continuo</option>
+                <option value="fire">Fuego</option>
+                <option value="ice">Hielo</option>
+                <option value="neon">Neón violeta</option>
+                <option value="ink">Tinta blanca</option>
               </select>
             </div>
-            <div class="control-group">
-              <div class="control-header">
-                <span class="control-label">Color del bolígrafo</span>
+
+            <div class="control inline">
+              <div class="control">
+                <div class="control-head">
+                  <span class="control-label">Bolígrafo</span>
+                </div>
+                <input type="color" id="penColor" value="#ffcc33" />
               </div>
-              <input type="color" id="penColor" value="#ffcc33" />
+
+              <div class="control">
+                <div class="control-head">
+                  <span class="control-label">Fondo</span>
+                </div>
+                <input type="color" id="bgColor" value="#05050a" />
+              </div>
+            </div>
+
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Zoom</span>
+                <span class="control-value" id="zoomValue"></span>
+              </div>
+              <input type="range" id="zoomRange" min="65" max="130" value="100" />
+            </div>
+
+            <div class="control">
+              <div class="control-head">
+                <span class="control-label">Rotación</span>
+                <span class="control-value" id="rotateValue"></span>
+              </div>
+              <input type="range" id="rotateRange" min="0" max="360" value="0" />
             </div>
           </div>
+        </details>
 
-          <div class="control-group">
-            <div class="control-header">
-              <span class="control-label">Color de fondo</span>
+        <details class="fold">
+          <summary>Exportar</summary>
+          <div class="control-body">
+            <div class="button-grid">
+              <button class="secondary" data-action="png"><span class="icon">💾</span><span>PNG</span></button>
+              <button class="secondary" data-action="svg"><span class="icon">📐</span><span>SVG</span></button>
+              <button class="secondary" data-action="share"><span class="icon">📲</span><span>Compartir</span></button>
+              <button class="secondary" data-action="copy"><span class="icon">🔗</span><span>Copiar enlace</span></button>
             </div>
-            <input type="color" id="bgColor" value="#05050a" />
+            <button class="secondary" data-action="fullscreen" style="width:100%;"><span class="icon">⛶</span><span>Pantalla completa</span></button>
+          </div>
+        </details>
+      </aside>
+
+      <section class="card stage-card" id="stage">
+        <div class="stage-top">
+          <div>
+            <h2 class="panel-title">Lienzo</h2>
+            <div class="mini-help">Doble toque sobre el lienzo: dibujar completo.</div>
+          </div>
+          <div class="stat-chips">
+            <span class="chip">Curva: <strong id="curveChip">—</strong></span>
+            <span class="chip">Cierre: <strong id="closureChip">—</strong></span>
+            <span class="chip">Puntos: <strong id="pointsChip">—</strong></span>
           </div>
         </div>
 
-        <div class="buttons">
-          <button id="startPauseBtn" class="primary">
-            <span class="icon">▶️</span>
-            <span>Iniciar</span>
-          </button>
-          <button id="resetBtn" class="secondary">
-            <span class="icon">♻️</span>
-            <span>Reset</span>
-          </button>
-          <button id="saveBtn" class="secondary">
-            <span class="icon">💾</span>
-            <span>Guardar imagen</span>
-          </button>
+        <div class="canvas-frame">
+          <canvas id="spiroCanvas" aria-label="Lienzo del espirógrafo"></canvas>
+          <div class="hud">
+            <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+            <div class="hud-row">
+              <span>t = <strong id="tValue">0.00</strong></span>
+              <span class="state"><span id="stateDot" class="dot warn"></span><span id="statusText">Vista completa</span></span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="canvas-wrapper">
-      <canvas id="spiroCanvas"></canvas>
-      <div class="canvas-overlay"></div>
-      <div class="status-bar">
-        <span>t = <span id="tValue" class="highlight">0</span></span>
-        <span>Estado: <span id="statusText" class="stop">En pausa</span></span>
-      </div>
-    </div>
+        <div class="info-grid">
+          <div class="info-box">
+            <div class="k">Lóbulos aprox.</div>
+            <div class="v" id="lobesInfo">—</div>
+          </div>
+          <div class="info-box">
+            <div class="k">Periodo</div>
+            <div class="v" id="periodInfo">—</div>
+          </div>
+          <div class="info-box">
+            <div class="k">Fórmula</div>
+            <div class="v" id="formulaInfo">—</div>
+          </div>
+          <div class="info-box">
+            <div class="k">Estado</div>
+            <div class="v" id="stateInfo">—</div>
+          </div>
+        </div>
+
+        <div class="button-row desktop-actions">
+          <button class="primary" data-action="start"><span class="icon">▶️</span><span class="btn-label">Animar</span></button>
+          <button class="secondary" data-action="reset"><span class="icon">♻️</span><span>Limpiar</span></button>
+          <button class="secondary" data-action="instant"><span class="icon">⚡</span><span>Dibujar completo</span></button>
+          <button class="secondary" data-action="png"><span class="icon">💾</span><span>Guardar PNG</span></button>
+        </div>
+      </section>
+    </main>
   </div>
+
+  <nav class="mobile-actionbar" aria-label="Acciones principales móviles">
+    <button class="primary" data-action="start"><span class="icon">▶️</span><span class="btn-label">Animar</span></button>
+    <button class="secondary" data-action="reset"><span class="icon">♻️</span><span>Limpiar</span></button>
+    <button class="secondary" data-action="instant"><span class="icon">⚡</span><span>Completo</span></button>
+    <button class="secondary" data-action="share"><span class="icon">📲</span><span>Compartir</span></button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- FOOTER -->
   <footer class="footer">
     <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
-    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
-    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
-    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
-    <p><strong>_______________________________________________</strong></p>
-    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
-    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
-      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
-    <p>_______________________________________________</p>
+    <p class="coffee"><strong>Si te ha gustado este proyecto y quieres invitarme a un café, puedes hacerlo aquí:</strong></p>
+    <h4 class="coffee"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p class="rule">_______________________________________________</p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones móviles MnemoVetDDX ni MnemoVetDDX English Version)</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+    <p class="rule">_______________________________________________</p>
   </footer>
 
   <script>
-    const canvas = document.getElementById("spiroCanvas");
-    const ctx = canvas.getContext("2d");
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-    // UI elements
-    const RRange = document.getElementById("RRange");
-    const rRange = document.getElementById("rRange");
-    const dRange = document.getElementById("dRange");
-    const turnsRange = document.getElementById("turnsRange");
-    const speedRange = document.getElementById("speedRange");
-    const widthRange = document.getElementById("widthRange");
+    const canvas = $("#spiroCanvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
 
-    const RValue = document.getElementById("RValue");
-    const rValue = document.getElementById("rValue");
-    const dValue = document.getElementById("dValue");
-    const turnsValue = document.getElementById("turnsValue");
-    const speedValue = document.getElementById("speedValue");
-    const widthValue = document.getElementById("widthValue");
+    const inputs = {
+      type: $("#typeSelect"),
+      R: $("#RRange"),
+      r: $("#rRange"),
+      d: $("#dRange"),
+      turns: $("#turnsRange"),
+      speed: $("#speedRange"),
+      width: $("#widthRange"),
+      opacity: $("#opacityRange"),
+      quality: $("#qualitySelect"),
+      colorMode: $("#colorMode"),
+      pen: $("#penColor"),
+      bg: $("#bgColor"),
+      zoom: $("#zoomRange"),
+      rotate: $("#rotateRange"),
+      guides: $("#guideToggle"),
+      glow: $("#glowToggle")
+    };
 
-    const typeSelect = document.getElementById("typeSelect");
-    const colorModeSelect = document.getElementById("colorMode");
-    const penColorInput = document.getElementById("penColor");
-    const bgColorInput = document.getElementById("bgColor");
+    const labels = {
+      R: $("#RValue"),
+      r: $("#rValue"),
+      d: $("#dValue"),
+      turns: $("#turnsValue"),
+      speed: $("#speedValue"),
+      width: $("#widthValue"),
+      opacity: $("#opacityValue"),
+      zoom: $("#zoomValue"),
+      rotate: $("#rotateValue"),
+      t: $("#tValue"),
+      progress: $("#progressBar"),
+      status: $("#statusText"),
+      dot: $("#stateDot"),
+      curveChip: $("#curveChip"),
+      closureChip: $("#closureChip"),
+      pointsChip: $("#pointsChip"),
+      lobes: $("#lobesInfo"),
+      period: $("#periodInfo"),
+      formula: $("#formulaInfo"),
+      state: $("#stateInfo")
+    };
 
-    const startPauseBtn = document.getElementById("startPauseBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const saveBtn = document.getElementById("saveBtn");
+    const PRESETS = {
+      classic: { type: "hypo", R: 120, r: 45, d: 70, turns: 3, speed: 6, width: 2, opacity: 96, colorMode: "rainbow", pen: "#ffcc33", bg: "#05050a", zoom: 100, rotate: 0, guides: false, glow: true, quality: "2800" },
+      mandala: { type: "hypo", R: 180, r: 65, d: 95, turns: 13, speed: 7, width: 1, opacity: 92, colorMode: "ice", pen: "#8be9fd", bg: "#05050a", zoom: 96, rotate: 0, guides: false, glow: true, quality: "5200" },
+      star: { type: "hypo", R: 160, r: 40, d: 124, turns: 4, speed: 6, width: 2, opacity: 98, colorMode: "single", pen: "#ffe66d", bg: "#05050a", zoom: 92, rotate: 18, guides: true, glow: true, quality: "2800" },
+      orbit: { type: "epi", R: 82, r: 30, d: 92, turns: 3, speed: 5, width: 2, opacity: 95, colorMode: "fire", pen: "#ff7a3d", bg: "#05050a", zoom: 94, rotate: 0, guides: false, glow: true, quality: "2800" },
+      neon: { type: "epi", R: 110, r: 37, d: 74, turns: 37, speed: 9, width: 1, opacity: 88, colorMode: "neon", pen: "#bd93f9", bg: "#03030a", zoom: 88, rotate: 0, guides: false, glow: true, quality: "5200" },
+      rosette: { type: "hypo", R: 144, r: 42, d: 110, turns: 7, speed: 7, width: 2, opacity: 92, colorMode: "rainbow", pen: "#ffcc33", bg: "#060712", zoom: 90, rotate: 0, guides: false, glow: true, quality: "5200" }
+    };
 
-    const tValue = document.getElementById("tValue");
-    const statusText = document.getElementById("statusText");
+    const STORAGE_KEY = "airsoto.espirografo.v2";
 
-    // Canvas sizing
-    function resizeCanvas() {
-      const rect = canvas.parentElement.getBoundingClientRect();
-      const size = Math.min(rect.width, rect.height);
-      canvas.width = size * window.devicePixelRatio;
-      canvas.height = size * window.devicePixelRatio;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      fillBackground();
-    }
-
-    window.addEventListener("resize", () => {
-      const runningBefore = running;
-      resizeCanvas();
-      if (runningBefore) {
-        resetDrawing();
-        startDrawing();
-      }
-    });
-
-    // State
-    let t = 0;
-    let maxT = 0;
+    let cssSize = 0;
+    let dpr = 1;
     let running = false;
+    let drawingComplete = true;
+    let t = 0;
     let animationId = null;
+    let previewFrame = null;
+    let toastTimer = null;
 
-    function updateLabels() {
-      RValue.textContent = `${RRange.value}`;
-      rValue.textContent = `${rRange.value}`;
-      dValue.textContent = `${dRange.value}`;
-      turnsValue.textContent = `${turnsRange.value} vueltas`;
-      speedValue.textContent = `${speedRange.value}/10`;
-      widthValue.textContent = `${widthRange.value}px`;
+    function asNumber(input) {
+      return Number.parseFloat(input.value);
     }
 
-    [RRange, rRange, dRange, turnsRange, speedRange, widthRange].forEach(
-      (el) => el.addEventListener("input", updateLabels)
-    );
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
 
-    updateLabels();
+    function gcd(a, b) {
+      a = Math.abs(Math.round(a));
+      b = Math.abs(Math.round(b));
+      while (b) {
+        const temp = b;
+        b = a % b;
+        a = temp;
+      }
+      return a || 1;
+    }
 
-    function fillBackground() {
+    function getSettings() {
+      return {
+        type: inputs.type.value,
+        R: asNumber(inputs.R),
+        r: asNumber(inputs.r),
+        d: asNumber(inputs.d),
+        turns: asNumber(inputs.turns),
+        speed: asNumber(inputs.speed),
+        width: asNumber(inputs.width),
+        opacity: asNumber(inputs.opacity) / 100,
+        quality: Number.parseInt(inputs.quality.value, 10),
+        colorMode: inputs.colorMode.value,
+        pen: inputs.pen.value,
+        bg: inputs.bg.value,
+        zoom: asNumber(inputs.zoom) / 100,
+        rotate: asNumber(inputs.rotate) * Math.PI / 180,
+        guides: inputs.guides.checked,
+        glow: inputs.glow.checked
+      };
+    }
+
+    function setSettings(settings, silent = false) {
+      if (!settings) return;
+
+      const setValue = (key, value) => {
+        if (value === undefined || !inputs[key]) return;
+        const input = inputs[key];
+        if (input.type === "checkbox") {
+          input.checked = Boolean(value);
+        } else {
+          input.value = String(value);
+        }
+      };
+
+      Object.entries(settings).forEach(([key, value]) => setValue(key, value));
+      updateUI();
+
+      if (!silent) {
+        saveSettings();
+        renderInstant();
+      }
+    }
+
+    function saveSettings() {
+      try {
+        const raw = getSettings();
+        const compact = {
+          type: raw.type,
+          R: raw.R,
+          r: raw.r,
+          d: raw.d,
+          turns: raw.turns,
+          speed: raw.speed,
+          width: raw.width,
+          opacity: Math.round(raw.opacity * 100),
+          quality: String(raw.quality),
+          colorMode: raw.colorMode,
+          pen: raw.pen,
+          bg: raw.bg,
+          zoom: Math.round(raw.zoom * 100),
+          rotate: Math.round(raw.rotate * 180 / Math.PI),
+          guides: raw.guides,
+          glow: raw.glow
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(compact));
+      } catch (error) {
+        // LocalStorage can be blocked in private mode. Non-critical.
+      }
+    }
+
+    function loadInitialSettings() {
+      const fromHash = readHashSettings();
+      if (fromHash) {
+        setSettings(fromHash, true);
+        showToast("Configuración cargada desde el enlace 🔗");
+        return;
+      }
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved) setSettings(saved, true);
+      } catch (error) {
+        // Ignore malformed saved settings.
+      }
+    }
+
+    function updateUI() {
+      const p = getSettings();
+      const closure = getClosureTurns(p);
+      const lobes = getLobes(p);
+      const kind = p.type === "hypo" ? "Hipotrocoide" : "Epitrocoide";
+
+      labels.R.textContent = `${p.R}`;
+      labels.r.textContent = `${p.r}`;
+      labels.d.textContent = `${p.d}`;
+      labels.turns.textContent = `${p.turns} vueltas`;
+      labels.speed.textContent = `${p.speed}/12`;
+      labels.width.textContent = `${p.width}px`;
+      labels.opacity.textContent = `${Math.round(p.opacity * 100)}%`;
+      labels.zoom.textContent = `${Math.round(p.zoom * 100)}%`;
+      labels.rotate.textContent = `${Math.round(p.rotate * 180 / Math.PI)}°`;
+
+      labels.curveChip.textContent = kind;
+      labels.closureChip.textContent = `${closure} vueltas`;
+      labels.pointsChip.textContent = `${p.quality.toLocaleString("es-ES")}`;
+      labels.lobes.textContent = `${lobes}`;
+      labels.period.textContent = `${closure} vueltas`;
+      labels.formula.textContent = p.type === "hypo" ? "(R-r)·cos(t)" : "(R+r)·cos(t)";
+
+      updateProgress();
+    }
+
+    function setStatus(text, mode = "warn") {
+      labels.status.textContent = text;
+      labels.state.textContent = text;
+      labels.dot.className = `dot ${mode === "ok" ? "ok" : mode === "warn" ? "warn" : ""}`;
+    }
+
+    function setStartButtons(label, icon) {
+      $$('[data-action="start"]').forEach((button) => {
+        const iconEl = button.querySelector(".icon");
+        const labelEl = button.querySelector(".btn-label");
+        if (iconEl) iconEl.textContent = icon;
+        if (labelEl) labelEl.textContent = label;
+      });
+    }
+
+    function getClosureTurns(p) {
+      const common = gcd(p.R, p.r);
+      return clamp(Math.round(p.r / common), 1, 999);
+    }
+
+    function getLobes(p) {
+      const common = gcd(p.R, p.r);
+      if (p.type === "hypo") return Math.round(p.R / common);
+      return Math.round((p.R + p.r) / common);
+    }
+
+    function getMaxT(p) {
+      return Math.PI * 2 * p.turns;
+    }
+
+    function getBoundsRadius(p) {
+      const base = p.type === "hypo" ? Math.abs(p.R - p.r) : Math.abs(p.R + p.r);
+      return base + p.d + 6;
+    }
+
+    function curvePoint(theta, p) {
+      let x, y;
+      if (p.type === "hypo") {
+        const k = (p.R - p.r) / p.r;
+        x = (p.R - p.r) * Math.cos(theta) + p.d * Math.cos(k * theta);
+        y = (p.R - p.r) * Math.sin(theta) - p.d * Math.sin(k * theta);
+      } else {
+        const k = (p.R + p.r) / p.r;
+        x = (p.R + p.r) * Math.cos(theta) - p.d * Math.cos(k * theta);
+        y = (p.R + p.r) * Math.sin(theta) - p.d * Math.sin(k * theta);
+      }
+
+      const ca = Math.cos(p.rotate);
+      const sa = Math.sin(p.rotate);
+      return {
+        x: x * ca - y * sa,
+        y: x * sa + y * ca
+      };
+    }
+
+    function screenPoint(theta, p, size = cssSize) {
+      const raw = curvePoint(theta, p);
+      const scale = (size / 2.16) / getBoundsRadius(p) * p.zoom;
+      return {
+        x: size / 2 + raw.x * scale,
+        y: size / 2 + raw.y * scale
+      };
+    }
+
+    function strokeColor(theta, p) {
+      const maxT = getMaxT(p);
+      const ratio = maxT > 0 ? theta / maxT : 0;
+      const alpha = p.opacity;
+
+      if (p.colorMode === "single") return withAlpha(p.pen, alpha);
+      if (p.colorMode === "fire") return `hsla(${18 + ratio * 48}, 96%, ${55 + Math.sin(ratio * Math.PI) * 8}%, ${alpha})`;
+      if (p.colorMode === "ice") return `hsla(${178 + ratio * 76}, 92%, 66%, ${alpha})`;
+      if (p.colorMode === "neon") return `hsla(${265 + ratio * 70}, 94%, 68%, ${alpha})`;
+      if (p.colorMode === "ink") return `rgba(255, 255, 255, ${alpha})`;
+
+      const hue = (ratio * 360) % 360;
+      return `hsla(${hue}, 92%, 58%, ${alpha})`;
+    }
+
+    function glowColor(theta, p) {
+      if (!p.glow) return "transparent";
+      return strokeColor(theta, { ...p, opacity: clamp(p.opacity, 0.55, 0.9) });
+    }
+
+    function withAlpha(hex, alpha) {
+      const clean = hex.replace("#", "");
+      const value = clean.length === 3
+        ? clean.split("").map((ch) => ch + ch).join("")
+        : clean;
+      const int = Number.parseInt(value, 16);
+      const r = (int >> 16) & 255;
+      const g = (int >> 8) & 255;
+      const b = int & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      cssSize = Math.max(280, Math.round(rect.width));
+      dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+      canvas.width = Math.round(cssSize * dpr);
+      canvas.height = Math.round(cssSize * dpr);
+      canvas.style.height = `${cssSize}px`;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderInstant(false);
+    }
+
+    function fillBackground(p) {
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = bgColorInput.value;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = p.bg;
+      ctx.fillRect(0, 0, cssSize, cssSize);
+
+      const gradient = ctx.createRadialGradient(cssSize * 0.5, cssSize * 0.5, 0, cssSize * 0.5, cssSize * 0.5, cssSize * 0.72);
+      gradient.addColorStop(0, "rgba(255,255,255,0.03)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.28)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, cssSize, cssSize);
       ctx.restore();
     }
 
-    bgColorInput.addEventListener("input", () => {
-      const wasRunning = running;
-      resizeCanvas();
-      if (wasRunning) {
-        resetDrawing();
-        startDrawing();
-      }
-    });
+    function drawGuides(p) {
+      if (!p.guides) return;
 
-    function resetDrawing() {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-      running = false;
-      startPauseBtn.innerHTML = '<span class="icon">▶️</span><span>Iniciar</span>';
-      statusText.textContent = "En pausa";
-      statusText.classList.remove("ok");
-      statusText.classList.add("stop");
+      const center = cssSize / 2;
+      const scale = (cssSize / 2.16) / getBoundsRadius(p) * p.zoom;
+      const fixedRadius = p.R * scale;
+      const mobileRadius = p.r * scale;
+
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.setLineDash([5, 7]);
+
+      ctx.beginPath();
+      ctx.moveTo(center, 12);
+      ctx.lineTo(center, cssSize - 12);
+      ctx.moveTo(12, center);
+      ctx.lineTo(cssSize - 12, center);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(247,200,75,0.26)";
+      ctx.beginPath();
+      ctx.arc(center, center, fixedRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath();
+      ctx.arc(center, center, mobileRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function prepareCanvas(p) {
+      fillBackground(p);
+      drawGuides(p);
+    }
+
+    function drawSegment(fromT, toT, p) {
+      const a = screenPoint(fromT, p);
+      const b = screenPoint(toT, p);
+
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = p.width;
+      ctx.strokeStyle = strokeColor(fromT, p);
+
+      if (p.glow) {
+        ctx.shadowBlur = Math.min(18, Math.max(4, p.width * 4));
+        ctx.shadowColor = glowColor(fromT, p);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function renderInstant(showToastAfter = false) {
+      stopAnimation(false);
+      const p = getSettings();
+      const maxT = getMaxT(p);
+      const total = Math.max(400, p.quality);
+
+      prepareCanvas(p);
+
+      let prev = 0;
+      for (let i = 1; i <= total; i++) {
+        const next = maxT * i / total;
+        drawSegment(prev, next, p);
+        prev = next;
+      }
+
+      t = maxT;
+      drawingComplete = true;
+      updateProgress();
+      setStatus("Vista completa", "warn");
+      setStartButtons("Animar", "▶️");
+      if (showToastAfter) showToast("Figura dibujada completa ⚡");
+    }
+
+    function startDrawing() {
+      stopAnimation(false);
+      const p = getSettings();
+      prepareCanvas(p);
+
       t = 0;
-      fillBackground();
-      tValue.textContent = "0";
-    }
-
-    resetBtn.addEventListener("click", () => {
-      resetDrawing();
-    });
-
-    function getParams() {
-      const R = parseFloat(RRange.value);
-      const r = parseFloat(rRange.value);
-      const d = parseFloat(dRange.value);
-      const turns = parseFloat(turnsRange.value);
-      const lineWidth = parseFloat(widthRange.value);
-      const speed = parseFloat(speedRange.value);
-
-      maxT = turns * Math.PI * 2;
-
-      return { R, r, d, turns, lineWidth, speed };
-    }
-
-    function getPosition(t, params) {
-      const { R, r, d } = params;
-      const type = typeSelect.value;
-
-      let big, small, k;
-      let x, y;
-      if (type === "hypo") {
-        big = R;
-        small = r;
-        k = (big - small) / small;
-        x = (big - small) * Math.cos(t) + d * Math.cos(k * t);
-        y = (big - small) * Math.sin(t) - d * Math.sin(k * t);
-      } else {
-        big = R;
-        small = r;
-        k = (big + small) / small;
-        x = (big + small) * Math.cos(t) - d * Math.cos(k * t);
-        y = (big + small) * Math.sin(t) - d * Math.sin(k * t);
-      }
-
-      const maxRadius = (type === "hypo" ? big : big + small) + d + 5;
-      const scale =
-        (Math.min(canvas.width, canvas.height) / window.devicePixelRatio /
-          2.2) /
-        maxRadius;
-
-      const cx =
-        (canvas.width / window.devicePixelRatio / 2) +
-        x * scale;
-      const cy =
-        (canvas.height / window.devicePixelRatio / 2) +
-        y * scale;
-
-      return { x: cx, y: cy };
-    }
-
-    function getColor(tLocal) {
-      const mode = colorModeSelect.value;
-      const baseColor = penColorInput.value;
-
-      if (mode === "single") {
-        return baseColor;
-      }
-
-      const ratio = maxT > 0 ? tLocal / maxT : 0;
-      const hue = (ratio * 360) % 360;
-      return `hsl(${hue}, 90%, 55%)`;
+      running = true;
+      drawingComplete = false;
+      setStatus("Dibujando…", "ok");
+      setStartButtons("Pausar", "⏸️");
+      updateProgress();
+      animationId = requestAnimationFrame(drawStep);
     }
 
     function drawStep() {
       if (!running) return;
 
-      const params = getParams();
-      const stepsPerFrame = 5 + (params.speed - 1) * 5; // 5–50
-      const dt = 0.0045;
-
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+      const p = getSettings();
+      const maxT = getMaxT(p);
+      const stepsPerFrame = 5 + (p.speed - 1) * 7;
+      const dt = Math.max(0.002, maxT / (p.quality * 1.05));
 
       for (let i = 0; i < stepsPerFrame; i++) {
-        const tPrev = t;
-        const tNext = t + dt;
-        if (tNext > maxT) {
+        const next = t + dt;
+        if (next >= maxT) {
+          drawSegment(t, maxT, p);
+          t = maxT;
           running = false;
-          startPauseBtn.innerHTML =
-            '<span class="icon">▶️</span><span>Repetir</span>';
-          statusText.textContent = "Figura completa";
-          statusText.classList.remove("stop");
-          statusText.classList.add("ok");
-          tValue.textContent = maxT.toFixed(2);
+          drawingComplete = true;
+          animationId = null;
+          setStatus("Figura completa", "ok");
+          setStartButtons("Repetir", "▶️");
+          updateProgress();
           return;
         }
 
-        const p1 = getPosition(tPrev, params);
-        const p2 = getPosition(tNext, params);
-
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineWidth = params.lineWidth;
-        ctx.strokeStyle = getColor(tPrev);
-        ctx.stroke();
-
-        t = tNext;
+        drawSegment(t, next, p);
+        t = next;
       }
 
-      tValue.textContent = t.toFixed(2);
+      updateProgress();
       animationId = requestAnimationFrame(drawStep);
     }
 
-    function startDrawing() {
-      fillBackground();
-      t = 0;
+    function pauseDrawing() {
+      running = false;
+      cancelAnimationFrame(animationId);
+      animationId = null;
+      setStatus("En pausa", "warn");
+      setStartButtons("Continuar", "▶️");
+      updateProgress();
+    }
+
+    function resumeDrawing() {
       running = true;
-      statusText.textContent = "Dibujando…";
-      statusText.classList.remove("stop");
-      statusText.classList.add("ok");
-      startPauseBtn.innerHTML =
-        '<span class="icon">⏸️</span><span>Pausar</span>';
-      drawStep();
+      setStatus("Dibujando…", "ok");
+      setStartButtons("Pausar", "⏸️");
+      animationId = requestAnimationFrame(drawStep);
     }
 
-    function toggleStartPause() {
-      if (!running && t === 0) {
-        startDrawing();
-      } else if (running) {
-        running = false;
-        cancelAnimationFrame(animationId);
-        animationId = null;
-        statusText.textContent = "En pausa";
-        statusText.classList.remove("ok");
-        statusText.classList.add("stop");
-        startPauseBtn.innerHTML =
-          '<span class="icon">▶️</span><span>Continuar</span>';
+    function resetDrawing() {
+      stopAnimation(false);
+      const p = getSettings();
+      t = 0;
+      drawingComplete = false;
+      prepareCanvas(p);
+      updateProgress();
+      setStatus("Lienzo limpio", "warn");
+      setStartButtons("Animar", "▶️");
+    }
+
+    function stopAnimation(keepStatus = true) {
+      running = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      animationId = null;
+      if (keepStatus) setStatus("En pausa", "warn");
+    }
+
+    function updateProgress() {
+      const p = getSettings();
+      const maxT = getMaxT(p);
+      const ratio = maxT > 0 ? clamp(t / maxT, 0, 1) : 0;
+      labels.t.textContent = t.toFixed(2);
+      labels.progress.style.width = `${ratio * 100}%`;
+    }
+
+    function schedulePreview() {
+      if (previewFrame) cancelAnimationFrame(previewFrame);
+      previewFrame = requestAnimationFrame(() => {
+        previewFrame = null;
+        renderInstant(false);
+      });
+    }
+
+    function applyClosure() {
+      const p = getSettings();
+      const closure = getClosureTurns(p);
+      const safeClosure = clamp(closure, 1, Number(inputs.turns.max));
+
+      inputs.turns.value = String(safeClosure);
+      updateUI();
+      saveSettings();
+      renderInstant();
+
+      if (closure !== safeClosure) {
+        showToast(`Cierre calculado: ${closure} vueltas. Limitado a ${safeClosure} para mantener rendimiento.`);
       } else {
-        running = true;
-        statusText.textContent = "Dibujando…";
-        statusText.classList.remove("stop");
-        statusText.classList.add("ok");
-        startPauseBtn.innerHTML =
-          '<span class="icon">⏸️</span><span>Pausar</span>';
-        drawStep();
+        showToast(`Cierre perfecto aplicado: ${safeClosure} vueltas 🎯`);
       }
     }
 
-    startPauseBtn.addEventListener("click", toggleStartPause);
+    function randomize() {
+      const R = randomInt(55, 210);
+      const r = randomInt(8, 128);
+      const d = randomInt(14, 170);
+      const type = Math.random() > 0.48 ? "hypo" : "epi";
+      const closure = clamp(Math.round(r / gcd(R, r)), 2, 42);
 
-    saveBtn.addEventListener("click", () => {
+      const modes = ["rainbow", "fire", "ice", "neon", "single"];
+      const bgs = ["#05050a", "#060712", "#02030a", "#0b0b10", "#11111c"];
+      const pens = ["#ffcc33", "#8be9fd", "#ff7a3d", "#bd93f9", "#ffffff", "#4ade80"];
+
+      setSettings({
+        type,
+        R,
+        r,
+        d,
+        turns: closure,
+        speed: randomInt(4, 11),
+        width: randomInt(1, 4),
+        opacity: randomInt(82, 100),
+        colorMode: modes[randomInt(0, modes.length - 1)],
+        pen: pens[randomInt(0, pens.length - 1)],
+        bg: bgs[randomInt(0, bgs.length - 1)],
+        zoom: randomInt(78, 112),
+        rotate: randomInt(0, 360),
+        guides: Math.random() > 0.78,
+        glow: true,
+        quality: Math.random() > 0.55 ? "5200" : "2800"
+      });
+      showToast("Nuevo diseño aleatorio 🎲");
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function applyPreset(name) {
+      const preset = PRESETS[name];
+      if (!preset) return;
+      setSettings(preset);
+      showToast("Preset aplicado");
+    }
+
+    async function copyConfigLink() {
+      const compact = JSON.stringify(getCompactSettings());
+      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(compact))));
+      const url = `${location.origin}${location.pathname}#${encoded}`;
+
       try {
-        const dataURL = canvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = "espirografo.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (e) {
-        alert("No se ha podido guardar la imagen en este navegador.");
+        await navigator.clipboard.writeText(url);
+        showToast("Enlace de configuración copiado 🔗");
+      } catch (error) {
+        showToast("No se pudo copiar. El navegador lo ha bloqueado.");
       }
-    });
+    }
 
-    // Inicialización
-    resizeCanvas();
-    resetDrawing();
+    function getCompactSettings() {
+      const p = getSettings();
+      return {
+        type: p.type,
+        R: p.R,
+        r: p.r,
+        d: p.d,
+        turns: p.turns,
+        speed: p.speed,
+        width: p.width,
+        opacity: Math.round(p.opacity * 100),
+        quality: String(p.quality),
+        colorMode: p.colorMode,
+        pen: p.pen,
+        bg: p.bg,
+        zoom: Math.round(p.zoom * 100),
+        rotate: Math.round(p.rotate * 180 / Math.PI),
+        guides: p.guides,
+        glow: p.glow
+      };
+    }
+
+    function readHashSettings() {
+      if (!location.hash || location.hash.length < 3) return null;
+
+      try {
+        const encoded = decodeURIComponent(location.hash.slice(1));
+        const json = decodeURIComponent(escape(atob(encoded)));
+        return JSON.parse(json);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function downloadPNG() {
+      renderInstant(false);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showToast("No se pudo crear el PNG.");
+          return;
+        }
+        downloadBlob(blob, fileName("espirografo", "png"));
+        showToast("PNG generado 💾");
+      }, "image/png", 1);
+    }
+
+    async function sharePNG() {
+      renderInstant(false);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1));
+      if (!blob) {
+        showToast("No se pudo crear la imagen.");
+        return;
+      }
+
+      const file = new File([blob], fileName("espirografo", "png"), { type: "image/png" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: "Espirógrafo interactivo",
+            text: "Diseño creado con el espirógrafo interactivo.",
+            files: [file]
+          });
+          showToast("Imagen compartida 📲");
+          return;
+        } catch (error) {
+          if (error.name === "AbortError") return;
+        }
+      }
+
+      downloadBlob(blob, file.name);
+      showToast("Compartir no está disponible. Se descarga el PNG.");
+    }
+
+    function downloadSVG() {
+      const svg = createSVG();
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      downloadBlob(blob, fileName("espirografo", "svg"));
+      showToast("SVG generado 📐");
+    }
+
+    function createSVG() {
+      const p = getSettings();
+      const size = 1200;
+      const total = Math.max(500, p.quality);
+      const maxT = getMaxT(p);
+      const commands = [];
+
+      for (let i = 0; i <= total; i++) {
+        const theta = maxT * i / total;
+        const point = screenPoint(theta, p, size);
+        commands.push(`${i === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`);
+      }
+
+      const stroke = p.colorMode === "single" || p.colorMode === "ink"
+        ? (p.colorMode === "ink" ? "#ffffff" : p.pen)
+        : "url(#lineGradient)";
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+  <defs>
+    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe66d"/>
+      <stop offset="35%" stop-color="#ff7a3d"/>
+      <stop offset="70%" stop-color="#8be9fd"/>
+      <stop offset="100%" stop-color="#bd93f9"/>
+    </linearGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" fill="${p.bg}"/>
+  <path d="${commands.join(" ")}"
+        fill="none"
+        stroke="${stroke}"
+        stroke-width="${p.width * 3.2}"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        opacity="${p.opacity}"
+        ${p.glow ? 'filter="url(#softGlow)"' : ""}/>
+</svg>`;
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function fileName(base, ext) {
+      const now = new Date();
+      const stamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0")
+      ].join("");
+      return `${base}_${stamp}.${ext}`;
+    }
+
+    function requestFullscreen() {
+      const stage = $("#stage");
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+        return;
+      }
+
+      if (stage.requestFullscreen) {
+        stage.requestFullscreen();
+      } else if (stage.webkitRequestFullscreen) {
+        stage.webkitRequestFullscreen();
+      } else {
+        showToast("Pantalla completa no disponible en este navegador.");
+      }
+    }
+
+    function showToast(message) {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2300);
+    }
+
+    function handleAction(action) {
+      switch (action) {
+        case "start":
+          if (running) pauseDrawing();
+          else if (drawingComplete || t === 0) startDrawing();
+          else resumeDrawing();
+          break;
+        case "reset":
+          resetDrawing();
+          break;
+        case "instant":
+          renderInstant(true);
+          break;
+        case "random":
+          randomize();
+          break;
+        case "close":
+          applyClosure();
+          break;
+        case "png":
+          downloadPNG();
+          break;
+        case "svg":
+          downloadSVG();
+          break;
+        case "share":
+          sharePNG();
+          break;
+        case "copy":
+          copyConfigLink();
+          break;
+        case "fullscreen":
+          requestFullscreen();
+          break;
+      }
+    }
+
+    function attachEvents() {
+      $$("[data-action]").forEach((button) => {
+        button.addEventListener("click", () => handleAction(button.dataset.action));
+      });
+
+      $$("[data-preset]").forEach((button) => {
+        button.addEventListener("click", () => applyPreset(button.dataset.preset));
+      });
+
+      Object.values(inputs).forEach((input) => {
+        input.addEventListener("input", () => {
+          updateUI();
+          saveSettings();
+
+          if (running) {
+            startDrawing();
+          } else {
+            schedulePreview();
+          }
+        });
+
+        input.addEventListener("change", () => {
+          updateUI();
+          saveSettings();
+          if (!running) schedulePreview();
+        });
+      });
+
+      let lastTap = 0;
+      canvas.addEventListener("touchend", (event) => {
+        const now = Date.now();
+        if (now - lastTap < 330) {
+          event.preventDefault();
+          renderInstant(true);
+        }
+        lastTap = now;
+      }, { passive: false });
+
+      canvas.addEventListener("dblclick", () => renderInstant(true));
+
+      window.addEventListener("resize", debounce(resizeCanvas, 120));
+      window.visualViewport?.addEventListener("resize", debounce(resizeCanvas, 140));
+
+      document.addEventListener("keydown", (event) => {
+        if (event.target.matches("input, select, textarea")) return;
+        if (event.code === "Space") {
+          event.preventDefault();
+          handleAction("start");
+        } else if (event.key.toLowerCase() === "r") {
+          handleAction("random");
+        } else if (event.key.toLowerCase() === "s") {
+          handleAction("png");
+        }
+      });
+    }
+
+    function debounce(fn, delay) {
+      let timer = null;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    function init() {
+      loadInitialSettings();
+      updateUI();
+      attachEvents();
+      requestAnimationFrame(resizeCanvas);
+    }
+
+    init();
   </script>
 </body>
 </html>
