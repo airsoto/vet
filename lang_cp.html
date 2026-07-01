@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Visor y analizador interactivo de crease patterns de origami." />
+  <title>Origami CP Analyzer · Ángel Soto</title>
+  <script defer src="goat.js"></script>
+  <style>
+    :root{
+      --bg:#090d14;
+      --bg2:#101827;
+      --panel:#111827ee;
+      --panel2:#172033;
+      --text:#edf2ff;
+      --muted:#aab5cb;
+      --line:#263248;
+      --accent:#ff9900;
+      --accent2:#7dd3fc;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:22px;
+      --mountain:#ef4444;
+      --valley:#22c55e;
+      --reference:#94a3b8;
+      --aux:#60a5fa;
+      --grid:#b7c1cc;
+      --cut:#111827;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 14% 8%,rgba(255,153,0,.18),transparent 34%),
+        radial-gradient(circle at 88% 12%,rgba(125,211,252,.15),transparent 30%),
+        linear-gradient(145deg,#05070b 0%,#0a101d 42%,#111827 100%);
+      overflow-x:hidden;
+    }
+    a{color:var(--accent2);text-decoration:none}
+    a:hover{text-decoration:underline}
+    button,input,select,textarea{font:inherit}
+    button{
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045));
+      color:var(--text);
+      border-radius:14px;
+      padding:.62rem .82rem;
+      cursor:pointer;
+      box-shadow:0 1px 0 rgba(255,255,255,.08) inset;
+      transition:transform .12s ease,border-color .12s ease,background .12s ease;
+      white-space:nowrap;
+    }
+    button:hover{transform:translateY(-1px);border-color:rgba(255,153,0,.55)}
+    button.primary{background:linear-gradient(180deg,rgba(255,153,0,.95),rgba(213,119,0,.9));color:#111827;border-color:rgba(255,153,0,.95);font-weight:800}
+    button.small{font-size:.82rem;padding:.42rem .56rem;border-radius:10px}
+    button.ghost{background:transparent}
+    button.danger{border-color:rgba(239,68,68,.45);color:#fecaca}
+    input,select,textarea{
+      background:#0b1220;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:13px;
+      padding:.58rem .7rem;
+      min-width:0;
+    }
+    input[type="color"]{width:42px;height:34px;padding:3px;border-radius:10px}
+    input[type="checkbox"],input[type="radio"]{accent-color:var(--accent);min-width:auto}
+    textarea{width:100%;min-height:155px;resize:vertical;line-height:1.45}
+    .page{width:min(1840px,100%);margin:0 auto;padding:16px clamp(10px,2vw,22px) 38px}
+    .hero{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:14px;
+      align-items:end;
+      margin:8px 0 16px;
+      padding:20px;
+      border:1px solid rgba(255,255,255,.11);
+      border-radius:var(--radius);
+      background:linear-gradient(135deg,rgba(17,24,39,.92),rgba(17,24,39,.66));
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .hero:before{
+      content:"";
+      position:absolute;inset:auto -120px -180px auto;width:420px;height:420px;border-radius:50%;
+      background:radial-gradient(circle,rgba(255,153,0,.22),transparent 65%);
+      pointer-events:none;
+    }
+    h1{margin:0;font-size:clamp(28px,4.5vw,56px);letter-spacing:-.05em;line-height:.96}
+    .subtitle{margin:10px 0 0;color:var(--muted);max-width:930px;font-size:clamp(14px,2vw,16px)}
+    .devblock{margin:12px 0 0 0;position:relative;z-index:1}
+    .devblock h2{margin:0;font-size:clamp(13px,3vw,14px);font-weight:700}
+    .devblock .by{color:var(--accent)}
+    .home{margin:2px 0 0;font-size:clamp(12px,2.8vw,13px)}
+    .heroStats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative;z-index:1}
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      border-radius:999px;
+      padding:.45rem .65rem;
+      color:#dbeafe;
+      font-size:.85rem;
+    }
+    .appGrid{display:grid;grid-template-columns:330px minmax(0,1fr) 380px;gap:14px;align-items:start}
+    .panel{
+      background:linear-gradient(180deg,rgba(17,24,39,.93),rgba(13,19,32,.95));
+      border:1px solid rgba(255,255,255,.11);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panelHeader{
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.09);
+      display:flex;gap:10px;align-items:center;justify-content:space-between;
+      background:rgba(255,255,255,.035);
+    }
+    .panelHeader h3{font-size:1rem;margin:0;letter-spacing:-.02em}
+    .panelBody{padding:14px}
+    .stack{display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .row.nowrap{flex-wrap:nowrap}
+    .row > *{min-width:0}
+    .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+    label{color:#d8e3f7;font-size:.82rem;font-weight:650}
+    .hint{color:var(--muted);font-size:.82rem;line-height:1.35}
+    .tiny{font-size:.74rem;color:var(--muted)}
+    .libraryList{max-height:70vh;overflow:auto;padding-right:4px;display:flex;flex-direction:column;gap:9px}
+    .cpCard{
+      display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;
+      border:1px solid rgba(255,255,255,.1);
+      background:rgba(255,255,255,.045);
+      border-radius:16px;
+      padding:8px;
+      cursor:pointer;
+      transition:transform .12s ease,border-color .12s ease,background .12s ease;
+    }
+    .cpCard:hover,.cpCard.active{border-color:rgba(255,153,0,.65);background:rgba(255,153,0,.08);transform:translateY(-1px)}
+    .cpCard img{width:58px;height:58px;object-fit:cover;border-radius:12px;background:#111827}
+    .cpCard h4{margin:1px 0 3px;font-size:.9rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tagline{display:flex;gap:4px;flex-wrap:wrap;max-height:38px;overflow:hidden}
+    .tag{font-size:.68rem;border:1px solid rgba(255,255,255,.11);background:#0b1220;border-radius:999px;padding:.12rem .38rem;color:#bdd1ef}
+    .viewerPanel{position:sticky;top:10px}
+    .toolbar{
+      display:flex;gap:7px;flex-wrap:wrap;padding:12px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.03)
+    }
+    .toolbar button.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(255,153,0,.35) inset;background:rgba(255,153,0,.12)}
+    .canvasWrap{
+      position:relative;
+      height:min(72vh,830px);
+      min-height:460px;
+      background:
+        linear-gradient(45deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.035) 75%),
+        linear-gradient(45deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.035) 75%),
+        #05070b;
+      background-position:0 0,12px 12px;
+      background-size:24px 24px;
+      overflow:hidden;
+      border-radius:0 0 var(--radius) var(--radius);
+      touch-action:none;
+    }
+    canvas#cpCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+    canvas#cpCanvas.grabbing{cursor:grabbing}
+    .canvasHud{
+      position:absolute;left:12px;bottom:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;align-items:flex-end;
+    }
+    .hudBox{background:rgba(5,7,11,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px 10px;font-size:.8rem;color:#e5ecff;max-width:70%}
+    .loaderOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,11,.5);backdrop-filter:blur(2px);z-index:3}
+    .loaderOverlay.show{display:flex}
+    .spinner{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.16);border-top-color:var(--accent);animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .tabs{display:flex;gap:6px;padding:10px 10px 0;overflow:auto}
+    .tabBtn{font-size:.83rem;padding:.48rem .62rem;border-radius:12px;background:rgba(255,255,255,.04)}
+    .tabBtn.active{background:rgba(255,153,0,.13);border-color:rgba(255,153,0,.55)}
+    .tabPanel{display:none}.tabPanel.active{display:block}
+    .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .metric{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.045);border-radius:16px;padding:10px}
+    .metric b{display:block;font-size:1.45rem;letter-spacing:-.04em}.metric span{color:var(--muted);font-size:.77rem}
+    .legendGrid{display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center}
+    .swatch{width:18px;height:18px;border-radius:6px;border:1px solid rgba(255,255,255,.22)}
+    .checkList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .checkItem{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.09);border-radius:13px;padding:8px;background:rgba(255,255,255,.035);font-size:.82rem}
+    .figureBox{display:grid;grid-template-columns:94px 1fr;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:8px;background:rgba(255,255,255,.04)}
+    .figureBox img{width:94px;height:72px;object-fit:cover;border-radius:12px;background:#0b1220}
+    .tableMini{width:100%;border-collapse:collapse;font-size:.78rem}
+    .tableMini th,.tableMini td{border-bottom:1px solid rgba(255,255,255,.08);padding:6px;text-align:left;vertical-align:top}
+    .tableMini th{color:#cbd5e1;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+    .heatmap{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+    .heatcell{height:52px;border-radius:12px;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;text-shadow:0 1px 6px #000;background:rgba(125,211,252,.12)}
+    .guideSteps{counter-reset:steps;display:flex;flex-direction:column;gap:7px}
+    .guideSteps div{counter-increment:steps;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);border-radius:14px;padding:9px 10px;color:#dbeafe}
+    .guideSteps div:before{content:counter(steps) ". ";color:var(--accent);font-weight:900}
+    .toast{
+      position:fixed;right:16px;bottom:16px;max-width:min(460px,calc(100vw - 32px));
+      background:#0b1220;border:1px solid rgba(255,255,255,.16);border-left:4px solid var(--accent);color:#e5e7eb;
+      border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);z-index:20;display:none;white-space:pre-wrap
+    }
+    .toast.show{display:block;animation:pop .18s ease}
+    @keyframes pop{from{transform:translateY(8px);opacity:.3}to{transform:translateY(0);opacity:1}}
+    .tooltip{
+      position:fixed;z-index:30;display:none;pointer-events:none;max-width:300px;background:#05070bdd;border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:9px 10px;color:#eef2ff;font-size:.78rem;box-shadow:var(--shadow);backdrop-filter:blur(8px)
+    }
+    .footer{
+      margin-top:18px;padding:18px;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);background:rgba(17,24,39,.68);color:var(--muted);font-size:.88rem;line-height:1.45
+    }
+    .footer strong{color:#fff}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.75rem;border:1px solid rgba(255,255,255,.18);border-bottom-width:2px;padding:.12rem .32rem;border-radius:6px;background:#0b1220;color:#e2e8f0}
+    .mobileDrawerBtn{display:none}
+    @media (max-width:1320px){.appGrid{grid-template-columns:300px minmax(0,1fr)}.rightPanel{grid-column:1 / -1}.viewerPanel{position:relative;top:auto}.canvasWrap{height:68vh}}
+    @media (max-width:820px){
+      .page{padding:8px 8px 28px}.hero{grid-template-columns:1fr;padding:16px}.heroStats{justify-content:flex-start}
+      .appGrid{grid-template-columns:1fr}.leftPanel{order:2}.viewerPanel{order:1}.rightPanel{order:3}
+      .canvasWrap{height:66vh;min-height:420px}.toolbar{overflow:auto;flex-wrap:nowrap}.panelBody{padding:11px}.metrics{grid-template-columns:repeat(2,1fr)}
+      .libraryList{max-height:420px}.checkList{grid-template-columns:1fr}.mobileDrawerBtn{display:inline-flex}
+    }
+    @media print{
+      body{background:#fff;color:#111}.hero,.leftPanel,.viewerPanel,.tabs,.toolbar,.footer button,.toast,.tooltip{display:none!important}.rightPanel{box-shadow:none;border:none}.panel{box-shadow:none;border:none;background:#fff;color:#111}.tabPanel{display:block!important}.panelHeader{background:#fff;color:#111}.panelBody{color:#111}textarea{color:#111;background:#fff;border:1px solid #ddd}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>Origami CP Analyzer 🧩</h1>
+        <p class="subtitle">Biblioteca, visor técnico y análisis semiautomático de crease patterns: capas, mediciones, detección de líneas, vértices, simetría, SVG, JSON e informe.</p>
+        <div class="devblock">
+          <h2><span class="by">Desarrollado por: Ángel Soto</span></h2>
+          <p class="home"><a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">🏠 <span>volver a página de inicio</span></a></p>
+        </div>
+      </div>
+      <div class="heroStats">
+        <span class="pill" id="jsonStatus">📦 JSON pendiente</span>
+        <span class="pill" id="cpCount">0 CP</span>
+        <span class="pill" id="analysisStatus">🧠 sin análisis</span>
+      </div>
+    </header>
+
+    <main class="appGrid">
+      <aside class="panel leftPanel">
+        <div class="panelHeader"><h3>🗂️ Biblioteca CP</h3><button class="small" id="reloadJsonBtn">Recargar</button></div>
+        <div class="panelBody stack">
+          <div class="field">
+            <label for="searchInput">Buscar</label>
+            <input id="searchInput" placeholder="dragón, beetle, tessellation..." />
+          </div>
+          <div class="row nowrap">
+            <div class="field" style="flex:1">
+              <label for="tagSelect">Etiqueta</label>
+              <select id="tagSelect"><option value="">Todas</option></select>
+            </div>
+            <div class="field" style="width:112px">
+              <label for="sortSelect">Orden</label>
+              <select id="sortSelect"><option value="title">A-Z</option><option value="matched">con figura</option><option value="recent">recientes</option></select>
+            </div>
+          </div>
+          <div class="row">
+            <input type="file" id="fileInput" accept="image/*" style="display:none" />
+            <button class="primary" id="uploadBtn">📂 Cargar imagen</button>
+            <button id="randomBtn">🎲 Aleatorio</button>
+          </div>
+          <div class="hint">El análisis por píxeles funciona siempre con imágenes subidas. Con imágenes externas del JSON depende de CORS del servidor remoto.</div>
+          <div class="libraryList" id="libraryList"></div>
+        </div>
+      </aside>
+
+      <section class="panel viewerPanel">
+        <div class="panelHeader">
+          <h3 id="currentTitle">Visor técnico</h3>
+          <div class="row"><button class="small" id="fitBtn">Ajustar</button><button class="small" id="clearBtn">Limpiar análisis</button></div>
+        </div>
+        <div class="toolbar" id="toolBar">
+          <button data-tool="pan" class="active">✋ Mover</button>
+          <button data-tool="marker">📍 Vértice</button>
+          <button data-tool="measure">📏 Distancia</button>
+          <button data-tool="angle">📐 Ángulo</button>
+          <button data-tool="manualLine">✏️ Línea</button>
+          <button data-tool="editLine">🧰 Editar</button>
+          <button data-tool="learn">🎓 Aprender</button>
+          <select id="manualTypeSelect" title="Tipo de línea manual">
+            <option value="mountain">Montaña</option>
+            <option value="valley">Valle</option>
+            <option value="reference">Referencia</option>
+            <option value="aux">Auxiliar</option>
+            <option value="grid">Cuadrícula</option>
+            <option value="cut">Corte</option>
+          </select>
+          <button class="primary" id="analyzeBtn">🔍 Analizar imagen</button>
+          <button id="geomBtn">🧠 Vértices</button>
+          <button id="svgBtn">✏️ SVG</button>
+          <button id="jsonBtn">🧾 JSON</button>
+        </div>
+        <div class="canvasWrap" id="canvasWrap">
+          <canvas id="cpCanvas"></canvas>
+          <div class="loaderOverlay" id="loader"><div class="spinner"></div></div>
+          <div class="canvasHud">
+            <div class="hudBox" id="hudLeft">Rueda = zoom · arrastrar = desplazar · doble clic = ajustar.</div>
+            <div class="hudBox" id="hudRight">Escala: 100%</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel rightPanel">
+        <div class="panelHeader"><h3>⚙️ Control y análisis</h3><button class="small" id="printBtn">🖨️ Imprimir</button></div>
+        <div class="tabs" id="tabs">
+          <button class="tabBtn active" data-tab="capas">Capas</button>
+          <button class="tabBtn" data-tab="stats">Estadística</button>
+          <button class="tabBtn" data-tab="geometria">Geometría</button>
+          <button class="tabBtn" data-tab="compare">Comparar</button>
+          <button class="tabBtn" data-tab="report">Informe</button>
+        </div>
+        <div class="panelBody">
+          <section class="tabPanel active" id="tab-capas">
+            <div class="stack">
+              <div class="figureBox" id="figureBox"><div style="width:94px;height:72px;border-radius:12px;background:#0b1220;display:grid;place-items:center;color:#64748b">sin</div><div><b>Sin figura asociada</b><div class="tiny">Selecciona un CP de la biblioteca.</div></div></div>
+              <div>
+                <h4 style="margin:0 0 8px">Capas visibles</h4>
+                <div class="checkList" id="layerChecks"></div>
+              </div>
+              <div>
+                <h4 style="margin:0 0 8px">Leyenda editable</h4>
+                <div class="legendGrid" id="legendGrid"></div>
+              </div>
+              <div class="row">
+                <div class="field" style="width:110px"><label for="paperSizeInput">Papel mm</label><input type="number" id="paperSizeInput" value="240" min="10" /></div>
+                <div class="field" style="flex:1"><label for="collapseRange">Colapso visual</label><input type="range" id="collapseRange" min="0" max="100" value="0" /></div>
+              </div>
+              <div class="row">
+                <button id="saveAnnBtn">💾 Guardar anotaciones</button>
+                <button id="loadAnnBtn">↩️ Cargar</button>
+                <button class="danger" id="clearAnnBtn">Borrar marcas</button>
+              </div>
+              <div id="selectedLineBox" class="hint">Herramienta “Editar”: toca una línea detectada o manual para cambiar su tipo.</div>
+            </div>
+          </section>
+
+          <section class="tabPanel" id="tab-stats">
+            <div class="stack">
+              <div class="metrics" id="metricsBox"></div>
+              <div>
+                <h4 style="margin:0 0 8px">Mapa de dificultad 🔥</h4>
+                <div class="heatmap" id="heatmap"></div>
+                <p class="hint" id="difficultyText">Sin datos todavía.</p>
+              </div>
+              <div>
+                <h4 style="margin:0 0 8px">Simetría 🪞</h4>
+                <div id="symmetryBox" class="hint">Pendiente de análisis.</div>
+              </div>
+              <div>
+                <h4 style="margin:0 0 8px">Reconstrucción aproximada 📚</h4>
+                <div class="guideSteps" id="guideSteps"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tabPanel" id="tab-geometria">
+            <div class="stack">
+              <div class="hint">Kawasaki y Maekawa se calculan sobre líneas detectadas. Es una aproximación: conviene corregir manualmente las líneas importantes.</div>
+              <div class="row"><button id="quizBtn">🎓 Nuevo reto</button><button id="copyGeomBtn">Copiar tabla</button></div>
+              <div id="quizBox" class="metric"><span>Modo aprendizaje</span><b style="font-size:1rem">Analiza un CP y genera un reto.</b></div>
+              <div style="max-height:360px;overflow:auto"><table class="tableMini" id="vertexTable"></table></div>
+            </div>
+          </section>
+
+          <section class="tabPanel" id="tab-compare">
+            <div class="stack">
+              <div class="field"><label for="compareA">CP 1</label><select id="compareA"></select></div>
+              <div class="field"><label for="compareB">CP 2</label><select id="compareB"></select></div>
+              <button class="primary" id="compareBtn">🔍 Comparar patrones</button>
+              <div id="compareBox" class="hint">Selecciona dos crease patterns para comparar número de líneas, densidad, simetría, proporción montaña/valle y dificultad.</div>
+            </div>
+          </section>
+
+          <section class="tabPanel" id="tab-report">
+            <div class="stack">
+              <div class="row"><button id="makeReportBtn" class="primary">📝 Crear informe</button><button id="copyReportBtn">Copiar</button><button id="downloadReportBtn">Descargar TXT</button></div>
+              <textarea id="reportText" placeholder="El informe aparecerá aquí..."></textarea>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <strong>Origami CP Analyzer</strong> · herramienta educativa y experimental para analizar crease patterns. Los enlaces e imágenes proceden del JSON local <span class="kbd">json/lang_origami_cp_figuras.json</span>. El análisis automático es orientativo: confirma las líneas críticas antes de plegar, imprimir o publicar resultados. © <span id="year"></span> Ángel Soto.
+    </footer>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+  (() => {
+    'use strict';
+    const JSON_PATHS = [
+      'json/lang_origami_cp_figuras.json',
+      './json/lang_origami_cp_figuras.json',
+      '/vet/json/lang_origami_cp_figuras.json',
+      '/json/lang_origami_cp_figuras.json'
+    ];
+    const LAYER_NAMES = {
+      mountain:'montaña', valley:'valle', reference:'referencia', aux:'auxiliar', grid:'cuadrícula', cut:'cortes', intersections:'intersecciones', vertices:'vértices', annotations:'anotaciones'
+    };
+    const DEFAULT_COLORS = {mountain:'#ef4444', valley:'#22c55e', reference:'#94a3b8', aux:'#60a5fa', grid:'#b7c1cc', cut:'#111827', intersections:'#fbbf24', vertices:'#f97316', annotations:'#ffffff'};
+    const state = {
+      cps:[], filtered:[], cp:null, image:null, imageSrc:null, imageOrigin:'json',
+      scale:1, ox:0, oy:0, dragging:false, dragStart:null, tool:'pan',
+      lines:[], intersections:[], vertices:[], annotations:[], measurePoints:[], anglePoints:[], manualPoints:[],
+      layers:{mountain:true,valley:true,reference:true,aux:true,grid:true,cut:true,intersections:true,vertices:true,annotations:true},
+      colors:{...DEFAULT_COLORS}, labels:{mountain:'Línea roja: pliegue montaña',valley:'Línea verde: pliegue valle',reference:'Gris/punteado: referencia o bisectriz',aux:'Azul: pliegue auxiliar',grid:'Cuadrícula base',cut:'Corte/borde negro',intersections:'Intersecciones detectadas',vertices:'Vértices principales',annotations:'Marcas manuales'},
+      stats:null, symmetry:null, geometry:[], selectedLine:null, collapse:0, lastReport:'', analysisBitmap:null
+    };
+    const $ = id => document.getElementById(id);
+    const canvas = $('cpCanvas');
+    const ctx = canvas.getContext('2d', {alpha:false});
+    const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+    function toast(msg, type='info'){
+      const el = $('toast');
+      el.textContent = msg;
+      el.style.borderLeftColor = type === 'bad' ? 'var(--bad)' : type === 'ok' ? 'var(--ok)' : type === 'warn' ? 'var(--warn)' : 'var(--accent)';
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 4200);
+    }
+    function setLoader(v){ $('loader').classList.toggle('show', !!v); }
+    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+    function cleanTitle(t){ return String(t || '').replace(/\s+/g,' ').trim(); }
+    function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+    function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+    function downloadText(filename, text, mime='text/plain'){
+      const blob = new Blob([text], {type:mime});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 800);
+    }
+    function median(arr){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+
+    function init(){
+      $('year').textContent = new Date().getFullYear();
+      buildLayerChecks(); buildLegend(); buildMetrics(null); buildGuide(null); bindEvents(); resizeCanvas(); loadJson();
+      window.addEventListener('resize', () => { resizeCanvas(); render(); });
+    }
+
+    function buildLayerChecks(){
+      const box = $('layerChecks'); box.innerHTML = '';
+      Object.keys(state.layers).forEach(k => {
+        const row = document.createElement('label'); row.className = 'checkItem';
+        row.innerHTML = `<input type="checkbox" data-layer="${k}" ${state.layers[k]?'checked':''}> <span>${LAYER_NAMES[k] || k}</span>`;
+        box.appendChild(row);
+      });
+      box.addEventListener('change', e => {
+        const k = e.target.dataset.layer; if(!k) return;
+        state.layers[k] = e.target.checked; render();
+      });
+    }
+    function buildLegend(){
+      const box = $('legendGrid'); box.innerHTML = '';
+      Object.keys(state.colors).forEach(k => {
+        const inp = document.createElement('input'); inp.value = state.labels[k] || k; inp.dataset.label = k;
+        const color = document.createElement('input'); color.type = 'color'; color.value = state.colors[k]; color.dataset.color = k;
+        const sw = document.createElement('div'); sw.className='swatch'; sw.style.background=state.colors[k];
+        box.append(inp,color,sw);
+      });
+      box.addEventListener('input', e => {
+        if(e.target.dataset.color){ state.colors[e.target.dataset.color]=e.target.value; buildLegend(); render(); }
+        if(e.target.dataset.label){ state.labels[e.target.dataset.label]=e.target.value; }
+      });
+    }
+
+    async function loadJson(){
+      $('jsonStatus').textContent='📦 cargando JSON...';
+      for(const path of JSON_PATHS){
+        try{
+          const res = await fetch(path, {cache:'no-store'});
+          if(!res.ok) throw new Error(res.status+' '+res.statusText);
+          const data = await res.json();
+          if(!Array.isArray(data)) throw new Error('El JSON no es una lista');
+          state.cps = data.map((d,i)=>({...d, _idx:i, tituloCP: cleanTitle(d.tituloCP || d.titulo || d.id || ('CP '+(i+1)))}));
+          $('jsonStatus').textContent='📦 JSON cargado'; $('cpCount').textContent = `${state.cps.length} CP`;
+          populateFilters(); applyFilter(); populateCompareSelects();
+          if(state.cps.length) loadCP(state.cps[0]);
+          toast(`JSON cargado desde ${path}`, 'ok');
+          return;
+        }catch(err){ console.warn('JSON path failed', path, err); }
+      }
+      $('jsonStatus').textContent='⚠️ JSON no encontrado';
+      toast('No se pudo cargar json/lang_origami_cp_figuras.json. Revisa que esté en la carpeta /json del repositorio.', 'bad');
+    }
+    function populateFilters(){
+      const tags = new Set();
+      state.cps.forEach(cp => (cp.figuraCaracteristicas || []).forEach(t => tags.add(t)));
+      const sel = $('tagSelect'); sel.innerHTML = '<option value="">Todas</option>' + [...tags].sort().map(t => `<option>${esc(t)}</option>`).join('');
+    }
+    function applyFilter(){
+      const q = $('searchInput').value.trim().toLowerCase();
+      const tag = $('tagSelect').value;
+      let arr = state.cps.filter(cp => {
+        const text = [cp.tituloCP, cp.figura, cp.slugCP, ...(cp.figuraCaracteristicas || [])].join(' ').toLowerCase();
+        return (!q || text.includes(q)) && (!tag || (cp.figuraCaracteristicas || []).includes(tag));
+      });
+      const sort = $('sortSelect').value;
+      if(sort==='matched') arr.sort((a,b)=>(b.matchFigura?.encontrado?1:0)-(a.matchFigura?.encontrado?1:0) || a.tituloCP.localeCompare(b.tituloCP));
+      else if(sort==='recent') arr.sort((a,b)=>(b.imagenCP||'').localeCompare(a.imagenCP||''));
+      else arr.sort((a,b)=>a.tituloCP.localeCompare(b.tituloCP));
+      state.filtered = arr; renderLibrary();
+    }
+    function renderLibrary(){
+      const box = $('libraryList');
+      box.innerHTML = state.filtered.map(cp => {
+        const active = state.cp && state.cp.id === cp.id ? 'active' : '';
+        const tags = (cp.figuraCaracteristicas || []).slice(0,5).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+        return `<article class="cpCard ${active}" data-id="${esc(cp.id)}">
+          <img src="${esc(cp.imagenCPThumb || cp.imagenCP || '')}" alt="${esc(cp.tituloCP)}" loading="lazy">
+          <div><h4>${esc(cp.tituloCP)}</h4><div class="tiny">${cp.figura ? 'figura: '+esc(cp.figura) : 'sin figura asociada'}</div><div class="tagline">${tags}</div></div>
+        </article>`;
+      }).join('') || '<div class="hint">Sin resultados.</div>';
+    }
+    function populateCompareSelects(){
+      const html = state.cps.map(cp => `<option value="${esc(cp.id)}">${esc(cp.tituloCP)}</option>`).join('');
+      $('compareA').innerHTML = html; $('compareB').innerHTML = html;
+      if(state.cps[1]) $('compareB').value = state.cps[1].id;
+    }
+
+    async function loadCP(cp){
+      if(!cp) return;
+      setLoader(true);
+      try{
+        state.cp = cp; state.imageOrigin = 'json'; state.imageSrc = cp.imagenCP; resetAnalysis(false); updateCurrentInfo();
+        await loadImageToState(cp.imagenCP, true);
+        fitToView(); loadAnnotations(); renderLibrary(); render();
+        toast(`CP cargado: ${cp.tituloCP}`, 'ok');
+      }catch(err){ toast('No se pudo cargar la imagen del CP. Prueba con la imagen local subida.\n'+err.message, 'bad'); }
+      finally{ setLoader(false); }
+    }
+    function loadImageToState(src, crossOrigin=true){
+      return new Promise((resolve,reject) => {
+        const img = new Image();
+        if(crossOrigin) img.crossOrigin = 'anonymous';
+        img.onload = () => { state.image = img; resolve(img); };
+        img.onerror = () => reject(new Error('Error de carga de imagen'));
+        img.src = src;
+      });
+    }
+    function updateCurrentInfo(){
+      const cp = state.cp;
+      $('currentTitle').textContent = cp ? cp.tituloCP : 'Visor técnico';
+      const box = $('figureBox');
+      if(!cp){ box.innerHTML = '<div style="width:94px;height:72px;border-radius:12px;background:#0b1220"></div><div><b>Sin CP</b></div>'; return; }
+      if(cp.figuraImagen){
+        const tags = (cp.figuraCaracteristicas || []).slice(0,7).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+        box.innerHTML = `<img src="${esc(cp.figuraImagenThumb || cp.figuraImagen)}" alt="${esc(cp.figura || cp.tituloCP)}"><div><b>${esc(cp.figura || 'Figura asociada')}</b><div class="tiny"><a href="${esc(cp.enlaceFigura || '#')}" target="_blank" rel="noopener">ver figura</a> · <a href="${esc(cp.enlaceCP || '#')}" target="_blank" rel="noopener">ver CP</a></div><div class="tagline">${tags}</div></div>`;
+      }else{
+        box.innerHTML = `<div style="width:94px;height:72px;border-radius:12px;background:#0b1220;display:grid;place-items:center;color:#64748b">CP</div><div><b>${esc(cp.tituloCP)}</b><div class="tiny"><a href="${esc(cp.enlaceCP || '#')}" target="_blank" rel="noopener">ver CP original</a></div><div class="tagline"><span class="tag">sin figura</span></div></div>`;
+      }
+    }
+    function resetAnalysis(resetAnn=true){
+      state.lines=[]; state.intersections=[]; state.vertices=[]; state.stats=null; state.symmetry=null; state.geometry=[]; state.measurePoints=[]; state.anglePoints=[]; state.manualPoints=[]; state.selectedLine=null; state.lastReport='';
+      if(resetAnn) state.annotations=[];
+      $('analysisStatus').textContent='🧠 sin análisis';
+      buildMetrics(null); renderHeatmap(null); renderSymmetry(null); renderVertexTable(); buildGuide(null); $('reportText').value=''; updateSelectedLineBox();
+    }
+
+    function resizeCanvas(){
+      const rect = $('canvasWrap').getBoundingClientRect();
+      canvas.width = Math.max(320, Math.floor(rect.width * DPR));
+      canvas.height = Math.max(320, Math.floor(rect.height * DPR));
+      canvas.style.width = rect.width+'px'; canvas.style.height = rect.height+'px';
+    }
+    function canvasSize(){ return {w:canvas.width/DPR, h:canvas.height/DPR}; }
+    function fitToView(){
+      if(!state.image) return;
+      const {w,h} = canvasSize();
+      const pad = 28;
+      state.scale = Math.min((w-pad*2)/state.image.naturalWidth, (h-pad*2)/state.image.naturalHeight);
+      state.scale = Math.max(.05, state.scale);
+      state.ox = (w - state.image.naturalWidth * state.scale)/2;
+      state.oy = (h - state.image.naturalHeight * state.scale)/2;
+      updateHud();
+    }
+    function toScreen(p){ return {x:p.x*state.scale+state.ox, y:p.y*state.scale+state.oy}; }
+    function toImage(p){ return {x:(p.x-state.ox)/state.scale, y:(p.y-state.oy)/state.scale}; }
+    function getMouse(e){
+      const r = canvas.getBoundingClientRect();
+      const touch = e.touches && e.touches[0];
+      return {x:(touch ? touch.clientX : e.clientX)-r.left, y:(touch ? touch.clientY : e.clientY)-r.top};
+    }
+    function updateHud(){ $('hudRight').textContent = `Escala: ${Math.round(state.scale*100)}%`; }
+
+    function render(){
+      const {w,h} = canvasSize();
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      ctx.fillStyle='#05070b'; ctx.fillRect(0,0,w,h);
+      if(!state.image){
+        ctx.fillStyle='#94a3b8'; ctx.font='16px system-ui'; ctx.textAlign='center';
+        ctx.fillText('Carga un crease pattern desde el JSON o desde tu equipo', w/2, h/2);
+        return;
+      }
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(state.image, state.ox, state.oy, state.image.naturalWidth*state.scale, state.image.naturalHeight*state.scale);
+      drawLines(); drawIntersections(); drawVertices(); drawAnnotations(); drawMeasureTools();
+      ctx.restore(); updateHud();
+    }
+    function drawLines(){
+      const collapse = state.collapse / 100;
+      for(const line of state.lines){
+        if(!state.layers[line.tipo]) continue;
+        let a = {x:line.x1, y:line.y1}, b = {x:line.x2, y:line.y2};
+        if(collapse){ [a,b] = collapseLine(line, collapse); }
+        const p1 = toScreen(a), p2 = toScreen(b);
+        ctx.save();
+        ctx.strokeStyle = state.colors[line.tipo] || '#fff';
+        ctx.lineWidth = line.manual ? 2.8 : 1.7;
+        ctx.globalAlpha = line.tipo === 'grid' ? .55 : .92;
+        if(line.dashed || line.tipo==='reference') ctx.setLineDash([8,6]);
+        if(line === state.selectedLine){ ctx.lineWidth = 5; ctx.globalAlpha = 1; }
+        ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    function collapseLine(line, c){
+      const img = state.image; const cx=img.naturalWidth/2, cy=img.naturalHeight/2;
+      const sign = line.tipo === 'mountain' ? 1 : line.tipo === 'valley' ? -1 : .25;
+      const amp = sign * c * .032;
+      const warp = p => ({x:p.x + (p.x-cx)*amp, y:p.y + (p.y-cy)*amp});
+      return [warp({x:line.x1,y:line.y1}), warp({x:line.x2,y:line.y2})];
+    }
+    function drawIntersections(){
+      if(!state.layers.intersections) return;
+      ctx.save(); ctx.fillStyle = state.colors.intersections;
+      state.intersections.slice(0,2500).forEach(p => { const s=toScreen(p); ctx.beginPath(); ctx.arc(s.x,s.y,2.2,0,Math.PI*2); ctx.fill(); }); ctx.restore();
+    }
+    function drawVertices(){
+      if(!state.layers.vertices) return;
+      ctx.save(); ctx.strokeStyle = state.colors.vertices; ctx.fillStyle='rgba(249,115,22,.18)'; ctx.lineWidth=1.5;
+      state.vertices.forEach((v,i) => { const s=toScreen(v); const r = v.important ? 7 : 4.5; ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); if(i<40){ ctx.fillStyle='#fff'; ctx.font='10px system-ui'; ctx.fillText('V'+(i+1), s.x+6, s.y-6); ctx.fillStyle='rgba(249,115,22,.18)'; }});
+      ctx.restore();
+    }
+    function drawAnnotations(){
+      if(!state.layers.annotations) return;
+      ctx.save(); ctx.fillStyle = state.colors.annotations; ctx.strokeStyle='#111827'; ctx.lineWidth=3; ctx.font='12px system-ui';
+      state.annotations.forEach(a => { const s=toScreen(a); ctx.beginPath(); ctx.arc(s.x,s.y,5,0,Math.PI*2); ctx.stroke(); ctx.fill(); ctx.fillText(a.label || 'vértice', s.x+8, s.y-8); });
+      ctx.restore();
+    }
+    function drawMeasureTools(){
+      ctx.save(); ctx.strokeStyle='#fef08a'; ctx.fillStyle='#fef08a'; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+      if(state.measurePoints.length){ state.measurePoints.forEach(p=>{ const s=toScreen(p); ctx.beginPath(); ctx.arc(s.x,s.y,4,0,Math.PI*2); ctx.fill(); }); if(state.measurePoints.length===2){ const [a,b]=state.measurePoints.map(toScreen); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); const px=dist(state.measurePoints[0],state.measurePoints[1]); const mm=pxToMm(px); labelAt((a.x+b.x)/2,(a.y+b.y)/2,`${px.toFixed(1)} px${mm?` · ${mm}`:''}`); }}
+      if(state.anglePoints.length){ state.anglePoints.forEach(p=>{ const s=toScreen(p); ctx.beginPath(); ctx.arc(s.x,s.y,4,0,Math.PI*2); ctx.fill(); }); if(state.anglePoints.length===3){ const [a,b,c]=state.anglePoints; const A=toScreen(a), B=toScreen(b), C=toScreen(c); ctx.beginPath(); ctx.moveTo(B.x,B.y); ctx.lineTo(A.x,A.y); ctx.moveTo(B.x,B.y); ctx.lineTo(C.x,C.y); ctx.stroke(); labelAt(B.x+10,B.y+10,`${angleABC(a,b,c).toFixed(1)}°`); }}
+      if(state.manualPoints.length){ state.manualPoints.forEach(p=>{ const s=toScreen(p); ctx.beginPath(); ctx.arc(s.x,s.y,5,0,Math.PI*2); ctx.fill(); }); }
+      ctx.restore();
+    }
+    function labelAt(x,y,t){ ctx.save(); ctx.setLineDash([]); ctx.font='12px system-ui'; const m=ctx.measureText(t); ctx.fillStyle='rgba(5,7,11,.85)'; ctx.fillRect(x-5,y-17,m.width+10,22); ctx.fillStyle='#fef08a'; ctx.fillText(t,x,y); ctx.restore(); }
+    function pxToMm(px){ const paper = parseFloat($('paperSizeInput').value || '0'); if(!state.image || !paper) return ''; const mm = px * paper / Math.max(state.image.naturalWidth, state.image.naturalHeight); return `${mm.toFixed(1)} mm`; }
+    function angleABC(a,b,c){ const ab=Math.atan2(a.y-b.y,a.x-b.x), cb=Math.atan2(c.y-b.y,c.x-b.x); let d=Math.abs((ab-cb)*180/Math.PI); return d>180?360-d:d; }
+
+    function bindEvents(){
+      $('reloadJsonBtn').onclick = loadJson;
+      $('searchInput').addEventListener('input', applyFilter); $('tagSelect').addEventListener('change', applyFilter); $('sortSelect').addEventListener('change', applyFilter);
+      $('libraryList').addEventListener('click', e => { const card=e.target.closest('.cpCard'); if(card) loadCP(state.cps.find(c=>c.id===card.dataset.id)); });
+      $('randomBtn').onclick=()=>{ if(state.filtered.length) loadCP(state.filtered[Math.floor(Math.random()*state.filtered.length)]); };
+      $('uploadBtn').onclick=()=>$('fileInput').click();
+      $('fileInput').addEventListener('change', e => loadLocalFile(e.target.files[0]));
+      $('fitBtn').onclick=()=>{fitToView();render();}; $('clearBtn').onclick=()=>{resetAnalysis(false);render();};
+      $('analyzeBtn').onclick=analyzeCurrent; $('geomBtn').onclick=analyzeGeometry; $('svgBtn').onclick=exportSVG; $('jsonBtn').onclick=exportJSON;
+      $('printBtn').onclick=()=>window.print(); $('makeReportBtn').onclick=()=>{ $('reportText').value = makeReport(); switchTab('report'); };
+      $('copyReportBtn').onclick=()=>copyText($('reportText').value || makeReport()); $('downloadReportBtn').onclick=()=>downloadText(safeName()+'_informe.txt', $('reportText').value || makeReport());
+      $('saveAnnBtn').onclick=saveAnnotations; $('loadAnnBtn').onclick=loadAnnotations; $('clearAnnBtn').onclick=()=>{state.annotations=[];saveAnnotations();render();};
+      $('copyGeomBtn').onclick=copyGeometry; $('quizBtn').onclick=makeQuiz;
+      $('compareBtn').onclick=comparePatterns;
+      $('collapseRange').addEventListener('input', e=>{ state.collapse = +e.target.value; render(); });
+      $('tabs').addEventListener('click', e=>{ const b=e.target.closest('.tabBtn'); if(b) switchTab(b.dataset.tab); });
+      $('toolBar').addEventListener('click', e=>{ const b=e.target.closest('button[data-tool]'); if(b) setTool(b.dataset.tool); });
+      canvas.addEventListener('mousedown', pointerDown); canvas.addEventListener('mousemove', pointerMove); canvas.addEventListener('mouseup', pointerUp); canvas.addEventListener('mouseleave', pointerUp);
+      canvas.addEventListener('touchstart', pointerDown, {passive:false}); canvas.addEventListener('touchmove', pointerMove, {passive:false}); canvas.addEventListener('touchend', pointerUp);
+      canvas.addEventListener('wheel', wheelZoom, {passive:false}); canvas.addEventListener('dblclick', ()=>{fitToView();render();});
+      window.addEventListener('keydown', e => { if(e.key==='Escape'){ state.measurePoints=[];state.anglePoints=[];state.manualPoints=[];state.selectedLine=null;updateSelectedLineBox();render(); } });
+    }
+    function switchTab(tab){ document.querySelectorAll('.tabBtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab)); document.querySelectorAll('.tabPanel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+tab)); }
+    function setTool(t){ state.tool=t; document.querySelectorAll('#toolBar button[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t)); $('hudLeft').textContent = toolHelp(t); }
+    function toolHelp(t){ return {pan:'Arrastra para desplazar. Rueda o pellizco: zoom.',marker:'Toca un punto para marcar un vértice importante.',measure:'Toca dos puntos para medir distancia.',angle:'Toca tres puntos para medir un ángulo.',manualLine:'Toca dos puntos para añadir una línea manual del tipo elegido.',editLine:'Toca una línea para cambiar tipo, borrar o corregir.',learn:'Pasa el ratón o toca una línea/vértice para explicación.'}[t] || ''; }
+    async function loadLocalFile(file){
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      state.cp = {id:'local-'+Date.now(), tituloCP:file.name, imagenCP:url, imagenCPThumb:url, figura:null, figuraCaracteristicas:[]};
+      state.imageOrigin='local'; state.imageSrc=url; resetAnalysis(); updateCurrentInfo(); setLoader(true);
+      await loadImageToState(url, false); fitToView(); render(); setLoader(false); toast('Imagen local cargada. El análisis por píxeles estará disponible.', 'ok');
+    }
+
+    function pointerDown(e){
+      if(!state.image) return; e.preventDefault(); const p=getMouse(e), ip=toImage(p);
+      if(state.tool==='pan'){ state.dragging=true; state.dragStart={p,ox:state.ox,oy:state.oy}; canvas.classList.add('grabbing'); return; }
+      if(state.tool==='marker'){ const label = prompt('Nombre de la marca / vértice:', 'vértice importante'); state.annotations.push({...ip,label:label||'vértice'}); render(); return; }
+      if(state.tool==='measure'){ state.measurePoints.push(ip); if(state.measurePoints.length>2) state.measurePoints=[ip]; render(); return; }
+      if(state.tool==='angle'){ state.anglePoints.push(ip); if(state.anglePoints.length>3) state.anglePoints=[ip]; render(); return; }
+      if(state.tool==='manualLine'){ state.manualPoints.push(ip); if(state.manualPoints.length===2){ const [a,b]=state.manualPoints; state.lines.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,tipo:$('manualTypeSelect').value,manual:true,dashed:false,score:1}); state.manualPoints=[]; recomputeAfterLineChange(); } render(); return; }
+      if(state.tool==='editLine'){ state.selectedLine = nearestLine(ip, 18 / state.scale); updateSelectedLineBox(); render(); return; }
+      if(state.tool==='learn'){ updateLearning(ip, p); }
+    }
+    function pointerMove(e){
+      if(!state.image) return; const p=getMouse(e); if(e.cancelable) e.preventDefault();
+      if(state.dragging){ state.ox = state.dragStart.ox + p.x - state.dragStart.p.x; state.oy = state.dragStart.oy + p.y - state.dragStart.p.y; render(); return; }
+      if(state.tool==='learn'){ updateLearning(toImage(p), p); }
+    }
+    function pointerUp(){ state.dragging=false; canvas.classList.remove('grabbing'); }
+    function wheelZoom(e){
+      if(!state.image) return; e.preventDefault(); const p=getMouse(e); const before=toImage(p); const factor=Math.exp(-e.deltaY*0.0014); state.scale=clamp(state.scale*factor,.03,18); state.ox=p.x-before.x*state.scale; state.oy=p.y-before.y*state.scale; render();
+    }
+
+    function updateSelectedLineBox(){
+      const box=$('selectedLineBox'); const l=state.selectedLine;
+      if(!l){ box.innerHTML='Herramienta “Editar”: toca una línea detectada o manual para cambiar su tipo.'; return; }
+      box.innerHTML = `<div class="stack"><b>Línea seleccionada</b><div class="tiny">Longitud: ${lineLength(l).toFixed(1)} px · tipo actual: ${esc(LAYER_NAMES[l.tipo]||l.tipo)}</div><div class="row"><select id="editType"><option value="mountain">Montaña</option><option value="valley">Valle</option><option value="reference">Referencia</option><option value="aux">Auxiliar</option><option value="grid">Cuadrícula</option><option value="cut">Corte</option></select><button class="small" id="applyLineType">Aplicar</button><button class="small danger" id="deleteLine">Borrar</button></div></div>`;
+      $('editType').value = l.tipo;
+      $('applyLineType').onclick = () => { l.tipo = $('editType').value; recomputeAfterLineChange(); updateSelectedLineBox(); render(); };
+      $('deleteLine').onclick = () => { state.lines = state.lines.filter(x=>x!==l); state.selectedLine=null; recomputeAfterLineChange(); updateSelectedLineBox(); render(); };
+    }
+    function lineLength(l){ return Math.hypot(l.x2-l.x1,l.y2-l.y1); }
+    function nearestLine(p, maxD){ let best=null, bd=maxD; for(const l of state.lines){ const d=distPointSegment(p,l); if(d<bd){bd=d;best=l;} } return best; }
+    function distPointSegment(p,l){ const ax=l.x1,ay=l.y1,bx=l.x2,by=l.y2; const dx=bx-ax,dy=by-ay; const len2=dx*dx+dy*dy; if(!len2) return Math.hypot(p.x-ax,p.y-ay); const t=clamp(((p.x-ax)*dx+(p.y-ay)*dy)/len2,0,1); return Math.hypot(p.x-(ax+t*dx), p.y-(ay+t*dy)); }
+
+    function updateLearning(ip, sp){
+      const tip=$('tooltip'); const l=nearestLine(ip, 14/state.scale);
+      const v=nearestVertex(ip, 14/state.scale);
+      let html='';
+      if(v) html = `<b>Vértice detectado</b><br>Coordenadas: ${v.x.toFixed(0)}, ${v.y.toFixed(0)}<br>${v.maekawa ? `Maekawa: ${v.maekawa.ok?'correcto':'dudoso'} · Kawasaki error ${v.kawasaki?.errorDeg?.toFixed(1) || '?'}°` : 'Pendiente de comprobación geométrica.'}`;
+      else if(l) html = `<b>${esc(state.labels[l.tipo] || l.tipo)}</b><br>Longitud: ${lineLength(l).toFixed(1)} px<br>${l.dashed?'Parece discontinua/punteada.':'Línea continua.'}<br>Clase: ${esc(LAYER_NAMES[l.tipo] || l.tipo)}`;
+      else html='';
+      if(html){ tip.innerHTML=html; tip.style.left=(sp.x+18)+'px'; tip.style.top=(sp.y+18)+'px'; tip.style.display='block'; } else tip.style.display='none';
+    }
+    function nearestVertex(p,maxD){ let best=null,bd=maxD; for(const v of state.vertices){ const d=Math.hypot(p.x-v.x,p.y-v.y); if(d<bd){bd=d;best=v;} } return best; }
+
+    async function analyzeCurrent(){
+      if(!state.image){ toast('Carga primero una imagen.', 'warn'); return; }
+      setLoader(true); $('analysisStatus').textContent='🧠 analizando...';
+      await new Promise(r=>setTimeout(r,40));
+      try{
+        const result = analyzeImageCore(state.image);
+        state.lines = result.lines; state.intersections = result.intersections; state.vertices = result.vertices; state.stats = result.stats; state.symmetry = result.symmetry; state.analysisBitmap = result.bitmap;
+        analyzeGeometry(false); buildMetrics(state.stats); renderHeatmap(state.stats); renderSymmetry(state.symmetry); buildGuide(state.stats); render();
+        $('analysisStatus').textContent=`🧠 ${state.lines.length} líneas`;
+        toast(`Análisis completado: ${state.lines.length} líneas, ${state.vertices.length} vértices.`, 'ok');
+      }catch(err){ $('analysisStatus').textContent='⚠️ análisis bloqueado'; toast('No se pudo leer la imagen en Canvas. Probable bloqueo CORS si procede del JSON externo. Solución: descarga/sube la imagen manualmente.\n\n'+err.message, 'bad'); }
+      finally{ setLoader(false); }
+    }
+
+    function analyzeImageCore(img, options={}){
+      const maxSide = options.maxSide || 1000;
+      const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(64, Math.round(img.naturalWidth * ratio));
+      const h = Math.max(64, Math.round(img.naturalHeight * ratio));
+      const off = document.createElement('canvas'); off.width=w; off.height=h;
+      const c = off.getContext('2d', {willReadFrequently:true});
+      c.fillStyle='#fff'; c.fillRect(0,0,w,h); c.drawImage(img,0,0,w,h);
+      let data;
+      try{ data = c.getImageData(0,0,w,h).data; }catch(e){ throw new Error('Canvas contaminado por CORS: '+e.message); }
+      const masks = classifyPixels(data,w,h);
+      const lines = [];
+      const cfg = [
+        ['mountain',masks.mountain,44],['valley',masks.valley,44],['aux',masks.aux,34],['reference',masks.reference,44],['grid',masks.grid,70],['cut',masks.cut,24]
+      ];
+      for(const [tipo,pts,max] of cfg){ lines.push(...detectLinesHough(pts,w,h,tipo,max,ratio)); }
+      const merged = mergeLines(lines, img.naturalWidth, img.naturalHeight);
+      const intersections = findIntersections(merged, img.naturalWidth, img.naturalHeight);
+      const vertices = clusterPoints(intersections, Math.max(5, Math.min(img.naturalWidth,img.naturalHeight)*0.006));
+      const symmetry = detectSymmetry(masks.all,w,h);
+      const stats = buildStats(merged, intersections, vertices, symmetry, img);
+      return {lines:merged, intersections, vertices, symmetry, stats, bitmap:{w,h,ratio}};
+    }
+    function classifyPixels(data,w,h){
+      const out={mountain:[],valley:[],aux:[],reference:[],grid:[],cut:[],all:[]};
+      const step = Math.max(1, Math.floor(Math.max(w,h)/850));
+      for(let y=0;y<h;y+=step){
+        for(let x=0;x<w;x+=step){
+          const i=(y*w+x)*4, r=data[i], g=data[i+1], b=data[i+2], a=data[i+3]; if(a<40) continue;
+          const mx=Math.max(r,g,b), mn=Math.min(r,g,b), sat=mx-mn, light=(mx+mn)/2;
+          let tipo=null;
+          if(r>105 && r>g*1.18 && r>b*1.16 && r-g>20 && r-b>18) tipo='mountain';
+          else if(g>92 && g>r*1.08 && g>b*1.04 && g-r>10) tipo='valley';
+          else if(b>105 && b>r*1.10 && b>g*1.05 && b-r>16) tipo='aux';
+          else if(mx<70 && sat<40) tipo='cut';
+          else if(sat<18 && light>176 && light<246) tipo='grid';
+          else if(sat<28 && light>65 && light<210) tipo='reference';
+          if(tipo){ out[tipo].push({x,y}); out.all.push({x,y}); }
+        }
+      }
+      return out;
+    }
+    function detectLinesHough(points,w,h,tipo,maxLines,ratio){
+      if(points.length < 25) return [];
+      const sampleMax = tipo==='grid' ? 14000 : 9000;
+      const stride = Math.max(1, Math.ceil(points.length/sampleMax));
+      const pts=[]; for(let i=0;i<points.length;i+=stride) pts.push(points[i]);
+      const diag = Math.hypot(w,h), rhoStep = Math.max(4, Math.round(diag/240));
+      const angleStep = 3, acc = new Map();
+      const angles=[];
+      for(let deg=0;deg<180;deg+=angleStep){ const rad=deg*Math.PI/180; angles.push({deg,cos:Math.cos(rad),sin:Math.sin(rad)}); }
+      for(const p of pts){
+        for(let ai=0; ai<angles.length; ai++){
+          const a=angles[ai]; const rho=p.x*a.cos + p.y*a.sin; const rb=Math.round((rho+diag)/rhoStep);
+          const key=ai+'|'+rb; acc.set(key,(acc.get(key)||0)+1);
+        }
+      }
+      const threshold = Math.max(18, Math.min(90, Math.round(pts.length * (tipo==='grid'?.010:.014))));
+      const candidates=[];
+      acc.forEach((count,key)=>{ if(count>=threshold){ const [ai,rb]=key.split('|').map(Number); candidates.push({ai, rb, count}); }});
+      candidates.sort((a,b)=>b.count-a.count);
+      const selected=[];
+      for(const cand of candidates){
+        if(selected.length >= maxLines*3) break;
+        const a=angles[cand.ai]; const rho = cand.rb*rhoStep - diag;
+        const similar = selected.some(s => Math.abs(s.a.deg-a.deg)<6 && Math.abs(s.rho-rho)<rhoStep*3);
+        if(!similar) selected.push({a,rho,count:cand.count});
+      }
+      const lines=[];
+      for(const s of selected){
+        const near=[]; const dir={x:-s.a.sin,y:s.a.cos};
+        for(const p of pts){ const d=Math.abs(p.x*s.a.cos+p.y*s.a.sin-s.rho); if(d<=rhoStep*1.2){ const proj=p.x*dir.x+p.y*dir.y; near.push({p,proj}); } }
+        if(near.length < threshold) continue;
+        near.sort((a,b)=>a.proj-b.proj);
+        const span = near[near.length-1].proj - near[0].proj;
+        if(span < Math.min(w,h)*0.07) continue;
+        const bins = Math.max(4, Math.ceil(span/7)); const filled = new Set();
+        near.forEach(n => filled.add(Math.max(0,Math.min(bins-1,Math.floor((n.proj-near[0].proj)/span*bins)))));
+        const occupancy = filled.size / bins;
+        const p1 = pointOnLine(s.a, s.rho, dir, near[0].proj);
+        const p2 = pointOnLine(s.a, s.rho, dir, near[near.length-1].proj);
+        lines.push({x1:p1.x/ratio,y1:p1.y/ratio,x2:p2.x/ratio,y2:p2.y/ratio,tipo,dashed:occupancy<.58,score:s.count,thetaDeg:s.a.deg,manual:false,occupancy:+occupancy.toFixed(2)});
+      }
+      lines.sort((a,b)=>b.score-a.score);
+      return lines.slice(0,maxLines);
+    }
+    function pointOnLine(a,rho,dir,proj){
+      const base={x:a.cos*rho,y:a.sin*rho};
+      return {x:base.x+dir.x*proj,y:base.y+dir.y*proj};
+    }
+    function mergeLines(lines,w,h){
+      const out=[];
+      for(const l of lines.sort((a,b)=>b.score-a.score)){
+        if(lineLength(l)<Math.min(w,h)*0.035) continue;
+        const mid={x:(l.x1+l.x2)/2,y:(l.y1+l.y2)/2};
+        const angle=Math.atan2(l.y2-l.y1,l.x2-l.x1);
+        const dup = out.some(o => o.tipo===l.tipo && Math.abs(normAngle(angle-Math.atan2(o.y2-o.y1,o.x2-o.x1)))<Math.PI/36 && dist(mid,{x:(o.x1+o.x2)/2,y:(o.y1+o.y2)/2})<Math.min(w,h)*0.018);
+        if(!dup) out.push(l);
+      }
+      return out.slice(0,260);
+    }
+    function normAngle(a){ while(a>Math.PI/2) a-=Math.PI; while(a<-Math.PI/2) a+=Math.PI; return Math.abs(a); }
+    function findIntersections(lines,w,h){
+      const candidates = lines.filter(l=>l.tipo!=='grid').slice(0,170);
+      const pts=[];
+      for(let i=0;i<candidates.length;i++) for(let j=i+1;j<candidates.length;j++){
+        const p = segmentIntersection(candidates[i], candidates[j], 14);
+        if(p && p.x>=-5 && p.y>=-5 && p.x<=w+5 && p.y<=h+5) pts.push(p);
+      }
+      return pts;
+    }
+    function segmentIntersection(a,b,tol=0){
+      const x1=a.x1,y1=a.y1,x2=a.x2,y2=a.y2,x3=b.x1,y3=b.y1,x4=b.x2,y4=b.y2;
+      const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4); if(Math.abs(den)<1e-6) return null;
+      const px=((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/den;
+      const py=((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/den;
+      if(px<Math.min(x1,x2)-tol || px>Math.max(x1,x2)+tol || py<Math.min(y1,y2)-tol || py>Math.max(y1,y2)+tol) return null;
+      if(px<Math.min(x3,x4)-tol || px>Math.max(x3,x4)+tol || py<Math.min(y3,y4)-tol || py>Math.max(y3,y4)+tol) return null;
+      return {x:px,y:py};
+    }
+    function clusterPoints(points,r=8){
+      const clusters=[];
+      for(const p of points){
+        let c=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<r);
+        if(c){ c.x=(c.x*c.n+p.x)/(c.n+1); c.y=(c.y*c.n+p.y)/(c.n+1); c.n++; }
+        else clusters.push({x:p.x,y:p.y,n:1});
+      }
+      return clusters.filter(c=>c.n>=1).sort((a,b)=>b.n-a.n).slice(0,600);
+    }
+    function detectSymmetry(all,w,h){
+      if(!all.length) return {vertical:0,horizontal:0,diagonal:0,antiDiagonal:0,best:'sin datos'};
+      const N=96, grid=new Uint8Array(N*N);
+      for(const p of all){ const x=clamp(Math.floor(p.x/w*N),0,N-1), y=clamp(Math.floor(p.y/h*N),0,N-1); grid[y*N+x]=1; }
+      const score = fn => { let total=0,hit=0; for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(grid[y*N+x]){ total++; const [xx,yy]=fn(x,y); if(xx>=0&&yy>=0&&xx<N&&yy<N&&grid[yy*N+xx]) hit++; } return total?hit/total:0; };
+      const res={
+        vertical:score((x,y)=>[N-1-x,y]), horizontal:score((x,y)=>[x,N-1-y]), diagonal:score((x,y)=>[y,x]), antiDiagonal:score((x,y)=>[N-1-y,N-1-x])
+      };
+      const best = Object.entries(res).sort((a,b)=>b[1]-a[1])[0]; res.best = best[1]>.78 ? best[0] : best[1]>.58 ? 'parcial '+best[0] : 'baja'; return res;
+    }
+    function buildStats(lines, intersections, vertices, symmetry, img){
+      const count = t => lines.filter(l=>l.tipo===t).length;
+      const grid = estimateGrid(lines,img.naturalWidth,img.naturalHeight);
+      const quadrants=[0,0,0,0]; vertices.forEach(v=>{ const q=(v.x>img.naturalWidth/2?1:0)+(v.y>img.naturalHeight/2?2:0); quadrants[q]++; });
+      const density = lines.length / Math.max(1, (img.naturalWidth*img.naturalHeight/100000));
+      const score = clamp(Math.round(lines.length*.42 + vertices.length*.24 + intersections.length*.05 + density*2 + (1-(symmetry.vertical||0))*12),0,100);
+      const difficulty = score<22?'baja':score<45?'media':score<70?'alta':'experta';
+      const critical = ['superior izquierda','superior derecha','inferior izquierda','inferior derecha'].map((name,i)=>({name,count:quadrants[i]})).sort((a,b)=>b.count-a.count).slice(0,2);
+      return {width:img.naturalWidth,height:img.naturalHeight,shape:Math.abs(img.naturalWidth-img.naturalHeight)<Math.max(img.naturalWidth,img.naturalHeight)*.04?'cuadrado':'rectangular',totalLines:lines.length,mountain:count('mountain'),valley:count('valley'),reference:count('reference'),aux:count('aux'),gridLines:count('grid'),cuts:count('cut'),intersections:intersections.length,vertices:vertices.length,density:+density.toFixed(2),difficulty,score,quadrants,critical,grid,symmetryBest:symmetry.best};
+    }
+    function estimateGrid(lines,w,h){
+      const vs=[],hs=[];
+      lines.filter(l=>l.tipo==='grid').forEach(l=>{ if(Math.abs(l.x1-l.x2)<Math.abs(l.y1-l.y2)) vs.push((l.x1+l.x2)/2); else hs.push((l.y1+l.y2)/2); });
+      const diff = arr => { const a=[...new Set(arr.map(x=>Math.round(x/4)*4))].sort((x,y)=>x-y); const ds=[]; for(let i=1;i<a.length;i++){ const d=a[i]-a[i-1]; if(d>5) ds.push(d); } return median(ds); };
+      const dx=diff(vs), dy=diff(hs); const spacing=median([dx,dy].filter(Boolean));
+      if(!spacing) return {label:'no detectada', spacing:0, nx:null, ny:null};
+      return {label:`${Math.round(w/spacing)} x ${Math.round(h/spacing)}`, spacing:+spacing.toFixed(1), nx:Math.round(w/spacing), ny:Math.round(h/spacing)};
+    }
+
+    function recomputeAfterLineChange(){
+      if(!state.image) return;
+      state.intersections = findIntersections(state.lines, state.image.naturalWidth, state.image.naturalHeight);
+      state.vertices = clusterPoints(state.intersections, Math.max(5, Math.min(state.image.naturalWidth,state.image.naturalHeight)*0.006));
+      state.symmetry = state.symmetry || {best:'no recalculada',vertical:0,horizontal:0,diagonal:0,antiDiagonal:0};
+      state.stats = buildStats(state.lines,state.intersections,state.vertices,state.symmetry,state.image);
+      analyzeGeometry(false); buildMetrics(state.stats); renderHeatmap(state.stats); renderVertexTable(); buildGuide(state.stats);
+    }
+    function analyzeGeometry(show=true){
+      if(!state.vertices.length){ if(show) toast('No hay vértices. Ejecuta primero el análisis de imagen.', 'warn'); return; }
+      const geom = state.vertices.map((v,i)=>analyzeVertex(v,i)).filter(Boolean);
+      state.geometry = geom; renderVertexTable();
+      if(show){ toast(`Comprobados ${geom.length} vértices aproximados.`, 'ok'); switchTab('geometria'); render(); }
+    }
+    function analyzeVertex(v,i){
+      const incident = state.lines.filter(l=>l.tipo!=='grid' && distPointSegment(v,l) < Math.max(9, Math.min(state.image.naturalWidth,state.image.naturalHeight)*.008)).slice(0,14);
+      if(incident.length<2) return null;
+      const rays=[];
+      for(const l of incident){
+        const d1=Math.hypot(v.x-l.x1,v.y-l.y1), d2=Math.hypot(v.x-l.x2,v.y-l.y2);
+        const nearEnd = Math.min(d1,d2) < Math.max(16, lineLength(l)*.08);
+        const addRay = p => rays.push({ang:mod2pi(Math.atan2(p.y-v.y,p.x-v.x)), tipo:l.tipo});
+        if(nearEnd) addRay(d1>d2?{x:l.x1,y:l.y1}:{x:l.x2,y:l.y2}); else { addRay({x:l.x1,y:l.y1}); addRay({x:l.x2,y:l.y2}); }
+      }
+      rays.sort((a,b)=>a.ang-b.ang);
+      const unique=[];
+      for(const r of rays){ if(!unique.length || Math.abs(r.ang-unique[unique.length-1].ang) > 5*Math.PI/180) unique.push(r); }
+      const m=incident.filter(l=>l.tipo==='mountain').length, va=incident.filter(l=>l.tipo==='valley').length;
+      const maekawa = {m,v:va,diff:m-va,ok:Math.abs(m-va)===2};
+      let kawasaki={ok:false,errorDeg:null,oddSum:null,evenSum:null};
+      if(unique.length>=4 && unique.length%2===0){
+        const gaps=[]; for(let k=0;k<unique.length;k++){ const a=unique[k].ang, b=unique[(k+1)%unique.length].ang + (k===unique.length-1?Math.PI*2:0); gaps.push(b-a); }
+        let s1=0,s2=0; gaps.forEach((g,idx)=>idx%2?s2+=g:s1+=g);
+        const err=Math.max(Math.abs(s1-Math.PI), Math.abs(s2-Math.PI))*180/Math.PI;
+        kawasaki={ok:err<5,errorDeg:err,oddSum:s1*180/Math.PI,evenSum:s2*180/Math.PI};
+      }
+      Object.assign(v,{maekawa,kawasaki,incident:incident.length});
+      return {id:'V'+(i+1),x:v.x,y:v.y,incident:incident.length,mountain:m,valley:va,maekawa,kawasaki};
+    }
+    function mod2pi(a){ while(a<0)a+=Math.PI*2; while(a>=Math.PI*2)a-=Math.PI*2; return a; }
+    function renderVertexTable(){
+      const tbl=$('vertexTable');
+      if(!state.geometry.length){ tbl.innerHTML='<tr><td class="hint">Sin geometría calculada.</td></tr>'; return; }
+      tbl.innerHTML = `<thead><tr><th>Vértice</th><th>Pliegues</th><th>Maekawa</th><th>Kawasaki</th></tr></thead><tbody>${state.geometry.slice(0,120).map(g=>`<tr><td>${g.id}<br><span class="tiny">${g.x.toFixed(0)}, ${g.y.toFixed(0)}</span></td><td>${g.incident}<br><span class="tiny">M ${g.mountain} · V ${g.valley}</span></td><td>${g.maekawa.ok?'✅ correcto':'⚠️ dudoso'}<br><span class="tiny">M−V=${g.maekawa.diff}</span></td><td>${g.kawasaki.errorDeg==null?'—':(g.kawasaki.ok?'✅ ':'⚠️ ')+g.kawasaki.errorDeg.toFixed(1)+'°'}</td></tr>`).join('')}</tbody>`;
+    }
+
+    function buildMetrics(s){
+      const box=$('metricsBox');
+      const items = s ? [['Líneas',s.totalLines],['Montaña',s.mountain],['Valle',s.valley],['Vértices',s.vertices],['Intersecciones',s.intersections],['Dificultad',s.difficulty]] : [['Líneas','—'],['Montaña','—'],['Valle','—'],['Vértices','—'],['Intersecciones','—'],['Dificultad','—']];
+      box.innerHTML = items.map(([k,v])=>`<div class="metric"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+    }
+    function renderHeatmap(s){
+      const box=$('heatmap');
+      const names=['Sup. izq.','Sup. der.','Inf. izq.','Inf. der.'];
+      if(!s){ box.innerHTML=names.map(n=>`<div class="heatcell">${n}</div>`).join(''); $('difficultyText').textContent='Sin datos todavía.'; return; }
+      const max=Math.max(1,...s.quadrants);
+      box.innerHTML=s.quadrants.map((q,i)=>`<div class="heatcell" style="background:rgba(255,153,0,${0.12+0.68*q/max})">${names[i]}<br>${q}</div>`).join('');
+      $('difficultyText').textContent=`Dificultad estimada: ${s.difficulty.toUpperCase()} · puntuación ${s.score}/100 · zonas críticas: ${s.critical.map(c=>c.name).join(', ')}.`;
+    }
+    function renderSymmetry(sym){
+      const box=$('symmetryBox');
+      if(!sym){ box.textContent='Pendiente de análisis.'; return; }
+      box.innerHTML = `Mejor simetría: <b>${esc(sym.best)}</b><br>Vertical: ${(sym.vertical*100).toFixed(0)}% · Horizontal: ${(sym.horizontal*100).toFixed(0)}% · Diagonal: ${(sym.diagonal*100).toFixed(0)}% · Antidiagonal: ${(sym.antiDiagonal*100).toFixed(0)}%`;
+    }
+    function buildGuide(s){
+      const box=$('guideSteps');
+      const dense = s && s.density > 8;
+      const grid = s?.grid?.label && s.grid.label !== 'no detectada';
+      const steps = [
+        grid ? `Marcar cuadrícula base detectada: ${s.grid.label}.` : 'Marcar primero una cuadrícula base manual o aproximada.',
+        'Preplegar líneas principales: montañas rojas y valles verdes.',
+        dense ? 'Separar por zonas: centro, esquinas y áreas con mayor densidad de vértices.' : 'Colapsar primero la estructura global.',
+        s?.symmetryBest && s.symmetryBest!=='baja' ? `Usar la simetría ${s.symmetryBest} para repetir pliegues.` : 'Buscar simetrías parciales antes de colapsar detalles.',
+        'Corregir manualmente vértices dudosos y repetir comprobación Maekawa/Kawasaki.',
+        'Exportar SVG limpio para imprimir, estudiar o editar en Inkscape.'
+      ];
+      box.innerHTML = steps.map(x=>`<div>${esc(x)}</div>`).join('');
+    }
+
+    function makeReport(){
+      const cp=state.cp || {}; const s=state.stats;
+      const report = `ANÁLISIS DEL CREASE PATTERN\n\nModelo: ${cp.tituloCP || 'imagen local'}\nFigura asociada: ${cp.figura || 'no indicada'}\nEnlace CP: ${cp.enlaceCP || state.imageSrc || ''}\n\n${s ? `Tamaño: ${s.width} × ${s.height} px (${s.shape})\nCuadrícula base detectada: ${s.grid?.label || 'no detectada'}\nLíneas totales: ${s.totalLines}\n- Montaña: ${s.mountain}\n- Valle: ${s.valley}\n- Referencia: ${s.reference}\n- Auxiliares: ${s.aux}\n- Cuadrícula: ${s.gridLines}\n- Cortes/bordes: ${s.cuts}\nIntersecciones principales: ${s.intersections}\nVértices agrupados: ${s.vertices}\nDensidad: ${s.density}\nSimetría principal: ${s.symmetryBest}\nDificultad estimada: ${s.difficulty.toUpperCase()} (${s.score}/100)\nZonas críticas: ${s.critical.map(c=>`${c.name} (${c.count})`).join(', ')}\n` : 'Sin análisis automático realizado.\n'}\nComprobación geométrica:\n${state.geometry.length ? state.geometry.slice(0,20).map(g=>`- ${g.id}: ${g.incident} pliegues, M=${g.mountain}, V=${g.valley}, Maekawa=${g.maekawa.ok?'correcto':'dudoso'}, Kawasaki=${g.kawasaki.errorDeg==null?'no calculable':g.kawasaki.errorDeg.toFixed(1)+'°'}`).join('\n') : '- pendiente'}\n\nAnotaciones manuales:\n${state.annotations.length ? state.annotations.map((a,i)=>`- ${i+1}. ${a.label || 'marca'}: ${a.x.toFixed(1)}, ${a.y.toFixed(1)}`).join('\n') : '- ninguna'}\n\nGuía aproximada:\n${[...$('guideSteps').querySelectorAll('div')].map((d,i)=>`${i+1}. ${d.textContent.replace(/^\d+\.\s*/, '')}`).join('\n')}\n\nNota: análisis orientativo basado en color y geometría detectada en Canvas. Revisar y corregir manualmente las líneas críticas.`;
+      state.lastReport=report; $('reportText').value=report; return report;
+    }
+    function copyText(text){ navigator.clipboard.writeText(text).then(()=>toast('Copiado al portapapeles.', 'ok')).catch(()=>toast('No se pudo copiar.', 'bad')); }
+    function safeName(){ return (state.cp?.id || 'crease_pattern').replace(/[^a-z0-9_-]+/gi,'_'); }
+
+    function exportSVG(){
+      if(!state.image){ toast('Carga una imagen.', 'warn'); return; }
+      const w=state.image.naturalWidth, h=state.image.naturalHeight;
+      const style = `<style>.mountain{stroke:${state.colors.mountain};}.valley{stroke:${state.colors.valley};}.reference{stroke:${state.colors.reference};stroke-dasharray:8 6}.aux{stroke:${state.colors.aux};}.grid{stroke:${state.colors.grid};opacity:.5}.cut{stroke:${state.colors.cut};}.line{fill:none;stroke-width:1.2;stroke-linecap:round}.manual{stroke-width:2.4}.vertex{fill:${state.colors.vertices};opacity:.8}</style>`;
+      const lines = state.lines.map(l=>`<line x1="${l.x1.toFixed(2)}" y1="${l.y1.toFixed(2)}" x2="${l.x2.toFixed(2)}" y2="${l.y2.toFixed(2)}" class="line ${l.tipo}${l.manual?' manual':''}" data-type="${l.tipo}" />`).join('\n');
+      const verts = state.vertices.slice(0,400).map((v,i)=>`<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="3" class="vertex" data-id="V${i+1}" />`).join('\n');
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(state.cp?.tituloCP || 'Crease pattern')}">\n<title>${esc(state.cp?.tituloCP || 'Crease pattern')}</title>\n${style}\n<g id="detected-lines">\n${lines}\n</g>\n<g id="vertices">\n${verts}\n</g>\n</svg>`;
+      downloadText(safeName()+'.svg', svg, 'image/svg+xml');
+    }
+    function exportJSON(){
+      const out = {titulo:state.cp?.tituloCP || 'imagen local', autor:'Robert J. Lang / datos de catálogo JSON', tipo:'crease pattern', dificultad:state.stats?.difficulty || null, grid:state.stats?.grid?.label || null, lineas:{mountain:state.stats?.mountain||0,valley:state.stats?.valley||0,referencia:state.stats?.reference||0,auxiliar:state.stats?.aux||0,grid:state.stats?.gridLines||0,corte:state.stats?.cuts||0}, simetria:state.symmetry?[state.symmetry.best]:[], vertices:state.vertices.length, imagen:state.cp?.imagenCP || state.imageSrc, figura:state.cp?.figura || null, figuraImagen:state.cp?.figuraImagen || null, caracteristicas:state.cp?.figuraCaracteristicas || [], enlaces:{cp:state.cp?.enlaceCP || null, figura:state.cp?.enlaceFigura || null, pdf:state.cp?.pdfCP || null}, estadisticas:state.stats, lineasVectorizadas:state.lines, verticesDetectados:state.vertices, anotaciones:state.annotations, informe:state.lastReport || makeReport(), generado:new Date().toISOString()};
+      downloadText(safeName()+'_analisis.json', JSON.stringify(out,null,2), 'application/json');
+    }
+    function saveAnnotations(){ if(!state.cp) return; localStorage.setItem('langcp.annotations.'+state.cp.id, JSON.stringify(state.annotations)); toast('Anotaciones guardadas en este navegador.', 'ok'); }
+    function loadAnnotations(){ if(!state.cp) return; try{ state.annotations = JSON.parse(localStorage.getItem('langcp.annotations.'+state.cp.id) || '[]'); render(); }catch{ state.annotations=[]; } }
+
+    function makeQuiz(){
+      if(!state.geometry.length){ toast('Ejecuta primero el análisis geométrico.', 'warn'); return; }
+      const g = state.geometry[Math.floor(Math.random()*Math.min(state.geometry.length,80))];
+      $('quizBox').innerHTML = `<span>Reto</span><b style="font-size:1rem">${g.id}: ¿cumple Maekawa?</b><div class="hint">Pliegues montaña: ${g.mountain}. Pliegues valle: ${g.valley}. Diferencia M−V = ${g.maekawa.diff}.<br><b>Respuesta:</b> ${g.maekawa.ok ? 'sí, cumple ±2' : 'no / dudoso con la detección actual'}.</div>`;
+    }
+    function copyGeometry(){
+      if(!state.geometry.length){ toast('No hay tabla geométrica.', 'warn'); return; }
+      const txt = state.geometry.map(g=>`${g.id}\t${g.incident}\tM=${g.mountain}\tV=${g.valley}\tMaekawa=${g.maekawa.ok?'OK':'dudoso'}\tKawasaki=${g.kawasaki.errorDeg==null?'NA':g.kawasaki.errorDeg.toFixed(1)+'°'}`).join('\n');
+      copyText(txt);
+    }
+
+    async function comparePatterns(){
+      const a = state.cps.find(c=>c.id===$('compareA').value), b = state.cps.find(c=>c.id===$('compareB').value);
+      if(!a || !b || a.id===b.id){ toast('Selecciona dos patrones distintos.', 'warn'); return; }
+      $('compareBox').innerHTML='Analizando comparación...'; setLoader(true);
+      const ra = await analyzeForCompare(a); const rb = await analyzeForCompare(b); setLoader(false);
+      const html = compareHtml(a,ra,b,rb); $('compareBox').innerHTML = html; switchTab('compare');
+    }
+    async function analyzeForCompare(cp){
+      if(state.cp && state.cp.id===cp.id && state.stats) return {ok:true, stats:state.stats, source:'análisis actual'};
+      try{ const img=await loadImageTemp(cp.imagenCP); const r=analyzeImageCore(img,{maxSide:650}); return {ok:true,stats:r.stats,source:'análisis directo'}; }
+      catch(err){ return {ok:false,stats:metadataEstimate(cp),source:'estimación por metadatos: '+err.message}; }
+    }
+    function loadImageTemp(src){ return new Promise((resolve,reject)=>{ const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>resolve(img); img.onerror=()=>reject(new Error('imagen no cargada')); img.src=src; }); }
+    function metadataEstimate(cp){
+      const tags=cp.figuraCaracteristicas||[]; const base=tags.length*5 + (cp.matchFigura?.encontrado?8:0); const score=clamp(base + (/insect|beetle|spider|scorpion|dragon/i.test(cp.tituloCP)?28:0) + (/tessellation|weave|resch/i.test(cp.tituloCP)?22:0),10,80);
+      return {totalLines:null,mountain:null,valley:null,vertices:null,intersections:null,density:null,difficulty:score<25?'baja':score<45?'media':score<70?'alta':'experta',score,symmetryBest:tags.includes('tessellations')?'posible modular':tags.includes('mammals')?'baja/parcial':'desconocida',critical:[],grid:{label:'no estimada'}};
+    }
+    function compareHtml(a,ra,b,rb){
+      const s1=ra.stats,s2=rb.stats;
+      const line = (label,k) => `<tr><th>${label}</th><td>${esc(s1[k] ?? '—')}</td><td>${esc(s2[k] ?? '—')}</td></tr>`;
+      const verdict = [];
+      if(s1.totalLines!=null && s2.totalLines!=null) verdict.push(s1.totalLines>s2.totalLines?`${a.tituloCP} tiene más líneas detectadas.`:`${b.tituloCP} tiene más líneas detectadas.`);
+      if(s1.score!==s2.score) verdict.push(s1.score>s2.score?`${a.tituloCP} parece más complejo.`:`${b.tituloCP} parece más complejo.`);
+      return `<div class="stack"><table class="tableMini"><thead><tr><th></th><th>${esc(a.tituloCP)}</th><th>${esc(b.tituloCP)}</th></tr></thead><tbody>${line('Líneas','totalLines')}${line('Montaña','mountain')}${line('Valle','valley')}${line('Vértices','vertices')}${line('Densidad','density')}${line('Simetría','symmetryBest')}${line('Dificultad','difficulty')}${line('Score','score')}</tbody></table><div class="hint"><b>Conclusión:</b> ${verdict.join(' ') || 'Comparación basada en metadatos.'}<br><br><span class="tiny">CP1: ${esc(ra.source)}<br>CP2: ${esc(rb.source)}</span></div></div>`;
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
