@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="es">
-  <script defer src="goat.js"></script>
+    <script defer src="goat.js"></script>
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Análisis electrocardiográfico de la onda P</title>
+  <title>🫀 Onda P: precisión diagnóstica ECG de dilatación auricular izquierda en el perro</title>
   <style>
     :root {
       --bg: #eef3f7;
@@ -266,23 +266,23 @@
     .info-btn { padding: 7px 10px; font-size:.86rem; }
     .guide-overlay {
       position:absolute;
-      left:14px;
       right:14px;
       top:14px;
       z-index:3;
       pointer-events:none;
       display:flex;
-      justify-content:center;
+      justify-content:flex-end;
+      max-width: min(420px, calc(100% - 28px));
     }
     .guide-box {
-      max-width:min(100%, 780px);
-      background: rgba(15,23,42,.82);
+      width: min(390px, 100%);
+      background: rgba(15,23,42,.84);
       color: #fff;
       border-radius: 16px;
       padding: 12px 14px;
       box-shadow: 0 10px 28px rgba(0,0,0,.24);
       backdrop-filter: blur(4px);
-      text-align:center;
+      text-align:left;
     }
     .guide-box strong { font-size: 1rem; display:block; margin-bottom:4px; }
     .guide-box small { color: rgba(255,255,255,.85); }
@@ -294,6 +294,19 @@
       margin-top:12px;
     }
     .guided-status { font-size:.9rem; color:var(--muted); margin-top:6px; }
+    .guide-step-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .guide-step-btn {
+      min-height:30px;
+      padding:6px 9px;
+      border-radius:999px;
+      font-size:.78rem;
+      border:1px solid var(--line);
+      background:var(--surface);
+      color:var(--muted);
+      font-weight:900;
+    }
+    .guide-step-btn.done { color:var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+    .guide-step-btn.current { color:#fff; background:var(--primary); border-color:var(--primary); }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -328,7 +341,7 @@
 <header>
   <div class="header-wrap">
     <div>
-      <h1>🫀 Análisis electrocardiográfico de la onda P</h1>
+      <h1>🫀 Onda P: precisión diagnóstica ECG de dilatación auricular izquierda en el perro</h1>
       <p class="subtitle">Herramienta basada en la tesis doctoral de Ángel Soto y base de datos electrocardiográfica asociada.</p>
       <a href="https://airsoto.github.io/vet/tesis_angel_soto.html" target="_blank" rel="noopener">Estudio estadístico y tesis original</a>
     </div>
@@ -337,7 +350,6 @@
       <label class="switch"><input type="checkbox" id="teacherModeToggle"> Modo docente</label>
       <button id="openInfoBtn" type="button" class="info-btn">ℹ️ Información</button>
       <button id="openAbbrBtn" type="button" class="info-btn">📘 Abreviaturas</button>
-      <span class="pill">🔒 Procesado local</span>
     </div>
   </div>
 </header>
@@ -485,9 +497,10 @@
             <button id="startGuideBtn" type="button" class="primary">Iniciar medición guiada</button>
             <button id="prevGuideBtn" type="button">Paso anterior</button>
             <button id="nextGuideBtn" type="button">Siguiente paso</button>
-            <button id="stopGuideBtn" type="button">Salir del modo guiado</button>
+            <button id="stopGuideBtn" type="button" class="primary">Terminar de introducir datos</button>
           </div>
           <div id="guidedStatus" class="guided-status">Modo guiado inactivo.</div>
+          <div id="guideStepList" class="guide-step-list" aria-label="Pasos de medición guiada"></div>
         </div>
 
         <div class="buttons" style="margin-top:12px">
@@ -669,53 +682,109 @@ const CONFIG = {
 };
 
 const referenceData = {
+  /*
+   * Valores normales del grupo I: media, error típico, DE, mínimo y máximo
+   * proceden de la Tabla 4.3 de la tesis.
+   * cutoff = media + 1 DE, usado como límite de discriminación en Tablas 4.7 y 4.11.
+   * normalMin/normalMax conservan el rango observado del grupo I, NO el punto de corte diagnóstico.
+   * stats.dAIAO y stats.aAIAO reproducen la Tabla 4.11.
+   * abc reproduce la Tabla 4.12.
+   * roc reproduce los puntos óptimos de Tablas 4.13 y 4.14.
+   */
   DP: {
     name: 'Duración de la onda P', unit: 's', mean: 0.0418, sem: 0.0008725, sd: 0.0063,
     normalMin: 0.0278, normalMax: 0.0560, cutoff: 0.0481,
     sensitivity: 48, specificity: 78, ppv: 70, npv: 59, lrPositive: 2.21, lrNegative: 0.66,
+    sensitivityA: 52, specificityA: 79, ppvA: 68, npvA: 65, lrPositiveA: 2.48, lrNegativeA: 0.61,
+    pD: '<0,05', pA: '<0,05',
+    abc: { dAIAO: 0.66, aAIAO: 0.69 },
+    roc: {
+      dAIAO: { cutoff: 0.0465, sensitivity: 57, specificity: 73, ppv: 69, npv: 61, lrPositive: 2.10, lrNegative: 0.59, abc: 0.66 },
+      aAIAO: { cutoff: 0.0461, sensitivity: 61, specificity: 72, ppv: 66, npv: 68, lrPositive: 2.20, lrNegative: 0.54, abc: 0.69 },
+      classic: { cutoff: 0.0400 }
+    },
     clinicalMeaning: 'DP elevada por encima del punto de corte se asocia con mayor probabilidad de dilatación auricular izquierda.'
   },
   VP: {
     name: 'Voltaje de la onda P', unit: 'mV', mean: 0.243, sem: 0.010233, sd: 0.074,
     normalMin: 0.106, normalMax: 0.448, cutoff: 0.317,
     sensitivity: 28, specificity: 79, ppv: 59, npv: 51, lrPositive: 1.35, lrNegative: 0.91,
+    sensitivityA: 32, specificityA: 83, ppvA: 62, npvA: 58, lrPositiveA: 1.83, lrNegativeA: 0.82,
+    pD: '>0,05', pA: '<0,05',
+    abc: { dAIAO: 0.59, aAIAO: 0.62 },
+    roc: {
+      dAIAO: { cutoff: 0.263, sensitivity: 52, specificity: 68, ppv: 63, npv: 57, lrPositive: 1.62, lrNegative: 0.71, abc: 0.59 },
+      aAIAO: { cutoff: 0.281, sensitivity: 49, specificity: 78, ppv: 66, npv: 64, lrPositive: 2.23, lrNegative: 0.65, abc: 0.62 },
+      classic: { cutoff: 0.400 }
+    },
     clinicalMeaning: 'VP elevada puede contribuir a la sospecha de DAI, especialmente si acompaña a DP o AP elevados.'
   },
   AP: {
     name: 'Área de la onda P', unit: 'mV·s', mean: 0.00520, sem: 0.000282827, sd: 0.00203,
     normalMin: 0.00160, normalMax: 0.01253, cutoff: 0.00723,
     sensitivity: 34, specificity: 82, ppv: 67, npv: 54, lrPositive: 1.88, lrNegative: 0.81,
+    sensitivityA: 39, specificityA: 85, ppvA: 69, npvA: 61, lrPositiveA: 2.56, lrNegativeA: 0.72,
+    pD: '<0,05', pA: '<0,05',
+    abc: { dAIAO: 0.63, aAIAO: 0.67 },
+    roc: {
+      dAIAO: { cutoff: 0.00578, sensitivity: 58, specificity: 68, ppv: 66, npv: 60, lrPositive: 1.80, lrNegative: 0.62, abc: 0.63 },
+      aAIAO: { cutoff: 0.00603, sensitivity: 56, specificity: 74, ppv: 66, npv: 66, lrPositive: 2.19, lrNegative: 0.59, abc: 0.67 }
+    },
     clinicalMeaning: 'AP integra duración y voltaje de la onda P; valores altos se relacionan con mayor tamaño auricular izquierdo.'
   },
   DPR: {
     name: 'Duración del intervalo PR', unit: 's', mean: 0.087, sem: 0.0025093, sd: 0.018,
     normalMin: 0.055, normalMax: 0.142, cutoff: 0.105,
     sensitivity: 19, specificity: 90, ppv: 43, npv: 67, lrPositive: 1.09, lrNegative: 0.74,
-    clinicalMeaning: 'DPR se interpreta mejor junto con DP y el segmento PR; aislado tiene menor rendimiento.'
+    sensitivityA: 23, specificityA: 92, ppvA: 42, npvA: 67, lrPositiveA: 0.42, lrNegativeA: 0.51,
+    pD: '>0,05', pA: '<0,05',
+    abc: { dAIAO: 0.51, aAIAO: 0.61 },
+    roc: {
+      aAIAO: { cutoff: 0.0874, sensitivity: 60, specificity: 59, ppv: 56, npv: 63, lrPositive: 1.47, lrNegative: 0.67, abc: 0.61 }
+    },
+    clinicalMeaning: 'DPR se interpreta mejor junto con DP y el segmento PR; aislado tiene menor rendimiento. Nota: se conserva el RVP/RVN de la Tabla 4.11.'
   },
   PPR: {
     name: 'Duración de P respecto al PR', unit: '%', mean: 50, sem: 0.014, sd: 10,
     normalMin: 0, normalMax: 100, cutoff: 60,
     sensitivity: 31, specificity: 90, ppv: 67, npv: 51, lrPositive: 1.88, lrNegative: 0.90,
+    sensitivityA: 28, specificityA: 84, ppvA: 71, npvA: 58, lrPositiveA: 2.78, lrNegativeA: 0.84,
+    pD: '<0,05', pA: '>0,05',
+    abc: { dAIAO: 0.62, aAIAO: 0.56 },
+    roc: {
+      dAIAO: { cutoff: 59, sensitivity: 31, specificity: 88, ppv: 74, npv: 55, lrPositive: 2.71, lrNegative: 0.78, abc: 0.62 }
+    },
     clinicalMeaning: 'PPR alto indica que la onda P ocupa una mayor proporción del intervalo PR.'
   },
   IMa: {
     name: 'Índice de Macruz', unit: '', mean: 1.06, sem: 0.06, sd: 0.43,
     normalMin: 0.36, normalMax: 2.17, cutoff: 1.49,
     sensitivity: 31, specificity: 90, ppv: 74, npv: 55, lrPositive: 2.71, lrNegative: 0.78,
+    sensitivityA: 28, specificityA: 85, ppvA: 60, npvA: 57, lrPositiveA: 1.72, lrNegativeA: 0.86,
+    pD: '<0,05', pA: '>0,05',
+    abc: { dAIAO: 0.62, aAIAO: 0.56 },
+    roc: {
+      dAIAO: { cutoff: 1.44, sensitivity: 31, specificity: 90, ppv: 76, npv: 55, lrPositive: 3.05, lrNegative: 0.77, abc: 0.62 }
+    },
     clinicalMeaning: 'IMa elevado apoya alteración auricular si el segmento PR es medible y positivo.'
   },
   EP: {
     name: 'Eje eléctrico de la onda P', unit: '°', mean: 48, sem: 2.788, sd: 20,
     normalMin: -1, normalMax: 83, cutoff: 68,
     sensitivity: 19, specificity: 83, ppv: 55, npv: 49, lrPositive: 1.16, lrNegative: 0.97,
-    clinicalMeaning: 'EP es orientativo y depende de la conformación torácica y la posición cardiaca.'
+    sensitivityA: 20, specificityA: 84, ppvA: 52, npvA: 55, lrPositiveA: 1.23, lrNegativeA: 0.96,
+    pD: '>0,05', pA: '>0,05',
+    abc: { dAIAO: 0.58, aAIAO: 0.58 },
+    roc: {},
+    clinicalMeaning: 'EP es orientativo; en la tesis no mostró significación estadística para dAIAO ni aAIAO.'
   },
   FC: {
     name: 'Frecuencia cardiaca', unit: 'LPM', mean: 126, sem: 4.52, sd: 33,
     normalMin: 82, normalMax: 225, cutoff: 159,
     sensitivity: null, specificity: null, ppv: null, npv: null, lrPositive: null, lrNegative: null,
-    clinicalMeaning: 'La FC se calcula a partir del intervalo R-R y se usa como apoyo en algunos árboles de decisión.'
+    pD: null, pA: null,
+    abc: {}, roc: {},
+    clinicalMeaning: 'La FC se calcula a partir del intervalo R-R. En la tesis se usa como punto de corte por media + DE y en árboles de decisión, pero no aparece en la Tabla 4.11 de sensibilidad/especificidad.'
   }
 };
 
@@ -821,7 +890,6 @@ function init() {
   renderAll();
   loadHistory();
   updateGuideOverlay();
-  setTimeout(() => openModal('abbrModal'), 250);
   window.addEventListener('resize', () => { resizeCanvas(); draw(); });
 }
 
@@ -833,7 +901,7 @@ function bindElements() {
     'paperSpeed','customPaperSpeed','gainSelect','customGain','patientId','species','breed','sex','age','weight','diagnosis','clinicalNotes',
     'heartRate','leadIManual','leadIIManual','leadIIIManual','metricGrid','pointsTable','directTable','calculatedTable','interpretationTable',
     'statsPanel','triangleSvg','axisSvg','decisionTrees','treeResult','reportText','warningsList','historySelect',
-    'comparisonPanel','darkModeToggle','teacherModeToggle','infoModal','abbrModal','statsInfoModal','openInfoBtn','openAbbrBtn','openStatsInfoBtn','guideOverlay','guideBox','guidedStatus'
+    'comparisonPanel','darkModeToggle','teacherModeToggle','infoModal','abbrModal','statsInfoModal','openInfoBtn','openAbbrBtn','openStatsInfoBtn','guideOverlay','guideBox','guidedStatus','guideStepList'
   ];
   ids.forEach(id => el[id] = document.getElementById(id));
   el.ctx = el.ecgCanvas.getContext('2d');
@@ -918,6 +986,7 @@ function loadECGImage(file) {
     setStatus('Imagen ECG cargada. Calibre la escala con 5 mm.');
     URL.revokeObjectURL(url);
     recalculateAll();
+    startGuidedMode();
   };
   img.onerror = () => setStatus('No se pudo cargar la imagen.');
   img.src = url;
@@ -981,6 +1050,11 @@ function setMeasurementMode(mode) {
   document.querySelectorAll('button[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
   const text = mode === 'pan' ? 'Desplazar imagen' : (POINT_MODES[mode]?.label || 'ninguno');
   el.activeModeLabel.textContent = 'Modo: ' + text;
+  const guideIdx = GUIDED_SEQUENCE.findIndex(step => step.mode === mode);
+  if (guideIdx >= 0 && state.guidedMode && guideIdx !== state.guidedIndex) {
+    state.guidedIndex = guideIdx;
+    updateGuideOverlay();
+  }
 }
 
 
@@ -1001,16 +1075,40 @@ function currentGuideStep() {
   return GUIDED_SEQUENCE[state.guidedIndex] || null;
 }
 function updateGuideOverlay() {
+  renderGuideStepList();
   const step = currentGuideStep();
   if (!state.guidedMode || !step) {
     el.guideOverlay.hidden = true;
-    el.guidedStatus.textContent = 'Modo guiado inactivo.';
+    el.guidedStatus.textContent = 'Modo guiado inactivo. Puede iniciar la secuencia o pulsar cualquier parámetro para repetir su medición.';
     return;
   }
   el.guideOverlay.hidden = false;
   const stepNo = state.guidedIndex + 1;
-  el.guideBox.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}: ${escapeHtml(step.title)}</strong><small>${escapeHtml(step.helper)}</small>`;
-  el.guidedStatus.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}</strong> · ${escapeHtml(step.title)}. ${escapeHtml(step.helper)}`;
+  el.guideBox.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}: ${escapeHtml(step.title)}</strong><small>${escapeHtml(step.helper)}<br>Pulse sobre la imagen para registrar este dato. También puede pulsar un paso concreto para repetirlo.</small>`;
+  el.guidedStatus.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}</strong> · ${escapeHtml(step.title)}. ${escapeHtml(step.helper)} <br><span class="section-note">Puede pulsar cualquier parámetro de la lista para volver a medirlo.</span>`;
+}
+
+function renderGuideStepList() {
+  if (!el.guideStepList) return;
+  el.guideStepList.innerHTML = GUIDED_SEQUENCE.map((step, idx) => {
+    const done = isGuideStepComplete(step.mode);
+    const cls = ['guide-step-btn', done ? 'done' : '', idx === state.guidedIndex && state.guidedMode ? 'current' : ''].filter(Boolean).join(' ');
+    return `<button type="button" class="${cls}" data-guide-step="${idx}" title="Volver a medir: ${escapeHtml(step.title)}">${idx + 1}. ${escapeHtml(step.title)}</button>`;
+  }).join('');
+  el.guideStepList.querySelectorAll('[data-guide-step]').forEach(btn => btn.addEventListener('click', () => jumpGuideStep(Number(btn.dataset.guideStep))));
+}
+function isGuideStepComplete(mode) {
+  if (mode === 'cal5') return getPoints('cal5').length >= 2;
+  return !!getPoint(mode);
+}
+function jumpGuideStep(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= GUIDED_SEQUENCE.length) return;
+  state.guidedMode = true;
+  state.guidedIndex = index;
+  const step = currentGuideStep();
+  if (step) setMeasurementMode(step.mode);
+  updateGuideOverlay();
+  setStatus('Listo para medir de nuevo: ' + step.title);
 }
 function startGuidedMode() {
   state.guidedMode = true;
@@ -1024,7 +1122,7 @@ function stopGuidedMode() {
   state.guidedMode = false;
   setMeasurementMode(null);
   updateGuideOverlay();
-  setStatus('Modo guiado desactivado.');
+  setStatus('Introducción secuencial de datos terminada. Puede recalcular, exportar o repetir un parámetro concreto.');
 }
 function nextGuideStep() {
   if (!state.guidedMode) return startGuidedMode();
@@ -1393,9 +1491,10 @@ function compareWithReferenceData() {
 
 function calculateDiagnosticStats() {
   const rows = [];
-  for (const key of ['DP','VP','AP','DPR','PPR','IMa','EP','FC']) {
+  for (const key of ['DP','VP','AP','DPR','PPR','IMa','EP']) {
     const r = referenceData[key];
-    rows.push({ parameter: key, cutoff: r.cutoff, sensitivity: r.sensitivity, specificity: r.specificity, ppv: r.ppv, npv: r.npv, lrPositive: r.lrPositive, lrNegative: r.lrNegative });
+    rows.push({ criterion: 'dAIAO > 1,70', parameter: key, cutoff: r.cutoff, sensitivity: r.sensitivity, specificity: r.specificity, ppv: r.ppv, npv: r.npv, lrPositive: r.lrPositive, lrNegative: r.lrNegative, p: r.pD, abc: r.abc?.dAIAO });
+    rows.push({ criterion: 'aAIAO > 4,96', parameter: key, cutoff: r.cutoff, sensitivity: r.sensitivityA, specificity: r.specificityA, ppv: r.ppvA, npv: r.npvA, lrPositive: r.lrPositiveA, lrNegative: r.lrNegativeA, p: r.pA, abc: r.abc?.aAIAO });
   }
   return rows;
 }
@@ -1412,6 +1511,7 @@ function renderAll() {
   renderAxis();
   renderDecisionTree();
   renderWarnings();
+  updateGuideOverlay();
   renderReport();
   renderComparison();
 }
@@ -1556,13 +1656,19 @@ function renderInterpretationTable() {
   const rows = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'].map(k => {
     const c = state.comparisons?.[k] || {}; const r = referenceData[k];
     const refText = `${r.normalMin ?? '—'} – ${r.normalMax ?? '—'} ${r.unit}<br><span class="section-note">Media ${safeNum(r.mean, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))} · DE ${safeNum(r.sd, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))}</span>`;
-    const stat = r.clinicalMeaning || '';
+    const stat = `${r.clinicalMeaning || ''}${r.pD || r.pA ? ' Significación Tabla 4.11: dAIAO ' + (r.pD || '—') + ', aAIAO ' + (r.pA || '—') + '.' : ''}`;
     return `<tr>
       <td><strong>${k}</strong><br><span class="section-note">${r.name}</span>${renderTeacherNote(k)}</td>
       <td>${fmt(k, c.value)} ${r.unit}</td>
       <td>${refText}</td>
       <td><span class="tag ${statusClass(c.status)}">${c.label || 'No calculable'}</span></td>
-      <td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td>
+      <td>${r.cutoff ?? '—'}</td>
+      <td>${dualPct(r.sensitivity, r.sensitivityA)}</td>
+      <td>${dualPct(r.specificity, r.specificityA)}</td>
+      <td>${dualPct(r.ppv, r.ppvA)}</td>
+      <td>${dualPct(r.npv, r.npvA)}</td>
+      <td>${dualNum(r.lrPositive, r.lrPositiveA)}</td>
+      <td>${dualNum(r.lrNegative, r.lrNegativeA)}</td>
       <td>${escapeHtml(stat)}</td>
     </tr>`;
   });
@@ -1582,9 +1688,26 @@ function renderReferenceNormalTable() {
     return `<tr><td><strong>${k}</strong>${unit}</td><td>${safeNum(r.mean, dMean)}</td><td>${safeNum(r.sem, dSem)}</td><td>${safeNum(r.sd, dSd)}</td><td>${safeNum(r.normalMin, dMean)}</td><td>${safeNum(r.normalMax, dMean)}</td></tr>`;
   }).join('');
   html += '</tbody></table></div>';
-  html += '<p class="section-note">Estos valores corresponden al grupo I de referencia. El punto de corte diagnóstico mostrado en las tablas se calcula como media + una desviación típica.</p>';
+  html += '<p class="section-note">Estos valores corresponden al grupo de pacientes sin indicios ecocardiográficos de dilatación de la AI. El punto de corte diagnóstico mostrado en las tablas se calcula como media + una desviación típica.</p>';
   return html;
 }
+
+
+function renderRocCutoffTable() {
+  const rows = [];
+  for (const key of ['DP','VP','AP','DPR','PPR','IMa']) {
+    const r = referenceData[key];
+    if (r.roc?.dAIAO) rows.push({criterion:'ROC dAIAO > 1,70', parameter:key, ...r.roc.dAIAO});
+    if (r.roc?.aAIAO) rows.push({criterion:'ROC aAIAO > 4,96', parameter:key, ...r.roc.aAIAO});
+  }
+  if (!rows.length) return '';
+  let html = '<h3 style="margin-top:14px">Puntos óptimos ROC</h3>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Criterio</th><th>Parámetro</th><th>Corte óptimo</th><th>Sens</th><th>Esp</th><th>VPP</th><th>VPN</th><th>RVP</th><th>RVN</th><th>ABC</th></tr></thead><tbody>';
+  html += rows.map(r => `<tr><td>${r.criterion}</td><td>${r.parameter}</td><td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td><td>${r.abc ?? '—'}</td></tr>`).join('');
+  html += '</tbody></table></div>';
+  return html;
+}
+
 
 function renderStatsPanel() {
   const keys = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'];
@@ -1599,10 +1722,11 @@ function renderStatsPanel() {
     return `<tr><td>${k}<br><span class="section-note">Media ${safeNum(r.mean, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))} · DE ${safeNum(r.sd, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))}</span></td><td>${safeNum(z,2)}</td><td>${safeNum(p,1)}%</td><td><div class="scale-track"><span class="scale-normal"></span><span class="scale-dot" style="left:${pos}%"></span></div></td></tr>`;
   }).join('');
   html += '</tbody></table></div>';
-  html += '<h3 style="margin-top:14px">Tabla de sensibilidad/especificidad por punto de corte</h3>';
-  html += '<div class="table-wrap"><table><thead><tr><th>Parámetro</th><th>Corte</th><th>Sens</th><th>Esp</th><th>VPP</th><th>VPN</th><th>RVP</th><th>RVN</th></tr></thead><tbody>';
-  html += calculateDiagnosticStats().map(r => `<tr><td>${r.parameter}</td><td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td></tr>`).join('');
+  html += '<h3 style="margin-top:14px">Tabla de sensibilidad/especificidad por punto de corte</h3><p class="section-note"><strong>dAIAO &gt; 1,70</strong> y <strong>aAIAO &gt; 4,96</strong> son los puntos de corte definidos en la tesis para considerar la existencia de dilatación de la aurícula izquierda.</p>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Criterio</th><th>Parámetro</th><th>Corte</th><th>Sens</th><th>Esp</th><th>VPP</th><th>VPN</th><th>RVP</th><th>RVN</th><th>ABC</th><th>P</th></tr></thead><tbody>';
+  html += calculateDiagnosticStats().map(r => `<tr><td>${r.criterion}</td><td>${r.parameter}</td><td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td><td>${r.abc ?? '—'}</td><td>${r.p ?? '—'}</td></tr>`).join('');
   html += '</tbody></table></div>';
+  html += renderRocCutoffTable();
   el.statsPanel.innerHTML = html;
 }
 
@@ -1744,10 +1868,10 @@ function generateReport() {
 function renderReport() { el.reportText.value = generateReport(); }
 
 function exportCSV() {
-  const rows = [['Parametro','Valor','Unidad','NormalMin','NormalMax','Corte','Sensibilidad','Especificidad','VPP','VPN','RVP','RVN','Estado']];
+  const rows = [['Parametro','Valor','Unidad','RangoMin','RangoMax','Corte','Sens_dAIAO','Esp_dAIAO','VPP_dAIAO','VPN_dAIAO','RVP_dAIAO','RVN_dAIAO','Sens_aAIAO','Esp_aAIAO','VPP_aAIAO','VPN_aAIAO','RVP_aAIAO','RVN_aAIAO','Estado']];
   for (const k of ['DP','VP','AP','DPR','PPR','IMa','EP','FC']) {
     const r = referenceData[k] || {}; const c = state.comparisons?.[k] || {};
-    rows.push([k, valForExport(state.results[k]), r.unit || '', r.normalMin ?? '', r.normalMax ?? '', r.cutoff ?? '', r.sensitivity ?? '', r.specificity ?? '', r.ppv ?? '', r.npv ?? '', r.lrPositive ?? '', r.lrNegative ?? '', c.label ?? '']);
+    rows.push([k, valForExport(state.results[k]), r.unit || '', r.normalMin ?? '', r.normalMax ?? '', r.cutoff ?? '', r.sensitivity ?? '', r.specificity ?? '', r.ppv ?? '', r.npv ?? '', r.lrPositive ?? '', r.lrNegative ?? '', r.sensitivityA ?? '', r.specificityA ?? '', r.ppvA ?? '', r.npvA ?? '', r.lrPositiveA ?? '', r.lrNegativeA ?? '', c.label ?? '']);
   }
   const csv = rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
   downloadBlob(csv, 'analisis_onda_p_ecg.csv', 'text/csv;charset=utf-8');
@@ -1863,6 +1987,8 @@ function fmt(k, v) {
 function safeNum(v, d=2) { return Number.isFinite(v) ? Number(v).toFixed(d) : '—'; }
 function valForExport(v) { return Number.isFinite(v) ? v : ''; }
 function pct(v) { return Number.isFinite(v) ? `${v}%` : '—'; }
+function dualPct(d, a) { return `d ${pct(d)}<br>a ${pct(a)}`; }
+function dualNum(d, a) { return `d ${Number.isFinite(d) ? d : '—'}<br>a ${Number.isFinite(a) ? a : '—'}`; }
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function statusClass(s) { return ({normal:'good', borderline:'warn', high:'bad', low:'bad', na:'neutral'}[s] || 'neutral'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
