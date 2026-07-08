@@ -1,0 +1,2100 @@
+<!doctype html>
+<html lang="en">
+    <script defer src="goat.js"></script>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🫀 P Wave: ECG diagnostic accuracy for detecting left atrial enlargement in dogs</title>
+  <style>
+    :root {
+      --bg: #eef3f7;
+      --surface: #ffffff;
+      --surface-2: #f7fafc;
+      --text: #17202a;
+      --muted: #5d6d7e;
+      --line: #d7e1ea;
+      --primary: #0c6b8e;
+      --primary-2: #105f7c;
+      --accent: #19a7ce;
+      --good: #148a4c;
+      --warn: #b77b00;
+      --bad: #c0392b;
+      --neutral: #6b7280;
+      --shadow: 0 12px 36px rgba(15, 23, 42, 0.10);
+      --radius: 18px;
+      --focus: 0 0 0 3px rgba(25, 167, 206, .30);
+      --grid-bg: #fdfdfd;
+    }
+    body.dark {
+      --bg: #0e1721;
+      --surface: #152231;
+      --surface-2: #111c29;
+      --text: #edf3f8;
+      --muted: #aebdcc;
+      --line: #2e4052;
+      --primary: #38bdf8;
+      --primary-2: #7dd3fc;
+      --accent: #5eead4;
+      --good: #4ade80;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --neutral: #cbd5e1;
+      --shadow: 0 14px 38px rgba(0,0,0,.32);
+      --grid-bg: #0b111a;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 12% 8%, rgba(25,167,206,.18), transparent 28%), var(--bg);
+      line-height: 1.45;
+    }
+    a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      padding: 28px clamp(16px, 3vw, 42px);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(120deg, rgba(12,107,142,.16), rgba(25,167,206,.04)), var(--surface);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .header-wrap { display:flex; align-items:flex-start; justify-content:space-between; gap: 20px; }
+    h1 { margin: 0; font-size: clamp(1.65rem, 3vw, 2.55rem); letter-spacing: -0.04em; }
+    .subtitle { margin: 6px 0 12px; color: var(--muted); font-size: 1rem; max-width: 1050px; }
+    .header-actions { display:flex; flex-wrap: wrap; gap: 10px; justify-content:flex-end; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: .9rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    main { padding: 22px clamp(12px, 2vw, 26px) 38px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 370px) minmax(390px, 1fr) minmax(300px, 420px);
+      gap: 18px;
+      align-items: start;
+    }
+    .stack { display:grid; gap: 16px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      overflow: clip;
+    }
+    .card h2, .card h3 {
+      margin: 0 0 12px;
+      letter-spacing: -.02em;
+    }
+    .card h2 { font-size: 1.08rem; }
+    .card h3 { font-size: .98rem; }
+    .section-note, .helptext { color: var(--muted); font-size: .9rem; margin: 8px 0; }
+    label { display:block; font-size: .86rem; font-weight: 700; margin-bottom: 5px; color: var(--text); }
+    input, select, textarea, button {
+      font: inherit;
+    }
+    input[type="text"], input[type="number"], input[type="file"], select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 11px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus, button:focus-visible { box-shadow: var(--focus); outline: none; }
+    textarea { min-height: 220px; resize: vertical; }
+    .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .form-grid-3 { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+    .buttons { display:flex; flex-wrap: wrap; gap: 8px; }
+    button, .btn {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      min-height: 38px;
+    }
+    button:hover { transform: translateY(-1px); border-color: var(--primary); }
+    button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    body.dark button.primary { color: #071018; }
+    button.warn { background: rgba(183,123,0,.14); border-color: rgba(183,123,0,.45); color: var(--warn); }
+    button.danger { background: rgba(192,57,43,.12); border-color: rgba(192,57,43,.42); color: var(--bad); }
+    button.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: var(--focus); }
+    button.ghost { background: transparent; }
+    .toggle-row { display:flex; flex-wrap:wrap; align-items:center; gap: 12px; }
+    .switch { display:inline-flex; align-items:center; gap: 8px; font-weight:700; color: var(--muted); }
+    .switch input { width:auto; }
+    .workspace {
+      min-height: 560px;
+      display:grid;
+      gap: 12px;
+    }
+    .canvas-toolbar { display:flex; flex-wrap:wrap; gap: 8px; justify-content:space-between; align-items:center; }
+    .canvas-wrap {
+      position: relative;
+      height: min(67vh, 720px);
+      min-height: 380px;
+      background: linear-gradient(180deg, rgba(0,0,0,.02), transparent), var(--grid-bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas#ecgCanvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .statusbar {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 9px 11px;
+      color: var(--muted);
+      background: var(--surface-2);
+      font-size: .9rem;
+    }
+    .metric-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      background: var(--surface-2);
+    }
+    .metric .name { font-size: .78rem; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .metric .value { font-size: 1.25rem; font-weight: 900; margin-top: 3px; }
+    .table-wrap { overflow:auto; max-width: 100%; border: 1px solid var(--line); border-radius: 14px; }
+    table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 9px; text-align: left; vertical-align: top; }
+    th { background: var(--surface-2); position: sticky; top: 0; z-index: 1; font-size: .78rem; text-transform: uppercase; letter-spacing: .045em; color: var(--muted); }
+    tr:last-child td { border-bottom: none; }
+    .state-normal { color: var(--good); font-weight: 900; }
+    .state-borderline { color: var(--warn); font-weight: 900; }
+    .state-high, .state-low { color: var(--bad); font-weight: 900; }
+    .state-na { color: var(--neutral); font-weight: 900; }
+    .tag {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size:.76rem;
+      font-weight:900;
+      background: var(--surface-2);
+      white-space: nowrap;
+    }
+    .tag.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
+    .tag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+    .tag.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+    .tag.neutral { color: var(--neutral); }
+    .wide { grid-column: 1 / -1; }
+    .below { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; margin-top: 18px; }
+    .tree { overflow:auto; padding: 8px; }
+    .tree-node {
+      display:inline-block;
+      min-width: 170px;
+      max-width: 290px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 14px;
+      padding: 10px;
+      margin: 8px;
+      box-shadow: 0 5px 16px rgba(0,0,0,.06);
+      vertical-align: top;
+    }
+    .tree-node.active { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25,167,206,.22), 0 8px 24px rgba(0,0,0,.10); }
+    .tree-node.leaf { background: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
+    .tree-children { display:flex; gap: 14px; margin-left: 18px; border-left: 2px solid var(--line); padding-left: 12px; }
+    .branch-label { font-weight: 900; color: var(--muted); font-size: .78rem; margin: 4px 8px; }
+    .axis-box, .triangle-box { min-height: 280px; display:flex; align-items:center; justify-content:center; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+    .scale-row { display:grid; grid-template-columns: 92px 1fr 70px; align-items:center; gap: 8px; margin: 7px 0; font-size: .86rem; }
+    .scale-track { height: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; position: relative; overflow: hidden; }
+    .scale-normal { position: absolute; height: 100%; background: rgba(20,138,76,.24); left: 30%; width: 30%; }
+    .scale-dot { position:absolute; top: 50%; width: 12px; height:12px; border-radius:50%; transform: translate(-50%, -50%); background: var(--primary); box-shadow: 0 0 0 3px rgba(25,167,206,.18); }
+    .warning-list { margin: 0; padding-left: 18px; color: var(--warn); }
+    .danger-list { margin: 0; padding-left: 18px; color: var(--bad); }
+    details { border:1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--surface-2); }
+    summary { cursor:pointer; font-weight:900; }
+    footer {
+      padding: 30px 22px;
+      text-align:center;
+      color: var(--muted);
+      border-top:1px solid var(--line);
+      background: var(--surface);
+    }
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip: rect(0 0 0 0); white-space:nowrap; }
+    .hidden { display: none !important; }
+    @media (max-width: 1220px) {
+      .layout { grid-template-columns: 340px minmax(420px,1fr); }
+      .right-col { grid-column: 1 / -1; }
+    }
+    @media (max-width: 820px) {
+      header { position: static; }
+      .header-wrap { display:block; }
+      .layout, .below { grid-template-columns: 1fr; }
+      .canvas-wrap { height: 58vh; min-height: 330px; }
+      .form-grid, .form-grid-3, .metric-grid { grid-template-columns: 1fr; }
+      .tree-children { display:block; }
+    }
+    @media print {
+      header, .left-col, .workspace, .buttons, .canvas-toolbar, .statusbar, footer { display:none !important; }
+      body { background: #fff; color:#000; }
+      .layout, .below { display:block; }
+      .card { box-shadow:none; border:1px solid #ccc; break-inside: avoid; margin-bottom: 12px; }
+    }
+
+    .section-title-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .inline-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .info-btn { padding: 7px 10px; font-size:.86rem; }
+    .guide-overlay {
+      position:absolute;
+      right:14px;
+      top:14px;
+      z-index:3;
+      pointer-events:none;
+      display:flex;
+      justify-content:flex-end;
+      max-width: min(420px, calc(100% - 28px));
+    }
+    .guide-box {
+      width: min(390px, 100%);
+      background: rgba(15,23,42,.84);
+      color: #fff;
+      border-radius: 16px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 28px rgba(0,0,0,.24);
+      backdrop-filter: blur(4px);
+      text-align:left;
+    }
+    .guide-box strong { font-size: 1rem; display:block; margin-bottom:4px; }
+    .guide-box small { color: rgba(255,255,255,.85); }
+    .guided-row {
+      border:1px dashed var(--line);
+      background:var(--surface-2);
+      border-radius:14px;
+      padding:10px 12px;
+      margin-top:12px;
+    }
+    .guided-status { font-size:.9rem; color:var(--muted); margin-top:6px; }
+    .guide-step-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .guide-step-btn {
+      min-height:30px;
+      padding:6px 9px;
+      border-radius:999px;
+      font-size:.78rem;
+      border:1px solid var(--line);
+      background:var(--surface);
+      color:var(--muted);
+      font-weight:900;
+    }
+    .guide-step-btn.done { color:var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+    .guide-step-btn.current { color:#fff; background:var(--primary); border-color:var(--primary); }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      padding: 18px;
+    }
+    .modal-backdrop.open { display:flex; }
+    .modal-card {
+      width:min(920px, 96vw);
+      max-height:88vh;
+      overflow:auto;
+      background: var(--surface);
+      color: var(--text);
+      border:1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .modal-card h2 { margin-top:0; }
+    .modal-card .close-row { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+    .abbr-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:10px; }
+    .abbr-item { border:1px solid var(--line); background:var(--surface-2); border-radius:14px; padding:10px; }
+    .help-chip { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:32px; border-radius:999px; border:1px solid var(--line); font-weight:900; background:var(--surface-2); }
+
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-wrap">
+    <div>
+      <h1>🫀 P Wave: ECG diagnostic accuracy for detecting left atrial enlargement in dogs</h1>
+      <p class="subtitle">Tool based on Ángel Soto’s doctoral thesis and the associated electrocardiographic database.</p>
+      <a href="https://airsoto.github.io/vet/thesis_angel_soto.html" target="_blank" rel="noopener">Statistical study and original thesis</a>
+    </div>
+    <div class="header-actions" aria-label="Opciones generales">
+      <label class="switch"><input type="checkbox" id="darkModeToggle"> Dark mode</label>
+      <label class="switch"><input type="checkbox" id="teacherModeToggle"> Teaching mode</label>
+
+        <a
+    href="https://airsoto.github.io/vet/ondap.html"
+    class="info-btn"
+    style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;"
+    aria-label="Spanish version"
+  >
+🇪🇸 Spanish version  </a>
+      <button id="openInfoBtn" type="button" class="info-btn">ℹ️ Information</button>
+      <button id="openAbbrBtn" type="button" class="info-btn">📘 Abbreviations</button>
+    </div>
+  </div>
+</header>
+
+<div class="modal-backdrop" id="infoModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+    <div class="close-row">
+      <h2 id="infoModalTitle">Tool information</h2>
+      <button type="button" data-close-modal="infoModal" class="primary">Close</button>
+    </div>
+
+    <p>This tool evaluates electrocardiographic parameters related to the <strong>P wave</strong> in dogs, with the aim of providing educational and clinical support for studying the <strong>diagnostic reliability of ECG for detecting left atrial enlargement</strong>.</p>
+
+    <p>Using an ECG image, the application allows scale calibration, manual P-wave measurements, and automatic calculation of several parameters: P-wave duration and voltage, estimated P-wave area, PR interval, PR segment, P/PR ratio, Macruz index, P-wave electrical axis, and heart rate.</p>
+
+    <p>Results are compared with reference values and cut-off points derived from the doctoral study, providing an orientative interpretation of the possible relationship between P-wave abnormalities and left atrial enlargement. This tool does not issue a definitive diagnosis; it is intended for educational use and clinical decision support. Final interpretation must be performed by a veterinarian considering the full ECG, clinical history, physical examination, and, when indicated, echocardiography.</p>
+
+    <h3>What does each measured parameter represent?</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>What it measures</th>
+            <th>Clinical/technical meaning</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>DP — P-wave duration</strong></td>
+            <td>Time from the beginning to the end of the P wave.</td>
+            <td>Represents the duration of atrial depolarization. An increase may be associated with atrial conduction abnormalities or left atrial enlargement.</td>
+            <td>seconds</td>
+          </tr>
+          <tr>
+            <td><strong>VP — P-wave voltage</strong></td>
+            <td>Height of the P wave from the isoelectric line to its highest point.</td>
+            <td>Reflects the electrical amplitude of atrial depolarization. It may increase in some atrial abnormalities.</td>
+            <td>mV</td>
+          </tr>
+          <tr>
+            <td><strong>AP — P-wave area</strong></td>
+            <td>Estimated P-wave area using the formula <strong>DP × VP / 2</strong>.</td>
+            <td>Combines duration and voltage into a single parameter. It is a triangular approximation of the electrical magnitude represented by the P wave.</td>
+            <td>mV·s</td>
+          </tr>
+          <tr>
+            <td><strong>DPR — PR interval duration</strong></td>
+            <td>Time from the beginning of the P wave to the beginning of the QRS complex.</td>
+            <td>Includes atrial depolarization and atrioventricular conduction time up to the onset of ventricular activation.</td>
+            <td>seconds</td>
+          </tr>
+          <tr>
+            <td><strong>PPR — P/PR ratio</strong></td>
+            <td>Ratio between P-wave duration and PR interval duration, expressed as a percentage.</td>
+            <td>Indicates what proportion of the PR interval is occupied by the P wave. It increases when the P wave represents a larger part of the PR interval.</td>
+            <td>%</td>
+          </tr>
+          <tr>
+            <td><strong>PR segment</strong></td>
+            <td>Time from the end of the P wave to the beginning of the QRS complex.</td>
+            <td>Represents the interval between the end of atrial activation and the onset of ventricular activation. It is required to calculate the Macruz index.</td>
+            <td>seconds</td>
+          </tr>
+          <tr>
+            <td><strong>IMa — Macruz index</strong></td>
+            <td>Ratio between <strong>DP</strong> and the <strong>PR segment</strong>.</td>
+            <td>Relates P-wave duration to the PR segment. It may help assess atrial abnormalities when the PR segment is positive and measurable.</td>
+            <td>unitless</td>
+          </tr>
+          <tr>
+            <td><strong>EP — P-wave electrical axis</strong></td>
+            <td>Mean direction of atrial depolarization in the frontal plane.</td>
+            <td>It is calculated from P-wave voltage in the frontal plane leads. It provides an estimate of the overall direction of atrial activation.</td>
+            <td>degrees °</td>
+          </tr>
+          <tr>
+            <td><strong>FC — Heart rate</strong></td>
+            <td>Number of beats per minute, calculated from the distance between two consecutive R waves.</td>
+            <td>Helps contextualize electrocardiographic parameters and may contribute to the global interpretation of the tracing.</td>
+            <td>bpm</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="abbrModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="abbrModalTitle">
+    <div class="close-row">
+      <h2 id="abbrModalTitle">Abbreviations</h2>
+      <button type="button" data-close-modal="abbrModal" class="primary">Close</button>
+    </div>
+    <div class="abbr-grid">
+      <div class="abbr-item"><strong>DP</strong><br>P-wave duration.</div>
+      <div class="abbr-item"><strong>VP</strong><br>P-wave voltage.</div>
+      <div class="abbr-item"><strong>AP</strong><br>P-wave area.</div>
+      <div class="abbr-item"><strong>DPR</strong><br>PR interval duration.</div>
+      <div class="abbr-item"><strong>PPR</strong><br>Relationship between P-wave duration and PR interval, expressed as a percentage.</div>
+      <div class="abbr-item"><strong>IMa</strong><br>Macruz index.</div>
+      <div class="abbr-item"><strong>EP</strong><br>P-wave electrical axis.</div>
+      <div class="abbr-item"><strong>FC</strong><br>Heart rate, in beats per minute (bpm).</div>
+      <div class="abbr-item"><strong>LAE</strong><br>Left atrial enlargement.</div>
+      <div class="abbr-item"><strong>LA/AO</strong><br>Echocardiographic left atrium / aorta ratio.</div>
+      <div class="abbr-item"><strong>dLAAO</strong><br>Echocardiographic index of left atrial diameter relative to the aorta.</div>
+      <div class="abbr-item"><strong>aLAAO</strong><br>Echocardiographic index of left atrial area relative to the aorta.</div>
+      <div class="abbr-item"><strong>PPV</strong><br>Positive predictive value.</div>
+      <div class="abbr-item"><strong>NPV</strong><br>Negative predictive value.</div>
+      <div class="abbr-item"><strong>LR+</strong><br>Positive likelihood ratio.</div>
+      <div class="abbr-item"><strong>LR−</strong><br>Negative likelihood ratio.</div>
+      <div class="abbr-item"><strong>Z</strong><br>Number of standard deviations separating a value from the mean.</div>
+      <div class="abbr-item"><strong>Percentil aprox.</strong><br>Approximate position of the patient relative to the reference sample.</div>
+      <div class="abbr-item"><strong>ECG</strong><br>Electrocardiogram.</div>
+      <div class="abbr-item"><strong>DCVM</strong><br>Chronic mitral valve degeneration.</div>
+      <div class="abbr-item"><strong>AO</strong><br>Aorta.</div>
+      <div class="abbr-item"><strong>bpm</strong><br>Beats per minute.</div>
+      <div class="abbr-item"><strong>DE / DT</strong><br>Standard deviation.</div>
+      <div class="abbr-item"><strong>SEM</strong><br>Standard error of the mean.</div>
+      <div class="abbr-item"><strong>QRS</strong><br>Ventricular ECG complex; its onset is used to calculate DPR.</div>
+      <div class="abbr-item"><strong>PR</strong><br>Interval from the beginning of the P wave to the beginning of the QRS complex.</div>
+      <div class="abbr-item"><strong>mV</strong><br>Millivolts.</div>
+      <div class="abbr-item"><strong>mm/s</strong><br>ECG paper speed.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="statsInfoModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="statsInfoModalTitle">
+    <div class="close-row">
+      <h2 id="statsInfoModalTitle">How to read the statistical analysis</h2>
+      <button type="button" data-close-modal="statsInfoModal" class="primary">Close</button>
+    </div>
+    <p><strong>Parameter:</strong> name of the electrocardiographic value being evaluated.</p>
+    <p><strong>Z:</strong> indicates how many standard deviations above or below the reference mean the patient’s measurement lies.</p>
+    <p><strong>Percentil aprox.:</strong> estimates the percentage of the reference sample that would fall below that value.</p>
+    <p><strong>Scale:</strong> simplified visual representation of the patient’s position relative to the distribution. The central green band indicates the normality region; the dot shows where the current measurement is located.</p>
+  </div>
+</div>
+
+<main>
+  <div class="layout">
+    <section class="stack left-col" aria-label="Panel de controles">
+      <div class="card">
+        <h2>1. Patient and ECG</h2>
+        <div class="form-grid">
+          <div><label for="patientId">Patient / record ID</label><input id="patientId" type="text" placeholder="e.g. Q12345 - Toby"></div>
+          <div><label for="species">Species</label><input id="species" type="text" value="Dog" readonly aria-readonly="true"></div>
+          <div><label for="breed">Breed</label><input id="breed" type="text" placeholder="e.g. Poodle"></div>
+          <div><label for="sex">Sex</label><select id="sex"><option>Not specified</option><option>Male</option><option>Female</option><option>Neutered male</option><option>Spayed female</option></select></div>
+          <div><label for="age">Age</label><input id="age" type="text" placeholder="e.g. 11 years"></div>
+          <div><label for="weight">Weight kg</label><input id="weight" type="number" step="0.1" placeholder="kg"></div>
+        </div>
+        <div style="margin-top:10px"><label for="ecgFile">Upload ECG JPG, PNG or WEBP</label><input id="ecgFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
+        <p class="section-note">Images and measurements are processed locally in your browser. No data are sent to any server.</p>
+        <div class="buttons">
+          <button id="demoBtn" type="button">Demo example</button>
+          <button id="fitBtn" type="button">Fit viewer</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. Calibration</h2>
+        <p class="section-note">Mark a single 5 mm reference on the grid. This scale is used for both time and voltage.</p>
+        <div class="form-grid">
+          <div>
+            <label for="paperSpeed">Paper speed</label>
+            <select id="paperSpeed">
+              <option value="25">25 mm/s</option>
+              <option value="50" selected>50 mm/s</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div>
+            <label for="customPaperSpeed">Custom speed</label>
+            <input id="customPaperSpeed" type="number" step="0.1" min="1" value="50">
+          </div>
+          <div>
+            <label for="gainSelect">Gain</label>
+            <select id="gainSelect">
+              <option value="5">0,5 cm = 1 mV</option>
+              <option value="10" selected>1 cm = 1 mV</option>
+              <option value="20">2 cm = 1 mV</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div>
+            <label for="customGain">mm per 1 mV</label>
+            <input id="customGain" type="number" step="0.1" min="0.1" value="10">
+          </div>
+        </div>
+        <div class="buttons" style="margin-top:12px">
+          <button data-mode="cal5" type="button">Calibrate 5 mm</button>
+          <button id="recalcBtn" class="primary" type="button">Recalculate all</button>
+        </div>
+        <p class="helptext">At 50 mm/s, 5 mm = 0.10 s. With a gain of 1 cm = 1 mV, 5 mm = 0.5 mV.</p>
+      </div>
+
+      <div class="card">
+        <h2>3. Measurement points</h2>
+        <p class="section-note">Select a button and click on the ECG image to place the corresponding point. You can also use guided measurement to proceed step by step without pressing each button manually.</p>
+        <div class="buttons measurement-buttons" aria-label="Measurement buttons">
+          <button data-mode="pStart" type="button">P-wave onset</button>
+          <button data-mode="pEnd" type="button">P-wave end</button>
+          <button data-mode="pPeak" type="button">P-wave height</button>
+          <button data-mode="baseline" type="button">Isoelectric line</button>
+          <button data-mode="qrsStart" type="button">QRS onset</button>
+          <button data-mode="r1" type="button">Initial R wave</button>
+          <button data-mode="r2" type="button">Next R wave</button>
+          <button data-mode="leadI" type="button">P-wave voltage in lead I</button>
+          <button data-mode="leadII" type="button">P-wave voltage in lead II</button>
+          <button data-mode="leadIII" type="button">P-wave voltage in lead III</button>
+          <button data-mode="pan" type="button">Pan</button>
+        </div>
+        <div class="guided-row">
+          <div class="buttons">
+            <button id="startGuideBtn" type="button" class="primary">Start guided measurement</button>
+            <button id="prevGuideBtn" type="button">Previous step</button>
+            <button id="nextGuideBtn" type="button">Next step</button>
+            <button id="stopGuideBtn" type="button" class="primary">Finish data entry</button>
+          </div>
+          <div id="guidedStatus" class="guided-status">Guided mode inactive.</div>
+          <div id="guideStepList" class="guide-step-list" aria-label="Guided measurement steps"></div>
+        </div>
+
+        <div class="buttons" style="margin-top:12px">
+          <button id="undoBtn" type="button">Delete last point</button>
+          <button id="clearPointsBtn" class="warn" type="button">Clear points</button>
+          <button id="clearAllBtn" class="danger" type="button">Clear all</button>
+        </div>
+        <div class="toggle-row" style="margin-top:12px">
+          <label class="switch"><input type="checkbox" id="labelsToggle" checked> Show labels</label>
+          <label class="switch"><input type="checkbox" id="coordsToggle" checked> Show coordinates</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>4. Leads and clinical data</h2>
+        <p class="section-note">For the P-wave axis, you can use voltages measured with points or enter them manually. P-wave voltage in lead II usually matches the “P-wave height” measurement if the lead measured in the image is DII. For heart rate, mark two consecutive R waves; if you do not mark them, you may enter heart rate manually.</p>
+        <div class="form-grid-3">
+          <div><label for="leadIManual">P-wave voltage lead I (mV)</label><input id="leadIManual" type="number" step="0.001" placeholder="e.g. 0.12"></div>
+          <div><label for="leadIIManual">P-wave voltage lead II (mV)</label><input id="leadIIManual" type="number" step="0.001" placeholder="e.g. 0.25"></div>
+          <div><label for="leadIIIManual">P-wave voltage lead III (mV)</label><input id="leadIIIManual" type="number" step="0.001" placeholder="e.g. 0.15"></div>
+        </div>
+        <div class="form-grid" style="margin-top:10px">
+          <div><label for="heartRate">Manual HR (optional)</label><input id="heartRate" type="number" step="1" placeholder="if R-R is not measured"></div>
+          <div><label for="diagnosis">Presumptive diagnosis</label><input id="diagnosis" type="text" placeholder="DCVM, LAE..."></div>
+        </div>
+        <div style="margin-top:10px"><label for="clinicalNotes">Clinical notes</label><textarea id="clinicalNotes" placeholder="Relevant ECG, examination, echo data..."></textarea></div>
+        <div class="buttons" style="margin-top:10px">
+          <button id="useMeasuredLeadsBtn" type="button">Use measured points</button>
+        </div>
+        <p class="helptext">HR by R-R: at 50 mm/s = 3000 / mm between R waves; at 25 mm/s = 1500 / mm between R waves.</p>
+      </div>
+    </section>
+
+    <section class="workspace card" aria-label="ECG viewer">
+      <div class="canvas-toolbar">
+        <div class="buttons">
+          <button id="zoomInBtn" type="button">Zoom +</button>
+          <button id="zoomOutBtn" type="button">Zoom −</button>
+          <button id="resetViewBtn" type="button">Center</button>
+        </div>
+        <div class="pill" id="activeModeLabel">Mode: none</div>
+      </div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="guide-overlay" id="guideOverlay" hidden><div class="guide-box" id="guideBox"></div></div>
+        <canvas id="ecgCanvas" aria-label="ECG viewer with measurement points"></canvas>
+      </div>
+      <div class="statusbar">
+        <span id="statusText">Load an image or use the demo example.</span>
+        <span id="coordText">x: — y: —</span>
+      </div>
+      <div id="warningsBox" class="card" style="box-shadow:none; padding:12px; background:var(--surface-2)">
+        <strong>Quality control</strong>
+        <ul id="warningsList" class="warning-list"><li>No measurements yet.</li></ul>
+      </div>
+    </section>
+
+    <section class="stack right-col" aria-label="Quick results">
+      <div class="card">
+        <h2>Calculated summary</h2>
+        <div class="metric-grid" id="metricGrid"></div>
+      </div>
+      <div class="card">
+        <h2>Marked points</h2>
+        <div class="table-wrap"><table id="pointsTable"><thead><tr><th>#</th><th>Point</th><th>x</th><th>y</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>Direct measurements</h2>
+        <div class="table-wrap"><table id="directTable"><thead><tr><th>Measurement</th><th>Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>Calculated parameters</h2>
+        <div class="table-wrap"><table id="calculatedTable"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="below">
+    <div class="card">
+      <div class="section-title-row"><h2>Comparison with normality and diagnostic statistics</h2><span class="help-chip" title="Cut-off points used as discrimination limits correspond to mean + one standard deviation.">i</span></div>
+      <p class="section-note"><strong>Cut-off points:</strong> patients with DP, VP, AP, DPR, PPR, IMa, and FC values above the considered discrimination limit (<em>mean + one standard deviation</em>) show significantly higher echocardiographic indices of left atrial diameter and area relative to the aorta.</p>
+      <div class="table-wrap"><table id="interpretationTable"><thead><tr><th>Parameter</th><th>Value</th><th>Reference</th><th>Status</th><th>Cut-off</th><th>Sens</th><th>Spec</th><th>PPV</th><th>NPV</th><th>LR+</th><th>LR−</th><th>Comment</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="section-title-row"><h2>Statistical analysis</h2><div class="inline-actions"><button id="openStatsInfoBtn" type="button" class="info-btn">What does this mean?</button></div></div>
+      <div id="statsPanel"></div>
+    </div>
+  </section>
+
+  <section class="below">
+    <div class="card">
+      <h2>Area and axis representation</h2>
+      <div class="form-grid">
+        <div>
+          <h3>AP triangle</h3>
+          <div class="triangle-box"><svg id="triangleSvg" width="100%" height="260" role="img" aria-label="P-wave area triangle"></svg></div>
+        </div>
+        <div>
+          <h3>P-wave electrical axis</h3>
+          <div class="axis-box"><svg id="axisSvg" width="100%" height="260" role="img" aria-label="Hexaxial plane of the P-wave electrical axis"></svg></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Diagnostic decision trees</h2>
+      <div id="treeResult" class="section-note">No route applied.</div>
+      <div id="decisionTrees" class="tree"></div>
+    </div>
+  </section>
+
+  <section class="below">
+    <div class="card">
+      <h2>Final report</h2>
+      <textarea id="reportText" readonly aria-label="Generated report"></textarea>
+      <div class="buttons" style="margin-top:10px">
+        <button id="copyReportBtn" type="button">Copy report</button>
+        <button id="exportTxtBtn" type="button">Exportar TXT</button>
+        <button id="exportJsonBtn" type="button">Exportar JSON</button>
+        <button id="exportCsvBtn" type="button">Exportar CSV</button>
+        <button id="saveImageBtn" type="button">Save capture</button>
+        <button id="printBtn" type="button">Print</button>
+      </div>
+      <p class="section-note"><strong>Warning:</strong> This tool is intended for educational and clinical support purposes. Final interpretation must be made by a veterinarian considering the full ECG, clinical history, physical examination, and complementary tests.</p>
+    </div>
+    <div class="card">
+      <h2>History and comparator</h2>
+      <div class="buttons">
+        <button id="saveHistoryBtn" type="button">Save current measurement</button>
+        <button id="clearHistoryBtn" type="button">Clear history</button>
+      </div>
+      <div style="margin-top:10px"><label for="historySelect">Compare with saved measurement</label><select id="historySelect"><option value="">No saved measurements</option></select></div>
+      <div id="comparisonPanel" class="section-note">Select a saved measurement to compare DP, VP, AP, DPR, PPR, IMa, and EP.</div>
+    </div>
+  </section>
+
+  <section class="below">
+    <div class="card">
+      <h2>How to interpret these results</h2>
+      <p><strong>Cut-off points used:</strong> patients with DP, VP, AP, DPR, PPR, IMa, and FC values above the considered discrimination limit (<em>mean + one standard deviation</em>) show significantly higher echocardiographic left atrial diameter and area indices relative to the aorta.</p>
+      <p>P-wave–related parameters can support the assessment of atrial abnormalities, especially left atrial enlargement in dogs with chronic mitral valve degeneration. The tool prioritizes specificity and control of false positives; it does not replace complete ECG interpretation or echocardiography.</p>
+      <div class="form-grid">
+        <details open><summary>Sensitivity</summary><p>Probability that the test is positive when the abnormality is truly present.</p></details>
+        <details open><summary>Specificity</summary><p>Probability that the test is negative when the abnormality is not present.</p></details>
+        <details><summary>PPV</summary><p>Probability that the patient has the abnormality when the test is positive.</p></details>
+        <details><summary>NPV</summary><p>Probability that the patient does not have the abnormality when the test is negative.</p></details>
+        <details><summary>LR+</summary><p>How much the probability of disease increases when the result is positive.</p></details>
+        <details><summary>LR−</summary><p>How much the probability of disease decreases when the result is negative.</p></details>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Methodological help and brief bibliography</h2>
+      <p>Measurement on a scanned or photographed image depends on photo quality, focus, perspective, rotation, compression, and grid sharpness. Use flat images with no tilt and with a visible grid. The single 5 mm reference assumes there is no differential deformation between horizontal and vertical axes. Heart rate is calculated by measuring the distance between two consecutive R waves: HR = 60 × paper speed / R-R distance in mm.</p>
+      <ul>
+        <li>Doctoral thesis: diagnostic accuracy and correlation of P-wave electrocardiographic parameters in dogs.</li>
+        <li>Original ECG setting in the study: 50 mm/s and 1 cm = 1 mV.</li>
+        <li>Main parameters: DP, VP, AP, DPR, PPR, PR segment, IMa, and EP.</li>
+        <li>Reference and performance values are included in <code>referenceData</code>, editable at the beginning of the JavaScript.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>Developed by Ángel Soto — DVM, PhD</footer>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   EDITABLE CONFIGURATION
+   ---------------------------------------------------------------------
+   The referenceData and decisionTrees data can be replaced with
+   final data extracted from the XLS and thesis. The app does not require network access.
+   ===================================================================== */
+const CONFIG = {
+  defaultPaperSpeed: 50,
+  defaultGainMmPerMv: 10,
+  thesisUrl: 'https://airsoto.github.io/vet/thesis_angel_soto.html',
+  author: 'Ángel Soto',
+  units: { time: 's', voltage: 'mV', area: 'mV·s', axis: '°' }
+};
+
+const referenceData = {
+  /*
+   * Normal values of group I: mean, standard error, SD, minimum and maximum
+   * come from Table 4.3 of the thesis.
+   * cutoff = mean + 1 SD, used as the discrimination limit in Tables 4.7 and 4.11.
+   * normalMin/normalMax retain the observed range in group I, NOT the diagnostic cut-off point.
+   * stats.dLAAO and stats.aLAAO reproduce Table 4.11.
+   * abc reproduce Table 4.12.
+   * roc reproduce the optimal points from Tables 4.13 and 4.14.
+   */
+  DP: {
+    name: 'P-wave duration', unit: 's', mean: 0.0418, sem: 0.0008725, sd: 0.0063,
+    normalMin: 0.0278, normalMax: 0.0560, cutoff: 0.0481,
+    sensitivity: 48, specificity: 78, ppv: 70, npv: 59, lrPositive: 2.21, lrNegative: 0.66,
+    sensitivityA: 52, specificityA: 79, ppvA: 68, npvA: 65, lrPositiveA: 2.48, lrNegativeA: 0.61,
+    pD: '<0,05', pA: '<0,05',
+    abc: { dLAAO: 0.66, aLAAO: 0.69 },
+    roc: {
+      dLAAO: { cutoff: 0.0465, sensitivity: 57, specificity: 73, ppv: 69, npv: 61, lrPositive: 2.10, lrNegative: 0.59, abc: 0.66 },
+      aLAAO: { cutoff: 0.0461, sensitivity: 61, specificity: 72, ppv: 66, npv: 68, lrPositive: 2.20, lrNegative: 0.54, abc: 0.69 },
+      classic: { cutoff: 0.0400 }
+    },
+    clinicalMeaning: 'DP above the cut-off point is associated with a higher probability of left atrial enlargement.'
+  },
+  VP: {
+    name: 'P-wave voltage', unit: 'mV', mean: 0.243, sem: 0.010233, sd: 0.074,
+    normalMin: 0.106, normalMax: 0.448, cutoff: 0.317,
+    sensitivity: 28, specificity: 79, ppv: 59, npv: 51, lrPositive: 1.35, lrNegative: 0.91,
+    sensitivityA: 32, specificityA: 83, ppvA: 62, npvA: 58, lrPositiveA: 1.83, lrNegativeA: 0.82,
+    pD: '>0,05', pA: '<0,05',
+    abc: { dLAAO: 0.59, aLAAO: 0.62 },
+    roc: {
+      dLAAO: { cutoff: 0.263, sensitivity: 52, specificity: 68, ppv: 63, npv: 57, lrPositive: 1.62, lrNegative: 0.71, abc: 0.59 },
+      aLAAO: { cutoff: 0.281, sensitivity: 49, specificity: 78, ppv: 66, npv: 64, lrPositive: 2.23, lrNegative: 0.65, abc: 0.62 },
+      classic: { cutoff: 0.400 }
+    },
+    clinicalMeaning: 'Elevated VP may contribute to suspicion of LAE, especially when accompanied by elevated DP or AP.'
+  },
+  AP: {
+    name: 'P-wave area', unit: 'mV·s', mean: 0.00520, sem: 0.000282827, sd: 0.00203,
+    normalMin: 0.00160, normalMax: 0.01253, cutoff: 0.00723,
+    sensitivity: 34, specificity: 82, ppv: 67, npv: 54, lrPositive: 1.88, lrNegative: 0.81,
+    sensitivityA: 39, specificityA: 85, ppvA: 69, npvA: 61, lrPositiveA: 2.56, lrNegativeA: 0.72,
+    pD: '<0,05', pA: '<0,05',
+    abc: { dLAAO: 0.63, aLAAO: 0.67 },
+    roc: {
+      dLAAO: { cutoff: 0.00578, sensitivity: 58, specificity: 68, ppv: 66, npv: 60, lrPositive: 1.80, lrNegative: 0.62, abc: 0.63 },
+      aLAAO: { cutoff: 0.00603, sensitivity: 56, specificity: 74, ppv: 66, npv: 66, lrPositive: 2.19, lrNegative: 0.59, abc: 0.67 }
+    },
+    clinicalMeaning: 'AP integrates P-wave duration and voltage; high values are related to larger left atrial size.'
+  },
+  DPR: {
+    name: 'PR interval duration', unit: 's', mean: 0.087, sem: 0.0025093, sd: 0.018,
+    normalMin: 0.055, normalMax: 0.142, cutoff: 0.105,
+    sensitivity: 19, specificity: 90, ppv: 43, npv: 67, lrPositive: 1.09, lrNegative: 0.74,
+    sensitivityA: 23, specificityA: 92, ppvA: 42, npvA: 67, lrPositiveA: 0.42, lrNegativeA: 0.51,
+    pD: '>0,05', pA: '<0,05',
+    abc: { dLAAO: 0.51, aLAAO: 0.61 },
+    roc: {
+      aLAAO: { cutoff: 0.0874, sensitivity: 60, specificity: 59, ppv: 56, npv: 63, lrPositive: 1.47, lrNegative: 0.67, abc: 0.61 }
+    },
+    clinicalMeaning: 'DPR is best interpreted together with DP and the PR segment; alone it has lower performance. Note: LR+/LR− from Table 4.11 are retained.'
+  },
+  PPR: {
+    name: 'P duration relative to PR', unit: '%', mean: 50, sem: 0.014, sd: 10,
+    normalMin: 0, normalMax: 100, cutoff: 60,
+    sensitivity: 31, specificity: 90, ppv: 67, npv: 51, lrPositive: 1.88, lrNegative: 0.90,
+    sensitivityA: 28, specificityA: 84, ppvA: 71, npvA: 58, lrPositiveA: 2.78, lrNegativeA: 0.84,
+    pD: '<0,05', pA: '>0,05',
+    abc: { dLAAO: 0.62, aLAAO: 0.56 },
+    roc: {
+      dLAAO: { cutoff: 59, sensitivity: 31, specificity: 88, ppv: 74, npv: 55, lrPositive: 2.71, lrNegative: 0.78, abc: 0.62 }
+    },
+    clinicalMeaning: 'High PPR indicates that the P wave occupies a larger proportion of the PR interval.'
+  },
+  IMa: {
+    name: 'Macruz index', unit: '', mean: 1.06, sem: 0.06, sd: 0.43,
+    normalMin: 0.36, normalMax: 2.17, cutoff: 1.49,
+    sensitivity: 31, specificity: 90, ppv: 74, npv: 55, lrPositive: 2.71, lrNegative: 0.78,
+    sensitivityA: 28, specificityA: 85, ppvA: 60, npvA: 57, lrPositiveA: 1.72, lrNegativeA: 0.86,
+    pD: '<0,05', pA: '>0,05',
+    abc: { dLAAO: 0.62, aLAAO: 0.56 },
+    roc: {
+      dLAAO: { cutoff: 1.44, sensitivity: 31, specificity: 90, ppv: 76, npv: 55, lrPositive: 3.05, lrNegative: 0.77, abc: 0.62 }
+    },
+    clinicalMeaning: 'Elevated IMa supports atrial abnormality if the PR segment is measurable and positive.'
+  },
+  EP: {
+    name: 'P-wave electrical axis', unit: '°', mean: 48, sem: 2.788, sd: 20,
+    normalMin: -1, normalMax: 83, cutoff: 68,
+    sensitivity: 19, specificity: 83, ppv: 55, npv: 49, lrPositive: 1.16, lrNegative: 0.97,
+    sensitivityA: 20, specificityA: 84, ppvA: 52, npvA: 55, lrPositiveA: 1.23, lrNegativeA: 0.96,
+    pD: '>0,05', pA: '>0,05',
+    abc: { dLAAO: 0.58, aLAAO: 0.58 },
+    roc: {},
+    clinicalMeaning: 'EP is orientative; in the thesis it did not show statistical significance for dLAAO or aLAAO.'
+  },
+  FC: {
+    name: 'Heart rate', unit: 'bpm', mean: 126, sem: 4.52, sd: 33,
+    normalMin: 82, normalMax: 225, cutoff: 159,
+    sensitivity: null, specificity: null, ppv: null, npv: null, lrPositive: null, lrNegative: null,
+    pD: null, pA: null,
+    abc: {}, roc: {},
+    clinicalMeaning: 'FC is calculated from the R-R interval. In the thesis it is used as a mean + SD cut-off and in decision trees, but it does not appear in Table 4.11 for sensitivity/specificity.'
+  }
+};
+
+const discriminationExplanation = 'The cut-off points used as discrimination limits are based on mean + one standard deviation. Patients with DP, VP, AP, DPR, PPR, IMa, and FC values above that limit show significantly higher echocardiographic indices of left atrial diameter and area relative to the aorta.';
+
+const decisionTrees = [
+  {
+    name: 'dLAAO tree: DP and FC',
+    root: {
+      parameter: 'DP', operator: '>', threshold: 0.0517,
+      yes: {
+        parameter: 'FC', operator: '>', threshold: 107,
+        yes: { result: '≈91% with dLAAO > 1.94. Compatible with moderate-to-severe LAE if supported by the clinical context.' },
+        no: { result: '≈75% with LA/Ao indices above discrimination limits. Increased risk of LAE.' }
+      },
+      no: {
+        parameter: 'DP', operator: '>', threshold: 0.0470,
+        yes: {
+          parameter: 'FC', operator: '>', threshold: 129,
+          yes: { result: '≈91% with dLAAO > 1.70. Compatible with LAE according to the dLAAO criterion.' },
+          no: { result: '≈69% with dLAAO > 1.70. Suggestive but not definitive result.' }
+        },
+        no: { result: 'Route without strong LAE criteria in this tree.' }
+      }
+    }
+  },
+  {
+    name: 'aLAAO tree: AP and FC',
+    root: {
+      parameter: 'AP', operator: '>', threshold: 0.00964,
+      yes: { result: '≈88% with aLAAO > 4.96. High compatibility with LAE based on P-wave area.' },
+      no: {
+        parameter: 'AP', operator: '>', threshold: 0.00603,
+        yes: {
+          parameter: 'FC', operator: '>', threshold: 141,
+          yes: { result: '≈71% with dLAAO > 2.18. Compatible with moderate-to-severe LAE.' },
+          no: { result: 'AP exceeds the ROC point, but FC does not reinforce the high-risk node.' }
+        },
+        no: { result: 'AP below the risk node in this tree.' }
+      }
+    }
+  }
+];
+
+const POINT_MODES = {
+  cal5: { label: '5 mm ref', color: '#ef4444', max: 2 },
+  pStart: { label: 'P onset', color: '#0ea5e9', max: 1 },
+  pEnd: { label: 'P end', color: '#2563eb', max: 1 },
+  pPeak: { label: 'P-wave height', color: '#f59e0b', max: 1 },
+  baseline: { label: 'Isoelectric line', color: '#10b981', max: 1 },
+  qrsStart: { label: 'QRS onset', color: '#8b5cf6', max: 1 },
+  r1: { label: 'Initial R wave', color: '#dc2626', max: 1 },
+  r2: { label: 'Next R wave', color: '#b91c1c', max: 1 },
+  leadI: { label: 'P-wave voltage lead I', color: '#14b8a6', max: 1 },
+  leadII: { label: 'P-wave voltage lead II', color: '#22c55e', max: 1 },
+  leadIII: { label: 'P-wave voltage lead III', color: '#84cc16', max: 1 }
+};
+
+const GUIDED_SEQUENCE = [
+  { mode: 'cal5', title: '5 mm calibration', helper: 'Mark two points representing 5 mm of the ECG grid.' },
+  { mode: 'pStart', title: 'P-wave onset', helper: 'Place the point at the beginning of the P wave.' },
+  { mode: 'pEnd', title: 'P-wave end', helper: 'Place the point at the end of the P wave.' },
+  { mode: 'pPeak', title: 'P-wave height', helper: 'Mark the highest point of the P wave.' },
+  { mode: 'baseline', title: 'Isoelectric line', helper: 'Mark a point on the corresponding isoelectric line.' },
+  { mode: 'qrsStart', title: 'QRS onset', helper: 'Mark the beginning of the QRS complex.' },
+  { mode: 'r1', title: 'Initial R wave', helper: 'Mark the first R wave to calculate heart rate.' },
+  { mode: 'r2', title: 'Next R wave', helper: 'Mark the next R wave to calculate heart rate.' },
+  { mode: 'leadI', title: 'P-wave voltage in lead I', helper: 'Optional: mark the P-wave height in lead I if you prefer using points rather than typing the value.' },
+  { mode: 'leadII', title: 'P-wave voltage in lead II', helper: 'Optional: if the main measurement is in lead II, it is automatically completed with “P-wave height” if you do not mark this point.' },
+  { mode: 'leadIII', title: 'P-wave voltage in lead III', helper: 'Optional: mark the P-wave height in lead III if you want to measure it on the image.' }
+];
+
+const state = {
+  image: null,
+  imageName: '',
+  points: [],
+  pointCounter: 1,
+  activeMode: null,
+  showLabels: true,
+  showCoords: true,
+  pxPerMm: null,
+  viewScale: 1,
+  baseScale: 1,
+  pan: { x: 20, y: 20 },
+  draggingPointId: null,
+  isPanning: false,
+  panStart: null,
+  lastPointer: null,
+  results: {},
+  direct: {},
+  warnings: [],
+  treeEvaluations: [],
+  guidedMode: false,
+  guidedIndex: 0
+};
+
+const el = {};
+
+function init() {
+  bindElements();
+  bindEvents();
+  resizeCanvas();
+  renderAll();
+  loadHistory();
+  updateGuideOverlay();
+  window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+function bindElements() {
+  const ids = [
+    'ecgCanvas','canvasWrap','ecgFile','statusText','coordText','activeModeLabel','labelsToggle','coordsToggle',
+    'paperSpeed','customPaperSpeed','gainSelect','customGain','patientId','species','breed','sex','age','weight','diagnosis','clinicalNotes',
+    'heartRate','leadIManual','leadIIManual','leadIIIManual','metricGrid','pointsTable','directTable','calculatedTable','interpretationTable',
+    'statsPanel','triangleSvg','axisSvg','decisionTrees','treeResult','reportText','warningsList','historySelect',
+    'comparisonPanel','darkModeToggle','teacherModeToggle','infoModal','abbrModal','statsInfoModal','openInfoBtn','openAbbrBtn','openStatsInfoBtn','guideOverlay','guideBox','guidedStatus','guideStepList'
+  ];
+  ids.forEach(id => el[id] = document.getElementById(id));
+  el.ctx = el.ecgCanvas.getContext('2d');
+}
+
+function bindEvents() {
+  el.ecgFile.addEventListener('change', e => { if (e.target.files[0]) loadECGImage(e.target.files[0]); });
+  document.querySelectorAll('button[data-mode]').forEach(btn => btn.addEventListener('click', () => setMeasurementMode(btn.dataset.mode)));
+  document.getElementById('zoomInBtn').addEventListener('click', () => zoomAtCenter(1.25));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => zoomAtCenter(0.8));
+  document.getElementById('resetViewBtn').addEventListener('click', fitImageToCanvas);
+  document.getElementById('fitBtn').addEventListener('click', fitImageToCanvas);
+  document.getElementById('demoBtn').addEventListener('click', loadDemoECG);
+  document.getElementById('undoBtn').addEventListener('click', deleteLastPoint);
+  document.getElementById('clearPointsBtn').addEventListener('click', () => resetMeasurements(false));
+  document.getElementById('clearAllBtn').addEventListener('click', () => resetMeasurements(true));
+  document.getElementById('recalcBtn').addEventListener('click', recalculateAll);
+  document.getElementById('useMeasuredLeadsBtn').addEventListener('click', useMeasuredLeads);
+  document.getElementById('copyReportBtn').addEventListener('click', copyReport);
+  document.getElementById('exportTxtBtn').addEventListener('click', exportTXT);
+  document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+  document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+  document.getElementById('saveImageBtn').addEventListener('click', saveAnnotatedImage);
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+  document.getElementById('saveHistoryBtn').addEventListener('click', saveCurrentToHistory);
+  document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+  el.historySelect.addEventListener('change', renderComparison);
+  el.labelsToggle.addEventListener('change', e => { state.showLabels = e.target.checked; draw(); });
+  el.coordsToggle.addEventListener('change', e => { state.showCoords = e.target.checked; renderPointsTable(); });
+  el.darkModeToggle.addEventListener('change', e => document.body.classList.toggle('dark', e.target.checked));
+  el.teacherModeToggle.addEventListener('change', renderAll);
+  el.openInfoBtn.addEventListener('click', () => openModal('infoModal'));
+  el.openAbbrBtn.addEventListener('click', () => openModal('abbrModal'));
+  el.openStatsInfoBtn.addEventListener('click', () => openModal('statsInfoModal'));
+  document.getElementById('startGuideBtn').addEventListener('click', startGuidedMode);
+  document.getElementById('stopGuideBtn').addEventListener('click', stopGuidedMode);
+  document.getElementById('nextGuideBtn').addEventListener('click', nextGuideStep);
+  document.getElementById('prevGuideBtn').addEventListener('click', prevGuideStep);
+  document.querySelectorAll('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.closeModal)));
+  document.querySelectorAll('.modal-backdrop').forEach(modal => modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(modal.id); }));
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') document.querySelectorAll('.modal-backdrop.open').forEach(m => closeModal(m.id)); });
+  ['paperSpeed','customPaperSpeed','gainSelect','customGain','heartRate','leadIManual','leadIIManual','leadIIIManual','patientId','species','breed','sex','age','weight','diagnosis','clinicalNotes'].forEach(id => {
+    el[id].addEventListener('input', recalculateAll);
+    el[id].addEventListener('change', recalculateAll);
+  });
+  el.ecgCanvas.addEventListener('pointerdown', onPointerDown);
+  el.ecgCanvas.addEventListener('pointermove', onPointerMove);
+  el.ecgCanvas.addEventListener('pointerup', onPointerUp);
+  el.ecgCanvas.addEventListener('pointerleave', onPointerUp);
+  el.ecgCanvas.addEventListener('wheel', onWheel, { passive: false });
+}
+
+function resizeCanvas() {
+  const rect = el.canvasWrap.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  el.ecgCanvas.width = Math.max(320, Math.floor(rect.width * dpr));
+  el.ecgCanvas.height = Math.max(280, Math.floor(rect.height * dpr));
+  el.ecgCanvas.style.width = rect.width + 'px';
+  el.ecgCanvas.style.height = rect.height + 'px';
+  el.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function canvasCssSize() {
+  const rect = el.ecgCanvas.getBoundingClientRect();
+  return { w: rect.width, h: rect.height };
+}
+
+function loadECGImage(file) {
+  if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
+    setStatus('Invalid format. Use JPG, PNG or WEBP.');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    state.image = img;
+    state.imageName = file.name || 'Loaded ECG';
+    state.points = [];
+    state.pointCounter = 1;
+    state.pxPerMm = null;
+    fitImageToCanvas();
+    setStatus('ECG image loaded. Calibrate the scale with 5 mm.');
+    URL.revokeObjectURL(url);
+    recalculateAll();
+    startGuidedMode();
+  };
+  img.onerror = () => setStatus('Could not load the image.');
+  img.src = url;
+}
+
+function loadECGImageFromDataURL(dataURL, name, afterLoad) {
+  const img = new Image();
+  img.onload = () => {
+    state.image = img;
+    state.imageName = name;
+    state.points = [];
+    state.pointCounter = 1;
+    state.pxPerMm = null;
+    fitImageToCanvas();
+    if (typeof afterLoad === 'function') afterLoad();
+    recalculateAll();
+  };
+  img.src = dataURL;
+}
+
+function loadDemoECG() {
+  const c = document.createElement('canvas');
+  c.width = 1200; c.height = 450;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fffdfd'; g.fillRect(0,0,c.width,c.height);
+  for (let x=0; x<c.width; x+=10) { g.strokeStyle = (x%50===0) ? '#f3a0a8' : '#f8d2d6'; g.lineWidth = (x%50===0) ? 1.2 : .5; g.beginPath(); g.moveTo(x,0); g.lineTo(x,c.height); g.stroke(); }
+  for (let y=0; y<c.height; y+=10) { g.strokeStyle = (y%50===0) ? '#f3a0a8' : '#f8d2d6'; g.lineWidth = (y%50===0) ? 1.2 : .5; g.beginPath(); g.moveTo(0,y); g.lineTo(c.width,y); g.stroke(); }
+  g.strokeStyle = '#111827'; g.lineWidth = 4; g.lineCap = 'round'; g.lineJoin = 'round';
+  const base = 250;
+  g.beginPath();
+  g.moveTo(80, base);
+  g.lineTo(270, base);
+  g.bezierCurveTo(285, base, 292, base-24, 311, base-25);
+  g.bezierCurveTo(330, base-24, 338, base, 350, base);
+  g.lineTo(370, base);
+  g.lineTo(380, base-95);
+  g.lineTo(395, base+120);
+  g.lineTo(415, base-20);
+  g.lineTo(455, base);
+  g.lineTo(730, base);
+  g.bezierCurveTo(760, base, 790, base+5, 830, base-10);
+  g.lineTo(980, base);
+  g.stroke();
+  g.fillStyle = '#0f172a'; g.font = '18px sans-serif'; g.fillText('Demo ECG - grid: 10 px = 1 mm', 40, 40);
+  const dataURL = c.toDataURL('image/png');
+  loadECGImageFromDataURL(dataURL, 'demo_ecg.png', () => {
+    const demo = [
+      ['cal5', 80, 350], ['cal5', 130, 350],
+      ['pStart', 285, base], ['pEnd', 338, base], ['pPeak', 311, base-25],
+      ['baseline', 285, base], ['qrsStart', 370, base], ['r1', 380, base-95], ['r2', 610, base-95], ['leadI', 311, base-15], ['leadII', 311, base-25], ['leadIII', 311, base-10]
+    ];
+    demo.forEach(([m,x,y]) => addPoint(x, y, m, true));
+    el.heartRate.value = "";
+    useMeasuredLeads();
+    setStatus('Demo loaded with example points. You can drag them to practice.');
+  });
+}
+
+function setMeasurementMode(mode) {
+  state.activeMode = mode;
+  document.querySelectorAll('button[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+  const text = mode === 'pan' ? 'Pan image' : (POINT_MODES[mode]?.label || 'none');
+  el.activeModeLabel.textContent = 'Mode: ' + text;
+  const guideIdx = GUIDED_SEQUENCE.findIndex(step => step.mode === mode);
+  if (guideIdx >= 0 && state.guidedMode && guideIdx !== state.guidedIndex) {
+    state.guidedIndex = guideIdx;
+    updateGuideOverlay();
+  }
+}
+
+
+function openModal(id) {
+  const node = document.getElementById(id);
+  if (!node) return;
+  node.classList.add('open');
+  node.setAttribute('aria-hidden', 'false');
+}
+function closeModal(id) {
+  const node = document.getElementById(id);
+  if (!node) return;
+  node.classList.remove('open');
+  node.setAttribute('aria-hidden', 'true');
+}
+
+function currentGuideStep() {
+  return GUIDED_SEQUENCE[state.guidedIndex] || null;
+}
+function updateGuideOverlay() {
+  renderGuideStepList();
+  const step = currentGuideStep();
+  if (!state.guidedMode || !step) {
+    el.guideOverlay.hidden = true;
+    el.guidedStatus.textContent = 'Guided mode inactive. You can start the sequence or click any parameter to repeat its measurement.';
+    return;
+  }
+  el.guideOverlay.hidden = false;
+  const stepNo = state.guidedIndex + 1;
+  el.guideBox.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}: ${escapeHtml(step.title)}</strong><small>${escapeHtml(step.helper)}<br>Click on the image to record this data. You can also click a specific step to repeat it.</small>`;
+  el.guidedStatus.innerHTML = `<strong>Paso ${stepNo}/${GUIDED_SEQUENCE.length}</strong> · ${escapeHtml(step.title)}. ${escapeHtml(step.helper)} <br><span class="section-note">You can click any parameter in the list to measure it again.</span>`;
+}
+
+function renderGuideStepList() {
+  if (!el.guideStepList) return;
+  el.guideStepList.innerHTML = GUIDED_SEQUENCE.map((step, idx) => {
+    const done = isGuideStepComplete(step.mode);
+    const cls = ['guide-step-btn', done ? 'done' : '', idx === state.guidedIndex && state.guidedMode ? 'current' : ''].filter(Boolean).join(' ');
+    return `<button type="button" class="${cls}" data-guide-step="${idx}" title="Measure again: ${escapeHtml(step.title)}">${idx + 1}. ${escapeHtml(step.title)}</button>`;
+  }).join('');
+  el.guideStepList.querySelectorAll('[data-guide-step]').forEach(btn => btn.addEventListener('click', () => jumpGuideStep(Number(btn.dataset.guideStep))));
+}
+function isGuideStepComplete(mode) {
+  if (mode === 'cal5') return getPoints('cal5').length >= 2;
+  return !!getPoint(mode);
+}
+function jumpGuideStep(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= GUIDED_SEQUENCE.length) return;
+  state.guidedMode = true;
+  state.guidedIndex = index;
+  const step = currentGuideStep();
+  if (step) setMeasurementMode(step.mode);
+  updateGuideOverlay();
+  setStatus('Ready to measure again: ' + step.title);
+}
+function startGuidedMode() {
+  state.guidedMode = true;
+  state.guidedIndex = 0;
+  const step = currentGuideStep();
+  if (step) setMeasurementMode(step.mode);
+  updateGuideOverlay();
+  setStatus('Guided mode activated. Follow the steps on the image.');
+}
+function stopGuidedMode() {
+  state.guidedMode = false;
+  setMeasurementMode(null);
+  updateGuideOverlay();
+  setStatus('Sequential data entry completed. You can recalculate, export, or repeat a specific parameter.');
+}
+function nextGuideStep() {
+  if (!state.guidedMode) return startGuidedMode();
+  state.guidedIndex = Math.min(GUIDED_SEQUENCE.length - 1, state.guidedIndex + 1);
+  const step = currentGuideStep();
+  if (step) setMeasurementMode(step.mode);
+  updateGuideOverlay();
+}
+function prevGuideStep() {
+  if (!state.guidedMode) return;
+  state.guidedIndex = Math.max(0, state.guidedIndex - 1);
+  const step = currentGuideStep();
+  if (step) setMeasurementMode(step.mode);
+  updateGuideOverlay();
+}
+function maybeAdvanceGuided(mode) {
+  if (!state.guidedMode) return;
+  const step = currentGuideStep();
+  if (!step || step.mode !== mode) return;
+  if (mode === 'cal5') {
+    if (getPoints('cal5').length < 2) {
+      updateGuideOverlay();
+      return;
+    }
+  }
+  if (state.guidedIndex < GUIDED_SEQUENCE.length - 1) {
+    state.guidedIndex += 1;
+    const next = currentGuideStep();
+    if (next) setMeasurementMode(next.mode);
+    updateGuideOverlay();
+  } else {
+    updateGuideOverlay();
+    setStatus('Guided measurement completed. Review and recalculate if needed.');
+  }
+}
+
+function onPointerDown(ev) {
+  ev.preventDefault();
+  if (!state.image) { setStatus('You must load an image first.'); return; }
+  el.ecgCanvas.setPointerCapture(ev.pointerId);
+  const pos = eventToCanvas(ev);
+  const nearest = findNearestPoint(pos.cx, pos.cy);
+  if (nearest && state.activeMode !== 'pan') {
+    state.draggingPointId = nearest.id;
+    return;
+  }
+  if (state.activeMode === 'pan') {
+    state.isPanning = true;
+    state.panStart = { x: pos.cx, y: pos.cy, panX: state.pan.x, panY: state.pan.y };
+    return;
+  }
+  if (state.activeMode) {
+    const imgPt = canvasToImage(pos.cx, pos.cy);
+    addPoint(imgPt.x, imgPt.y, state.activeMode);
+  } else {
+    setStatus('Please select a measurement button first.');
+  }
+}
+
+function onPointerMove(ev) {
+  const pos = eventToCanvas(ev);
+  const imgPt = state.image ? canvasToImage(pos.cx, pos.cy) : {x: null, y: null};
+  el.coordText.textContent = state.showCoords && state.image ? `x: ${imgPt.x.toFixed(1)} y: ${imgPt.y.toFixed(1)}` : 'x: — y: —';
+  if (state.draggingPointId) {
+    movePoint(state.draggingPointId, imgPt.x, imgPt.y);
+  } else if (state.isPanning && state.panStart) {
+    state.pan.x = state.panStart.panX + (pos.cx - state.panStart.x);
+    state.pan.y = state.panStart.panY + (pos.cy - state.panStart.y);
+    draw();
+  }
+}
+
+function onPointerUp() {
+  state.draggingPointId = null;
+  state.isPanning = false;
+  state.panStart = null;
+}
+
+function onWheel(ev) {
+  if (!state.image) return;
+  ev.preventDefault();
+  const pos = eventToCanvas(ev);
+  const factor = ev.deltaY < 0 ? 1.10 : 0.90;
+  zoomAt(pos.cx, pos.cy, factor);
+}
+
+function eventToCanvas(ev) {
+  const rect = el.ecgCanvas.getBoundingClientRect();
+  return { cx: ev.clientX - rect.left, cy: ev.clientY - rect.top };
+}
+
+function canvasToImage(cx, cy) {
+  return { x: (cx - state.pan.x) / state.viewScale, y: (cy - state.pan.y) / state.viewScale };
+}
+
+function imageToCanvas(x, y) {
+  return { x: state.pan.x + x * state.viewScale, y: state.pan.y + y * state.viewScale };
+}
+
+function findNearestPoint(cx, cy) {
+  let best = null;
+  let bestDist = 12;
+  for (const p of state.points) {
+    const sp = imageToCanvas(p.x, p.y);
+    const d = Math.hypot(sp.x - cx, sp.y - cy);
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  return best;
+}
+
+function addPoint(x, y, mode, silent = false) {
+  if (!POINT_MODES[mode]) return;
+  const cfg = POINT_MODES[mode];
+  const existing = state.points.filter(p => p.mode === mode);
+  if (cfg.max === 1 && existing.length) {
+    existing[0].x = clamp(x, 0, state.image?.width || x);
+    existing[0].y = clamp(y, 0, state.image?.height || y);
+    existing[0].updated = new Date().toISOString();
+  } else {
+    if (existing.length >= cfg.max) {
+      state.points = state.points.filter(p => p.mode !== mode);
+    }
+    const index = state.points.filter(p => p.mode === mode).length + 1;
+    state.points.push({
+      id: 'p' + state.pointCounter++,
+      mode,
+      label: cfg.label + (cfg.max > 1 ? ' ' + index : ''),
+      color: cfg.color,
+      x: clamp(x, 0, state.image?.width || x),
+      y: clamp(y, 0, state.image?.height || y),
+      created: new Date().toISOString()
+    });
+  }
+  if (mode === 'cal5') calibrateScaleFrom5mm();
+  if (!silent) setStatus('Point added: ' + cfg.label);
+  recalculateAll();
+  if (!silent) maybeAdvanceGuided(mode);
+}
+
+function movePoint(pointId, x, y) {
+  const p = state.points.find(pt => pt.id === pointId);
+  if (!p || !state.image) return;
+  p.x = clamp(x, 0, state.image.width);
+  p.y = clamp(y, 0, state.image.height);
+  p.updated = new Date().toISOString();
+  if (p.mode === 'cal5') calibrateScaleFrom5mm();
+  recalculateAll();
+}
+
+function deleteLastPoint() {
+  const last = state.points.pop();
+  if (last?.mode === 'cal5') state.pxPerMm = null;
+  setStatus(last ? 'Last point deleted.' : 'There are no points to delete.');
+  recalculateAll();
+}
+
+function resetMeasurements(clearImage = false) {
+  state.points = [];
+  state.pointCounter = 1;
+  state.pxPerMm = null;
+  state.results = {};
+  state.direct = {};
+  if (clearImage) {
+    state.image = null;
+    state.imageName = '';
+    el.ecgFile.value = '';
+  }
+  setStatus(clearImage ? 'Everything cleared.' : 'Points cleared; image retained.');
+  recalculateAll();
+}
+
+function calibrateScaleFrom5mm() {
+  const pts = getPoints('cal5');
+  if (pts.length < 2) { state.pxPerMm = null; return null; }
+  const distPx = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  state.pxPerMm = distPx / 5;
+  return state.pxPerMm;
+}
+
+function pixelsToMm(px) {
+  if (!state.pxPerMm || state.pxPerMm <= 0) return null;
+  return px / state.pxPerMm;
+}
+
+function mmToSeconds(mm, paperSpeed) { return Number.isFinite(mm) && paperSpeed > 0 ? mm / paperSpeed : null; }
+function mmToMv(mm, gain) { return Number.isFinite(mm) && gain > 0 ? mm / gain : null; }
+
+function getPaperSpeed() {
+  const sel = el.paperSpeed.value;
+  return sel === 'custom' ? parseFloat(el.customPaperSpeed.value) : parseFloat(sel);
+}
+function getGainMmPerMv() {
+  const sel = el.gainSelect.value;
+  return sel === 'custom' ? parseFloat(el.customGain.value) : parseFloat(sel);
+}
+function getPoint(mode) { return state.points.find(p => p.mode === mode) || null; }
+function getPoints(mode) { return state.points.filter(p => p.mode === mode); }
+
+function horizontalMm(a, b) {
+  if (!a || !b || !state.pxPerMm) return null;
+  return (b.x - a.x) / state.pxPerMm;
+}
+function verticalMm(fromBase, peak) {
+  if (!fromBase || !peak || !state.pxPerMm) return null;
+  return (fromBase.y - peak.y) / state.pxPerMm;
+}
+
+function calculateDP() {
+  const mm = horizontalMm(getPoint('pStart'), getPoint('pEnd'));
+  const sec = mmToSeconds(mm, getPaperSpeed());
+  state.direct.dpMm = mm;
+  return sec;
+}
+function calculateVP() {
+  const mm = verticalMm(getPoint('baseline'), getPoint('pPeak'));
+  state.direct.vpMm = mm;
+  const mv = mmToMv(Math.abs(mm ?? NaN), getGainMmPerMv());
+  return mv;
+}
+function calculateAP() {
+  const dp = state.results.DP;
+  const vp = state.results.VP;
+  return Number.isFinite(dp) && Number.isFinite(vp) ? dp * vp / 2 : null;
+}
+function calculateDPR() {
+  const mm = horizontalMm(getPoint('pStart'), getPoint('qrsStart'));
+  state.direct.dprMm = mm;
+  return mmToSeconds(mm, getPaperSpeed());
+}
+function calculatePPR() {
+  const dp = state.results.DP, dpr = state.results.DPR;
+  return Number.isFinite(dp) && Number.isFinite(dpr) && dpr > 0 ? (dp / dpr) * 100 : null;
+}
+function calculatePRSegment() {
+  const dp = state.results.DP, dpr = state.results.DPR;
+  return Number.isFinite(dp) && Number.isFinite(dpr) ? dpr - dp : null;
+}
+function calculateMacruzIndex() {
+  const dp = state.results.DP, prSeg = state.results.PRSegment;
+  if (!Number.isFinite(dp) || !Number.isFinite(prSeg) || prSeg <= 0) return null;
+  return dp / prSeg;
+}
+
+function calculateHeartRate() {
+  const r1 = getPoint('r1');
+  const r2 = getPoint('r2');
+  const mmRaw = horizontalMm(r1, r2);
+  const rrMm = Number.isFinite(mmRaw) ? Math.abs(mmRaw) : null;
+  state.direct.rrMm = rrMm;
+  const speed = getPaperSpeed();
+  if (!Number.isFinite(rrMm) || rrMm <= 0 || !Number.isFinite(speed) || speed <= 0) return null;
+  // Equivale a: 50 mm/s → 3000/mm R-R; 25 mm/s → 1500/mm R-R.
+  return 60 * speed / rrMm;
+}
+
+function getLeadValue(mode, manualInput) {
+  const manual = parseFloat(manualInput.value);
+  if (Number.isFinite(manual)) return manual;
+  const base = getPoint('baseline');
+  const pt = getPoint(mode);
+  const mm = verticalMm(base, pt);
+  const mv = mmToMv(mm, getGainMmPerMv());
+  if (Number.isFinite(mv)) return mv;
+  // Lead II may coincide with the main P-wave height measurement.
+  // If no specific point is marked for lead II, VP calculated from “P-wave height” is reused.
+  if (mode === 'leadII' && Number.isFinite(state.results?.VP)) return state.results.VP;
+  return null;
+}
+
+function calculatePAxis() {
+  const L1 = getLeadValue('leadI', el.leadIManual);
+  const L2 = getLeadValue('leadII', el.leadIIManual);
+  const L3 = getLeadValue('leadIII', el.leadIIIManual);
+  state.direct.leads = { L1, L2, L3 };
+  if (![L1, L2, L3].every(Number.isFinite)) return null;
+  const rad60 = 60 / 180 * Math.PI;
+  const L2y = L2 * Math.cos(rad60);
+  const L2x = L2 * Math.sin(rad60);
+  const L3y = -L3 * Math.cos(rad60);
+  const L3x = L3 * Math.sin(rad60);
+  const x = L2x + L3x;
+  const y = L2y + L3y + L1;
+  let angleDeg = Math.atan2(x, y) * 180 / Math.PI;
+  if (angleDeg > 180) angleDeg -= 360;
+  if (angleDeg < -180) angleDeg += 360;
+  return Math.round(angleDeg);
+}
+
+function useMeasuredLeads() {
+  ['leadI','leadII','leadIII'].forEach((mode, idx) => {
+    const val = getLeadValue(mode, { value: '' });
+    const input = [el.leadIManual, el.leadIIManual, el.leadIIIManual][idx];
+    if (Number.isFinite(val)) input.value = val.toFixed(3);
+  });
+  recalculateAll();
+}
+
+function recalculateAll() {
+  calibrateScaleFrom5mm();
+  state.results = {};
+  state.direct.paperSpeed = getPaperSpeed();
+  state.direct.gainMmPerMv = getGainMmPerMv();
+  state.direct.pxPerMm = state.pxPerMm;
+  state.results.DP = calculateDP();
+  state.results.VP = calculateVP();
+  state.results.AP = calculateAP();
+  state.results.DPR = calculateDPR();
+  state.results.PPR = calculatePPR();
+  state.results.PRSegment = calculatePRSegment();
+  state.results.IMa = calculateMacruzIndex();
+  state.results.EP = calculatePAxis();
+  const measuredFc = calculateHeartRate();
+  const manualFc = parseFloat(el.heartRate.value);
+  state.results.FC = Number.isFinite(measuredFc) ? measuredFc : (Number.isFinite(manualFc) ? manualFc : null);
+  state.direct.fcSource = Number.isFinite(measuredFc) ? 'Measured R-R' : (Number.isFinite(manualFc) ? 'Manual' : null);
+  validateQuality();
+  compareWithReferenceData();
+  evaluateDecisionTree();
+  renderAll();
+  saveLastMeasurementLocal();
+}
+
+function validateQuality() {
+  const w = [];
+  if (!state.image) w.push('ECG image is missing.');
+  if (!state.pxPerMm) w.push('You must first calibrate the 5 mm distance.');
+  const cal = getPoints('cal5');
+  if (cal.length === 2) {
+    const angle = Math.abs(Math.atan2(cal[1].y-cal[0].y, cal[1].x-cal[0].x) * 180 / Math.PI);
+    const nearHorizontal = angle < 12 || angle > 168;
+    if (!nearHorizontal) w.push('The 5 mm reference is tilted. Use a horizontal grid line whenever possible.');
+  }
+  const ps = getPoint('pStart'), pe = getPoint('pEnd'), q = getPoint('qrsStart'), pk = getPoint('pPeak'), bl = getPoint('baseline');
+  const r1 = getPoint('r1'), r2 = getPoint('r2');
+  if ((r1 && !r2) || (!r1 && r2)) w.push('To calculate HR from R-R, mark two consecutive R waves.');
+  if (r1 && r2 && Math.abs(r2.x - r1.x) < 1) w.push('The distance between R waves is zero or too small; review the R points.');
+  if (r1 && r2 && r2.x < r1.x) w.push('The second R wave is to the left of the first; absolute distance is used, but the order should be reviewed.');
+  if (ps && pe && pe.x <= ps.x) w.push('P-wave end is before or at the same position as P-wave onset.');
+  if (pe && q && q.x <= pe.x) w.push('QRS onset is before P-wave end; review points or lead.');
+  if (pk && bl && pk.y > bl.y) w.push('P-wave height is below the isoelectric line in a supposedly positive lead.');
+  if (Number.isFinite(state.results.PRSegment) && state.results.PRSegment <= 0) w.push('The Macruz index cannot be calculated because the PR segment is not valid.');
+  w.push('The 5 mm reference is used as a general scale; if the image has perspective or distortion, vertical voltage may be inaccurate.');
+  state.warnings = w;
+}
+
+function compareWithReferenceData() {
+  const comparisons = {};
+  const discriminativeKeys = new Set(['DP','VP','AP','DPR','PPR','IMa','FC']);
+  for (const key of ['DP','VP','AP','DPR','PPR','IMa','EP','FC']) {
+    const val = state.results[key];
+    const ref = referenceData[key];
+    let status = 'na', label = 'Not calculable';
+    if (Number.isFinite(val) && ref) {
+      const low = ref.normalMin, high = ref.normalMax, cutoff = ref.cutoff;
+      if (Number.isFinite(low) && val < low) { status = 'low'; label = 'Low'; }
+      else if (discriminativeKeys.has(key) && Number.isFinite(cutoff) && val > cutoff) { status = 'high'; label = 'Elevated (> cut-off)'; }
+      else if (Number.isFinite(high) && val > high) { status = 'high'; label = 'Elevated'; }
+      else if (Number.isFinite(cutoff) && val > cutoff * 0.95) { status = 'borderline'; label = 'Borderline'; }
+      else { status = 'normal'; label = 'Normal'; }
+    }
+    comparisons[key] = { value: val, reference: ref, status, label };
+  }
+  state.comparisons = comparisons;
+  return comparisons;
+}
+
+function calculateDiagnosticStats() {
+  const rows = [];
+  for (const key of ['DP','VP','AP','DPR','PPR','IMa','EP']) {
+    const r = referenceData[key];
+    rows.push({ criterion: 'dLAAO > 1.70', parameter: key, cutoff: r.cutoff, sensitivity: r.sensitivity, specificity: r.specificity, ppv: r.ppv, npv: r.npv, lrPositive: r.lrPositive, lrNegative: r.lrNegative, p: r.pD, abc: r.abc?.dLAAO });
+    rows.push({ criterion: 'aLAAO > 4.96', parameter: key, cutoff: r.cutoff, sensitivity: r.sensitivityA, specificity: r.specificityA, ppv: r.ppvA, npv: r.npvA, lrPositive: r.lrPositiveA, lrNegative: r.lrNegativeA, p: r.pA, abc: r.abc?.aLAAO });
+  }
+  return rows;
+}
+
+function renderAll() {
+  draw();
+  renderMetrics();
+  renderPointsTable();
+  renderDirectTable();
+  renderCalculatedTable();
+  renderInterpretationTable();
+  renderStatsPanel();
+  renderTriangle();
+  renderAxis();
+  renderDecisionTree();
+  renderWarnings();
+  updateGuideOverlay();
+  renderReport();
+  renderComparison();
+}
+
+function draw() {
+  const ctx = el.ctx;
+  const { w, h } = canvasCssSize();
+  ctx.clearRect(0, 0, w, h);
+  ctx.save();
+  ctx.fillStyle = getCss('--grid-bg');
+  ctx.fillRect(0, 0, w, h);
+  if (!state.image) {
+    ctx.fillStyle = getCss('--muted');
+    ctx.font = '16px system-ui';
+    ctx.fillText('Load an ECG image or click “Demo example”.', 24, 38);
+    ctx.restore();
+    return;
+  }
+  ctx.translate(state.pan.x, state.pan.y);
+  ctx.scale(state.viewScale, state.viewScale);
+  ctx.drawImage(state.image, 0, 0);
+  drawOverlay(ctx);
+  ctx.restore();
+}
+
+function drawOverlay(ctx) {
+  ctx.save();
+  ctx.lineWidth = 2 / state.viewScale;
+  ctx.font = `${13 / state.viewScale}px system-ui`;
+  const ps = getPoint('pStart'), pe = getPoint('pEnd'), pk = getPoint('pPeak'), bl = getPoint('baseline'), q = getPoint('qrsStart');
+  const r1 = getPoint('r1'), r2 = getPoint('r2');
+  drawLine(ctx, ...getPoints('cal5'), '#ef4444', '5 mm');
+  if (r1 && r2) drawLine(ctx, r1, r2, '#dc2626', 'R-R / FC');
+  if (ps && pe) drawLine(ctx, ps, pe, '#0ea5e9', 'DP');
+  if (ps && q) drawLine(ctx, ps, q, '#8b5cf6', 'DPR');
+  if (pe && q) drawLine(ctx, pe, q, '#a855f7', 'PR segment');
+  if (bl && pk) {
+    drawLine(ctx, {x: pk.x, y: bl.y}, pk, '#f59e0b', 'VP');
+    ctx.strokeStyle = 'rgba(245,158,11,.45)';
+    ctx.beginPath(); ctx.moveTo(ps?.x ?? pk.x-30, bl.y); ctx.lineTo(pe?.x ?? pk.x+30, bl.y); ctx.stroke();
+  }
+  if (bl) {
+    ctx.strokeStyle = 'rgba(16,185,129,.55)';
+    ctx.setLineDash([8 / state.viewScale, 6 / state.viewScale]);
+    ctx.beginPath(); ctx.moveTo(0, bl.y); ctx.lineTo(state.image.width, bl.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  for (const p of state.points) drawPoint(ctx, p);
+  ctx.restore();
+}
+
+function drawPoint(ctx, p) {
+  const r = 6 / state.viewScale;
+  ctx.fillStyle = p.color;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2 / state.viewScale;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  if (state.showLabels) {
+    const text = `${p.label} #${p.id.replace('p','')}`;
+    ctx.fillStyle = 'rgba(15,23,42,.82)';
+    ctx.fillRect(p.x + 8 / state.viewScale, p.y - 19 / state.viewScale, ctx.measureText(text).width + 10 / state.viewScale, 18 / state.viewScale);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, p.x + 13 / state.viewScale, p.y - 6 / state.viewScale);
+  }
+}
+
+function drawLine(ctx, a, b, color, label) {
+  if (!a || !b) return;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  if (state.showLabels && label) {
+    const mx = (a.x+b.x)/2, my=(a.y+b.y)/2;
+    ctx.fillText(label, mx + 6 / state.viewScale, my - 6 / state.viewScale);
+  }
+}
+
+function fitImageToCanvas() {
+  if (!state.image) { draw(); return; }
+  const { w, h } = canvasCssSize();
+  const scale = Math.min(w / state.image.width, h / state.image.height) * 0.95;
+  state.baseScale = scale;
+  state.viewScale = scale;
+  state.pan.x = (w - state.image.width * scale) / 2;
+  state.pan.y = (h - state.image.height * scale) / 2;
+  draw();
+}
+
+function zoomAtCenter(factor) {
+  const { w, h } = canvasCssSize();
+  zoomAt(w/2, h/2, factor);
+}
+function zoomAt(cx, cy, factor) {
+  const before = canvasToImage(cx, cy);
+  state.viewScale = clamp(state.viewScale * factor, 0.05, 20);
+  state.pan.x = cx - before.x * state.viewScale;
+  state.pan.y = cy - before.y * state.viewScale;
+  draw();
+}
+
+function renderMetrics() {
+  const keys = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'];
+  el.metricGrid.innerHTML = keys.map(k => {
+    const val = state.results[k];
+    const ref = referenceData[k] || {};
+    const unit = ref.unit || '';
+    return `<div class="metric"><div class="name">${k}</div><div class="value">${fmt(k, val)} ${unit}</div></div>`;
+  }).join('');
+}
+
+function renderPointsTable() {
+  const tb = el.pointsTable.querySelector('tbody');
+  tb.innerHTML = state.points.length ? state.points.map((p,i) => `<tr><td>${i+1}</td><td><span class="tag" style="border-color:${p.color};color:${p.color}">${escapeHtml(p.label)}</span></td><td>${state.showCoords ? p.x.toFixed(1) : '—'}</td><td>${state.showCoords ? p.y.toFixed(1) : '—'}</td></tr>`).join('') : '<tr><td colspan="4">No points.</td></tr>';
+}
+
+function renderDirectTable() {
+  const rows = [
+    ['Scale', state.pxPerMm ? state.pxPerMm.toFixed(3) : null, 'px/mm'],
+    ['Paper speed', getPaperSpeed(), 'mm/s'],
+    ['Gain', getGainMmPerMv(), 'mm/mV'],
+    ['Direct DP', state.direct.dpMm, 'mm'],
+    ['Direct P-wave height', state.direct.vpMm, 'mm'],
+    ['Direct DPR', state.direct.dprMm, 'mm'],
+    ['Direct R-R', state.direct.rrMm, 'mm'],
+    ['HR source', state.direct.fcSource, ''],
+    ['Voltages I, II, III', state.direct.leads ? `${safeNum(state.direct.leads.L1,3)}, ${safeNum(state.direct.leads.L2,3)}, ${safeNum(state.direct.leads.L3,3)}` : null, 'mV']
+  ];
+  const tb = el.directTable.querySelector('tbody');
+  tb.innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] == null || Number.isNaN(r[1]) ? '—' : r[1]}</td><td>${r[2]}</td></tr>`).join('');
+}
+
+function renderCalculatedTable() {
+  const rows = [
+    ['DP', state.results.DP, 's'], ['VP', state.results.VP, 'mV'], ['AP', state.results.AP, 'mV·s'], ['DPR', state.results.DPR, 's'], ['PPR', state.results.PPR, '%'], ['PR segment', state.results.PRSegment, 's'], ['IMa', state.results.IMa, ''], ['EP', state.results.EP, '°'], ['FC', state.results.FC, 'bpm']
+  ];
+  const tb = el.calculatedTable.querySelector('tbody');
+  tb.innerHTML = rows.map(([k,v,u]) => `<tr><td>${k}</td><td>${fmt(k === 'PR segment' ? 'PRSegment' : k, v)}</td><td>${u}</td></tr>`).join('');
+}
+
+function renderInterpretationTable() {
+  const tb = el.interpretationTable.querySelector('tbody');
+  const rows = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'].map(k => {
+    const c = state.comparisons?.[k] || {}; const r = referenceData[k];
+    const refText = `${r.normalMin ?? '—'} – ${r.normalMax ?? '—'} ${r.unit}<br><span class="section-note">Mean ${safeNum(r.mean, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))} · DE ${safeNum(r.sd, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))}</span>`;
+    const stat = `${r.clinicalMeaning || ''}${r.pD || r.pA ? ' Table 4.11 significance: dLAAO ' + (r.pD || '—') + ', aLAAO ' + (r.pA || '—') + '.' : ''}`;
+    return `<tr>
+      <td><strong>${k}</strong><br><span class="section-note">${r.name}</span>${renderTeacherNote(k)}</td>
+      <td>${fmt(k, c.value)} ${r.unit}</td>
+      <td>${refText}</td>
+      <td><span class="tag ${statusClass(c.status)}">${c.label || 'Not calculable'}</span></td>
+      <td>${r.cutoff ?? '—'}</td>
+      <td>${dualPct(r.sensitivity, r.sensitivityA)}</td>
+      <td>${dualPct(r.specificity, r.specificityA)}</td>
+      <td>${dualPct(r.ppv, r.ppvA)}</td>
+      <td>${dualPct(r.npv, r.npvA)}</td>
+      <td>${dualNum(r.lrPositive, r.lrPositiveA)}</td>
+      <td>${dualNum(r.lrNegative, r.lrNegativeA)}</td>
+      <td>${escapeHtml(stat)}</td>
+    </tr>`;
+  });
+  tb.innerHTML = rows.join('');
+}
+
+function renderReferenceNormalTable() {
+  const keys = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'];
+  let html = '<h3 style="margin-top:8px">Normal values for group I</h3>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Mean</th><th>Standard error of the mean</th><th>Standard deviation</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>';
+  html += keys.map(k => {
+    const r = referenceData[k];
+    const dMean = k === 'AP' ? 5 : (k === 'VP' || k === 'IMa' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4));
+    const dSd = k === 'AP' ? 5 : (k === 'VP' || k === 'IMa' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4));
+    const dSem = k === 'AP' ? 9 : (k === 'VP' || k === 'DPR' ? 6 : (k === 'DP' ? 7 : (k === 'EP' || k === 'FC' ? 3 : 3)));
+    const unit = r.unit ? ` (${r.unit})` : '';
+    return `<tr><td><strong>${k}</strong>${unit}</td><td>${safeNum(r.mean, dMean)}</td><td>${safeNum(r.sem, dSem)}</td><td>${safeNum(r.sd, dSd)}</td><td>${safeNum(r.normalMin, dMean)}</td><td>${safeNum(r.normalMax, dMean)}</td></tr>`;
+  }).join('');
+  html += '</tbody></table></div>';
+  html += '<p class="section-note">These values correspond to the group of patients without echocardiographic evidence of left atrial enlargement. The diagnostic cut-off shown in the tables is calculated as mean + one standard deviation.</p>';
+  return html;
+}
+
+
+function renderRocCutoffTable() {
+  const rows = [];
+  for (const key of ['DP','VP','AP','DPR','PPR','IMa']) {
+    const r = referenceData[key];
+    if (r.roc?.dLAAO) rows.push({criterion:'ROC dLAAO > 1.70', parameter:key, ...r.roc.dLAAO});
+    if (r.roc?.aLAAO) rows.push({criterion:'ROC aLAAO > 4.96', parameter:key, ...r.roc.aLAAO});
+  }
+  if (!rows.length) return '';
+  let html = '<h3 style="margin-top:14px">Optimal ROC points</h3>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Criterion</th><th>Parameter</th><th>Optimal cut-off</th><th>Sens</th><th>Spec</th><th>PPV</th><th>NPV</th><th>LR+</th><th>LR−</th><th>AUC</th></tr></thead><tbody>';
+  html += rows.map(r => `<tr><td>${r.criterion}</td><td>${r.parameter}</td><td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td><td>${r.abc ?? '—'}</td></tr>`).join('');
+  html += '</tbody></table></div>';
+  return html;
+}
+
+
+function renderStatsPanel() {
+  const keys = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'];
+  let html = `<p class="section-note">${escapeHtml(discriminationExplanation)}</p>`;
+  html += renderReferenceNormalTable();
+  html += '<div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Z</th><th>Percentil aprox.</th><th>Scale</th></tr></thead><tbody>';
+  html += keys.map(k => {
+    const r = referenceData[k], v = state.results[k];
+    const z = Number.isFinite(v) && r?.sd ? (v - r.mean) / r.sd : null;
+    const p = Number.isFinite(z) ? normalCdf(z) * 100 : null;
+    const pos = Number.isFinite(z) ? clamp(50 + z * 15, 0, 100) : 0;
+    return `<tr><td>${k}<br><span class="section-note">Mean ${safeNum(r.mean, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))} · DE ${safeNum(r.sd, k === 'AP' ? 5 : (k === 'VP' ? 3 : (k === 'PPR' || k === 'EP' || k === 'FC' ? 0 : 4)))}</span></td><td>${safeNum(z,2)}</td><td>${safeNum(p,1)}%</td><td><div class="scale-track"><span class="scale-normal"></span><span class="scale-dot" style="left:${pos}%"></span></div></td></tr>`;
+  }).join('');
+  html += '</tbody></table></div>';
+  html += '<h3 style="margin-top:14px">Sensitivity/specificity table by cut-off point</h3><p class="section-note"><strong>dLAAO &gt; 1.70</strong> y <strong>aLAAO &gt; 4.96</strong> are the cut-off points defined in the thesis for considering the presence of left atrial enlargement.</p>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Criterion</th><th>Parameter</th><th>Cut-off</th><th>Sens</th><th>Spec</th><th>PPV</th><th>NPV</th><th>LR+</th><th>LR−</th><th>AUC</th><th>P</th></tr></thead><tbody>';
+  html += calculateDiagnosticStats().map(r => `<tr><td>${r.criterion}</td><td>${r.parameter}</td><td>${r.cutoff ?? '—'}</td><td>${pct(r.sensitivity)}</td><td>${pct(r.specificity)}</td><td>${pct(r.ppv)}</td><td>${pct(r.npv)}</td><td>${r.lrPositive ?? '—'}</td><td>${r.lrNegative ?? '—'}</td><td>${r.abc ?? '—'}</td><td>${r.p ?? '—'}</td></tr>`).join('');
+  html += '</tbody></table></div>';
+  html += renderRocCutoffTable();
+  el.statsPanel.innerHTML = html;
+}
+
+function renderTriangle() {
+  const dp = state.results.DP, vp = state.results.VP;
+  const svg = el.triangleSvg;
+  const w = 360, h = 240;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+  const baseY = 185, left = 70, right = 290, peakX = 180;
+  const peakY = Number.isFinite(vp) ? Math.max(45, baseY - Math.min(120, vp * 260)) : 80;
+  const poly = svgEl('polygon', { points: `${left},${baseY} ${right},${baseY} ${peakX},${peakY}`, fill: 'rgba(25,167,206,.22)', stroke: getCss('--primary'), 'stroke-width': 3 });
+  svg.appendChild(poly);
+  svg.appendChild(svgEl('line', {x1:left,y1:baseY,x2:right,y2:baseY,stroke:getCss('--text'),'stroke-width':2}));
+  svg.appendChild(svgEl('line', {x1:peakX,y1:baseY,x2:peakX,y2:peakY,stroke:getCss('--warn'),'stroke-width':2,'stroke-dasharray':'5 4'}));
+  addSvgText(svg, 180, 215, `DP = ${fmt('DP', dp)} s`, 'middle');
+  addSvgText(svg, 205, (baseY+peakY)/2, `VP = ${fmt('VP', vp)} mV`, 'start');
+  addSvgText(svg, 180, 28, `AP = ${fmt('AP', state.results.AP)} mV·s`, 'middle');
+}
+
+function renderAxis() {
+  const ep = state.results.EP;
+  const svg = el.axisSvg;
+  const w = 320, h = 250, cx = 160, cy = 125, r = 88;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+  svg.appendChild(svgEl('circle', {cx,cy,r,fill:'none',stroke:getCss('--line'),'stroke-width':2}));
+  const axes = [{d:0,l:'I'}, {d:60,l:'II'}, {d:120,l:'III'}, {d:-150,l:'aVR'}, {d:-30,l:'aVL'}, {d:90,l:'aVF'}];
+  axes.forEach(a => {
+    const p1 = polar(cx,cy,r,a.d), p2 = polar(cx,cy,-r,a.d);
+    svg.appendChild(svgEl('line', {x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,stroke:getCss('--line'),'stroke-width':1.5}));
+    const lab = polar(cx,cy,r+18,a.d);
+    addSvgText(svg, lab.x, lab.y, a.l, 'middle');
+  });
+  if (Number.isFinite(ep)) {
+    const p = polar(cx, cy, r, ep);
+    svg.appendChild(svgEl('line', {x1:cx,y1:cy,x2:p.x,y2:p.y,stroke:getCss('--bad'),'stroke-width':5,'stroke-linecap':'round'}));
+    svg.appendChild(svgEl('circle', {cx:p.x,cy:p.y,r:5,fill:getCss('--bad')}));
+  }
+  addSvgText(svg, cx, 238, `EP = ${fmt('EP', ep)}°`, 'middle');
+}
+
+function renderDecisionTree() {
+  const container = el.decisionTrees;
+  container.innerHTML = decisionTrees.map((tree, idx) => {
+    const evalData = state.treeEvaluations[idx] || { activePaths: [] };
+    return `<section><h3>${escapeHtml(tree.name)}</h3>${renderTreeNode(tree.root, `${idx}`, evalData.activePaths)}</section>`;
+  }).join('');
+  const finals = state.treeEvaluations.map(e => e?.final).filter(Boolean);
+  el.treeResult.innerHTML = finals.length ? finals.map((f,i) => `<p><strong>${escapeHtml(decisionTrees[i].name)}:</strong> ${escapeHtml(f)}</p>`).join('') : 'No route applied.';
+}
+
+function renderTreeNode(node, path, activePaths) {
+  const active = activePaths.includes(path) ? ' active' : '';
+  if (node.result) return `<div class="tree-node leaf${active}"><strong>Result</strong><br>${escapeHtml(node.result)}</div>`;
+  const label = `${node.parameter} ${node.operator} ${node.threshold}`;
+  return `<div class="tree-node${active}"><strong>${escapeHtml(label)}</strong></div><div class="tree-children"><div><div class="branch-label">Yes</div>${renderTreeNode(node.yes, path + '.yes', activePaths)}</div><div><div class="branch-label">No</div>${renderTreeNode(node.no, path + '.no', activePaths)}</div></div>`;
+}
+
+function evaluateDecisionTree() {
+  state.treeEvaluations = decisionTrees.map((tree, idx) => {
+    const activePaths = [];
+    const steps = [];
+    let node = tree.root;
+    let path = `${idx}`;
+    while (node && !node.result) {
+      activePaths.push(path);
+      const val = state.results[node.parameter];
+      const ok = compare(val, node.operator, node.threshold);
+      steps.push(`${node.parameter}=${fmt(node.parameter,val)} ${ok ? 'meets' : 'does not meet'} ${node.operator} ${node.threshold}`);
+      path += ok ? '.yes' : '.no';
+      node = ok ? node.yes : node.no;
+    }
+    if (node?.result) activePaths.push(path);
+    return { activePaths, steps, final: node?.result || 'Not assessable' };
+  });
+  return state.treeEvaluations;
+}
+
+function compare(value, operator, threshold) {
+  if (!Number.isFinite(value)) return false;
+  if (operator === '>') return value > threshold;
+  if (operator === '>=') return value >= threshold;
+  if (operator === '<') return value < threshold;
+  if (operator === '<=') return value <= threshold;
+  return value === threshold;
+}
+
+function renderWarnings() {
+  el.warningsList.innerHTML = state.warnings.length ? state.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('') : '<li>No warnings.</li>';
+}
+
+function generateReport() {
+  const patient = getPatientData();
+  const altered = Object.entries(state.comparisons || {}).filter(([,c]) => ['high','low','borderline'].includes(c.status)).map(([k,c]) => `${k}: ${c.label}`).join('; ') || 'No relevant calculable deviations detected.';
+  const treeTxt = state.treeEvaluations.map((e,i) => `${decisionTrees[i].name}: ${e.final}. Ruta: ${e.steps.join(' → ')}`).join('\n');
+  return [
+    'P-WAVE ELECTROCARDIOGRAPHIC ANALYSIS REPORT',
+    '-------------------------------------------------------',
+    `Date: ${new Date().toLocaleString()}`,
+    `Patient: ${patient.patientId || 'Not specified'}`,
+    `Species/Breed/Sex/Age/Weight: ${patient.species} / ${patient.breed || '—'} / ${patient.sex} / ${patient.age || '—'} / ${patient.weight || '—'} kg`,
+    `Image: ${state.imageName || 'Not indicated'}`,
+    '',
+    'CALIBRATION',
+    `Scale: ${state.pxPerMm ? state.pxPerMm.toFixed(4) + ' px/mm' : 'Not calibrated'}`,
+    `Speed: ${getPaperSpeed()} mm/s`,
+    `Gain: ${getGainMmPerMv()} mm/mV`,
+    '',
+    'CALCULATED PARAMETERS',
+    `DP: ${fmt('DP', state.results.DP)} s`,
+    `VP: ${fmt('VP', state.results.VP)} mV`,
+    `AP: ${fmt('AP', state.results.AP)} mV·s`,
+    `DPR: ${fmt('DPR', state.results.DPR)} s`,
+    `PPR: ${fmt('PPR', state.results.PPR)} %`,
+    `PR segment: ${fmt('PRSegment', state.results.PRSegment)} s`,
+    `IMa: ${fmt('IMa', state.results.IMa)}`,
+    `EP: ${fmt('EP', state.results.EP)} °`,
+    `R-R: ${safeNum(state.direct.rrMm, 2)} mm`,
+    `FC: ${fmt('FC', state.results.FC)} bpm (${state.direct.fcSource || 'not calculated'})`,
+    '',
+    'STATISTICAL INTERPRETATION',
+    altered,
+    '',
+    'DECISION TREES',
+    treeTxt || 'Not evaluable.',
+    '',
+    'CLINICAL NOTES',
+    patient.diagnosis ? `Presumptive diagnosis: ${patient.diagnosis}` : 'Presumptive diagnosis: —',
+    patient.clinicalNotes || '—',
+    '',
+    'WARNINGS',
+    state.warnings.map(w => `- ${w}`).join('\n'),
+    '',
+    'This tool is intended for educational and clinical support purposes. Final interpretation must be made by a veterinarian considering the full ECG, clinical history, physical examination, and complementary tests.'
+  ].join('\n');
+}
+
+function renderReport() { el.reportText.value = generateReport(); }
+
+function exportCSV() {
+  const rows = [['Parametro','Value','Unit','RangoMin','RangoMax','Cut-off','Sens_dLAAO','Spec_dLAAO','PPV_dLAAO','NPV_dLAAO','LR+_dLAAO','LR−_dLAAO','Sens_aLAAO','Spec_aLAAO','PPV_aLAAO','NPV_aLAAO','LR+_aLAAO','LR−_aLAAO','Status']];
+  for (const k of ['DP','VP','AP','DPR','PPR','IMa','EP','FC']) {
+    const r = referenceData[k] || {}; const c = state.comparisons?.[k] || {};
+    rows.push([k, valForExport(state.results[k]), r.unit || '', r.normalMin ?? '', r.normalMax ?? '', r.cutoff ?? '', r.sensitivity ?? '', r.specificity ?? '', r.ppv ?? '', r.npv ?? '', r.lrPositive ?? '', r.lrNegative ?? '', r.sensitivityA ?? '', r.specificityA ?? '', r.ppvA ?? '', r.npvA ?? '', r.lrPositiveA ?? '', r.lrNegativeA ?? '', c.label ?? '']);
+  }
+  const csv = rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
+  downloadBlob(csv, 'p_wave_ecg_analysis.csv', 'text/csv;charset=utf-8');
+}
+
+function exportJSON() {
+  const data = collectExportData();
+  downloadBlob(JSON.stringify(data, null, 2), 'p_wave_ecg_analysis.json', 'application/json;charset=utf-8');
+}
+
+function exportTXT() { downloadBlob(generateReport(), 'p_wave_ecg_report.txt', 'text/plain;charset=utf-8'); }
+
+function copyReport() {
+  const txt = generateReport();
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => setStatus('Report copied to clipboard.'));
+  else { el.reportText.select(); document.execCommand('copy'); setStatus('Report copied to clipboard.'); }
+}
+
+function saveAnnotatedImage() {
+  if (!state.image) { setStatus('No image to export.'); return; }
+  el.ecgCanvas.toBlob(blob => {
+    if (!blob) { setStatus('Could not generate the capture.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'annotated_p_wave_ecg.png'; a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+function collectExportData() {
+  return { createdAt: new Date().toISOString(), config: { paperSpeed: getPaperSpeed(), gainMmPerMv: getGainMmPerMv(), pxPerMm: state.pxPerMm }, patient: getPatientData(), imageName: state.imageName, points: state.points, direct: state.direct, results: state.results, comparisons: state.comparisons, warnings: state.warnings, trees: state.treeEvaluations, referenceDataVersion: 'internal-thesis-editable-1' };
+}
+
+function getPatientData() {
+  return { patientId: el.patientId.value, species: el.species.value, breed: el.breed.value, sex: el.sex.value, age: el.age.value, weight: el.weight.value, diagnosis: el.diagnosis.value, clinicalNotes: el.clinicalNotes.value };
+}
+
+function saveLastMeasurementLocal() {
+  try { localStorage.setItem('ondaP_lastMeasurement', JSON.stringify(collectExportData())); } catch (_) {}
+}
+
+function saveCurrentToHistory() {
+  const data = collectExportData();
+  data.title = `${data.patient.patientId || 'Patient'} · ${new Date().toLocaleString()}`;
+  const h = getHistory();
+  h.unshift(data);
+  localStorage.setItem('ondaP_history', JSON.stringify(h.slice(0, 30)));
+  loadHistory();
+  setStatus('Measurement saved in local history.');
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('ondaP_history') || '[]'); } catch (_) { return []; }
+}
+
+function loadHistory() {
+  const h = getHistory();
+  el.historySelect.innerHTML = h.length ? '<option value="">Select measurement</option>' + h.map((item,i) => `<option value="${i}">${escapeHtml(item.title || ('Measurement ' + (i+1)))}</option>`).join('') : '<option value="">No saved measurements</option>';
+}
+
+function clearHistory() {
+  localStorage.removeItem('ondaP_history');
+  loadHistory();
+  renderComparison();
+  setStatus('History cleared.');
+}
+
+function renderComparison() {
+  const idx = el.historySelect.value;
+  if (idx === '') { el.comparisonPanel.textContent = 'Select a saved measurement to compare DP, VP, AP, DPR, PPR, IMa, and EP.'; return; }
+  const h = getHistory();
+  const old = h[Number(idx)];
+  if (!old) return;
+  const keys = ['DP','VP','AP','DPR','PPR','IMa','EP','FC'];
+  let html = '<div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Current</th><th>Saved</th><th>Difference</th></tr></thead><tbody>';
+  html += keys.map(k => {
+    const a = state.results[k], b = old.results?.[k], diff = Number.isFinite(a) && Number.isFinite(b) ? a-b : null;
+    return `<tr><td>${k}</td><td>${fmt(k,a)}</td><td>${fmt(k,b)}</td><td>${safeNum(diff, k === 'EP' || k === 'FC' ? 0 : 4)}</td></tr>`;
+  }).join('');
+  html += '</tbody></table></div>';
+  el.comparisonPanel.innerHTML = html;
+}
+
+function renderTeacherNote(k) {
+  const notes = {
+    DP:'Measures atrial depolarization time.',
+    VP:'Reflects the electrical amplitude of the P wave.',
+    AP:'Simplified estimate of P-wave area using a triangular approximation.',
+    DPR:'Includes atrial and atrioventricular conduction.',
+    PPR:'Relates P-wave duration to the PR interval.',
+    IMa:'Index comparing P-wave duration with the PR segment.',
+    EP:'Mean direction of atrial depolarization in the frontal plane.',
+    FC:'Heart rate calculated from two consecutive R waves: at 50 mm/s = 3000 / mm between R waves; at 25 mm/s = 1500 / mm between R waves.'
+  };
+  return el.teacherModeToggle.checked && notes[k] ? `<br><span class="section-note">${notes[k]}</span>` : '';
+}
+
+function setStatus(msg) { el.statusText.textContent = msg; }
+
+function downloadBlob(content, filename, type) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function fmt(k, v) {
+  if (!Number.isFinite(v)) return '—';
+  const d = { DP:4, VP:3, AP:5, DPR:3, PPR:0, PRSegment:3, IMa:2, EP:0, FC:0 }[k] ?? 3;
+  return Number(v).toFixed(d);
+}
+function safeNum(v, d=2) { return Number.isFinite(v) ? Number(v).toFixed(d) : '—'; }
+function valForExport(v) { return Number.isFinite(v) ? v : ''; }
+function pct(v) { return Number.isFinite(v) ? `${v}%` : '—'; }
+function dualPct(d, a) { return `dLAAO ${pct(d)}<br>aLAAO ${pct(a)}`; }
+function dualNum(d, a) { return `dLAAO ${Number.isFinite(d) ? d : '—'}<br>aLAAO ${Number.isFinite(a) ? a : '—'}`; }
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function statusClass(s) { return ({normal:'good', borderline:'warn', high:'bad', low:'bad', na:'neutral'}[s] || 'neutral'); }
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+function getCss(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+function normalCdf(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+function erf(x) {
+  const sign = x >= 0 ? 1 : -1; x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t = 1/(1+p*x); const y = 1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function svgEl(name, attrs) {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.entries(attrs).forEach(([k,v]) => node.setAttribute(k, v));
+  return node;
+}
+function addSvgText(svg, x, y, text, anchor='middle') {
+  const t = svgEl('text', {x, y, 'text-anchor': anchor, fill: getCss('--text'), 'font-size': 13, 'font-weight': 800});
+  t.textContent = text; svg.appendChild(t);
+}
+function polar(cx, cy, r, deg) {
+  const rad = deg * Math.PI / 180;
+  return { x: cx + Math.sin(rad) * r, y: cy - Math.cos(rad) * r };
+}
+</script>
+</body>
+</html>
