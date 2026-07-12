@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
   <script defer src="goat.js"></script>
@@ -93,8 +94,10 @@
     .meter-fill{
       height:100%;width:0%;border-radius:999px;
       background:linear-gradient(90deg,var(--accent),#ffd166,var(--accent-2));
-      transition:width .05s linear;
+      transition:width .05s linear, opacity .18s ease;
     }
+    .meter-fill.glide{background:linear-gradient(90deg,#38bdf8,#7dd3fc,#e0f2fe)}
+    .meter-fill.low{opacity:.55}
 
     .modal-wrap{
       position:absolute;inset:0;display:grid;place-items:center;z-index:20;
@@ -148,7 +151,7 @@
       <div class="topbar">
         <div class="pill scorebox">
           <div id="score" class="scorebig">0</div>
-          <div class="scoresub">plataformas</div>
+          <div class="scoresub">puntos · <span id="progressText">plataforma 0/100</span></div>
         </div>
         <div class="smallstack">
           <div id="livesBox" class="pill lifebox">🍎 0</div>
@@ -169,12 +172,12 @@
     <div id="startModal" class="modal-wrap show">
       <div class="card">
         <div class="eyebrow">Game Jump</div>
-        <h2>Salta de nube en nube</h2>
-        <p>Mantén pulsado para cargar el salto y suelta para impulsarte. Llega hasta la plataforma 100 para ganar.</p>
+        <h2>Salta de plataforma en plataforma</h2>
+        <p>Mantén pulsado para cargar el salto y suelta para impulsarte. Mientras caes, mantén pulsado de nuevo para planear y ajustar el aterrizaje. Llega hasta la plataforma 100 para ganar.</p>
         <div class="btnrow">
           <button id="btnStart" class="btn primary">Empezar</button>
         </div>
-        <div class="footer-note">Frutas extra en las plataformas 5, 10, 20, 35, 50, 65, 75, 80 y 95.</div>
+        <div class="footer-note">Las manzanas dan una vida y guardan un punto de control. La línea punteada muestra la trayectoria prevista.</div>
       </div>
     </div>
 
@@ -223,6 +226,7 @@
 
     const ui = {
       score: document.getElementById('score'),
+      progressText: document.getElementById('progressText'),
       status: document.getElementById('statusText'),
       powerFill: document.getElementById('powerFill'),
       livesBox: document.getElementById('livesBox'),
@@ -244,6 +248,7 @@
 
     let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
     let lastTime = 0;
+    let animationFrameId = null;
     let running = false;
     let paused = false;
     let state = 'ready';
@@ -275,6 +280,7 @@
       stars: [],
       platforms: [],
       nextPlatformIndex: 1,
+      highestPlatform: 0,
       player: null,
       landedCount: 0,
       extraLives: 0,
@@ -282,6 +288,10 @@
       checkpointNumber: null,
       checkpointPlatform: null,
       platformCounter: 0,
+      gliding: false,
+      glideEnergy: 1,
+      glideDuration: 0.95,
+      glideTrailTimer: 0,
       won: false,
       winTimer: 0,
       fireworkTimer: 0,
@@ -308,12 +318,30 @@
     }
 
     function resize(){
+      const oldH = H;
       W = window.innerWidth;
       H = window.innerHeight;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(W * DPR);
       canvas.height = Math.round(H * DPR);
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      if (oldH > 0 && game.platforms.length) {
+        const ratio = H / oldH;
+        for (const platform of game.platforms) {
+          platform.y = clamp(platform.y * ratio, H * 0.30, H * 0.84);
+        }
+        if (game.player) {
+          if (state === 'jumping') game.player.y *= ratio;
+          else {
+            const current = game.platforms[game.player.currentPlatform];
+            if (current) game.player.y = current.y;
+          }
+        }
+      }
+
       seedBackground();
+      if (!running && game.player) draw();
     }
 
     function seedBackground(){
@@ -342,12 +370,16 @@
       game.fireworks = [];
       game.platforms = [];
       game.nextPlatformIndex = 1;
+      game.highestPlatform = 0;
       game.landedCount = 0;
       game.extraLives = 0;
       game.checkpoint = null;
       game.checkpointNumber = null;
       game.checkpointPlatform = null;
       game.platformCounter = 0;
+      game.gliding = false;
+      game.glideEnergy = 1;
+      game.glideTrailTimer = 0;
       game.won = false;
       game.winTimer = 0;
       game.fireworkTimer = 0;
@@ -355,13 +387,7 @@
       paused = false;
       inputLocked = false;
 
-      const baseY = H * 0.72;
-      game.platforms.push({
-        x: 40, y: baseY, w: 132, h: 16,
-        hasFruit: false, isCheckpoint: false, number: 0, isFinal: false
-      });
-
-      while (game.platforms.length < 12) addPlatform();
+      generateCourse();
 
       const p = game.platforms[0];
       game.player = {
@@ -377,6 +403,18 @@
       };
 
       updateHUD();
+    }
+
+    function generateCourse(){
+      const baseY = H * 0.72;
+      game.platforms.push({
+        x: 40, y: baseY, w: 132, h: 16,
+        hasFruit: false, isCheckpoint: false, number: 0, isFinal: false
+      });
+
+      // La ruta completa permanece en memoria. Son solo 101 plataformas y
+      // así los puntos de control nunca pierden sus plataformas vecinas.
+      while (game.platformCounter < FINAL_PLATFORM) addPlatform();
     }
 
     function addPlatform(){
@@ -407,28 +445,35 @@
     }
 
     function updateHUD(){
+      const currentPlatform = game.player ? game.player.currentPlatform : 0;
       ui.score.textContent = game.score;
+      ui.progressText.textContent = `plataforma ${currentPlatform}/${FINAL_PLATFORM}`;
       ui.livesBox.textContent = `🍎 ${game.extraLives}`;
 
       if (game.won) ui.status.textContent = '¡Meta alcanzada!';
-      else if (state === 'charging') ui.status.textContent = 'Cargando salto';
-      else if (state === 'jumping') ui.status.textContent = 'En el aire';
-      else if (state === 'dead') ui.status.textContent = 'Caída';
       else if (paused) ui.status.textContent = 'Pausado';
-      else ui.status.textContent = 'Mantén pulsado';
+      else if (state === 'charging') ui.status.textContent = 'Suelta para saltar';
+      else if (state === 'jumping' && game.gliding) ui.status.textContent = 'Planeando';
+      else if (state === 'jumping') ui.status.textContent = 'Mantén para planear';
+      else if (state === 'dead') ui.status.textContent = 'Caída';
+      else ui.status.textContent = `Plataforma ${currentPlatform} · mantén pulsado`;
 
-      ui.powerFill.style.width = (game.charge * 100).toFixed(1) + '%';
+      const meterValue = state === 'jumping' ? game.glideEnergy : game.charge;
+      ui.powerFill.style.width = (meterValue * 100).toFixed(1) + '%';
+      ui.powerFill.classList.toggle('glide', state === 'jumping');
+      ui.powerFill.classList.toggle('low', meterValue < 0.18);
       ui.btnPause.textContent = paused ? '▶️' : '⏸';
     }
 
     function startGame(){
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       resetGame();
       running = true;
       ui.startModal.classList.remove('show');
       ui.gameOverModal.classList.remove('show');
       lastTime = performance.now();
       audioInit();
-      requestAnimationFrame(loop);
+      animationFrameId = requestAnimationFrame(loop);
     }
 
     function showEndModal(title, text, eyebrow='Fin de partida'){
@@ -472,7 +517,18 @@
     }
 
     function beginCharge(){
-      if (!running || paused || state === 'jumping' || state === 'dead' || state === 'won' || inputLocked) return;
+      if (!running || paused || state === 'dead' || state === 'won' || inputLocked) return;
+
+      if (state === 'jumping') {
+        if (game.glideEnergy > 0) {
+          game.gliding = true;
+          audioInit();
+          playGlideSound();
+          updateHUD();
+        }
+        return;
+      }
+
       audioInit();
       state = 'charging';
       game.charge = 0;
@@ -480,12 +536,23 @@
     }
 
     function releaseJump(){
-      if (!running || paused || state !== 'charging') return;
+      if (!running || paused) return;
+
+      if (state === 'jumping') {
+        game.gliding = false;
+        updateHUD();
+        return;
+      }
+
+      if (state !== 'charging') return;
       const pwr = Math.max(game.minPower, game.charge);
       const pl = game.player;
       pl.vx = pwr * game.maxVX;
       pl.vy = -(game.minVY + pwr * (game.maxVY - game.minVY));
       pl.face = 'focused';
+      game.gliding = false;
+      game.glideEnergy = 1;
+      game.glideTrailTimer = 0;
       state = 'jumping';
       if (settings.vibration && navigator.vibrate) navigator.vibrate(14);
       playJumpSound(pwr);
@@ -504,13 +571,8 @@
       game.checkpointPlatform = platform;
       game.checkpointNumber = platform.number;
       game.checkpoint = {
-        x: platform.x + Math.min(platform.w * 0.34, platform.w - 14),
-        y: platform.y,
-        platformX: platform.x,
-        platformY: platform.y,
-        platformW: platform.w,
-        platformH: platform.h,
-        number: platform.number
+        number: platform.number,
+        offset: Math.min(platform.w * 0.34, platform.w - 14)
       };
 
       spawnMessage('🍎 +1 vida', platform.x + platform.w / 2, platform.y - 42, '#ff6b6b');
@@ -523,40 +585,32 @@
       if (!game.checkpoint) return gameOver();
 
       const cp = game.checkpoint;
+      const platform = game.platforms[cp.number];
       const pl = game.player;
 
-      pl.x = cp.x;
-      pl.y = cp.y;
+      if (!platform) {
+        console.error('No existe la plataforma del punto de control:', cp.number);
+        return gameOver();
+      }
+
+      for (const p of game.platforms) p.isCheckpoint = false;
+      platform.isCheckpoint = true;
+      game.checkpointPlatform = platform;
+      game.checkpointNumber = platform.number;
+
+      pl.currentPlatform = platform.number;
+      pl.x = platform.x + clamp(cp.offset, 12, platform.w - 12);
+      pl.y = platform.y;
       pl.vx = 0;
       pl.vy = 0;
       pl.squash = 0;
       pl.face = 'normal';
 
-      let checkpointIndex = game.platforms.findIndex(p => p.number === game.checkpointNumber);
-
-      if (checkpointIndex >= 0) {
-        game.checkpointPlatform = game.platforms[checkpointIndex];
-        game.checkpointPlatform.isCheckpoint = true;
-        pl.currentPlatform = checkpointIndex;
-        game.nextPlatformIndex = checkpointIndex + 1;
-      } else {
-        const recreated = {
-          x: cp.platformX,
-          y: cp.platformY,
-          w: cp.platformW,
-          h: cp.platformH,
-          hasFruit: false,
-          isCheckpoint: true,
-          number: cp.number,
-          isFinal: false
-        };
-        game.platforms.unshift(recreated);
-        game.checkpointPlatform = recreated;
-        pl.currentPlatform = 0;
-        game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex + 1);
-      }
-
+      game.nextPlatformIndex = Math.min(FINAL_PLATFORM, platform.number + 1);
       game.cameraX = Math.max(0, pl.x - W * 0.35);
+      game.charge = 0;
+      game.gliding = false;
+      game.glideEnergy = 1;
       state = 'ready';
       paused = false;
       running = true;
@@ -610,41 +664,51 @@
       const pl = game.player;
 
       if (state === 'jumping') {
-        pl.vy += game.gravity * dt;
+        const canGlide = game.gliding && game.glideEnergy > 0 && pl.vy > 30;
+        const effectiveGravity = canGlide ? game.gravity * 0.30 : game.gravity;
+
+        if (canGlide) {
+          game.glideEnergy = Math.max(0, game.glideEnergy - dt / game.glideDuration);
+          pl.vx *= Math.exp(-1.75 * dt);
+          pl.vy = Math.min(pl.vy, 360);
+          game.glideTrailTimer -= dt;
+          if (game.glideTrailTimer <= 0) {
+            game.glideTrailTimer = 0.075;
+            game.particles.push({
+              x: pl.x - 10, y: pl.y - 8,
+              vx: -25 - Math.random() * 35,
+              vy: -10 + Math.random() * 28,
+              r: 2 + Math.random() * 2.5,
+              color: '#bae6fd', t: 0, life: 0.35 + Math.random() * 0.2
+            });
+          }
+          if (game.glideEnergy <= 0) game.gliding = false;
+        }
+
+        const previousFootY = pl.y;
+        pl.vy += effectiveGravity * dt;
         pl.x += pl.vx * dt;
         pl.y += pl.vy * dt;
         pl.squash = 0;
 
         const screenTarget = W * 0.35;
-        game.cameraX = Math.max(0, pl.x - screenTarget);
+        const targetCameraX = Math.max(0, pl.x - screenTarget);
+        game.cameraX += (targetCameraX - game.cameraX) * Math.min(1, dt * 10);
 
         const next = game.platforms[game.nextPlatformIndex];
         if (next) {
-          const footY = pl.y;
-          const prevY = pl.y - pl.vy * dt;
           const centerX = pl.x;
-          if (pl.vy > 0 && prevY <= next.y && footY >= next.y && centerX >= next.x && centerX <= next.x + next.w) {
+          if (pl.vy > 0 && previousFootY <= next.y && pl.y >= next.y && centerX >= next.x && centerX <= next.x + next.w) {
             landOnPlatform(next, game.nextPlatformIndex);
           }
         }
 
-        if (pl.y > H + 120) handleDeath();
+        if (pl.y > H + 120) {
+          handleDeath();
+          return;
+        }
       } else if (state !== 'dead' && state !== 'won' && game.platforms[pl.currentPlatform]) {
         pl.y = game.platforms[pl.currentPlatform].y;
-      }
-
-      while (game.platforms.length < 18 && game.platformCounter < FINAL_PLATFORM) addPlatform();
-
-      while (
-        game.platforms.length > 12 &&
-        game.platforms[0] &&
-        game.platforms[0].x + game.platforms[0].w - game.cameraX < -220
-      ) {
-        if (pl.currentPlatform === 0) break;
-        const removed = game.platforms.shift();
-        if (removed === game.checkpointPlatform) game.checkpointPlatform = null;
-        game.nextPlatformIndex = Math.max(1, game.nextPlatformIndex - 1);
-        pl.currentPlatform = Math.max(0, pl.currentPlatform - 1);
       }
 
       updateHUD();
@@ -661,7 +725,10 @@
       state = 'ready';
 
       game.landedCount += 1;
-      game.nextPlatformIndex = index + 1;
+      game.highestPlatform = Math.max(game.highestPlatform, platform.number);
+      game.nextPlatformIndex = Math.min(FINAL_PLATFORM, index + 1);
+      game.gliding = false;
+      game.glideEnergy = 1;
 
       const distFromCenter = Math.abs(pl.x - (platform.x + platform.w / 2));
       const perfect = distFromCenter <= platform.w * game.perfectRatio;
@@ -733,6 +800,7 @@
       ctx.clearRect(0, 0, W, H);
       drawBackground();
       drawPlatforms();
+      drawTrajectoryPreview();
       drawParticles();
       drawFireworks();
       drawPlayer();
@@ -868,6 +936,57 @@
       }
     }
 
+    function drawTrajectoryPreview(){
+      if (state !== 'charging' || !game.player) return;
+
+      const target = game.platforms[game.nextPlatformIndex];
+      if (!target) return;
+
+      const pl = game.player;
+      const pwr = Math.max(game.minPower, game.charge);
+      let x = pl.x;
+      let y = pl.y;
+      let vx = pwr * game.maxVX;
+      let vy = -(game.minVY + pwr * (game.maxVY - game.minVY));
+      let previousY = y;
+      let landing = null;
+      const step = 0.045;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      for (let i = 0; i < 40; i++) {
+        previousY = y;
+        vy += game.gravity * step;
+        x += vx * step;
+        y += vy * step;
+
+        if (i % 2 === 0) {
+          ctx.globalAlpha = Math.max(0.12, 0.65 - i * 0.012);
+          ctx.beginPath();
+          ctx.arc(x - game.cameraX, y - 12, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (vy > 0 && previousY <= target.y && y >= target.y) {
+          landing = { x, valid: x >= target.x && x <= target.x + target.w };
+          break;
+        }
+        if (y > H + 80) break;
+      }
+
+      if (landing) {
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = landing.valid ? '#34d399' : '#fb7185';
+        ctx.fillStyle = landing.valid ? 'rgba(52,211,153,.18)' : 'rgba(251,113,133,.18)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(landing.x - game.cameraX, target.y - 4, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     function drawPlayer(){
       const pl = game.player;
       const x = pl.x - game.cameraX;
@@ -880,6 +999,20 @@
       ctx.translate(x, y + pl.h);
       ctx.scale(squashX, squashY);
       ctx.translate(-x, -(y + pl.h));
+
+      if (state === 'jumping' && game.gliding && game.glideEnergy > 0 && pl.vy > 30) {
+        ctx.save();
+        ctx.globalAlpha = 0.88;
+        ctx.fillStyle = '#e0f2fe';
+        ctx.strokeStyle = 'rgba(125,211,252,.9)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(x - 17, y + 11, 13, 6, -0.35, 0, Math.PI * 2);
+        ctx.ellipse(x + 17, y + 11, 13, 6, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
 
       const shadowW = 18 + Math.max(0, Math.min(1, (pl.y - platformRef.y + 20) / 70)) * 12;
       ctx.fillStyle = 'rgba(0,0,0,.16)';
@@ -970,12 +1103,13 @@
     }
 
     function loop(ts){
+      animationFrameId = null;
       if (!running) return;
       const dt = Math.min(0.033, (ts - lastTime) / 1000 || 0.016);
       lastTime = ts;
       update(dt);
       draw();
-      if (running) requestAnimationFrame(loop);
+      if (running) animationFrameId = requestAnimationFrame(loop);
     }
 
     function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
@@ -1007,19 +1141,28 @@
     function playJumpSound(power){ tone(320 + power * 220, .14, 'triangle', .08); }
     function playLandSound(){ tone(240, .08, 'sine', .05); }
     function playPerfectSound(){ tone(520, .16, 'triangle', .08); tone(760, .18, 'sine', .05, .05); }
+    function playGlideSound(){ tone(410, .07, 'sine', .025); }
     function playFailSound(){ tone(240, .18, 'sawtooth', .08); tone(170, .28, 'triangle', .06, .1); }
     function playWinSound(){ tone(520, .16, 'triangle', .08); tone(660, .18, 'triangle', .08, .08); tone(880, .24, 'sine', .06, .16); }
 
-    function press(e){ if (e) e.preventDefault(); beginCharge(); }
-    function release(e){ if (e) e.preventDefault(); releaseJump(); }
+    function press(e){
+      if (e) {
+        e.preventDefault();
+        if (e.pointerId !== undefined && canvas.setPointerCapture) {
+          try { canvas.setPointerCapture(e.pointerId); } catch {}
+        }
+      }
+      beginCharge();
+    }
 
-    canvas.addEventListener('touchstart', press, { passive:false });
-    canvas.addEventListener('touchend', release, { passive:false });
-    canvas.addEventListener('touchcancel', release, { passive:false });
-    canvas.addEventListener('mousedown', press);
-    canvas.addEventListener('mouseup', release);
-    canvas.addEventListener('mouseleave', release);
-    document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+    function release(e){
+      if (e) e.preventDefault();
+      releaseJump();
+    }
+
+    canvas.addEventListener('pointerdown', press);
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
 
     document.addEventListener('keydown', e => {
       if (e.repeat) return;
@@ -1039,10 +1182,8 @@
     ui.btnPause.addEventListener('click', () => {
       if (!running && state !== 'dead' && state !== 'won') return;
       paused = !paused;
+      game.gliding = false;
       updateHUD();
-      if (paused) return;
-      lastTime = performance.now();
-      if (running) requestAnimationFrame(loop);
     });
 
     ui.btnSettings.addEventListener('click', () => {
@@ -1054,11 +1195,8 @@
     ui.btnCloseSettings.addEventListener('click', () => {
       ui.settingsModal.classList.remove('show');
       paused = false;
+      game.gliding = false;
       updateHUD();
-      if (running) {
-        lastTime = performance.now();
-        requestAnimationFrame(loop);
-      }
     });
 
     ui.toggleSound.addEventListener('click', () => {
@@ -1072,6 +1210,14 @@
       settings.vibration = !settings.vibration;
       syncToggle(ui.toggleVibration, settings.vibration);
       saveSettings();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && running) {
+        paused = true;
+        game.gliding = false;
+        updateHUD();
+      }
     });
 
     window.addEventListener('resize', resize);
