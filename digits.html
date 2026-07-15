@@ -1,2562 +1,502 @@
 <!DOCTYPE html>
-<html lang="en">
-<script defer src="goat.js"></script>
-
+<html lang="es">
 <head>
-
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Digits Game</title>
+  <script defer src="goat.js"></script>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b16;
+      --panel: rgba(19, 27, 48, .92);
+      --panel-2: #18213a;
+      --text: #f7f9ff;
+      --muted: #aeb8d0;
+      --accent: #ff7a1a;
+      --accent-2: #35d4ff;
+      --ok: #42e695;
+      --warn: #ffd166;
+      --danger: #ff6b6b;
+      --radius: 22px;
+      --shadow: 0 18px 50px rgba(0,0,0,.32);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { min-height: 100%; }
     body {
-      background-color: #121212;
-      color: #fff;
-      font-family: 'Arial', sans-serif;
-      text-align: center;
       margin: 0;
-      padding: 0;
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 5%, rgba(53,212,255,.16), transparent 26%),
+        radial-gradient(circle at 90% 0%, rgba(255,122,26,.18), transparent 28%),
+        linear-gradient(180deg, #0b1020, var(--bg));
+      padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 24px);
+      overscroll-behavior: none;
     }
-    h1 {
-      margin-top: 1em;
-    }
-    #target {
-      font-size: 3em;
-      margin: 0.5em 0;
-    }
-    .number-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 80px);
-      grid-gap: 15px;
-      justify-content: center;
-      margin: 1em auto;
-    }
-    .number, .operation {
-      background-color: #222;
-      border: 2px dashed #555;
-      border-radius: 50%;
-      font-size: 3em;
-      width: 80px;
-      height: 80px;
-      line-height: 80px;
+    button { font: inherit; color: inherit; touch-action: manipulation; }
+    .app { width: min(100%, 620px); margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .brand h1 { margin: 0; font-size: clamp(1.55rem, 6vw, 2.15rem); letter-spacing: -.04em; }
+    .brand h1 span { color: var(--accent); }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: .82rem; }
+    .icon-btn, .control-btn, .op-btn, .number-btn {
+      border: 0;
       cursor: pointer;
-      transition: 0.3s;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    .number:hover, .operation:hover {
-      background-color: #444;
-      border-color: #888;
+    .icon-btn {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
     }
-    .selected {
-      background-color: #00bcd4 !important;
-      border-color: #00e5ff !important;
+    .card { background: var(--panel); border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow); border-radius: var(--radius); }
+    .status-card { padding: 14px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { background: rgba(255,255,255,.045); border-radius: 15px; padding: 9px 8px; text-align: center; }
+    .stat-label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+    .stat-value { margin-top: 2px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .target-wrap { text-align: center; padding: 16px 8px 10px; }
+    .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .13em; font-size: .72rem; }
+    #target { font-size: clamp(3.4rem, 17vw, 6.1rem); font-weight: 900; line-height: .95; letter-spacing: -.07em; margin: 5px 0 8px; }
+    #progressText { min-height: 22px; color: var(--muted); font-size: .92rem; }
+    .progress { height: 7px; background: rgba(255,255,255,.08); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+    .progress > div { height: 100%; width: 100%; background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger)); transform-origin: left; transition: transform .25s linear; }
+
+    .game-card { margin-top: 12px; padding: 14px; }
+    .number-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .number-btn {
+      min-height: 76px;
+      border-radius: 20px;
+      font-size: clamp(1.8rem, 9vw, 2.65rem);
+      font-weight: 850;
+      background: linear-gradient(180deg, #253252, #18213a);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 8px 18px rgba(0,0,0,.2);
+      transition: transform .12s ease, background .12s ease, opacity .12s ease;
     }
-    .operation.selected-op {
-      background-color: #fbc02d !important;
-      border-color: #fff176 !important;
+    .number-btn:active, .op-btn:active, .control-btn:active { transform: scale(.96); }
+    .number-btn.selected { background: linear-gradient(180deg, #34d6ff, #138ab0); color: #03131a; box-shadow: 0 0 0 3px rgba(53,212,255,.22); }
+    .number-btn.empty { visibility: hidden; pointer-events: none; }
+    .number-btn.result-flash { animation: pop .28s ease; }
+    @keyframes pop { 50% { transform: scale(1.08); } }
+
+    .operations { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 12px; }
+    .op-btn { min-height: 58px; border-radius: 18px; font-size: 1.8rem; font-weight: 900; background: #222d49; }
+    .op-btn.selected { background: var(--warn); color: #241b00; box-shadow: 0 0 0 3px rgba(255,209,102,.2); }
+    .op-btn:disabled, .control-btn:disabled { opacity: .38; cursor: default; }
+
+    .expression-card { margin-top: 12px; padding: 13px 14px; }
+    .expression-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    #expression { min-height: 26px; font-weight: 750; font-size: 1rem; word-break: break-word; }
+    #message { min-height: 23px; margin-top: 7px; color: var(--warn); font-size: .91rem; }
+    .history { margin-top: 8px; max-height: 116px; overflow: auto; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+    .history div { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+
+    .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: 12px; }
+    .control-btn { min-height: 50px; border-radius: 16px; background: var(--panel-2); font-weight: 750; padding: 10px; }
+    .control-btn.primary { background: linear-gradient(135deg, var(--accent), #ffab44); color: #211000; }
+    .control-btn.hint { background: linear-gradient(135deg, #2367d1, #35d4ff); color: #03131a; }
+    .control-btn.danger { background: #3a2130; color: #ffc4d6; }
+
+    .settings { margin-top: 12px; padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
+    .settings label { color: var(--muted); font-size: .82rem; }
+    select { width: 100%; margin-top: 5px; background: #111a30; color: var(--text); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 10px; font-size: 16px; }
+
+    dialog { width: min(calc(100% - 24px), 540px); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; background: #11182a; color: var(--text); padding: 20px; box-shadow: var(--shadow); }
+    dialog::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px); }
+    dialog h2 { margin-top: 0; }
+    dialog p, dialog li { color: #c7d0e4; line-height: 1.45; }
+    .dialog-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+    footer { color: #8691aa; font-size: .76rem; text-align: center; margin: 18px 6px 0; line-height: 1.45; }
+    footer a { color: #9fe7ff; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+    @media (max-width: 380px) {
+      .number-btn { min-height: 68px; border-radius: 17px; }
+      .op-btn { min-height: 52px; }
+      .game-card, .status-card { padding: 11px; }
     }
-    .operations {
-      margin: 1em 0;
+    @media (orientation: landscape) and (max-height: 500px) {
+      body { padding-top: 8px; }
+      .app { width: min(100%, 850px); }
+      .main-layout { display: grid; grid-template-columns: .92fr 1.08fr; gap: 12px; }
+      .game-card { margin-top: 0; }
+      .number-btn { min-height: 58px; }
+      .target-wrap { padding: 8px 8px 5px; }
+      #target { font-size: 4rem; }
     }
-    #result {
-      font-size: 1.5em;
-      margin-top: 1em;
-    }
-    #message {
-      font-size: 1.2em;
-      margin-top: 1em;
-      color: #ffd54f;
-    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
   </style>
 </head>
 <body>
-  <h1 style="text-align: center;"><span style="color: #ff6600;">Digits Game</span></h1>
-  <h2 style="text-align: center;">Desarrollado por: Angel Soto</h2>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1><span>Digits</span> Game</h1>
+        <p>Desarrollado por Ángel Soto</p>
+      </div>
+      <button class="icon-btn" id="helpBtn" aria-label="Cómo jugar">?</button>
+    </header>
 
-  <div id="target">000</div>
+    <div class="main-layout">
+      <section class="card status-card" aria-label="Partida">
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Puntos</div><div class="stat-value" id="score">0</div></div>
+          <div class="stat"><div class="stat-label">Racha</div><div class="stat-value" id="streak">0</div></div>
+          <div class="stat"><div class="stat-label">Tiempo</div><div class="stat-value" id="timer">02:00</div></div>
+        </div>
+        <div class="target-wrap">
+          <div class="eyebrow">Número objetivo</div>
+          <div id="target" aria-live="polite">000</div>
+          <div id="progressText">Selecciona un número y una operación</div>
+          <div class="progress" aria-hidden="true"><div id="timeBar"></div></div>
+        </div>
+      </section>
 
-  <div class="number-grid" id="numbers"></div>
+      <section class="card game-card">
+        <div class="number-grid" id="numbers" aria-label="Números disponibles"></div>
+        <div class="operations" aria-label="Operaciones">
+          <button class="op-btn" data-op="+" aria-label="Sumar">+</button>
+          <button class="op-btn" data-op="-" aria-label="Restar">−</button>
+          <button class="op-btn" data-op="*" aria-label="Multiplicar">×</button>
+          <button class="op-btn" data-op="/" aria-label="Dividir">÷</button>
+        </div>
+      </section>
+    </div>
 
-  <div class="operations">
-    <span class="operation" id="op-add" onclick="selectOperation('+')">+</span>
-    <span class="operation" id="op-sub" onclick="selectOperation('-')">−</span>
-    <span class="operation" id="op-mul" onclick="selectOperation('*')">×</span>
-    <span class="operation" id="op-div" onclick="selectOperation('/')">÷</span>
-    <span class="operation" onclick="undoLast()">↩</span>
-    <span class="operation" onclick="resetGame()">↺</span>
-  </div>
+    <section class="card expression-card">
+      <div class="expression-head">
+        <div id="expression">Sin operaciones todavía</div>
+        <div id="distance" aria-label="Distancia al objetivo">—</div>
+      </div>
+      <div id="message" aria-live="polite"></div>
+      <div class="history" id="history"></div>
+    </section>
 
-  <div id="result">Resultado: 0</div>
-  <div id="message"></div>
+    <div class="controls">
+      <button class="control-btn" id="undoBtn">↩ Deshacer</button>
+      <button class="control-btn danger" id="clearBtn">✕ Cancelar</button>
+      <button class="control-btn hint" id="hintBtn">💡 Pista</button>
+      <button class="control-btn primary" id="newBtn">Nueva partida</button>
+    </div>
+
+    <section class="card settings">
+      <label>Dificultad
+        <select id="difficulty">
+          <option value="easy">Fácil</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difícil</option>
+        </select>
+      </label>
+      <label>Duración
+        <select id="duration">
+          <option value="0">Sin límite</option>
+          <option value="120" selected>2 minutos</option>
+          <option value="180">3 minutos</option>
+          <option value="300">5 minutos</option>
+        </select>
+      </label>
+    </section>
+
+    <footer>
+      Creado por Ángel Soto DVM PhD · <a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a><br>
+      <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">Invitar a un café</a> · Licencia WTFPL
+    </footer>
+  </main>
+
+  <dialog id="helpDialog">
+    <h2>Cómo jugar</h2>
+    <ol>
+      <li>Toca un número.</li>
+      <li>Elige una operación.</li>
+      <li>Toca un segundo número. Ambos se sustituyen por el resultado.</li>
+      <li>Intenta alcanzar exactamente el objetivo. Solo se permiten divisiones enteras y resultados positivos.</li>
+    </ol>
+    <p>Todos los retos se generan con una solución verificada. La pista revela el siguiente paso de una solución válida.</p>
+    <div class="dialog-actions"><button class="control-btn primary" id="closeHelp">Entendido</button></div>
+  </dialog>
 
   <script>
-    const predefinedGames = [
-  {
-    "numbers": [
-      3,
-      8,
-      68,
-      2,
-      7,
-      83
-    ],
-    "target": 261
-  },
-  {
-    "numbers": [
-      3,
-      2,
-      8,
-      7,
-      82,
-      20
-    ],
-    "target": 613
-  },
-  {
-    "numbers": [
-      3,
-      1,
-      9,
-      81,
-      7,
-      75
-    ],
-    "target": 683
-  },
-  {
-    "numbers": [
-      3,
-      31,
-      75,
-      9,
-      4,
-      2
-    ],
-    "target": 876
-  },
-  {
-    "numbers": [
-      68,
-      7,
-      2,
-      4,
-      9,
-      17
-    ],
-    "target": 466
-  },
-  {
-    "numbers": [
-      12,
-      1,
-      3,
-      2,
-      21,
-      4
-    ],
-    "target": 101
-  },
-  {
-    "numbers": [
-      1,
-      4,
-      35,
-      7,
-      2,
-      30
-    ],
-    "target": 634
-  },
-  {
-    "numbers": [
-      9,
-      7,
-      98,
-      1,
-      71,
-      4
-    ],
-    "target": 568
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      7,
-      58,
-      5,
-      29
-    ],
-    "target": 449
-  },
-  {
-    "numbers": [
-      7,
-      1,
-      4,
-      15,
-      9,
-      57
-    ],
-    "target": 405
-  },
-  {
-    "numbers": [
-      9,
-      7,
-      14,
-      3,
-      39,
-      6
-    ],
-    "target": 135
-  },
-  {
-    "numbers": [
-      9,
-      8,
-      30,
-      66,
-      4,
-      3
-    ],
-    "target": 373
-  },
-  {
-    "numbers": [
-      1,
-      9,
-      28,
-      7,
-      6,
-      83
-    ],
-    "target": 126
-  },
-  {
-    "numbers": [
-      6,
-      2,
-      41,
-      51,
-      7,
-      8
-    ],
-    "target": 834
-  },
-  {
-    "numbers": [
-      79,
-      29,
-      5,
-      7,
-      2,
-      4
-    ],
-    "target": 373
-  },
-  {
-    "numbers": [
-      21,
-      1,
-      2,
-      9,
-      62,
-      3
-    ],
-    "target": 182
-  },
-  {
-    "numbers": [
-      33,
-      5,
-      9,
-      95,
-      3,
-      7
-    ],
-    "target": 440
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      55,
-      7,
-      48,
-      2
-    ],
-    "target": 307
-  },
-  {
-    "numbers": [
-      81,
-      7,
-      5,
-      70,
-      1,
-      8
-    ],
-    "target": 670
-  },
-  {
-    "numbers": [
-      7,
-      56,
-      59,
-      2,
-      3,
-      5
-    ],
-    "target": 231
-  },
-  {
-    "numbers": [
-      9,
-      70,
-      28,
-      7,
-      2,
-      1
-    ],
-    "target": 996
-  },
-  {
-    "numbers": [
-      5,
-      16,
-      9,
-      1,
-      97,
-      6
-    ],
-    "target": 980
-  },
-  {
-    "numbers": [
-      9,
-      37,
-      95,
-      3,
-      6,
-      4
-    ],
-    "target": 373
-  },
-  {
-    "numbers": [
-      1,
-      7,
-      43,
-      6,
-      3,
-      32
-    ],
-    "target": 666
-  },
-  {
-    "numbers": [
-      4,
-      5,
-      46,
-      84,
-      8,
-      6
-    ],
-    "target": 955
-  },
-  {
-    "numbers": [
-      1,
-      17,
-      6,
-      8,
-      15,
-      5
-    ],
-    "target": 391
-  },
-  {
-    "numbers": [
-      87,
-      1,
-      8,
-      2,
-      89,
-      3
-    ],
-    "target": 188
-  },
-  {
-    "numbers": [
-      6,
-      8,
-      53,
-      76,
-      5,
-      1
-    ],
-    "target": 915
-  },
-  {
-    "numbers": [
-      9,
-      94,
-      7,
-      60,
-      2,
-      6
-    ],
-    "target": 994
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      14,
-      5,
-      46,
-      1
-    ],
-    "target": 336
-  },
-  {
-    "numbers": [
-      99,
-      2,
-      8,
-      7,
-      16,
-      5
-    ],
-    "target": 366
-  },
-  {
-    "numbers": [
-      24,
-      3,
-      6,
-      7,
-      55,
-      5
-    ],
-    "target": 238
-  },
-  {
-    "numbers": [
-      7,
-      3,
-      34,
-      5,
-      8,
-      92
-    ],
-    "target": 86
-  },
-  {
-    "numbers": [
-      73,
-      4,
-      2,
-      62,
-      7,
-      5
-    ],
-    "target": 499
-  },
-  {
-    "numbers": [
-      9,
-      2,
-      3,
-      5,
-      47,
-      68
-    ],
-    "target": 704
-  },
-  {
-    "numbers": [
-      6,
-      73,
-      47,
-      2,
-      7,
-      5
-    ],
-    "target": 102
-  },
-  {
-    "numbers": [
-      3,
-      55,
-      1,
-      7,
-      8,
-      34
-    ],
-    "target": 949
-  },
-  {
-    "numbers": [
-      2,
-      6,
-      8,
-      10,
-      9,
-      24
-    ],
-    "target": 806
-  },
-  {
-    "numbers": [
-      8,
-      1,
-      32,
-      80,
-      4,
-      6
-    ],
-    "target": 393
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      61,
-      3,
-      98,
-      9
-    ],
-    "target": 734
-  },
-  {
-    "numbers": [
-      57,
-      4,
-      8,
-      1,
-      7,
-      91
-    ],
-    "target": 312
-  },
-  {
-    "numbers": [
-      12,
-      7,
-      8,
-      9,
-      82,
-      1
-    ],
-    "target": 395
-  },
-  {
-    "numbers": [
-      8,
-      6,
-      7,
-      95,
-      23,
-      2
-    ],
-    "target": 246
-  },
-  {
-    "numbers": [
-      9,
-      4,
-      14,
-      42,
-      1,
-      8
-    ],
-    "target": 528
-  },
-  {
-    "numbers": [
-      60,
-      5,
-      7,
-      72,
-      6,
-      2
-    ],
-    "target": 939
-  },
-  {
-    "numbers": [
-      2,
-      13,
-      6,
-      62,
-      3,
-      5
-    ],
-    "target": 417
-  },
-  {
-    "numbers": [
-      2,
-      6,
-      79,
-      81,
-      9,
-      1
-    ],
-    "target": 620
-  },
-  {
-    "numbers": [
-      57,
-      8,
-      1,
-      56,
-      5,
-      4
-    ],
-    "target": 343
-  },
-  {
-    "numbers": [
-      7,
-      8,
-      5,
-      4,
-      93,
-      44
-    ],
-    "target": 660
-  },
-  {
-    "numbers": [
-      3,
-      99,
-      5,
-      32,
-      4,
-      7
-    ],
-    "target": 189
-  },
-  {
-    "numbers": [
-      6,
-      9,
-      67,
-      51,
-      3,
-      7
-    ],
-    "target": 448
-  },
-  {
-    "numbers": [
-      2,
-      6,
-      9,
-      35,
-      49,
-      7
-    ],
-    "target": 896
-  },
-  {
-    "numbers": [
-      7,
-      8,
-      25,
-      59,
-      6,
-      3
-    ],
-    "target": 34
-  },
-  {
-    "numbers": [
-      47,
-      9,
-      3,
-      8,
-      23,
-      6
-    ],
-    "target": 60
-  },
-  {
-    "numbers": [
-      51,
-      8,
-      4,
-      30,
-      7,
-      9
-    ],
-    "target": 263
-  },
-  {
-    "numbers": [
-      9,
-      8,
-      23,
-      1,
-      7,
-      35
-    ],
-    "target": 25
-  },
-  {
-    "numbers": [
-      3,
-      9,
-      5,
-      6,
-      48,
-      79
-    ],
-    "target": 507
-  },
-  {
-    "numbers": [
-      6,
-      15,
-      9,
-      4,
-      1,
-      34
-    ],
-    "target": 516
-  },
-  {
-    "numbers": [
-      15,
-      2,
-      9,
-      49,
-      3,
-      8
-    ],
-    "target": 442
-  },
-  {
-    "numbers": [
-      1,
-      8,
-      7,
-      92,
-      49,
-      2
-    ],
-    "target": 481
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      20,
-      84,
-      9,
-      7
-    ],
-    "target": 788
-  },
-  {
-    "numbers": [
-      6,
-      7,
-      52,
-      46,
-      2,
-      1
-    ],
-    "target": 898
-  },
-  {
-    "numbers": [
-      6,
-      85,
-      2,
-      96,
-      4,
-      9
-    ],
-    "target": 889
-  },
-  {
-    "numbers": [
-      10,
-      8,
-      80,
-      7,
-      9,
-      2
-    ],
-    "target": 218
-  },
-  {
-    "numbers": [
-      8,
-      5,
-      97,
-      7,
-      2,
-      38
-    ],
-    "target": 95
-  },
-  {
-    "numbers": [
-      1,
-      5,
-      49,
-      74,
-      6,
-      7
-    ],
-    "target": 829
-  },
-  {
-    "numbers": [
-      2,
-      6,
-      33,
-      5,
-      43,
-      9
-    ],
-    "target": 675
-  },
-  {
-    "numbers": [
-      3,
-      4,
-      6,
-      97,
-      5,
-      72
-    ],
-    "target": 875
-  },
-  {
-    "numbers": [
-      5,
-      23,
-      9,
-      29,
-      7,
-      3
-    ],
-    "target": 238
-  },
-  {
-    "numbers": [
-      8,
-      5,
-      4,
-      89,
-      58,
-      1
-    ],
-    "target": 318
-  },
-  {
-    "numbers": [
-      9,
-      5,
-      43,
-      3,
-      11,
-      2
-    ],
-    "target": 352
-  },
-  {
-    "numbers": [
-      56,
-      3,
-      1,
-      76,
-      6,
-      4
-    ],
-    "target": 726
-  },
-  {
-    "numbers": [
-      34,
-      97,
-      6,
-      7,
-      3,
-      9
-    ],
-    "target": 961
-  },
-  {
-    "numbers": [
-      1,
-      2,
-      5,
-      43,
-      21,
-      7
-    ],
-    "target": 744
-  },
-  {
-    "numbers": [
-      6,
-      4,
-      3,
-      21,
-      9,
-      93
-    ],
-    "target": 340
-  },
-  {
-    "numbers": [
-      18,
-      6,
-      4,
-      44,
-      7,
-      5
-    ],
-    "target": 834
-  },
-  {
-    "numbers": [
-      8,
-      5,
-      4,
-      10,
-      96,
-      7
-    ],
-    "target": 444
-  },
-  {
-    "numbers": [
-      66,
-      7,
-      1,
-      3,
-      75,
-      8
-    ],
-    "target": 116
-  },
-  {
-    "numbers": [
-      5,
-      18,
-      29,
-      9,
-      6,
-      2
-    ],
-    "target": 529
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      14,
-      7,
-      8,
-      54
-    ],
-    "target": 915
-  },
-  {
-    "numbers": [
-      86,
-      7,
-      9,
-      3,
-      98,
-      6
-    ],
-    "target": 365
-  },
-  {
-    "numbers": [
-      85,
-      23,
-      7,
-      6,
-      3,
-      4
-    ],
-    "target": 252
-  },
-  {
-    "numbers": [
-      7,
-      9,
-      35,
-      8,
-      1,
-      79
-    ],
-    "target": 811
-  },
-  {
-    "numbers": [
-      98,
-      9,
-      4,
-      5,
-      3,
-      64
-    ],
-    "target": 181
-  },
-  {
-    "numbers": [
-      52,
-      4,
-      9,
-      32,
-      7,
-      6
-    ],
-    "target": 959
-  },
-  {
-    "numbers": [
-      4,
-      5,
-      44,
-      6,
-      82,
-      3
-    ],
-    "target": 480
-  },
-  {
-    "numbers": [
-      2,
-      3,
-      7,
-      25,
-      88,
-      1
-    ],
-    "target": 961
-  },
-  {
-    "numbers": [
-      43,
-      4,
-      3,
-      21,
-      7,
-      8
-    ],
-    "target": 499
-  },
-  {
-    "numbers": [
-      1,
-      47,
-      3,
-      5,
-      9,
-      46
-    ],
-    "target": 544
-  },
-  {
-    "numbers": [
-      1,
-      8,
-      4,
-      92,
-      75,
-      3
-    ],
-    "target": 928
-  },
-  {
-    "numbers": [
-      7,
-      1,
-      4,
-      25,
-      3,
-      12
-    ],
-    "target": 469
-  },
-  {
-    "numbers": [
-      9,
-      3,
-      95,
-      8,
-      43,
-      1
-    ],
-    "target": 691
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      95,
-      6,
-      87,
-      2
-    ],
-    "target": 659
-  },
-  {
-    "numbers": [
-      4,
-      69,
-      8,
-      5,
-      3,
-      75
-    ],
-    "target": 532
-  },
-  {
-    "numbers": [
-      5,
-      80,
-      97,
-      8,
-      9,
-      4
-    ],
-    "target": 519
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      6,
-      93,
-      7,
-      17
-    ],
-    "target": 631
-  },
-  {
-    "numbers": [
-      69,
-      4,
-      2,
-      1,
-      6,
-      92
-    ],
-    "target": 234
-  },
-  {
-    "numbers": [
-      25,
-      89,
-      1,
-      7,
-      3,
-      6
-    ],
-    "target": 436
-  },
-  {
-    "numbers": [
-      9,
-      8,
-      3,
-      19,
-      4,
-      11
-    ],
-    "target": 515
-  },
-  {
-    "numbers": [
-      52,
-      2,
-      92,
-      4,
-      3,
-      5
-    ],
-    "target": 63
-  },
-      {
-    "numbers": [
-      1,
-      2,
-      9,
-      4,
-      12,
-      46
-    ],
-    "target": 145,
-    "solution": "4 + 12 * 9 + 1"
-  },
-  {
-    "numbers": [
-      7,
-      6,
-      1,
-      3,
-      21,
-      82
-    ],
-    "target": 481,
-    "solution": "82 - 3 * 6 + 7"
-  },
-  {
-    "numbers": [
-      5,
-      4,
-      7,
-      3,
-      73,
-      83
-    ],
-    "target": 398,
-    "solution": "4 * 83 - 7 + 73"
-  },
-  {
-    "numbers": [
-      2,
-      1,
-      5,
-      4,
-      97,
-      65
-    ],
-    "target": 819,
-    "solution": "2 + 97 + 65 * 5 - 1"
-  },
-  {
-    "numbers": [
-      8,
-      7,
-      5,
-      3,
-      35,
-      15
-    ],
-    "target": 89,
-    "solution": "35 - 7 * 3 + 5"
-  },
-  {
-    "numbers": [
-      4,
-      1,
-      7,
-      2,
-      36,
-      34
-    ],
-    "target": 511,
-    "solution": "2 * 36 + 1 * 7"
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      2,
-      1,
-      84,
-      40
-    ],
-    "target": 142,
-    "solution": "4 + 3 + 84 * 2 - 40"
-  },
-  {
-    "numbers": [
-      3,
-      2,
-      1,
-      9,
-      27,
-      77
-    ],
-    "target": 631,
-    "solution": "2 - 9 + 77 * 27 / 3 + 1"
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      1,
-      9,
-      93,
-      96
-    ],
-    "target": 114,
-    "solution": "5 - 3 * 9 + 96"
-  },
-  {
-    "numbers": [
-      7,
-      6,
-      4,
-      1,
-      86,
-      51
-    ],
-    "target": 864,
-    "solution": "7 + 86 + 51 * 6"
-  },
-  {
-    "numbers": [
-      3,
-      6,
-      1,
-      9,
-      57,
-      69
-    ],
-    "target": 737,
-    "solution": "57 - 3 + 69 * 6 - 1"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      2,
-      4,
-      84,
-      37
-    ],
-    "target": 567,
-    "solution": "5 + 84 * 6 - 4 + 37"
-  },
-  {
-    "numbers": [
-      2,
-      1,
-      6,
-      4,
-      65,
-      73
-    ],
-    "target": 149,
-    "solution": "2 * 73 - 1 + 4"
-  },
-  {
-    "numbers": [
-      6,
-      7,
-      3,
-      5,
-      44,
-      57
-    ],
-    "target": 921,
-    "solution": "6 + 44 * 5 + 57 * 3"
-  },
-  {
-    "numbers": [
-      5,
-      6,
-      1,
-      3,
-      57,
-      10
-    ],
-    "target": 483,
-    "solution": "5 + 1 + 3 * 6 * 10 - 57"
-  },
-  {
-    "numbers": [
-      4,
-      9,
-      3,
-      8,
-      34,
-      63
-    ],
-    "target": 463,
-    "solution": "63 - 4 * 8 - 9"
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      7,
-      6,
-      26,
-      43
-    ],
-    "target": 178,
-    "solution": "7 - 3 * 43 + 6"
-  },
-  {
-    "numbers": [
-      6,
-      3,
-      4,
-      7,
-      18,
-      41
-    ],
-    "target": 848,
-    "solution": "3 + 18 * 41 - 6 - 7"
-  },
-  {
-    "numbers": [
-      8,
-      7,
-      2,
-      5,
-      89,
-      40
-    ],
-    "target": 304,
-    "solution": "40 - 2 * 8"
-  },
-  {
-    "numbers": [
-      3,
-      9,
-      8,
-      7,
-      79,
-      67
-    ],
-    "target": 688,
-    "solution": "7 + 79 * 8"
-  },
-  {
-    "numbers": [
-      9,
-      6,
-      7,
-      1,
-      53,
-      20
-    ],
-    "target": 771,
-    "solution": "9 + 1 * 6 + 53 * 7 - 20"
-  },
-  {
-    "numbers": [
-      3,
-      9,
-      5,
-      6,
-      51,
-      72
-    ],
-    "target": 802,
-    "solution": "3 + 9 * 72 - 5 - 6 - 51"
-  },
-  {
-    "numbers": [
-      5,
-      2,
-      1,
-      9,
-      85,
-      18
-    ],
-    "target": 192,
-    "solution": "2 + 9 * 18 - 5 - 1"
-  },
-  {
-    "numbers": [
-      6,
-      1,
-      3,
-      8,
-      27,
-      91
-    ],
-    "target": 874,
-    "solution": "6 + 91 * 27 / 3 + 1"
-  },
-  {
-    "numbers": [
-      5,
-      7,
-      4,
-      6,
-      15,
-      68
-    ],
-    "target": 95,
-    "solution": "4 + 15 * 5"
-  },
-  {
-    "numbers": [
-      2,
-      7,
-      9,
-      3,
-      63,
-      80
-    ],
-    "target": 943,
-    "solution": "2 + 9 * 80 + 63"
-  },
-  {
-    "numbers": [
-      7,
-      6,
-      5,
-      1,
-      98,
-      78
-    ],
-    "target": 300,
-    "solution": "7 - 5 + 1 * 98 + 6"
-  },
-  {
-    "numbers": [
-      6,
-      7,
-      8,
-      4,
-      32,
-      98
-    ],
-    "target": 10,
-    "solution": "6 + 4"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      7,
-      9,
-      32,
-      25
-    ],
-    "target": 502,
-    "solution": "6 * 5 + 25 * 9 + 7"
-  },
-  {
-    "numbers": [
-      8,
-      6,
-      2,
-      3,
-      97,
-      11
-    ],
-    "target": 121,
-    "solution": "8 * 3 + 97"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      4,
-      9,
-      91,
-      82
-    ],
-    "target": 249,
-    "solution": "5 + 82 * 4 + 1 - 9 - 91"
-  },
-  {
-    "numbers": [
-      1,
-      4,
-      6,
-      5,
-      62,
-      39
-    ],
-    "target": 299,
-    "solution": "62 - 1 * 5 - 6"
-  },
-  {
-    "numbers": [
-      4,
-      6,
-      9,
-      2,
-      88,
-      22
-    ],
-    "target": 314,
-    "solution": "88 - 9 * 4 - 2"
-  },
-  {
-    "numbers": [
-      7,
-      6,
-      4,
-      1,
-      74,
-      48
-    ],
-    "target": 143,
-    "solution": "7 - 4 * 48 - 1"
-  },
-  {
-    "numbers": [
-      8,
-      3,
-      7,
-      6,
-      79,
-      31
-    ],
-    "target": 909,
-    "solution": "6 + 31 * 8 + 7 * 3"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      1,
-      2,
-      73,
-      27
-    ],
-    "target": 133,
-    "solution": "5 * 27 - 2"
-  },
-  {
-    "numbers": [
-      3,
-      1,
-      7,
-      5,
-      72,
-      98
-    ],
-    "target": 563,
-    "solution": "5 * 98 + 1 + 72"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      2,
-      4,
-      21,
-      14
-    ],
-    "target": 874,
-    "solution": "6 * 5 * 14 - 4 + 21 * 2"
-  },
-  {
-    "numbers": [
-      4,
-      8,
-      3,
-      7,
-      93,
-      65
-    ],
-    "target": 481,
-    "solution": "93 + 65 * 3 + 7"
-  },
-  {
-    "numbers": [
-      6,
-      7,
-      8,
-      3,
-      77,
-      18
-    ],
-    "target": 161,
-    "solution": "6 / 3 * 77 + 7"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      9,
-      4,
-      32,
-      61
-    ],
-    "target": 517,
-    "solution": "9 * 61 - 32"
-  },
-  {
-    "numbers": [
-      6,
-      4,
-      7,
-      3,
-      61,
-      23
-    ],
-    "target": 567,
-    "solution": "4 + 23 * 7 * 3"
-  },
-  {
-    "numbers": [
-      3,
-      6,
-      7,
-      9,
-      20,
-      64
-    ],
-    "target": 573,
-    "solution": "9 * 64 - 3"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      9,
-      4,
-      54,
-      24
-    ],
-    "target": 929,
-    "solution": "9 * 4 * 24 + 6 + 5 + 54"
-  },
-  {
-    "numbers": [
-      6,
-      1,
-      8,
-      5,
-      62,
-      71
-    ],
-    "target": 696,
-    "solution": "6 - 1 * 5 + 62 * 8"
-  },
-  {
-    "numbers": [
-      2,
-      4,
-      1,
-      8,
-      54,
-      25
-    ],
-    "target": 910,
-    "solution": "8 * 54 + 25 * 2 - 4"
-  },
-  {
-    "numbers": [
-      6,
-      1,
-      9,
-      3,
-      97,
-      69
-    ],
-    "target": 31,
-    "solution": "3 + 97 - 69"
-  },
-  {
-    "numbers": [
-      8,
-      7,
-      5,
-      6,
-      62,
-      24
-    ],
-    "target": 599,
-    "solution": "62 + 24 * 7 - 8 + 5"
-  },
-  {
-    "numbers": [
-      5,
-      3,
-      9,
-      1,
-      98,
-      89
-    ],
-    "target": 263,
-    "solution": "3 * 89 + 5 - 9"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      9,
-      4,
-      40,
-      49
-    ],
-    "target": 609,
-    "solution": "5 + 9 * 40 + 49"
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      7,
-      8,
-      58,
-      94
-    ],
-    "target": 86,
-    "solution": "94 - 8"
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      8,
-      9,
-      90,
-      24
-    ],
-    "target": 60,
-    "solution": "4 * 9 + 24"
-  },
-  {
-    "numbers": [
-      7,
-      9,
-      2,
-      5,
-      16,
-      70
-    ],
-    "target": 758,
-    "solution": "9 + 2 * 70 - 7 - 5"
-  },
-  {
-    "numbers": [
-      2,
-      4,
-      5,
-      7,
-      43,
-      75
-    ],
-    "target": 881,
-    "solution": "7 + 75 * 43 - 2 / 4"
-  },
-  {
-    "numbers": [
-      3,
-      5,
-      2,
-      8,
-      33,
-      44
-    ],
-    "target": 903,
-    "solution": "44 - 5 * 3 * 8 - 33"
-  },
-  {
-    "numbers": [
-      6,
-      1,
-      5,
-      3,
-      35,
-      50
-    ],
-    "target": 142,
-    "solution": "35 - 6 * 5 - 3"
-  },
-  {
-    "numbers": [
-      8,
-      3,
-      1,
-      9,
-      93,
-      87
-    ],
-    "target": 574,
-    "solution": "8 + 93 + 87 * 3 + 1 + 9"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      8,
-      3,
-      70,
-      96
-    ],
-    "target": 249,
-    "solution": "5 + 8 + 70 * 3"
-  },
-  {
-    "numbers": [
-      4,
-      8,
-      1,
-      3,
-      56,
-      73
-    ],
-    "target": 158,
-    "solution": "4 * 8 - 3 + 56 + 73"
-  },
-  {
-    "numbers": [
-      4,
-      8,
-      2,
-      3,
-      61,
-      43
-    ],
-    "target": 793,
-    "solution": "8 + 2 + 3 * 61"
-  },
-  {
-    "numbers": [
-      7,
-      6,
-      8,
-      4,
-      21,
-      13
-    ],
-    "target": 784,
-    "solution": "7 * 8 * 4 * 21 / 6"
-  },
-  {
-    "numbers": [
-      1,
-      4,
-      8,
-      5,
-      30,
-      10
-    ],
-    "target": 865,
-    "solution": "30 - 8 * 4 - 1 * 10 - 5"
-  },
-  {
-    "numbers": [
-      1,
-      7,
-      6,
-      9,
-      95,
-      75
-    ],
-    "target": 237,
-    "solution": "7 + 95 - 75 * 9 - 6"
-  },
-  {
-    "numbers": [
-      5,
-      2,
-      7,
-      1,
-      23,
-      15
-    ],
-    "target": 676,
-    "solution": "23 * 15 - 7 * 2"
-  },
-  {
-    "numbers": [
-      1,
-      7,
-      3,
-      2,
-      91,
-      50
-    ],
-    "target": 529,
-    "solution": "1 + 50 * 7 - 91 * 2 - 3"
-  },
-  {
-    "numbers": [
-      3,
-      5,
-      7,
-      1,
-      15,
-      59
-    ],
-    "target": 143,
-    "solution": "5 + 15 * 7 + 3"
-  },
-  {
-    "numbers": [
-      5,
-      2,
-      1,
-      9,
-      22,
-      33
-    ],
-    "target": 676,
-    "solution": "33 - 2 * 22 - 5 - 1"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      7,
-      6,
-      59,
-      96
-    ],
-    "target": 862,
-    "solution": "7 + 6 * 59 - 1 + 96"
-  },
-  {
-    "numbers": [
-      8,
-      2,
-      7,
-      5,
-      81,
-      99
-    ],
-    "target": 224,
-    "solution": "8 + 5 + 99 * 2"
-  },
-  {
-    "numbers": [
-      1,
-      5,
-      3,
-      2,
-      24,
-      34
-    ],
-    "target": 584,
-    "solution": "5 * 34 + 24 * 3 + 2"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      8,
-      9,
-      41,
-      27
-    ],
-    "target": 885,
-    "solution": "41 - 8 * 27 - 6"
-  },
-  {
-    "numbers": [
-      6,
-      1,
-      8,
-      9,
-      46,
-      35
-    ],
-    "target": 135,
-    "solution": "6 + 1 + 8 * 9"
-  },
-  {
-    "numbers": [
-      1,
-      2,
-      9,
-      4,
-      15,
-      82
-    ],
-    "target": 331,
-    "solution": "4 * 82 + 1 + 2"
-  },
-  {
-    "numbers": [
-      2,
-      3,
-      6,
-      9,
-      70,
-      41
-    ],
-    "target": 782,
-    "solution": "2 * 6 + 70 * 9 + 3 + 41"
-  },
-  {
-    "numbers": [
-      2,
-      6,
-      7,
-      1,
-      49,
-      42
-    ],
-    "target": 259,
-    "solution": "6 * 42 + 7"
-  },
-  {
-    "numbers": [
-      6,
-      3,
-      4,
-      1,
-      29,
-      72
-    ],
-    "target": 687,
-    "solution": "4 * 29 - 1 * 6 - 3"
-  },
-  {
-    "numbers": [
-      8,
-      4,
-      3,
-      2,
-      15,
-      87
-    ],
-    "target": 981,
-    "solution": "8 * 2 * 15 + 87 * 3"
-  },
-  {
-    "numbers": [
-      9,
-      8,
-      7,
-      1,
-      42,
-      45
-    ],
-    "target": 178,
-    "solution": "9 + 7 + 1 * 8 + 42"
-  },
-  {
-    "numbers": [
-      4,
-      3,
-      2,
-      1,
-      32,
-      23
-    ],
-    "target": 38,
-    "solution": "4 + 2 + 32"
-  },
-  {
-    "numbers": [
-      1,
-      6,
-      9,
-      2,
-      55,
-      24
-    ],
-    "target": 361,
-    "solution": "1 + 6 * 55 - 24"
-  },
-  {
-    "numbers": [
-      5,
-      6,
-      3,
-      9,
-      57,
-      76
-    ],
-    "target": 406,
-    "solution": "9 + 57 * 5 + 76"
-  },
-  {
-    "numbers": [
-      7,
-      5,
-      3,
-      2,
-      21,
-      91
-    ],
-    "target": 581,
-    "solution": "91 - 5 * 7 - 21"
-  },
-  {
-    "numbers": [
-      2,
-      3,
-      1,
-      4,
-      98,
-      92
-    ],
-    "target": 599,
-    "solution": "2 * 98 + 4 * 3 - 1"
-  },
-  {
-    "numbers": [
-      2,
-      9,
-      1,
-      8,
-      13,
-      74
-    ],
-    "target": 133,
-    "solution": "9 * 8 - 13 + 74"
-  },
-  {
-    "numbers": [
-      6,
-      5,
-      1,
-      7,
-      23,
-      97
-    ],
-    "target": 826,
-    "solution": "5 - 6 - 1 + 23 + 97 * 7"
-  },
-  {
-    "numbers": [
-      3,
-      9,
-      4,
-      6,
-      98,
-      93
-    ],
-    "target": 767,
-    "solution": "98 + 93 * 4 + 3"
-  },
-  {
-    "numbers": [
-      9,
-      1,
-      5,
-      8,
-      79,
-      82
-    ],
-    "target": 803,
-    "solution": "9 + 1 * 79 + 5 + 8"
-  },
-  {
-    "numbers": [
-      8,
-      9,
-      2,
-      1,
-      49,
-      21
-    ],
-    "target": 597,
-    "solution": "21 - 8 - 1 * 49 + 9"
-  },
-  {
-    "numbers": [
-      6,
-      2,
-      7,
-      5,
-      26,
-      20
-    ],
-    "target": 982,
-    "solution": "6 * 7 - 5 * 26 + 20"
-  },
-  {
-    "numbers": [
-      8,
-      4,
-      5,
-      2,
-      25,
-      27
-    ],
-    "target": 22,
-    "solution": "27 - 5"
-  },
-  {
-    "numbers": [
-      8,
-      2,
-      5,
-      4,
-      72,
-      49
-    ],
-    "target": 791,
-    "solution": "8 + 4 + 72 * 2 * 5 - 49"
-  },
-  {
-    "numbers": [
-      5,
-      1,
-      9,
-      6,
-      87,
-      91
-    ],
-    "target": 512,
-    "solution": "6 * 87 - 1 - 9"
-  },
-  {
-    "numbers": [
-      9,
-      6,
-      4,
-      1,
-      94,
-      95
-    ],
-    "target": 962,
-    "solution": "1 + 95 * 9 + 4 + 94"
-  },
-  {
-    "numbers": [
-      4,
-      5,
-      8,
-      6,
-      24,
-      29
-    ],
-    "target": 605,
-    "solution": "4 * 6 * 24 + 29"
-  },
-  {
-    "numbers": [
-      1,
-      5,
-      3,
-      8,
-      80,
-      88
-    ],
-    "target": 342,
-    "solution": "1 + 88 * 3 - 5 + 80"
-  },
-  {
-    "numbers": [
-      7,
-      9,
-      3,
-      4,
-      91,
-      11
-    ],
-    "target": 270,
-    "solution": "7 - 4 * 91 - 3"
-  },
-  {
-    "numbers": [
-      7,
-      8,
-      6,
-      9,
-      98,
-      12
-    ],
-    "target": 423,
-    "solution": "7 * 6 + 12 * 8 - 9"
-  },
-  {
-    "numbers": [
-      3,
-      4,
-      8,
-      2,
-      16,
-      30
-    ],
-    "target": 353,
-    "solution": "30 - 8 * 16 - 3 + 4"
-  },
-  {
-    "numbers": [
-      8,
-      9,
-      2,
-      5,
-      31,
-      67
-    ],
-    "target": 785,
-    "solution": "8 + 2 * 9 + 67 * 5"
-  },
-  {
-    "numbers": [
-      8,
-      3,
-      6,
-      2,
-      33,
-      51
-    ],
-    "target": 365,
-    "solution": "8 + 3 * 33 + 2"
-  }
-];
+  (() => {
+    'use strict';
 
-    let selectedNums = [];
-    let currentNumbers = [];
-    let targetNumber = 0;
-    let currentOperation = null;
-    let history = [];
-    let gameOver = false;
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => [...document.querySelectorAll(s)];
+    const els = {
+      numbers: $('#numbers'), target: $('#target'), score: $('#score'), streak: $('#streak'), timer: $('#timer'),
+      timeBar: $('#timeBar'), progressText: $('#progressText'), expression: $('#expression'), distance: $('#distance'),
+      message: $('#message'), history: $('#history'), undo: $('#undoBtn'), clear: $('#clearBtn'), hint: $('#hintBtn'),
+      newGame: $('#newBtn'), difficulty: $('#difficulty'), duration: $('#duration'), help: $('#helpDialog')
+    };
 
-    function getRandomNumbers() {
-      const index = Math.floor(Math.random() * predefinedGames.length);
-      const game = predefinedGames[index];
-      targetNumber = game.target;
-      return [...game.numbers];
+    const state = {
+      tiles: [], target: 0, selectedId: null, operation: null, snapshots: [], moves: [], solutionSteps: [],
+      gameOver: false, score: Number(localStorage.getItem('digits-score') || 0),
+      streak: Number(localStorage.getItem('digits-streak') || 0),
+      secondsTotal: 120, secondsLeft: 120, timerId: null, hintsUsed: 0, startedAt: 0
+    };
+
+    const OPS = [
+      { symbol: '+', fn: (a,b) => a+b, text: '+' },
+      { symbol: '-', fn: (a,b) => a-b, text: '−' },
+      { symbol: '*', fn: (a,b) => a*b, text: '×' },
+      { symbol: '/', fn: (a,b) => b !== 0 && a % b === 0 ? a/b : null, text: '÷' }
+    ];
+
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const choice = arr => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = arr => [...arr].sort(() => Math.random() - .5);
+    const vibrate = pattern => { if (navigator.vibrate) navigator.vibrate(pattern); };
+
+    function config() {
+      const d = els.difficulty.value;
+      return d === 'easy'
+        ? { small: [1,9], large: [10,40], steps: [2,3], target: [20,350], allowDivision: false }
+        : d === 'hard'
+          ? { small: [1,10], large: [25,99], steps: [4,5], target: [100,999], allowDivision: true }
+          : { small: [1,9], large: [10,75], steps: [3,4], target: [50,850], allowDivision: true };
     }
 
-    function renderNumbers() {
-      const container = document.getElementById("numbers");
-      container.innerHTML = "";
-      currentNumbers.forEach((num, i) => {
-        const el = document.createElement("div");
-        el.className = "number";
-        el.textContent = num !== null ? num : '';
-        if (num !== null && !gameOver) {
-          el.onclick = () => selectNumber(i, el);
-        }
-        container.appendChild(el);
-      });
+    function makeNumbers(cfg) {
+      const nums = [];
+      for (let i=0; i<4; i++) nums.push(randInt(...cfg.small));
+      for (let i=0; i<2; i++) nums.push(randInt(...cfg.large));
+      return shuffle(nums);
     }
 
-    function selectNumber(index, element) {
-      if (gameOver || currentNumbers[index] === null || selectedNums.includes(index)) return;
-      if (currentOperation === null) {
-        selectedNums = [];
-        clearNumberSelection();
-        element.classList.add("selected");
-        selectedNums.push(index);
-      } else if (selectedNums.length === 1) {
-        const i1 = selectedNums[0];
-        const i2 = index;
-        if (i1 === i2 || currentNumbers[i2] === null) return;
+    function generatePuzzle() {
+      const cfg = config();
+      for (let attempt=0; attempt<600; attempt++) {
+        const originals = makeNumbers(cfg);
+        let working = originals.map((value, i) => ({ value, expr: String(value), ids: [i] }));
+        const steps = [];
+        const desiredSteps = randInt(...cfg.steps);
 
-        let n1 = currentNumbers[i1];
-        let n2 = currentNumbers[i2];
-        let result;
-
-        switch (currentOperation) {
-          case '+': result = n1 + n2; break;
-          case '-': result = n1 - n2; break;
-          case '*': result = n1 * n2; break;
-          case '/': result = n2 !== 0 ? n1 / n2 : null; break;
-        }
-
-        if (result !== null && !isNaN(result)) {
-          history.push([...currentNumbers]);
-          currentNumbers[i1] = result;
-          currentNumbers[i2] = null;
-          selectedNums = [];
-          currentOperation = null;
-          clearOperationSelection();
-          clearNumberSelection();
-
-          if (result === targetNumber) {
-            gameOver = true;
-            renderNumbers();
-            document.getElementById("result").textContent = `Resultado: ${result}`;
-            document.getElementById("message").textContent = "🎉 ¡LO LOGRASTE! ★★★";
-            return;
+        for (let s=0; s<desiredSteps && working.length > 1; s++) {
+          let made = false;
+          for (let tries=0; tries<80 && !made; tries++) {
+            const ia = randInt(0, working.length-1);
+            let ib = randInt(0, working.length-1);
+            if (ib === ia) continue;
+            const a = working[ia], b = working[ib];
+            const possible = OPS.filter(op => {
+              if (!cfg.allowDivision && op.symbol === '/') return false;
+              const r = op.fn(a.value, b.value);
+              return Number.isInteger(r) && r > 0 && r <= 1500 && !(op.symbol === '*' && (a.value === 1 || b.value === 1));
+            });
+            if (!possible.length) continue;
+            const op = choice(possible);
+            const result = op.fn(a.value, b.value);
+            const next = { value: result, expr: `(${a.expr} ${op.text} ${b.expr})`, ids: [...a.ids, ...b.ids] };
+            steps.push({ a: a.value, b: b.value, op: op.symbol, result });
+            working = working.filter((_, idx) => idx !== ia && idx !== ib);
+            working.push(next);
+            made = true;
           }
+        }
 
-          renderNumbers();
-          updateResult();
-        } else {
-          alert("Operación no válida.");
+        if (!steps.length) continue;
+        const final = working[working.length - 1];
+        if (final.value >= cfg.target[0] && final.value <= cfg.target[1] && final.value !== originals.reduce((a,b)=>a+b,0)) {
+          return { numbers: originals, target: final.value, solutionSteps: steps, solutionExpression: final.expr };
         }
       }
+      return { numbers: [2,3,4,7,25,50], target: 350, solutionSteps: [{a:50,b:7,op:'*',result:350}], solutionExpression: '(50 × 7)' };
     }
 
-    function clearNumberSelection() {
-      document.querySelectorAll('.number').forEach(num => num.classList.remove('selected'));
+    function newGame() {
+      stopTimer();
+      const p = generatePuzzle();
+      state.tiles = p.numbers.map((value, i) => ({ id: crypto.randomUUID?.() || `${Date.now()}-${i}`, value, expr: String(value) }));
+      state.target = p.target;
+      state.solutionSteps = p.solutionSteps;
+      state.solutionExpression = p.solutionExpression;
+      state.selectedId = null; state.operation = null; state.snapshots = []; state.moves = [];
+      state.gameOver = false; state.hintsUsed = 0; state.startedAt = Date.now();
+      state.secondsTotal = Number(els.duration.value);
+      state.secondsLeft = state.secondsTotal;
+      els.target.textContent = state.target;
+      els.message.textContent = '';
+      render();
+      startTimer();
+    }
+
+    function render() {
+      els.numbers.innerHTML = '';
+      state.tiles.forEach(tile => {
+        const btn = document.createElement('button');
+        btn.className = 'number-btn' + (tile.id === state.selectedId ? ' selected' : '');
+        btn.textContent = tile.value;
+        btn.setAttribute('aria-label', `Número ${tile.value}`);
+        btn.disabled = state.gameOver;
+        btn.addEventListener('click', () => selectTile(tile.id));
+        els.numbers.appendChild(btn);
+      });
+      while (els.numbers.children.length < 6) {
+        const ghost = document.createElement('button'); ghost.className = 'number-btn empty'; ghost.tabIndex = -1; els.numbers.appendChild(ghost);
+      }
+      $$('.op-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.op === state.operation);
+        btn.disabled = state.gameOver || !state.selectedId;
+      });
+      els.score.textContent = state.score;
+      els.streak.textContent = state.streak;
+      els.undo.disabled = !state.snapshots.length || state.gameOver;
+      els.clear.disabled = !state.selectedId && !state.operation;
+      els.expression.textContent = state.moves.length ? state.moves[state.moves.length-1].display : 'Sin operaciones todavía';
+      els.history.innerHTML = state.moves.map((m,i) => `<div>${i+1}. ${m.display}</div>`).join('');
+      updateDistance(); updateInstruction(); updateTimerUI();
+    }
+
+    function selectTile(id) {
+      if (state.gameOver) return;
+      const tile = state.tiles.find(t => t.id === id);
+      if (!tile) return;
+      if (!state.selectedId) {
+        state.selectedId = id; state.operation = null; els.message.textContent = ''; vibrate(12); render(); return;
+      }
+      if (state.selectedId === id) { clearSelection(); return; }
+      if (!state.operation) { state.selectedId = id; vibrate(10); render(); return; }
+      performOperation(state.selectedId, id, state.operation);
     }
 
     function selectOperation(op) {
-      if (gameOver) return;
-      if (selectedNums.length !== 1) {
-        alert("Primero selecciona un número.");
-        return;
+      if (!state.selectedId || state.gameOver) return;
+      state.operation = state.operation === op ? null : op;
+      vibrate(10); render();
+    }
+
+    function performOperation(idA, idB, symbol) {
+      const a = state.tiles.find(t => t.id === idA), b = state.tiles.find(t => t.id === idB);
+      const op = OPS.find(o => o.symbol === symbol);
+      if (!a || !b || !op) return;
+      const result = op.fn(a.value, b.value);
+      if (result === null || !Number.isInteger(result) || result <= 0) {
+        els.message.textContent = symbol === '/' ? 'La división debe ser exacta.' : 'No se permiten resultados cero o negativos.';
+        vibrate([30,30,30]); return;
       }
-      clearOperationSelection();
-      currentOperation = op;
-      let opId = {
-        '+': 'op-add',
-        '-': 'op-sub',
-        '*': 'op-mul',
-        '/': 'op-div'
-      }[op];
-      document.getElementById(opId).classList.add('selected-op');
+      state.snapshots.push(JSON.stringify({ tiles: state.tiles, moves: state.moves }));
+      const resultTile = { id: crypto.randomUUID?.() || `${Date.now()}-r`, value: result, expr: `(${a.expr} ${op.text} ${b.expr})` };
+      state.tiles = state.tiles.filter(t => t.id !== idA && t.id !== idB);
+      state.tiles.unshift(resultTile);
+      state.moves.push({ display: `${a.value} ${op.text} ${b.value} = ${result}`, expr: resultTile.expr });
+      state.selectedId = null; state.operation = null;
+      els.message.textContent = '';
+      vibrate(18);
+      render();
+      checkGame(result);
     }
 
-    function clearOperationSelection() {
-      document.querySelectorAll('.operation').forEach(op => op.classList.remove('selected-op'));
+    function checkGame(lastResult) {
+      if (lastResult === state.target) {
+        state.gameOver = true; stopTimer();
+        const speedBonus = state.secondsTotal ? Math.max(0, state.secondsLeft) : 0;
+        const moveBonus = Math.max(0, 120 - state.moves.length * 15);
+        const hintPenalty = state.hintsUsed * 60;
+        const gained = Math.max(100, 500 + speedBonus + moveBonus - hintPenalty);
+        state.score += gained; state.streak += 1; persist();
+        els.message.textContent = `🎉 Exacto. +${gained} puntos`;
+        els.progressText.textContent = 'Objetivo conseguido';
+        vibrate([60,40,100]); render();
+      } else if (state.tiles.length === 1) {
+        finishFailure('No quedan más operaciones.');
+      }
     }
 
-    function updateResult() {
-      const live = currentNumbers.filter(n => n !== null);
-      if (live.length === 1) {
-        const final = live[0];
-        document.getElementById("result").textContent = `Resultado: ${final}`;
-        let message = '';
-        if (final === targetNumber) {
-          gameOver = true;
-          message = "🎉 ¡LO LOGRASTE! ★★★";
-        } else {
-          const diff = Math.abs(final - targetNumber);
-          if (diff <= 10) {
-            message = "Juego terminado. Puntuación: ★★";
-          } else if (diff <= 25) {
-            message = "Juego terminado. Puntuación: ★";
-          } else {
-            message = "Juego terminado: no ha conseguido el número indicado";
-          }
+    function finishFailure(text) {
+      state.gameOver = true; stopTimer(); state.streak = 0; persist();
+      els.message.textContent = `${text} Solución: ${state.solutionExpression.replaceAll('*','×').replaceAll('/','÷')}`;
+      vibrate([80,50,80]); render();
+    }
+
+    function undo() {
+      if (!state.snapshots.length || state.gameOver) return;
+      const snap = JSON.parse(state.snapshots.pop());
+      state.tiles = snap.tiles; state.moves = snap.moves;
+      clearSelection(false); els.message.textContent = 'Última operación deshecha.'; render();
+    }
+
+    function clearSelection(doRender=true) {
+      state.selectedId = null; state.operation = null;
+      if (doRender) render();
+    }
+
+    function showHint() {
+      if (state.gameOver) return;
+      state.hintsUsed++;
+      const possible = findCurrentHint();
+      els.message.textContent = possible || `Una solución completa es ${state.solutionExpression.replaceAll('*','×').replaceAll('/','÷')}`;
+      vibrate(20);
+    }
+
+    function findCurrentHint() {
+      for (const step of state.solutionSteps) {
+        const a = state.tiles.find(t => t.value === step.a);
+        const b = state.tiles.find(t => t.id !== a?.id && t.value === step.b);
+        if (a && b) {
+          const opText = OPS.find(o => o.symbol === step.op)?.text || step.op;
+          return `Pista: prueba ${step.a} ${opText} ${step.b}.`;
         }
-        document.getElementById("message").textContent = message;
       }
+      return null;
     }
 
-    function undoLast() {
-      if (gameOver || history.length === 0) return;
-      currentNumbers = history.pop();
-      selectedNums = [];
-      currentOperation = null;
-      clearOperationSelection();
-      clearNumberSelection();
-      document.getElementById("message").textContent = "Última operación deshecha.";
-      renderNumbers();
-      const live = currentNumbers.filter(n => n !== null);
-      document.getElementById("result").textContent = live.length === 1 ? `Resultado: ${live[0]}` : "Resultado: 0";
+    function updateDistance() {
+      if (!state.tiles.length) { els.distance.textContent = '—'; return; }
+      const nearest = state.tiles.reduce((best,t) => Math.abs(t.value-state.target) < Math.abs(best-state.target) ? t.value : best, state.tiles[0].value);
+      const diff = Math.abs(nearest - state.target);
+      els.distance.textContent = diff === 0 ? 'Exacto' : `±${diff}`;
+      els.distance.style.color = diff === 0 ? 'var(--ok)' : diff <= 10 ? 'var(--warn)' : 'var(--muted)';
     }
 
-    function resetGame() {
-      currentNumbers = getRandomNumbers();
-      selectedNums = [];
-      currentOperation = null;
-      history = [];
-      gameOver = false;
-      document.getElementById("target").textContent = targetNumber;
-      document.getElementById("result").textContent = "Resultado: 0";
-      document.getElementById("message").textContent = "";
-      clearOperationSelection();
-      clearNumberSelection();
-      renderNumbers();
+    function updateInstruction() {
+      if (state.gameOver) return;
+      if (!state.selectedId) els.progressText.textContent = '1. Selecciona un número';
+      else if (!state.operation) els.progressText.textContent = '2. Elige una operación';
+      else els.progressText.textContent = '3. Selecciona el segundo número';
     }
 
-    // Inicializar el juego
-    resetGame();
+    function startTimer() {
+      if (!state.secondsTotal) { updateTimerUI(); return; }
+      state.timerId = setInterval(() => {
+        state.secondsLeft--;
+        updateTimerUI();
+        if (state.secondsLeft <= 0) finishFailure('Tiempo agotado.');
+      }, 1000);
+    }
+    function stopTimer() { if (state.timerId) clearInterval(state.timerId); state.timerId = null; }
+    function updateTimerUI() {
+      if (!state.secondsTotal) { els.timer.textContent = '∞'; els.timeBar.style.transform = 'scaleX(1)'; return; }
+      const m = Math.floor(Math.max(0,state.secondsLeft)/60).toString().padStart(2,'0');
+      const s = (Math.max(0,state.secondsLeft)%60).toString().padStart(2,'0');
+      els.timer.textContent = `${m}:${s}`;
+      els.timeBar.style.transform = `scaleX(${Math.max(0,state.secondsLeft/state.secondsTotal)})`;
+    }
+    function persist() { localStorage.setItem('digits-score', state.score); localStorage.setItem('digits-streak', state.streak); }
+
+    $$('.op-btn').forEach(btn => btn.addEventListener('click', () => selectOperation(btn.dataset.op)));
+    els.undo.addEventListener('click', undo);
+    els.clear.addEventListener('click', () => clearSelection());
+    els.hint.addEventListener('click', showHint);
+    els.newGame.addEventListener('click', newGame);
+    els.difficulty.addEventListener('change', newGame);
+    els.duration.addEventListener('change', newGame);
+    $('#helpBtn').addEventListener('click', () => els.help.showModal());
+    $('#closeHelp').addEventListener('click', () => els.help.close());
+    document.addEventListener('keydown', e => {
+      if (['+','-','*','/'].includes(e.key)) selectOperation(e.key);
+      if (e.key === 'Escape') clearSelection();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') undo();
+    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stopTimer(); else if (!state.gameOver) startTimer(); });
+
+    newGame();
+  })();
   </script>
 </body>
 </html>
-    <!-- FOOTER -->
-    <footer>
-      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
-      <p>
-<p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
-<p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
-<h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
-<p><strong>_______________________________________________</strong></p>
-<p>&nbsp;</p>
-<p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
-<p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
-<p>Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
-<p>_______________________________________________</p>
