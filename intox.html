@@ -43,6 +43,11 @@ main{max-width:1200px;margin:18px auto;padding:0 20px}
 .image-loading,.image-empty{width:100%;height:100%;min-height:150px;display:grid;place-items:center;padding:18px;text-align:center;color:#8297ad;background:linear-gradient(110deg,#0b1320 25%,#111e2e 45%,#0b1320 65%);background-size:220% 100%;animation:imagePulse 1.5s linear infinite}
 .image-empty{animation:none;background:#0a111b;font-size:12px}
 .image-empty a{color:var(--accent);text-decoration:none}
+.google-fallback{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.google-fallback strong{color:#dce9f6;font-size:13px}
+.google-fallback code{display:block;max-width:100%;padding:4px 7px;border-radius:7px;background:#111c2a;color:#a9c0d7;white-space:normal;overflow-wrap:anywhere}
+.google-fallback .google-search-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;border:1px solid #315983;border-radius:9px;background:#102239;color:#a9ddff;font-weight:600}
+.google-fallback .google-search-btn:hover{filter:brightness(1.12)}
 .image-caption{position:absolute;right:7px;bottom:7px;max-width:calc(100% - 14px);padding:3px 7px;border-radius:7px;background:rgba(5,10,16,.78);color:#d7e3ef;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .image-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}
 .gallery-image{margin:0;min-width:0}
@@ -102,7 +107,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           <p class="brand-sub">
             Desarrollado por Ángel Soto
             <span class="chip" title="Archivo JSON de la misma ruta">
-              Fuente: <strong>json/intox_ES.json</strong>
             </span>
           </p>
           <!-- Enlace inicio -->
@@ -232,7 +236,23 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     }
 
     function googleImagesURL(e){
-      return `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(imageSearchQuery(e.INTOXICACION))}`
+      // Los signos + separan literalmente los términos en la consulta de Google.
+      const query = imageSearchQuery(e.INTOXICACION)
+        .trim()
+        .split(/\s+/)
+        .map(encodeURIComponent)
+        .join('+')
+      return `https://www.google.com/search?tbm=isch&q=${query}`
+    }
+
+    function googleFallbackHTML(e, compact=false){
+      const query = imageSearchQuery(e.INTOXICACION)
+      return `<div class="image-empty google-fallback"${compact?' style="min-height:110px"':''}>
+        <strong>Sin imágenes en Wikimedia Commons</strong>
+        <span>Búsqueda alternativa:</span>
+        <code>${safe(query)}</code>
+        <a class="google-search-btn" href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">🔎 Buscar en Google Imágenes</a>
+      </div>`
     }
 
     async function getEntryImages(e){
@@ -408,7 +428,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         const images = await getEntryImages(e)
         if(!target.isConnected) return
         if(!images.length){
-          target.innerHTML = `<div class="image-empty">No se encontró una imagen reutilizable.<br><a href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">Buscar en Google Imágenes</a></div>`
+          target.innerHTML = googleFallbackHTML(e)
           return
         }
         const img = images[0]
@@ -417,7 +437,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     }
 
     function galleryHTML(images, e){
-      if(!images.length) return `<div class="image-empty" style="min-height:110px">No se encontraron imágenes reutilizables. <a href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">Abrir la búsqueda en Google Imágenes</a></div>`
+      if(!images.length) return googleFallbackHTML(e, true)
       return `<div class="image-gallery">${images.map((img,i)=>`
         <figure class="gallery-image">
           <a href="${safe(img.page)}" target="_blank" rel="noopener noreferrer" title="Abrir archivo original">
