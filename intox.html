@@ -38,24 +38,13 @@ main{max-width:1200px;margin:18px auto;padding:0 20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid #1f2a3ccc;border-radius:18px;padding:14px;position:relative;overflow:hidden}
 .card-media{aspect-ratio:16/9;margin:-14px -14px 14px;overflow:hidden;background:#0a111b;position:relative;border-bottom:1px solid #1f2a3c}
-.card-media img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .25s ease,opacity .2s ease}
-.card-media:hover img{transform:scale(1.025)}
-.image-loading,.image-empty{width:100%;height:100%;min-height:150px;display:grid;place-items:center;padding:18px;text-align:center;color:#8297ad;background:linear-gradient(110deg,#0b1320 25%,#111e2e 45%,#0b1320 65%);background-size:220% 100%;animation:imagePulse 1.5s linear infinite}
-.image-empty{animation:none;background:#0a111b;font-size:12px}
+.image-empty{width:100%;height:100%;min-height:150px;display:grid;place-items:center;padding:18px;text-align:center;color:#8297ad;background:#0a111b;font-size:12px}
 .image-empty a{color:var(--accent);text-decoration:none}
 .google-fallback{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .google-fallback strong{color:#dce9f6;font-size:13px}
 .google-fallback code{display:block;max-width:100%;padding:4px 7px;border-radius:7px;background:#111c2a;color:#a9c0d7;white-space:normal;overflow-wrap:anywhere}
 .google-fallback .google-search-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;border:1px solid #315983;border-radius:9px;background:#102239;color:#a9ddff;font-weight:600}
 .google-fallback .google-search-btn:hover{filter:brightness(1.12)}
-.image-caption{position:absolute;right:7px;bottom:7px;max-width:calc(100% - 14px);padding:3px 7px;border-radius:7px;background:rgba(5,10,16,.78);color:#d7e3ef;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.image-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}
-.gallery-image{margin:0;min-width:0}
-.gallery-image a{display:block;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#08101a;border:1px solid #25344a}
-.gallery-image img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .2s ease}
-.gallery-image a:hover img{transform:scale(1.035)}
-.gallery-image figcaption{margin-top:5px;color:#8fa6bd;font-size:10px;line-height:1.3}
-@keyframes imagePulse{to{background-position:-220% 0}}
 .title{font-size:16px;font-weight:600;margin:0 0 8px}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .tag{font-size:11px;background:#0b1220;border:1px solid #1f2a3c;padding:4px 8px;border-radius:999px;color:#9fb4cf}
@@ -80,7 +69,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .note:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
 
 @media (max-width: 900px){ .controls{grid-template-columns: 1fr 1fr} }
-@media (max-width: 600px){ .controls{grid-template-columns: 1fr} .brand h1{font-size:18px} .brand .meta{font-size:12px} .image-gallery{grid-template-columns:1fr} }
+@media (max-width: 600px){ .controls{grid-template-columns: 1fr} .brand h1{font-size:18px} .brand .meta{font-size:12px} }
 
 @media print{
   header, .controls, #stats, .actions, .tags{display:none!important}
@@ -107,6 +96,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           <p class="brand-sub">
             Desarrollado por Ángel Soto
             <span class="chip" title="Archivo JSON de la misma ruta">
+              Fuente: <strong>json/intox_ES.json</strong>
             </span>
           </p>
           <!-- Enlace inicio -->
@@ -199,8 +189,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     // ====== State & Elements ======
     const state = {
       data: [], filtered: [], q: '', field: 'all', sort: 'name-asc', page: 1, pageSize: 20,
-      favorites: new Set(JSON.parse(localStorage.getItem('intox:favs')||'[]')),
-      imageCache: new Map()
+      favorites: new Set(JSON.parse(localStorage.getItem('intox:favs')||'[]'))
     }
     const els = {
       q: document.getElementById('q'), fieldSelect: document.getElementById('fieldSelect'), sortSelect: document.getElementById('sortSelect'),
@@ -218,14 +207,8 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     const nl2br = str => safe(str).replace(/\n/g,'<br>')
     const hasText = v => v!=null && String(v).trim().length>0
     const slug = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
-    const stripHTML = str => {
-      const doc = new DOMParser().parseFromString(String(str||''), 'text/html')
-      return doc.body.textContent.trim()
-    }
-
     // Genera la búsqueda solicitada a partir del campo INTOXICACION.
-    // Se conservan estas palabras para el enlace a Google Imágenes, mientras
-    // que las imágenes mostradas se obtienen de Wikimedia Commons (API pública).
+    // El resultado enlaza directamente con Google Imágenes.
     function imageSearchQuery(name){
       const cleaned = String(name||'')
         .replace(/\bexposici[oó]n\s+(?:a|en)\b/gi, ' ')
@@ -248,50 +231,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     function googleFallbackHTML(e, compact=false){
       const query = imageSearchQuery(e.INTOXICACION)
       return `<div class="image-empty google-fallback"${compact?' style="min-height:110px"':''}>
-        <strong>Sin imágenes en Wikimedia Commons</strong>
-        <span>Búsqueda alternativa:</span>
+        <strong>Buscar imágenes de esta intoxicación</strong>
+        <span>Consulta preparada para Google Imágenes:</span>
         <code>${safe(query)}</code>
-        <a class="google-search-btn" href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">🔎 Buscar en Google Imágenes</a>
+        <a class="google-search-btn" href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">🔎 Ver resultados en Google Imágenes</a>
       </div>`
-    }
-
-    async function getEntryImages(e){
-      const query = imageSearchQuery(e.INTOXICACION)
-      if(state.imageCache.has(query)) return state.imageCache.get(query)
-
-      const request = (async()=>{
-        const params = new URLSearchParams({
-          action:'query', generator:'search',
-          gsrsearch:`${query.replace(/\bwikipedia\s+archivo\b/i,'').trim()} filetype:bitmap`,
-          gsrnamespace:'6', gsrlimit:'8', prop:'imageinfo',
-          iiprop:'url|mime|extmetadata', iiurlwidth:'1000',
-          format:'json', formatversion:'2', origin:'*'
-        })
-        const res = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`)
-        if(!res.ok) throw new Error(`Wikimedia HTTP ${res.status}`)
-        const data = await res.json()
-        const pages = Array.isArray(data?.query?.pages) ? data.query.pages : []
-        return pages
-          .sort((a,b)=>(a.index||999)-(b.index||999))
-          .map(page=>{
-            const info = page.imageinfo?.[0]
-            const meta = info?.extmetadata || {}
-            if(!info || !String(info.mime||'').startsWith('image/')) return null
-            return {
-              src: info.thumburl || info.url,
-              full: info.url,
-              page: info.descriptionurl || `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g,'_'))}`,
-              title: page.title.replace(/^File:/i,'').replace(/^Archivo:/i,''),
-              author: stripHTML(meta.Artist?.value || ''),
-              license: stripHTML(meta.LicenseShortName?.value || '')
-            }
-          })
-          .filter(Boolean)
-          .slice(0,3)
-      })().catch(err=>{ console.warn('No se pudieron cargar imágenes para', query, err); return [] })
-
-      state.imageCache.set(query, request)
-      return request
     }
     function highlight(text, tokens){
       if(!text || !tokens.length) return nl2br(text||'')
@@ -395,7 +339,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const pageItems = filtered.slice(start, end)
       els.results.innerHTML = pageItems.map(renderCard).join('')
       wireCardButtons()
-      hydrateCardImages(pageItems)
       renderPager(total)
     }
 
@@ -405,7 +348,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const prog = e.PROG ? `<span class="tag" title="Pronóstico">🩺 ${safe(e.PROG)}</span>` : ''
       return `
       <article class="card" data-id="${e.__id}">
-        <div class="card-media" data-card-image="${e.__id}"><div class="image-loading">Buscando imagen…</div></div>
+        <div class="card-media">${googleFallbackHTML(e)}</div>
         <h2 class="title">${highlight(e.INTOXICACION, tokens)}</h2>
         <div class="tags">${prog}</div>
         <div class="actions">
@@ -419,32 +362,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         ${section('Toxicología', e.TOX, tokens)}
         ${section('Factores de riesgo', e.RIESGOS, tokens)}
       </article>`
-    }
-
-    async function hydrateCardImages(entries){
-      await Promise.all(entries.map(async e=>{
-        const target = [...els.results.querySelectorAll('[data-card-image]')].find(el=>el.dataset.cardImage===e.__id)
-        if(!target) return
-        const images = await getEntryImages(e)
-        if(!target.isConnected) return
-        if(!images.length){
-          target.innerHTML = googleFallbackHTML(e)
-          return
-        }
-        const img = images[0]
-        target.innerHTML = `<a href="${safe(img.page)}" target="_blank" rel="noopener noreferrer" title="Abrir archivo en Wikimedia Commons"><img src="${safe(img.src)}" alt="Imagen ilustrativa de ${safe(e.INTOXICACION)}" loading="lazy" referrerpolicy="no-referrer"><span class="image-caption">Wikimedia Commons</span></a>`
-      }))
-    }
-
-    function galleryHTML(images, e){
-      if(!images.length) return googleFallbackHTML(e, true)
-      return `<div class="image-gallery">${images.map((img,i)=>`
-        <figure class="gallery-image">
-          <a href="${safe(img.page)}" target="_blank" rel="noopener noreferrer" title="Abrir archivo original">
-            <img src="${safe(img.src)}" alt="${safe(e.INTOXICACION)}: imagen ${i+1}" loading="lazy" referrerpolicy="no-referrer">
-          </a>
-          <figcaption>${safe(img.title)}${img.author?` · ${safe(img.author)}`:''}${img.license?` · ${safe(img.license)}`:''}</figcaption>
-        </figure>`).join('')}</div>`
     }
 
     function section(title, text, tokens){
@@ -533,7 +450,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const notesKey = 'intox:note:'+e.__id
       const note = localStorage.getItem(notesKey)||''
       els.modalBody.innerHTML = `
-        <div id="modalImages" class="image-loading" style="min-height:180px;border-radius:12px">Buscando las tres primeras imágenes…</div>
+        ${googleFallbackHTML(e, true)}
         ${mk('Nombres alternativos', e.AKA)}
         ${mk('Descripción / Fuente', e.FUENTE)}
         ${mk('Toxicología', e.TOX)}
@@ -557,11 +474,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           </div>
         </div>`
       els.modal.showModal()
-      getEntryImages(e).then(images=>{
-        if(els.modal.dataset.entryId !== e.__id) return
-        const gallery = document.getElementById('modalImages')
-        if(gallery) gallery.outerHTML = galleryHTML(images, e)
-      })
       document.getElementById('copySigns')?.addEventListener('click',()=> copy(e.SIGNOS||''))
       document.getElementById('copyTto')?.addEventListener('click',()=> copy(e.TTO||''))
       document.getElementById('copyAll').addEventListener('click',()=> copy(serializeEntry(e)))
