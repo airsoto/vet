@@ -38,6 +38,10 @@ main{max-width:1200px;margin:18px auto;padding:0 20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid #1f2a3ccc;border-radius:18px;padding:14px;position:relative;overflow:hidden}
 .card-media{aspect-ratio:16/9;margin:-14px -14px 14px;overflow:hidden;background:#0a111b;position:relative;border-bottom:1px solid #1f2a3c}
+.card-media>a{display:block;width:100%;height:100%;position:relative}
+.card-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s ease}
+.card-media:hover img{transform:scale(1.025)}
+.image-loading{width:100%;height:100%;min-height:150px;display:grid;place-items:center;padding:18px;text-align:center;color:#8297ad;background:linear-gradient(110deg,#0b1320 25%,#132131 45%,#0b1320 65%);background-size:220% 100%;animation:imagePulse 1.5s linear infinite}
 .image-empty{width:100%;height:100%;min-height:150px;display:grid;place-items:center;padding:18px;text-align:center;color:#8297ad;background:#0a111b;font-size:12px}
 .image-empty a{color:var(--accent);text-decoration:none}
 .google-fallback{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
@@ -45,6 +49,22 @@ main{max-width:1200px;margin:18px auto;padding:0 20px}
 .google-fallback code{display:block;max-width:100%;padding:4px 7px;border-radius:7px;background:#111c2a;color:#a9c0d7;white-space:normal;overflow-wrap:anywhere}
 .google-fallback .google-search-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 11px;border:1px solid #315983;border-radius:9px;background:#102239;color:#a9ddff;font-weight:600}
 .google-fallback .google-search-btn:hover{filter:brightness(1.12)}
+.google-fallback button.google-search-btn{color:#a9ddff;cursor:pointer}
+.image-caption{position:absolute;left:8px;right:8px;bottom:8px;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:8px;background:rgba(4,9,15,.82);color:#d7e3ef;font-size:10px;backdrop-filter:blur(5px)}
+.image-caption span:last-child{color:#96abc0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.image-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.gallery-image{min-width:0;margin:0}
+.gallery-image>a{display:block;aspect-ratio:4/3;overflow:hidden;border:1px solid #263a51;border-radius:12px;background:#08101a}
+.gallery-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .2s ease}
+.gallery-image>a:hover img{transform:scale(1.03)}
+.gallery-image figcaption{margin-top:5px;color:#8fa6bd;font-size:10px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.config-form{display:grid;gap:14px;padding:16px}
+.config-form label{display:grid;gap:6px;color:#b8c8d8;font-size:12px}
+.config-form input{height:42px;border:1px solid #334155;border-radius:10px;background:#08111e;color:var(--text);padding:0 12px}
+.config-form small{color:#8297ad;line-height:1.5}
+.config-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.config-status{min-height:20px;color:#fbbf24;font-size:12px}
+@keyframes imagePulse{to{background-position:-220% 0}}
 .title{font-size:16px;font-weight:600;margin:0 0 8px}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .tag{font-size:11px;background:#0b1220;border:1px solid #1f2a3c;padding:4px 8px;border-radius:999px;color:#9fb4cf}
@@ -69,7 +89,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .note:focus{outline:none; box-shadow:0 0 0 3px var(--ring)}
 
 @media (max-width: 900px){ .controls{grid-template-columns: 1fr 1fr} }
-@media (max-width: 600px){ .controls{grid-template-columns: 1fr} .brand h1{font-size:18px} .brand .meta{font-size:12px} }
+@media (max-width: 600px){ .controls{grid-template-columns: 1fr} .brand h1{font-size:18px} .brand .meta{font-size:12px} .image-gallery{grid-template-columns:1fr} }
 
 @media print{
   header, .controls, #stats, .actions, .tags{display:none!important}
@@ -96,7 +116,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           <p class="brand-sub">
             Desarrollado por Ángel Soto
             <span class="chip" title="Archivo JSON de la misma ruta">
-              Fuente: <strong>json/intox_ES.json</strong>
             </span>
           </p>
           <!-- Enlace inicio -->
@@ -148,6 +167,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <div class="right" style="display:flex; gap:8px">
         <button class="btn accent" id="exportJSON">Exportar JSON</button>
         <button class="btn" id="exportCSV">Exportar CSV</button>
+        <button class="btn" id="imageConfigBtn">Configurar imágenes</button>
         <button class="btn ghost" id="resetBtn">Limpiar</button>
       </div>
     </div>
@@ -184,12 +204,39 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <div class="modal-body" id="modalBody"></div>
   </dialog>
 
+  <dialog id="imageConfigModal">
+    <div class="modal-header">
+      <div>
+        <div style="font-weight:700">Google Imágenes</div>
+        <div style="font-size:12px;color:#91a6bb">Configuración de búsqueda automática</div>
+      </div>
+      <button class="btn warn" id="closeImageConfig">Cerrar</button>
+    </div>
+    <form class="config-form" id="imageConfigForm">
+      <label>Clave de Google Custom Search API
+        <input id="googleApiKey" type="password" autocomplete="off" placeholder="AIza…" required>
+      </label>
+      <label>Identificador del buscador programable (cx)
+        <input id="googleCx" type="text" autocomplete="off" placeholder="0123456789:abcdef…" required>
+      </label>
+      <small>La configuración se guarda únicamente en este navegador. Por seguridad, restringe la clave al dominio de tu web y a la API Custom Search.</small>
+      <div class="config-status" id="imageConfigStatus"></div>
+      <div class="config-actions">
+        <button class="btn ghost" type="button" id="clearImageConfig">Borrar configuración</button>
+        <button class="btn accent" type="submit">Guardar y cargar imágenes</button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
   ;(() => {
     // ====== State & Elements ======
     const state = {
       data: [], filtered: [], q: '', field: 'all', sort: 'name-asc', page: 1, pageSize: 20,
-      favorites: new Set(JSON.parse(localStorage.getItem('intox:favs')||'[]'))
+      favorites: new Set(JSON.parse(localStorage.getItem('intox:favs')||'[]')),
+      imageCache: new Map(),
+      googleApiKey: localStorage.getItem('intox:google-api-key') || '',
+      googleCx: localStorage.getItem('intox:google-cx') || ''
     }
     const els = {
       q: document.getElementById('q'), fieldSelect: document.getElementById('fieldSelect'), sortSelect: document.getElementById('sortSelect'),
@@ -198,7 +245,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       placeholder: document.getElementById('placeholder'), error: document.getElementById('error'), loading: document.getElementById('loading'),
       exportJSON: document.getElementById('exportJSON'), exportCSV: document.getElementById('exportCSV'), resetBtn: document.getElementById('resetBtn'),
       modal: document.getElementById('modal'), modalTitle: document.getElementById('modalTitle'), modalTags: document.getElementById('modalTags'),
-      modalBody: document.getElementById('modalBody'), closeModal: document.getElementById('closeModal'), printBtn: document.getElementById('printBtn')
+      modalBody: document.getElementById('modalBody'), closeModal: document.getElementById('closeModal'), printBtn: document.getElementById('printBtn'),
+      imageConfigBtn: document.getElementById('imageConfigBtn'), imageConfigModal: document.getElementById('imageConfigModal'),
+      imageConfigForm: document.getElementById('imageConfigForm'), closeImageConfig: document.getElementById('closeImageConfig'),
+      clearImageConfig: document.getElementById('clearImageConfig'), googleApiKey: document.getElementById('googleApiKey'),
+      googleCx: document.getElementById('googleCx'), imageConfigStatus: document.getElementById('imageConfigStatus')
     }
 
     // ====== Utils ======
@@ -208,7 +259,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     const hasText = v => v!=null && String(v).trim().length>0
     const slug = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
     // Genera la búsqueda solicitada a partir del campo INTOXICACION.
-    // El resultado enlaza directamente con Google Imágenes.
     function imageSearchQuery(name){
       const cleaned = String(name||'')
         .replace(/\bexposici[oó]n\s+(?:a|en)\b/gi, ' ')
@@ -231,11 +281,94 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     function googleFallbackHTML(e, compact=false){
       const query = imageSearchQuery(e.INTOXICACION)
       return `<div class="image-empty google-fallback"${compact?' style="min-height:110px"':''}>
-        <strong>Buscar imágenes de esta intoxicación</strong>
-        <span>Consulta preparada para Google Imágenes:</span>
+        <strong>Configura Google Imágenes para insertar la fotografía</strong>
+        <span>Consulta que se utilizará:</span>
         <code>${safe(query)}</code>
+        <button type="button" class="google-search-btn" data-open-image-config>⚙ Configurar búsqueda automática</button>
         <a class="google-search-btn" href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">🔎 Ver resultados en Google Imágenes</a>
       </div>`
+    }
+
+    function hasGoogleImageConfig(){
+      return Boolean(state.googleApiKey.trim() && state.googleCx.trim())
+    }
+
+    function openImageConfig(){
+      els.googleApiKey.value = state.googleApiKey
+      els.googleCx.value = state.googleCx
+      els.imageConfigStatus.textContent = hasGoogleImageConfig() ? 'Configuración activa.' : ''
+      els.imageConfigModal.showModal()
+    }
+
+    async function getGoogleImages(e){
+      if(!hasGoogleImageConfig()) return []
+      const query = imageSearchQuery(e.INTOXICACION)
+      const cacheKey = `${query}|${state.googleCx}`
+      if(state.imageCache.has(cacheKey)) return state.imageCache.get(cacheKey)
+
+      const storageKey = `intox:google-images:${slug(state.googleCx)}:${slug(query)}`
+      try{
+        const saved = JSON.parse(localStorage.getItem(storageKey) || 'null')
+        if(saved?.time && Date.now()-saved.time < 30*24*60*60*1000 && Array.isArray(saved.images)){
+          const cached = Promise.resolve(saved.images)
+          state.imageCache.set(cacheKey, cached)
+          return cached
+        }
+      }catch(_){ /* Ignorar una caché local dañada */ }
+
+      const request = (async()=>{
+        const params = new URLSearchParams({
+          key: state.googleApiKey,
+          cx: state.googleCx,
+          q: query,
+          searchType: 'image',
+          num: '3',
+          safe: 'active',
+          hl: 'es',
+          gl: 'es'
+        })
+        const res = await fetch(`https://customsearch.googleapis.com/customsearch/v1?${params}`)
+        const data = await res.json().catch(()=>({}))
+        if(!res.ok) throw new Error(data?.error?.message || `Google HTTP ${res.status}`)
+        const images = (Array.isArray(data.items) ? data.items : []).slice(0,3).map(item=>({
+          src: item.link,
+          title: item.title || e.INTOXICACION,
+          context: item.image?.contextLink || item.link,
+          source: item.displayLink || ''
+        }))
+        try{ localStorage.setItem(storageKey, JSON.stringify({time:Date.now(), images})) }catch(_){ /* Caché opcional */ }
+        return images
+      })()
+
+      state.imageCache.set(cacheKey, request)
+      return request
+    }
+
+    function imageErrorHTML(e, message, compact=false){
+      return `<div class="image-empty google-fallback"${compact?' style="min-height:110px"':''}>
+        <strong>No se pudo insertar la imagen</strong>
+        <span>${safe(message || 'Revisa la configuración de Google Custom Search.')}</span>
+        <button type="button" class="google-search-btn" data-open-image-config>⚙ Revisar configuración</button>
+        <a class="google-search-btn" href="${googleImagesURL(e)}" target="_blank" rel="noopener noreferrer">🔎 Abrir Google Imágenes</a>
+      </div>`
+    }
+
+    function cardImageHTML(image, e){
+      return `<a href="${safe(image.context)}" target="_blank" rel="noopener noreferrer" title="Abrir la página de origen">
+        <img src="${safe(image.src)}" alt="Imagen ilustrativa de ${safe(e.INTOXICACION)}" loading="lazy" referrerpolicy="no-referrer">
+        <span class="image-caption"><span>Google Imágenes</span><span>${safe(image.source)}</span></span>
+      </a>`
+    }
+
+    function galleryHTML(images, e){
+      if(!images.length) return imageErrorHTML(e, 'Google no devolvió imágenes para esta consulta.', true)
+      return `<div class="image-gallery">${images.map((image,index)=>`
+        <figure class="gallery-image">
+          <a href="${safe(image.context)}" target="_blank" rel="noopener noreferrer" title="Abrir la página de origen">
+            <img src="${safe(image.src)}" alt="${safe(e.INTOXICACION)}: imagen ${index+1}" loading="lazy" referrerpolicy="no-referrer">
+          </a>
+          <figcaption>${safe(image.title)}${image.source?` · ${safe(image.source)}`:''}</figcaption>
+        </figure>`).join('')}</div>`
     }
     function highlight(text, tokens){
       if(!text || !tokens.length) return nl2br(text||'')
@@ -339,6 +472,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const pageItems = filtered.slice(start, end)
       els.results.innerHTML = pageItems.map(renderCard).join('')
       wireCardButtons()
+      hydrateCardImages(pageItems)
       renderPager(total)
     }
 
@@ -348,7 +482,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const prog = e.PROG ? `<span class="tag" title="Pronóstico">🩺 ${safe(e.PROG)}</span>` : ''
       return `
       <article class="card" data-id="${e.__id}">
-        <div class="card-media">${googleFallbackHTML(e)}</div>
+        <div class="card-media" data-card-image="${e.__id}">${hasGoogleImageConfig()?'<div class="image-loading">Buscando imagen en Google…</div>':googleFallbackHTML(e)}</div>
         <h2 class="title">${highlight(e.INTOXICACION, tokens)}</h2>
         <div class="tags">${prog}</div>
         <div class="actions">
@@ -362,6 +496,21 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         ${section('Toxicología', e.TOX, tokens)}
         ${section('Factores de riesgo', e.RIESGOS, tokens)}
       </article>`
+    }
+
+    async function hydrateCardImages(entries){
+      if(!hasGoogleImageConfig()) return
+      await Promise.all(entries.map(async e=>{
+        const target = [...els.results.querySelectorAll('[data-card-image]')].find(el=>el.dataset.cardImage===e.__id)
+        if(!target) return
+        try{
+          const images = await getGoogleImages(e)
+          if(!target.isConnected) return
+          target.innerHTML = images.length ? cardImageHTML(images[0], e) : imageErrorHTML(e, 'Google no devolvió imágenes para esta consulta.')
+        }catch(err){
+          if(target.isConnected) target.innerHTML = imageErrorHTML(e, err.message)
+        }
+      }))
     }
 
     function section(title, text, tokens){
@@ -450,7 +599,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       const notesKey = 'intox:note:'+e.__id
       const note = localStorage.getItem(notesKey)||''
       els.modalBody.innerHTML = `
-        ${googleFallbackHTML(e, true)}
+        <div id="modalImages">${hasGoogleImageConfig()?'<div class="image-loading" style="min-height:180px;border-radius:12px">Buscando las tres primeras imágenes en Google…</div>':googleFallbackHTML(e, true)}</div>
         ${mk('Nombres alternativos', e.AKA)}
         ${mk('Descripción / Fuente', e.FUENTE)}
         ${mk('Toxicología', e.TOX)}
@@ -474,6 +623,17 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           </div>
         </div>`
       els.modal.showModal()
+      if(hasGoogleImageConfig()){
+        getGoogleImages(e).then(images=>{
+          if(els.modal.dataset.entryId !== e.__id) return
+          const target = document.getElementById('modalImages')
+          if(target) target.innerHTML = galleryHTML(images, e)
+        }).catch(err=>{
+          if(els.modal.dataset.entryId !== e.__id) return
+          const target = document.getElementById('modalImages')
+          if(target) target.innerHTML = imageErrorHTML(e, err.message, true)
+        })
+      }
       document.getElementById('copySigns')?.addEventListener('click',()=> copy(e.SIGNOS||''))
       document.getElementById('copyTto')?.addEventListener('click',()=> copy(e.TTO||''))
       document.getElementById('copyAll').addEventListener('click',()=> copy(serializeEntry(e)))
@@ -482,6 +642,46 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     }
 
     // ====== Events ======
+    function updateImageConfigButton(){
+      els.imageConfigBtn.textContent = hasGoogleImageConfig() ? 'Imágenes: Google ✓' : 'Configurar imágenes'
+    }
+
+    els.imageConfigBtn.addEventListener('click', openImageConfig)
+    els.closeImageConfig.addEventListener('click', ()=> els.imageConfigModal.close())
+    document.addEventListener('click', event=>{
+      const button = event.target.closest?.('[data-open-image-config]')
+      if(button) openImageConfig()
+    })
+    els.imageConfigForm.addEventListener('submit', event=>{
+      event.preventDefault()
+      const apiKey = els.googleApiKey.value.trim()
+      const cx = els.googleCx.value.trim()
+      if(!apiKey || !cx){
+        els.imageConfigStatus.textContent = 'Completa los dos campos.'
+        return
+      }
+      state.googleApiKey = apiKey
+      state.googleCx = cx
+      state.imageCache.clear()
+      localStorage.setItem('intox:google-api-key', apiKey)
+      localStorage.setItem('intox:google-cx', cx)
+      els.imageConfigStatus.textContent = 'Configuración guardada.'
+      updateImageConfigButton()
+      setTimeout(()=>{ els.imageConfigModal.close(); render() }, 350)
+    })
+    els.clearImageConfig.addEventListener('click', ()=>{
+      state.googleApiKey = ''
+      state.googleCx = ''
+      state.imageCache.clear()
+      localStorage.removeItem('intox:google-api-key')
+      localStorage.removeItem('intox:google-cx')
+      els.googleApiKey.value = ''
+      els.googleCx.value = ''
+      els.imageConfigStatus.textContent = 'Configuración eliminada.'
+      updateImageConfigButton()
+      render()
+    })
+
     els.q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ state.q = els.q.value; state.page=1; applyFilters() } })
     els.q.addEventListener('input', ()=>{ if(!els.q.value){ state.q=''; state.page=1; applyFilters() } })
     els.fieldSelect.addEventListener('change', ()=>{ state.field = els.fieldSelect.value; state.page=1; applyFilters() })
@@ -520,6 +720,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     // ====== Boot ======
     async function boot(){
       try{
+        updateImageConfigButton()
         loadFromURL()
         const res = await fetch('json/intox_ES.json')
         if(!res.ok) throw new Error('HTTP '+res.status)
