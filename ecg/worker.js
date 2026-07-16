@@ -4,27 +4,15 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000"
 ]);
 
-const WORKER_VERSION = "4.0.0";
-const MODEL_DEFAULT = "gemini-3.5-flash";
+const VERSION = "5.0.0";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const FALLBACK_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-latest"];
-const RETRY_DELAYS_MS = [1200, 3000];
-const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-const MAX_IMAGE_BASE64 = 18_000_000;
-const MAX_LEADS = 6;
-const MAX_COMPLEXES = 40;
-const MAX_POINTS_PER_LEAD = 500;
-const MAX_MARKERS_PER_COMPLEX = 24;
-const MAX_TEXT = 1600;
-const LEAD_NAMES = new Set(["I", "II", "III", "aVR", "aVL", "aVF"]);
-const MARKER_TYPES = new Set([
-  "pStart", "pPeak", "pEnd", "qrsStart", "Q", "R", "Rprime",
-  "S", "Sprime", "qrsEnd", "J", "tStart", "tPeak", "tEnd", "iso"
-]);
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const LEADS = new Set(["I", "II", "III", "aVR", "aVL", "aVF"]);
+const MAX_IMAGE = 18_000_000;
 
 export default {
   async fetch(request, env) {
-    const startedAt = Date.now();
-    const analysisId = crypto.randomUUID();
     const origin = request.headers.get("Origin") || "";
     const cors = corsHeaders(origin);
 
@@ -33,17 +21,12 @@ export default {
     }
 
     if (request.method === "GET") {
-      const preferredModel = env.GEMINI_MODEL || MODEL_DEFAULT;
       return json({
         ok: true,
         service: "ECG veterinario Gemini",
-        version: WORKER_VERSION,
-        model: preferredModel,
-        fallbackModels: uniqueModels([preferredModel, ...FALLBACK_MODELS]),
-        capabilities: [
-          "visual-quality", "visual-calibration", "lead-regions", "trace-seeds",
-          "complexes", "wave-boundaries", "morphology", "artifacts", "evidence"
-        ]
+        version: VERSION,
+        model: env.GEMINI_MODEL || DEFAULT_MODEL,
+        actions: ["extract", "interpret"]
       }, 200, cors);
     }
 
@@ -56,50 +39,58 @@ export default {
     }
 
     if (!env.GEMINI_API_KEY) {
-      return json({ error: "Falta el secreto GEMINI_API_KEY" }, 500, cors);
+      return json({ error: "Falta GEMINI_API_KEY" }, 500, cors);
     }
 
     try {
       const input = await request.json();
-      validateInput(input);
+      const action = input.action || "extract";
+      const started = Date.now();
+      const analysisId = crypto.randomUUID();
 
-      const preferredModel = env.GEMINI_MODEL || MODEL_DEFAULT;
-      const models = uniqueModels([preferredModel, ...FALLBACK_MODELS]);
+      let prompt;
+      let schema;
+      let parts;
+
+      if (action === "extract") {
+        validateExtract(input);
+        prompt = buildExtractPrompt(input);
+        schema = extractSchema();
+        parts = [
+          { text: prompt },
+          { inline_data: { mime_type: input.mimeType, data: input.imageBase64 } }
+        ];
+      } else if (action === "interpret") {
+        validateInterpret(input);
+        prompt = buildInterpretPrompt(input);
+        schema = interpretSchema();
+        parts = [{ text: prompt }];
+      } else {
+        throw new Error("Acción no válida");
+      }
+
       const payload = {
-        contents: [{
-          role: "user",
-          parts: [
-            { text: buildPrompt(input) },
-            {
-              inline_data: {
-                mime_type: input.mimeType,
-                data: input.imageBase64
-              }
-            }
-          ]
-        }],
+        contents: [{ role: "user", parts }],
         generationConfig: {
-          temperature: 0.05,
-          maxOutputTokens: 16384,
+          temperature: action === "extract" ? 0.05 : 0.15,
+          maxOutputTokens: action === "extract" ? 16384 : 8192,
           responseMimeType: "application/json",
-          responseSchema: responseSchema()
+          responseSchema: schema
         }
       };
 
-      const gemini = await callGeminiWithFallback({
-        models,
-        payload,
-        apiKey: env.GEMINI_API_KEY
-      });
+      const preferred = env.GEMINI_MODEL || DEFAULT_MODEL;
+      const models = [...new Set([preferred, ...FALLBACK_MODELS])];
+      const gemini = await callWithFallback(models, payload, env.GEMINI_API_KEY);
 
       if (!gemini.ok) {
         return json({
-          error: safeErrorLabel(gemini.status),
+          error: "Gemini no pudo completar la solicitud",
           status: gemini.status,
           attemptedModels: gemini.attemptedModels,
-          details: sanitizeRemoteError(gemini.details),
-          analysisId,
-          version: WORKER_VERSION
+          details: safeRemoteError(gemini.details),
+          version: VERSION,
+          analysisId
         }, normalizeStatus(gemini.status), cors);
       }
 
@@ -109,155 +100,137 @@ export default {
         .trim();
 
       if (!text) {
-        return json({
-          error: "Gemini no devolvió contenido estructurado",
-          model: gemini.model,
-          attemptedModels: gemini.attemptedModels,
-          analysisId,
-          version: WORKER_VERSION
-        }, 502, cors);
+        return json({ error: "Gemini no devolvió contenido", version: VERSION, analysisId }, 502, cors);
       }
 
-      let parsed;
+      let result;
       try {
-        parsed = JSON.parse(text);
+        result = JSON.parse(text);
       } catch {
-        return json({
-          error: "Gemini devolvió JSON no válido",
-          model: gemini.model,
-          analysisId,
-          version: WORKER_VERSION
-        }, 502, cors);
+        return json({ error: "Gemini devolvió JSON no válido", version: VERSION, analysisId }, 502, cors);
       }
 
-      const result = sanitizeResult(parsed, input);
+      result = action === "extract"
+        ? sanitizeExtraction(result, input)
+        : sanitizeInterpretation(result);
+
       result.meta = {
+        action,
         model: gemini.model,
         attemptedModels: gemini.attemptedModels,
         analyzedAt: new Date().toISOString(),
-        durationMs: Date.now() - startedAt,
-        version: WORKER_VERSION,
+        durationMs: Date.now() - started,
+        version: VERSION,
         analysisId,
-        inputWasCropped: Boolean(input.cropApplied),
-        disclaimer: "Resultado experimental de extracción visual. Requiere revisión veterinaria del ECG original."
+        disclaimer: "Resultado experimental. Requiere validación veterinaria del ECG original."
       };
 
       return json({ success: true, result }, 200, cors);
     } catch (error) {
-      return json({
-        error: cleanText(error?.message || "Error interno", 300),
-        analysisId,
-        version: WORKER_VERSION
-      }, 400, cors);
+      return json({ error: String(error?.message || "Error interno").slice(0, 300), version: VERSION }, 400, cors);
     }
   }
 };
 
-function corsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : "https://airsoto.github.io";
-  return {
-    "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Vary": "Origin",
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
-  };
-}
-
-function json(data, status, headers) {
-  return new Response(JSON.stringify(data), { status, headers });
-}
-
-function validateInput(input) {
+function validateExtract(input) {
   if (!input || typeof input !== "object") throw new Error("Solicitud vacía");
   if (!input.imageBase64 || typeof input.imageBase64 !== "string") throw new Error("Falta imageBase64");
-  if (!/^image\/(jpeg|png|webp)$/.test(input.mimeType || "")) throw new Error("Formato de imagen no admitido");
-  if (input.imageBase64.length > MAX_IMAGE_BASE64) throw new Error("Imagen demasiado grande");
-  if (!Array.isArray(input.leads) || input.leads.length === 0) throw new Error("Selecciona al menos una derivación");
-  if (input.leads.length > MAX_LEADS) throw new Error("Demasiadas derivaciones");
-  if (!input.leads.every(name => LEAD_NAMES.has(name))) throw new Error("Nombre de derivación no admitido");
-  if (!LEAD_NAMES.has(input.primaryLead || "II")) throw new Error("Derivación principal no válida");
+  if (input.imageBase64.length > MAX_IMAGE) throw new Error("Imagen demasiado grande");
+  if (!/^image\/(jpeg|png|webp)$/.test(input.mimeType || "")) throw new Error("Formato no permitido");
   if (!["dog", "cat"].includes(input.species)) throw new Error("Especie no válida");
   if (![25, 50, "25", "50"].includes(input.speed)) throw new Error("Velocidad no válida");
-  if (Array.isArray(input.userLeadRegions) && input.userLeadRegions.length > MAX_LEADS) {
-    throw new Error("Demasiadas regiones manuales");
-  }
+  if (!Array.isArray(input.leads) || !input.leads.length) throw new Error("Selecciona al menos una derivación");
+  if (!input.leads.every(x => LEADS.has(x))) throw new Error("Derivación no válida");
+  if (!LEADS.has(input.primaryLead || "II")) throw new Error("Derivación principal no válida");
 }
 
-function buildPrompt(input) {
+function validateInterpret(input) {
+  if (!input || typeof input !== "object") throw new Error("Solicitud vacía");
+  if (!input.confirmedTrace || typeof input.confirmedTrace !== "object") throw new Error("Falta el trazado confirmado");
+  if (!input.features || typeof input.features !== "object") throw new Error("Faltan las mediciones calculadas");
+}
+
+function buildExtractPrompt(input) {
   const species = input.species === "cat" ? "gato" : "perro";
-  const mode = input.interpretationMode === "screening" ? "cribado sensible" : "conservador";
-  const userRegions = Array.isArray(input.userLeadRegions) && input.userLeadRegions.length
-    ? input.userLeadRegions.map(region => `${region.name}: [${(region.box || []).join(", ")}]`).join("; ")
-    : "ninguna";
+  const regions = Array.isArray(input.leadRegions) && input.leadRegions.length
+    ? input.leadRegions.map(r => `${r.name}: [${(r.box || []).join(",")}]`).join("; ")
+    : "sin regiones manuales";
   const calibration = input.calibration
-    ? `Referencia manual 5x5 mm: x=${input.calibration.x}, y=${input.calibration.y}, w=${input.calibration.w}, h=${input.calibration.h}, coordenadas 0-1000.`
-    : "Sin referencia manual 5x5 mm.";
+    ? `Referencia manual de 5x5 mm: ${JSON.stringify(input.calibration)}`
+    : "Sin referencia manual.";
 
   return `
-Eres un especialista europeo en electrocardiografía veterinaria de perros y gatos, actuando únicamente como extractor visual estructurado.
-Analiza exclusivamente la imagen adjunta. No inventes ondas, complejos, medidas, diagnósticos ni tratamientos.
-Una fotografía puede contener perspectiva, ruido, sombras, texto, bordes, cuadrícula intensa y artefactos.
+Actúa como extractor visual de ECG veterinario para ${species}. No emitas todavía el diagnóstico final.
+Analiza solo el trazado contenido en las regiones declaradas. Ignora cabeceras, texto, nombres, bordes y cuadrícula.
 
-SEPARACIÓN DE RESPONSABILIDADES
-- Tú localizas visualmente derivaciones, calibración, trazado aproximado, complejos, ondas, morfología, artefactos y evidencias.
-- El navegador hará después las mediciones matemáticas, reglas veterinarias, coherencia y diagnóstico jerárquico.
-- No sustituyas datos no visibles por valores típicos. Usa null, arrays vacíos o confianza baja.
-
-CONFIGURACIÓN DECLARADA
-- Especie: ${species}
-- Tamaño: ${input.dogSize || "no aplicable"}
+CONFIGURACIÓN
 - Velocidad: ${input.speed} mm/s
 - Sensibilidad: ${input.sensitivity}
-- Derivaciones declaradas: ${input.leads.join(", ")}
-- Derivación principal para ritmo y P: ${input.primaryLead || "II"}
-- Regiones manuales: ${userRegions}
+- Derivaciones presentes: ${input.leads.join(", ")}
+- Derivación principal: ${input.primaryLead || "II"}
+- Regiones manuales: ${regions}
 - ${calibration}
-- Imagen recibida: ${input.cropApplied ? "recorte seleccionado" : "imagen completa"}
-- Modo de interpretación posterior: ${mode}
 
-PRIORIDADES
-1. Calidad global y por derivación.
-2. Calibración visual: cuadrícula 1x1 mm, 5x5 mm, pulso de 1 mV, orientación y confianza.
-3. Regiones de I, II, III, aVR, aVL y aVF. Ignora cabeceras, nombres, parámetros de máquina y zonas sin trazado.
-4. Polilínea simplificada del centro del trazado negro. No sigas cuadrícula, letras, bordes, marcas de calibración ni artefactos.
-5. Complejos y ondas por derivación, con límites y confianza.
-6. Morfología y evidencia visual.
-7. Artefactos y limitaciones.
-8. Medidas visuales solo como propuestas opcionales, nunca como autoridad final.
+OBJETIVO
+1. Localizar o corregir las cajas de las derivaciones.
+2. Seguir aproximadamente el centro del trazado negro de cada derivación.
+3. Detectar complejos y sus puntos:
+   pStart, pPeak, pEnd, qrsStart, Q, R, Rprime, S, Sprime, qrsEnd, J, tStart, tPeak, tEnd, iso.
+4. Detectar intervalos y segmentos: P, PR, QRS, ST, T, QT.
+5. Indicar confianza por punto y complejo.
+6. Evaluar si la escala horizontal y vertical es fiable.
+7. No inventar medidas. Si no es visible, usar null o arrays vacíos.
+8. No interpretar arritmias todavía.
+9. Priorizar DII para P, relación P-QRS y ritmo.
+10. Devolver polilíneas simplificadas; el navegador las ajustará a los píxeles reales.
 
-REGLAS CLÍNICAS DE SEGURIDAD
-- Prioriza DII para ritmo y ondas P.
-- Usa I y III para eje solo si están disponibles.
-- No sugieras fibrilación auricular sin evaluar ondas P y regularidad.
-- No sugieras bloqueo AV sin evaluar P, QRS y relación AV.
-- No sugieras origen ventricular solo por frecuencia.
-- No uses criterios humanos de infarto, isquemia o hipertrofia.
-- No recomiendes tratamientos.
-
-COORDENADAS Y LÍMITES
-- Todas las coordenadas son enteros 0-1000 relativos a toda la imagen.
-- box=[xMin,yMin,xMax,yMax], ordenada y no invertida.
-- Puntos ordenados de izquierda a derecha.
-- Máximo ${MAX_POINTS_PER_LEAD} puntos por derivación.
-- Máximo ${MAX_COMPLEXES} complejos en total.
-- Máximo ${MAX_MARKERS_PER_COMPLEX} marcadores por complejo.
-- Textos breves, evidencia concreta y sin explicaciones largas.
-
-MARCADORES ADMITIDOS
-pStart, pPeak, pEnd, qrsStart, Q, R, Rprime, S, Sprime, qrsEnd, J, tStart, tPeak, tEnd, iso.
-
-MORFOLOGÍA
-Registra presente/ausente/indeterminada, confianza y evidencia para:
-P positiva/negativa/bifásica/mellada/ancha/alta; Q profunda; Rprime; Sprime; R mellada; QRS mono/bi/trifásico, ancho, bajo voltaje, variable; T positiva/negativa/bifásica/mellada/alta respecto a R; alternancia; ST elevado/deprimido; prematuridad; pausa compensadora; escape; artefacto.
-
-Devuelve JSON exactamente conforme al esquema. Si algo no es medible, usa null.
+COORDENADAS
+- Todas las coordenadas entre 0 y 1000, relativas a la imagen enviada.
+- box=[xMin,yMin,xMax,yMax].
+- points ordenados de izquierda a derecha.
+- máximo 450 puntos por derivación.
+- máximo 40 complejos.
 `;
 }
 
-function responseSchema() {
-  const nullableNumber = { type: "NUMBER", nullable: true };
+function buildInterpretPrompt(input) {
+  return `
+Eres un especialista europeo en electrocardiografía veterinaria de perros y gatos.
+Recibes un trazado ya revisado y confirmado por un veterinario, junto con mediciones matemáticas calculadas en JavaScript.
+No vuelvas a medir la imagen y no modifiques los valores objetivos.
+
+DATOS CONFIRMADOS
+Configuración:
+${JSON.stringify(input.config)}
+
+Trazado confirmado:
+${JSON.stringify(input.confirmedTrace).slice(0, 45000)}
+
+Mediciones y características:
+${JSON.stringify(input.features).slice(0, 45000)}
+
+Reglas veterinarias activadas:
+${JSON.stringify(input.rules || []).slice(0, 20000)}
+
+Incoherencias detectadas:
+${JSON.stringify(input.coherence || []).slice(0, 12000)}
+
+INSTRUCCIONES
+1. Interpreta exclusivamente estos datos confirmados.
+2. Distingue mediciones objetivas, hallazgos de reglas y sugerencias clínicas.
+3. Prioriza DII para ritmo y ondas P.
+4. Usa I y III para eje solo cuando estén disponibles.
+5. No diagnostiques fibrilación auricular sin ausencia de P y ritmo irregularmente irregular.
+6. No diagnostiques bloqueo AV sin evaluar P, QRS y relación AV.
+7. No diagnostiques origen ventricular solo por frecuencia.
+8. No uses criterios humanos de infarto, isquemia o hipertrofia.
+9. No recomiendes tratamientos.
+10. Si faltan criterios, usa "no concluyente".
+11. Devuelve hasta tres diagnósticos diferenciales con compatibilidad orientativa, no probabilidad clínica.
+`;
+}
+
+function extractSchema() {
   const confidence = { type: "NUMBER" };
   const point = {
     type: "OBJECT",
@@ -268,53 +241,41 @@ function responseSchema() {
       confidence
     }
   };
-  const finding = {
+  const marker = {
     type: "OBJECT",
-    required: ["name", "state", "confidence", "evidence"],
+    required: ["type", "x", "y", "confidence"],
     properties: {
-      name: { type: "STRING" },
-      state: { type: "STRING", enum: ["presente", "ausente", "indeterminada"] },
-      confidence,
-      evidence: { type: "STRING" }
+      type: {
+        type: "STRING",
+        enum: ["pStart", "pPeak", "pEnd", "qrsStart", "Q", "R", "Rprime", "S", "Sprime", "qrsEnd", "J", "tStart", "tPeak", "tEnd", "iso"]
+      },
+      x: { type: "INTEGER" },
+      y: { type: "INTEGER" },
+      confidence
     }
   };
-
   return {
     type: "OBJECT",
-    required: [
-      "quality", "calibration", "mainLead", "leads", "artifacts",
-      "suggestedInterpretation", "alternatives", "limitations"
-    ],
+    required: ["quality", "calibration", "mainLead", "leads", "limitations"],
     properties: {
       quality: {
         type: "OBJECT",
-        required: ["status", "confidence", "imageQuality", "limitations"],
+        required: ["status", "confidence", "imageQuality"],
         properties: {
           status: { type: "STRING", enum: ["interpretable", "parcial", "no interpretable"] },
           confidence,
-          imageQuality: { type: "STRING" },
-          limitations: { type: "ARRAY", items: { type: "STRING" } }
+          imageQuality: { type: "STRING" }
         }
       },
       calibration: {
         type: "OBJECT",
-        required: ["scaleReliable", "confidence", "source", "pxPerMmX", "pxPerMmY", "gridAngleDeg", "pulse1mV"],
+        required: ["scaleReliable", "confidence", "source", "pxPerMmX", "pxPerMmY"],
         properties: {
           scaleReliable: { type: "BOOLEAN" },
           confidence,
           source: { type: "STRING" },
-          pxPerMmX: nullableNumber,
-          pxPerMmY: nullableNumber,
-          gridAngleDeg: nullableNumber,
-          pulse1mV: {
-            type: "OBJECT",
-            required: ["detected", "confidence", "box"],
-            properties: {
-              detected: { type: "BOOLEAN" },
-              confidence,
-              box: { type: "ARRAY", items: { type: "INTEGER" } }
-            }
-          }
+          pxPerMmX: { type: "NUMBER", nullable: true },
+          pxPerMmY: { type: "NUMBER", nullable: true }
         }
       },
       mainLead: { type: "STRING" },
@@ -322,95 +283,39 @@ function responseSchema() {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          required: ["name", "box", "confidence", "quality", "trace", "complexes", "morphology", "visualEvidence"],
+          required: ["name", "box", "confidence", "baselineY", "points", "complexes"],
           properties: {
             name: { type: "STRING" },
             box: { type: "ARRAY", items: { type: "INTEGER" } },
             confidence,
-            quality: { type: "STRING" },
-            trace: { type: "ARRAY", items: point },
+            baselineY: { type: "NUMBER", nullable: true },
+            points: { type: "ARRAY", items: point },
             complexes: {
               type: "ARRAY",
               items: {
                 type: "OBJECT",
-                required: ["id", "accepted", "confidence", "startX", "endX", "markers", "morphology", "evidence"],
+                required: ["id", "accepted", "confidence", "markers", "segments"],
                 properties: {
                   id: { type: "STRING" },
                   accepted: { type: "BOOLEAN" },
                   confidence,
-                  startX: { type: "INTEGER" },
-                  endX: { type: "INTEGER" },
-                  markers: {
+                  markers: { type: "ARRAY", items: marker },
+                  segments: {
                     type: "ARRAY",
                     items: {
                       type: "OBJECT",
-                      required: ["type", "x", "y", "confidence"],
+                      required: ["name", "startX", "endX", "confidence"],
                       properties: {
-                        type: { type: "STRING" },
-                        x: { type: "INTEGER" },
-                        y: { type: "INTEGER" },
+                        name: { type: "STRING", enum: ["P", "PR", "QRS", "ST", "T", "QT"] },
+                        startX: { type: "INTEGER" },
+                        endX: { type: "INTEGER" },
                         confidence
                       }
                     }
-                  },
-                  morphology: { type: "ARRAY", items: finding },
-                  evidence: { type: "STRING" }
+                  }
                 }
               }
-            },
-            morphology: { type: "ARRAY", items: finding },
-            visualEvidence: { type: "STRING" }
-          }
-        }
-      },
-      artifacts: {
-        type: "ARRAY",
-        items: {
-          type: "OBJECT",
-          required: ["type", "box", "confidence", "evidence"],
-          properties: {
-            type: { type: "STRING" },
-            box: { type: "ARRAY", items: { type: "INTEGER" } },
-            confidence,
-            evidence: { type: "STRING" }
-          }
-        }
-      },
-      visualMeasurements: {
-        type: "ARRAY",
-        items: {
-          type: "OBJECT",
-          required: ["key", "value", "unit", "confidence", "evidence"],
-          properties: {
-            key: { type: "STRING" },
-            value: nullableNumber,
-            unit: { type: "STRING" },
-            confidence,
-            evidence: { type: "STRING" }
-          }
-        }
-      },
-      suggestedInterpretation: {
-        type: "OBJECT",
-        required: ["label", "confidence", "evidenceFor", "evidenceAgainst", "missingData"],
-        properties: {
-          label: { type: "STRING" },
-          confidence,
-          evidenceFor: { type: "ARRAY", items: { type: "STRING" } },
-          evidenceAgainst: { type: "ARRAY", items: { type: "STRING" } },
-          missingData: { type: "ARRAY", items: { type: "STRING" } }
-        }
-      },
-      alternatives: {
-        type: "ARRAY",
-        items: {
-          type: "OBJECT",
-          required: ["label", "confidence", "reason", "missingData"],
-          properties: {
-            label: { type: "STRING" },
-            confidence,
-            reason: { type: "STRING" },
-            missingData: { type: "ARRAY", items: { type: "STRING" } }
+            }
           }
         }
       },
@@ -419,257 +324,185 @@ function responseSchema() {
   };
 }
 
-async function callGeminiWithFallback({ models, payload, apiKey }) {
+function interpretSchema() {
+  const finding = {
+    type: "OBJECT",
+    required: ["name", "confidence", "evidence"],
+    properties: {
+      name: { type: "STRING" },
+      confidence: { type: "NUMBER" },
+      evidence: { type: "ARRAY", items: { type: "STRING" } }
+    }
+  };
+  return {
+    type: "OBJECT",
+    required: ["summary", "rhythm", "findings", "differentials", "limitations", "conclusion"],
+    properties: {
+      summary: { type: "STRING" },
+      rhythm: {
+        type: "OBJECT",
+        required: ["diagnosis", "confidence", "explanation"],
+        properties: {
+          diagnosis: { type: "STRING" },
+          confidence: { type: "NUMBER" },
+          explanation: { type: "STRING" }
+        }
+      },
+      findings: { type: "ARRAY", items: finding },
+      differentials: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          required: ["name", "compatibility", "confidence", "for", "against", "missing"],
+          properties: {
+            name: { type: "STRING" },
+            compatibility: { type: "INTEGER" },
+            confidence: { type: "NUMBER" },
+            for: { type: "ARRAY", items: { type: "STRING" } },
+            against: { type: "ARRAY", items: { type: "STRING" } },
+            missing: { type: "ARRAY", items: { type: "STRING" } }
+          }
+        }
+      },
+      limitations: { type: "ARRAY", items: { type: "STRING" } },
+      conclusion: { type: "STRING" }
+    }
+  };
+}
+
+async function callWithFallback(models, payload, apiKey) {
   const attemptedModels = [];
   let lastStatus = 502;
   let lastDetails = null;
 
   for (const model of models) {
     attemptedModels.push(model);
-    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-      if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
-      const result = await callGeminiModel({ model, payload, apiKey });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await sleep(attempt === 1 ? 1200 : 3000);
+      const result = await callModel(model, payload, apiKey);
       if (result.ok) return { ok: true, model, raw: result.raw, attemptedModels };
       lastStatus = result.status;
       lastDetails = result.raw;
       if (result.status === 400 || result.status === 404) break;
-      if (!RETRYABLE_STATUS.has(result.status)) {
-        return { ok: false, status: result.status, details: result.raw, attemptedModels };
-      }
+      if (!RETRYABLE.has(result.status)) return { ok: false, status: result.status, details: result.raw, attemptedModels };
     }
   }
-
   return { ok: false, status: lastStatus, details: lastDetails, attemptedModels };
 }
 
-async function callGeminiModel({ model, payload, apiKey }) {
+async function callModel(model, payload, apiKey) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify(payload)
     });
     let raw;
-    try {
-      raw = await response.json();
-    } catch {
-      raw = { error: { message: "Respuesta remota no JSON" } };
-    }
+    try { raw = await response.json(); }
+    catch { raw = { error: { message: "Respuesta no JSON" } }; }
     return { ok: response.ok, status: response.status, raw };
   } catch (error) {
-    return {
-      ok: false,
-      status: 503,
-      raw: { error: { status: "NETWORK_ERROR", message: cleanText(error?.message || "Error de red", 300) } }
-    };
+    return { ok: false, status: 503, raw: { error: { message: String(error?.message || "Error de red") } } };
   }
 }
 
-function sanitizeResult(result, input) {
-  const safe = result && typeof result === "object" ? result : {};
-  safe.quality = sanitizeQuality(safe.quality);
-  safe.calibration = sanitizeCalibration(safe.calibration);
-  safe.mainLead = LEAD_NAMES.has(safe.mainLead) ? safe.mainLead : input.primaryLead || "II";
-  safe.leads = sanitizeLeads(safe.leads, input.leads);
-  safe.artifacts = sanitizeArtifacts(safe.artifacts);
-  safe.visualMeasurements = sanitizeVisualMeasurements(safe.visualMeasurements);
-  safe.suggestedInterpretation = sanitizeSuggestion(safe.suggestedInterpretation);
-  safe.alternatives = sanitizeAlternatives(safe.alternatives);
-  safe.limitations = sanitizeStringArray(safe.limitations, 20, 300);
-  return safe;
-}
-
-function sanitizeQuality(value) {
-  return {
-    status: ["interpretable", "parcial", "no interpretable"].includes(value?.status) ? value.status : "parcial",
-    confidence: clamp01(value?.confidence),
-    imageQuality: cleanText(value?.imageQuality || "No especificada", 500),
-    limitations: sanitizeStringArray(value?.limitations, 20, 300)
-  };
-}
-
-function sanitizeCalibration(value) {
-  return {
-    scaleReliable: Boolean(value?.scaleReliable),
-    confidence: clamp01(value?.confidence),
-    source: cleanText(value?.source || "no determinada", 200),
-    pxPerMmX: finiteOrNull(value?.pxPerMmX),
-    pxPerMmY: finiteOrNull(value?.pxPerMmY),
-    gridAngleDeg: finiteOrNull(value?.gridAngleDeg),
-    pulse1mV: {
-      detected: Boolean(value?.pulse1mV?.detected),
-      confidence: clamp01(value?.pulse1mV?.confidence),
-      box: sanitizeBox(value?.pulse1mV?.box)
-    }
-  };
-}
-
-function sanitizeLeads(values, declared) {
-  if (!Array.isArray(values)) return [];
-  const used = new Set();
-  return values.slice(0, MAX_LEADS).map((lead, index) => {
-    let name = LEAD_NAMES.has(lead?.name) ? lead.name : declared[index] || "II";
-    if (used.has(name)) name = declared.find(item => !used.has(item)) || name;
-    used.add(name);
-    const complexes = Array.isArray(lead?.complexes)
-      ? lead.complexes.slice(0, MAX_COMPLEXES).map((complex, i) => sanitizeComplex(complex, i))
-      : [];
+function sanitizeExtraction(result, input) {
+  const clamp = n => Math.max(0, Math.min(1000, Math.round(Number(n) || 0)));
+  const cleanConfidence = n => Math.max(0, Math.min(1, Number(n) || 0));
+  const cleanLead = lead => {
+    const box = Array.isArray(lead.box) && lead.box.length >= 4
+      ? [clamp(lead.box[0]), clamp(lead.box[1]), clamp(lead.box[2]), clamp(lead.box[3])]
+      : [0, 0, 1000, 1000];
+    box[2] = Math.max(box[0] + 1, box[2]);
+    box[3] = Math.max(box[1] + 1, box[3]);
+    const points = (lead.points || []).slice(0, 450).map(p => ({
+      x: clamp(p.x), y: clamp(p.y), confidence: cleanConfidence(p.confidence)
+    })).sort((a, b) => a.x - b.x);
+    const complexes = (lead.complexes || []).slice(0, 40).map((c, i) => ({
+      id: String(c.id || `${lead.name || "II"}-${i + 1}`).slice(0, 60),
+      accepted: c.accepted !== false,
+      confidence: cleanConfidence(c.confidence),
+      markers: (c.markers || []).slice(0, 24).map(m => ({
+        type: String(m.type || "R"),
+        x: clamp(m.x), y: clamp(m.y), confidence: cleanConfidence(m.confidence)
+      })),
+      segments: (c.segments || []).slice(0, 12).map(s => ({
+        name: String(s.name || "QRS"),
+        startX: clamp(s.startX),
+        endX: clamp(s.endX),
+        confidence: cleanConfidence(s.confidence)
+      }))
+    }));
     return {
-      name,
-      box: sanitizeBox(lead?.box),
-      confidence: clamp01(lead?.confidence),
-      quality: cleanText(lead?.quality || "No especificada", 300),
-      trace: sanitizePoints(lead?.trace, MAX_POINTS_PER_LEAD),
-      complexes,
-      morphology: sanitizeFindings(lead?.morphology, 40),
-      visualEvidence: cleanText(lead?.visualEvidence || "", 800)
+      name: LEADS.has(lead.name) ? lead.name : "II",
+      box,
+      confidence: cleanConfidence(lead.confidence),
+      baselineY: lead.baselineY == null ? null : clamp(lead.baselineY),
+      points,
+      complexes
     };
-  });
-}
+  };
 
-function sanitizeComplex(complex, index) {
-  const markers = Array.isArray(complex?.markers)
-    ? complex.markers.slice(0, MAX_MARKERS_PER_COMPLEX).map(marker => ({
-        type: MARKER_TYPES.has(marker?.type) ? marker.type : "iso",
-        x: clampCoord(marker?.x),
-        y: clampCoord(marker?.y),
-        confidence: clamp01(marker?.confidence)
-      })).sort((a, b) => a.x - b.x)
-    : [];
   return {
-    id: cleanText(complex?.id || `c${index + 1}`, 60),
-    accepted: complex?.accepted !== false,
-    confidence: clamp01(complex?.confidence),
-    startX: clampCoord(complex?.startX),
-    endX: clampCoord(complex?.endX),
-    markers,
-    morphology: sanitizeFindings(complex?.morphology, 30),
-    evidence: cleanText(complex?.evidence || "", 600)
+    quality: {
+      status: ["interpretable", "parcial", "no interpretable"].includes(result?.quality?.status) ? result.quality.status : "parcial",
+      confidence: cleanConfidence(result?.quality?.confidence),
+      imageQuality: String(result?.quality?.imageQuality || "").slice(0, 500)
+    },
+    calibration: {
+      scaleReliable: Boolean(result?.calibration?.scaleReliable),
+      confidence: cleanConfidence(result?.calibration?.confidence),
+      source: String(result?.calibration?.source || "visual").slice(0, 120),
+      pxPerMmX: Number.isFinite(Number(result?.calibration?.pxPerMmX)) ? Number(result.calibration.pxPerMmX) : null,
+      pxPerMmY: Number.isFinite(Number(result?.calibration?.pxPerMmY)) ? Number(result.calibration.pxPerMmY) : null
+    },
+    mainLead: LEADS.has(result?.mainLead) ? result.mainLead : (input.primaryLead || "II"),
+    leads: (result?.leads || []).slice(0, 6).map(cleanLead),
+    limitations: (result?.limitations || []).slice(0, 20).map(x => String(x).slice(0, 500))
   };
 }
 
-function sanitizeFindings(values, max) {
-  if (!Array.isArray(values)) return [];
-  return values.slice(0, max).map(item => ({
-    name: cleanText(item?.name || "hallazgo", 120),
-    state: ["presente", "ausente", "indeterminada"].includes(item?.state) ? item.state : "indeterminada",
-    confidence: clamp01(item?.confidence),
-    evidence: cleanText(item?.evidence || "", 400)
-  }));
-}
-
-function sanitizeArtifacts(values) {
-  if (!Array.isArray(values)) return [];
-  return values.slice(0, 30).map(item => ({
-    type: cleanText(item?.type || "artefacto", 100),
-    box: sanitizeBox(item?.box),
-    confidence: clamp01(item?.confidence),
-    evidence: cleanText(item?.evidence || "", 400)
-  }));
-}
-
-function sanitizeVisualMeasurements(values) {
-  if (!Array.isArray(values)) return [];
-  return values.slice(0, 40).map(item => ({
-    key: cleanText(item?.key || "measurement", 80),
-    value: finiteOrNull(item?.value),
-    unit: cleanText(item?.unit || "", 40),
-    confidence: clamp01(item?.confidence),
-    evidence: cleanText(item?.evidence || "", 400)
-  }));
-}
-
-function sanitizeSuggestion(value) {
+function sanitizeInterpretation(result) {
+  const confidence = n => Math.max(0, Math.min(1, Number(n) || 0));
   return {
-    label: cleanText(value?.label || "Interpretación visual no concluyente", 180),
-    confidence: clamp01(value?.confidence),
-    evidenceFor: sanitizeStringArray(value?.evidenceFor, 15, 300),
-    evidenceAgainst: sanitizeStringArray(value?.evidenceAgainst, 15, 300),
-    missingData: sanitizeStringArray(value?.missingData, 15, 300)
+    summary: String(result?.summary || "").slice(0, 1800),
+    rhythm: {
+      diagnosis: String(result?.rhythm?.diagnosis || "No concluyente").slice(0, 300),
+      confidence: confidence(result?.rhythm?.confidence),
+      explanation: String(result?.rhythm?.explanation || "").slice(0, 1800)
+    },
+    findings: (result?.findings || []).slice(0, 30).map(f => ({
+      name: String(f.name || "").slice(0, 200),
+      confidence: confidence(f.confidence),
+      evidence: (f.evidence || []).slice(0, 8).map(x => String(x).slice(0, 300))
+    })),
+    differentials: (result?.differentials || []).slice(0, 3).map(d => ({
+      name: String(d.name || "").slice(0, 200),
+      compatibility: Math.max(0, Math.min(100, Math.round(Number(d.compatibility) || 0))),
+      confidence: confidence(d.confidence),
+      for: (d.for || []).slice(0, 8).map(x => String(x).slice(0, 300)),
+      against: (d.against || []).slice(0, 8).map(x => String(x).slice(0, 300)),
+      missing: (d.missing || []).slice(0, 8).map(x => String(x).slice(0, 300))
+    })),
+    limitations: (result?.limitations || []).slice(0, 20).map(x => String(x).slice(0, 500)),
+    conclusion: String(result?.conclusion || "").slice(0, 1800)
   };
 }
 
-function sanitizeAlternatives(values) {
-  if (!Array.isArray(values)) return [];
-  return values.slice(0, 3).map(item => ({
-    label: cleanText(item?.label || "Alternativa", 180),
-    confidence: clamp01(item?.confidence),
-    reason: cleanText(item?.reason || "", 500),
-    missingData: sanitizeStringArray(item?.missingData, 12, 250)
-  }));
-}
-
-function sanitizePoints(values, max) {
-  if (!Array.isArray(values)) return [];
-  return values.slice(0, max).map(item => ({
-    x: clampCoord(item?.x),
-    y: clampCoord(item?.y),
-    confidence: clamp01(item?.confidence)
-  })).sort((a, b) => a.x - b.x);
-}
-
-function sanitizeBox(value) {
-  const source = Array.isArray(value) ? value.slice(0, 4).map(clampCoord) : [0, 0, 1000, 1000];
-  while (source.length < 4) source.push(source.length < 2 ? 0 : 1000);
-  const x1 = Math.min(source[0], source[2]);
-  const y1 = Math.min(source[1], source[3]);
-  const x2 = Math.max(source[0], source[2]);
-  const y2 = Math.max(source[1], source[3]);
-  return [x1, y1, x2, y2];
-}
-
-function sanitizeStringArray(value, maxItems, maxChars) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, maxItems).map(item => cleanText(item, maxChars)).filter(Boolean);
-}
-
-function sanitizeRemoteError(value) {
+function corsHeaders(origin) {
   return {
-    code: Number(value?.error?.code || 0) || null,
-    status: cleanText(value?.error?.status || "REMOTE_ERROR", 100),
-    message: cleanText(value?.error?.message || "Error del modelo", 500)
+    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.has(origin) ? origin : "https://airsoto.github.io",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
   };
 }
-
-function safeErrorLabel(status) {
-  if (status === 429) return "Cuota o límite temporal alcanzado";
-  if (status === 503) return "Modelo temporalmente saturado";
-  if (status === 404) return "Modelo no disponible";
-  if (status === 400) return "Solicitud no compatible con el modelo";
-  return "No se pudo completar el análisis visual";
-}
-
-function cleanText(value, max = MAX_TEXT) {
-  return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
-}
-
-function finiteOrNull(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function clampCoord(value) {
-  const n = Math.round(Number(value));
-  return Number.isFinite(n) ? Math.max(0, Math.min(1000, n)) : 0;
-}
-
-function clamp01(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
-}
-
-function uniqueModels(models) {
-  return models.filter((model, index, array) => Boolean(model) && array.indexOf(model) === index);
-}
-
-function normalizeStatus(status) {
-  return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502;
-}
-
-function sleep(milliseconds) {
-  return new Promise(resolve => setTimeout(resolve, milliseconds));
+function json(data, status, headers) { return new Response(JSON.stringify(data), { status, headers }); }
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function normalizeStatus(status) { return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502; }
+function safeRemoteError(details) {
+  return { status: String(details?.error?.status || ""), message: String(details?.error?.message || "Error remoto").slice(0, 500) };
 }
