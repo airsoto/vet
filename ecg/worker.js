@@ -4,17 +4,27 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000"
 ]);
 
+const WORKER_VERSION = "4.0.0";
 const MODEL_DEFAULT = "gemini-3.5-flash";
-const FALLBACK_MODELS = [
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest"
-];
+const FALLBACK_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-latest"];
 const RETRY_DELAYS_MS = [1200, 3000];
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const MAX_IMAGE_BASE64 = 18_000_000;
+const MAX_LEADS = 6;
+const MAX_COMPLEXES = 40;
+const MAX_POINTS_PER_LEAD = 500;
+const MAX_MARKERS_PER_COMPLEX = 24;
+const MAX_TEXT = 1600;
+const LEAD_NAMES = new Set(["I", "II", "III", "aVR", "aVL", "aVF"]);
+const MARKER_TYPES = new Set([
+  "pStart", "pPeak", "pEnd", "qrsStart", "Q", "R", "Rprime",
+  "S", "Sprime", "qrsEnd", "J", "tStart", "tPeak", "tEnd", "iso"
+]);
 
 export default {
   async fetch(request, env) {
+    const startedAt = Date.now();
+    const analysisId = crypto.randomUUID();
     const origin = request.headers.get("Origin") || "";
     const cors = corsHeaders(origin);
 
@@ -27,18 +37,12 @@ export default {
       return json({
         ok: true,
         service: "ECG veterinario Gemini",
-        version: "3.0.0",
+        version: WORKER_VERSION,
         model: preferredModel,
         fallbackModels: uniqueModels([preferredModel, ...FALLBACK_MODELS]),
         capabilities: [
-          "image-crop-input",
-          "lead-regions",
-          "trace-polyline",
-          "wave-markers",
-          "segments",
-          "measurements",
-          "rhythm-and-arrhythmias",
-          "scale-confidence"
+          "visual-quality", "visual-calibration", "lead-regions", "trace-seeds",
+          "complexes", "wave-boundaries", "morphology", "artifacts", "evidence"
         ]
       }, 200, cors);
     }
@@ -59,6 +63,8 @@ export default {
       const input = await request.json();
       validateInput(input);
 
+      const preferredModel = env.GEMINI_MODEL || MODEL_DEFAULT;
+      const models = uniqueModels([preferredModel, ...FALLBACK_MODELS]);
       const payload = {
         contents: [{
           role: "user",
@@ -80,8 +86,6 @@ export default {
         }
       };
 
-      const preferredModel = env.GEMINI_MODEL || MODEL_DEFAULT;
-      const models = uniqueModels([preferredModel, ...FALLBACK_MODELS]);
       const gemini = await callGeminiWithFallback({
         models,
         payload,
@@ -90,10 +94,12 @@ export default {
 
       if (!gemini.ok) {
         return json({
-          error: "No se pudo completar el análisis con Gemini",
+          error: safeErrorLabel(gemini.status),
           status: gemini.status,
           attemptedModels: gemini.attemptedModels,
-          details: gemini.details
+          details: sanitizeRemoteError(gemini.details),
+          analysisId,
+          version: WORKER_VERSION
         }, normalizeStatus(gemini.status), cors);
       }
 
@@ -104,45 +110,51 @@ export default {
 
       if (!text) {
         return json({
-          error: "Gemini no devolvió contenido",
+          error: "Gemini no devolvió contenido estructurado",
           model: gemini.model,
           attemptedModels: gemini.attemptedModels,
-          raw: gemini.raw
+          analysisId,
+          version: WORKER_VERSION
         }, 502, cors);
       }
 
-      let result;
+      let parsed;
       try {
-        result = JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
         return json({
           error: "Gemini devolvió JSON no válido",
           model: gemini.model,
-          rawText: text.slice(0, 4000)
+          analysisId,
+          version: WORKER_VERSION
         }, 502, cors);
       }
 
-      result = sanitizeResult(result, input);
+      const result = sanitizeResult(parsed, input);
       result.meta = {
         model: gemini.model,
         attemptedModels: gemini.attemptedModels,
         analyzedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+        version: WORKER_VERSION,
+        analysisId,
         inputWasCropped: Boolean(input.cropApplied),
-        disclaimer: "Resultado experimental. Requiere revisión veterinaria del ECG original."
+        disclaimer: "Resultado experimental de extracción visual. Requiere revisión veterinaria del ECG original."
       };
 
       return json({ success: true, result }, 200, cors);
     } catch (error) {
-      return json({ error: error?.message || "Error interno" }, 400, cors);
+      return json({
+        error: cleanText(error?.message || "Error interno", 300),
+        analysisId,
+        version: WORKER_VERSION
+      }, 400, cors);
     }
   }
 };
 
 function corsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.has(origin)
-    ? origin
-    : "https://airsoto.github.io";
-
+  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : "https://airsoto.github.io";
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -158,132 +170,151 @@ function json(data, status, headers) {
 }
 
 function validateInput(input) {
-  if (!input || typeof input !== "object") {
-    throw new Error("Solicitud vacía");
-  }
-  if (!input.imageBase64 || typeof input.imageBase64 !== "string") {
-    throw new Error("Falta imageBase64");
-  }
-  if (!/^image\/(jpeg|png|webp)$/.test(input.mimeType || "")) {
-    throw new Error("Formato de imagen no admitido");
-  }
-  if (input.imageBase64.length > MAX_IMAGE_BASE64) {
-    throw new Error("Imagen demasiado grande");
-  }
-  if (!Array.isArray(input.leads) || input.leads.length === 0) {
-    throw new Error("Selecciona al menos una derivación");
-  }
-  if (!["dog", "cat"].includes(input.species)) {
-    throw new Error("Especie no válida");
-  }
-  if (![25, 50, "25", "50"].includes(input.speed)) {
-    throw new Error("Velocidad no válida");
+  if (!input || typeof input !== "object") throw new Error("Solicitud vacía");
+  if (!input.imageBase64 || typeof input.imageBase64 !== "string") throw new Error("Falta imageBase64");
+  if (!/^image\/(jpeg|png|webp)$/.test(input.mimeType || "")) throw new Error("Formato de imagen no admitido");
+  if (input.imageBase64.length > MAX_IMAGE_BASE64) throw new Error("Imagen demasiado grande");
+  if (!Array.isArray(input.leads) || input.leads.length === 0) throw new Error("Selecciona al menos una derivación");
+  if (input.leads.length > MAX_LEADS) throw new Error("Demasiadas derivaciones");
+  if (!input.leads.every(name => LEAD_NAMES.has(name))) throw new Error("Nombre de derivación no admitido");
+  if (!LEAD_NAMES.has(input.primaryLead || "II")) throw new Error("Derivación principal no válida");
+  if (!["dog", "cat"].includes(input.species)) throw new Error("Especie no válida");
+  if (![25, 50, "25", "50"].includes(input.speed)) throw new Error("Velocidad no válida");
+  if (Array.isArray(input.userLeadRegions) && input.userLeadRegions.length > MAX_LEADS) {
+    throw new Error("Demasiadas regiones manuales");
   }
 }
 
 function buildPrompt(input) {
   const species = input.species === "cat" ? "gato" : "perro";
+  const mode = input.interpretationMode === "screening" ? "cribado sensible" : "conservador";
   const userRegions = Array.isArray(input.userLeadRegions) && input.userLeadRegions.length
-    ? input.userLeadRegions.map(region => (
-        `${region.name}: [${region.box.join(", ")}]`
-      )).join("; ")
-    : "ninguna región manual";
-
+    ? input.userLeadRegions.map(region => `${region.name}: [${(region.box || []).join(", ")}]`).join("; ")
+    : "ninguna";
   const calibration = input.calibration
-    ? `Existe una referencia manual de 5 x 5 mm: x=${input.calibration.x}, y=${input.calibration.y}, ancho=${input.calibration.w}, alto=${input.calibration.h}, coordenadas 0-1000.`
-    : "No existe referencia manual de cuadrícula.";
+    ? `Referencia manual 5x5 mm: x=${input.calibration.x}, y=${input.calibration.y}, w=${input.calibration.w}, h=${input.calibration.h}, coordenadas 0-1000.`
+    : "Sin referencia manual 5x5 mm.";
 
   return `
-Eres un especialista europeo en electrocardiografía veterinaria de perros y gatos.
-Analiza exclusivamente la imagen de ECG adjunta. No inventes datos ni tratamientos.
-Si una medición, onda, segmento, región o diagnóstico no puede establecerse con fiabilidad, devuelve null, una lista vacía o una confianza baja según corresponda.
+Eres un especialista europeo en electrocardiografía veterinaria de perros y gatos, actuando únicamente como extractor visual estructurado.
+Analiza exclusivamente la imagen adjunta. No inventes ondas, complejos, medidas, diagnósticos ni tratamientos.
+Una fotografía puede contener perspectiva, ruido, sombras, texto, bordes, cuadrícula intensa y artefactos.
 
-CONFIGURACIÓN DECLARADA POR EL VETERINARIO
+SEPARACIÓN DE RESPONSABILIDADES
+- Tú localizas visualmente derivaciones, calibración, trazado aproximado, complejos, ondas, morfología, artefactos y evidencias.
+- El navegador hará después las mediciones matemáticas, reglas veterinarias, coherencia y diagnóstico jerárquico.
+- No sustituyas datos no visibles por valores típicos. Usa null, arrays vacíos o confianza baja.
+
+CONFIGURACIÓN DECLARADA
 - Especie: ${species}
-- Tamaño del perro: ${input.dogSize || "no aplicable"}
+- Tamaño: ${input.dogSize || "no aplicable"}
 - Velocidad: ${input.speed} mm/s
 - Sensibilidad: ${input.sensitivity}
-- Derivaciones que el usuario considera presentes: ${input.leads.join(", ")}
-- Derivación principal para frecuencia, ritmo y arritmias: ${input.primaryLead || "II"}
-- Regiones de derivaciones marcadas por el usuario: ${userRegions}
+- Derivaciones declaradas: ${input.leads.join(", ")}
+- Derivación principal para ritmo y P: ${input.primaryLead || "II"}
+- Regiones manuales: ${userRegions}
 - ${calibration}
-- La imagen recibida ${input.cropApplied ? "es un recorte seleccionado por el usuario" : "no ha sido recortada"}.
+- Imagen recibida: ${input.cropApplied ? "recorte seleccionado" : "imagen completa"}
+- Modo de interpretación posterior: ${mode}
 
-OBJETIVOS OBLIGATORIOS
-1. Detecta todas las derivaciones visibles entre DI, DII, DIII, aVR, aVL y aVF.
-2. Delimita cada derivación con box=[xMin,yMin,xMax,yMax], coordenadas enteras 0-1000 relativas a toda la imagen.
-3. Respeta las regiones manuales cuando sean coherentes; corrígelas solo si existe evidencia visual clara.
-4. Analiza frecuencia, ritmo y arritmias únicamente en la derivación principal declarada.
-5. Usa DI, DII y DIII para el eje eléctrico solo cuando estén visibles y sean medibles.
-6. Sigue el centro del trazado negro de cada derivación. Devuelve entre 80 y 450 puntos por derivación, ordenados de izquierda a derecha. No sigas la cuadrícula, letras, bordes ni artefactos.
-7. Detecta marcas de ondas y límites usando estos tipos exactos:
-   P, Q, R, S, T, pStart, pEnd, prStart, prEnd, qrsStart, qrsEnd, stStart, stEnd, tStart, tPeak, tEnd, iso.
-8. Devuelve segmentos relevantes como P, PR, QRS, ST, T y QT con inicio y final normalizados.
-9. Evalúa la cuadrícula del papel. Si no puede utilizarse con precisión, calibration.scaleReliable=false y no inventes duraciones ni amplitudes.
-10. Calcula, solo cuando sea fiable: frecuencia, RR, duración y amplitud P, área P, PR, duración y amplitud QRS, R, QT, QTc, ST, amplitud T, eje y relación P:QRS.
-11. Clasifica ritmo, arritmias, alteraciones de conducción, auriculares y ventriculares.
-12. Declara calidad de imagen, confianza, limitaciones y diagnósticos diferenciales electrocardiográficos.
-13. No incluyas valores normales bibliográficos en la respuesta; la aplicación los aplica localmente.
-14. No recomiendes tratamientos.
+PRIORIDADES
+1. Calidad global y por derivación.
+2. Calibración visual: cuadrícula 1x1 mm, 5x5 mm, pulso de 1 mV, orientación y confianza.
+3. Regiones de I, II, III, aVR, aVL y aVF. Ignora cabeceras, nombres, parámetros de máquina y zonas sin trazado.
+4. Polilínea simplificada del centro del trazado negro. No sigas cuadrícula, letras, bordes, marcas de calibración ni artefactos.
+5. Complejos y ondas por derivación, con límites y confianza.
+6. Morfología y evidencia visual.
+7. Artefactos y limitaciones.
+8. Medidas visuales solo como propuestas opcionales, nunca como autoridad final.
 
-REGLAS DE COORDENADAS
-- Todas las coordenadas x/y deben ser enteros entre 0 y 1000.
-- Los puntos deben estar referidos a toda la imagen recibida, no a la caja de la derivación.
-- baselineY debe ser una coordenada y normalizada 0-1000 o null.
-- Si una derivación no puede seguirse, devuelve points=[] y explica la limitación.
+REGLAS CLÍNICAS DE SEGURIDAD
+- Prioriza DII para ritmo y ondas P.
+- Usa I y III para eje solo si están disponibles.
+- No sugieras fibrilación auricular sin evaluar ondas P y regularidad.
+- No sugieras bloqueo AV sin evaluar P, QRS y relación AV.
+- No sugieras origen ventricular solo por frecuencia.
+- No uses criterios humanos de infarto, isquemia o hipertrofia.
+- No recomiendes tratamientos.
 
-El JSON debe cumplir exactamente el esquema solicitado.
+COORDENADAS Y LÍMITES
+- Todas las coordenadas son enteros 0-1000 relativos a toda la imagen.
+- box=[xMin,yMin,xMax,yMax], ordenada y no invertida.
+- Puntos ordenados de izquierda a derecha.
+- Máximo ${MAX_POINTS_PER_LEAD} puntos por derivación.
+- Máximo ${MAX_COMPLEXES} complejos en total.
+- Máximo ${MAX_MARKERS_PER_COMPLEX} marcadores por complejo.
+- Textos breves, evidencia concreta y sin explicaciones largas.
+
+MARCADORES ADMITIDOS
+pStart, pPeak, pEnd, qrsStart, Q, R, Rprime, S, Sprime, qrsEnd, J, tStart, tPeak, tEnd, iso.
+
+MORFOLOGÍA
+Registra presente/ausente/indeterminada, confianza y evidencia para:
+P positiva/negativa/bifásica/mellada/ancha/alta; Q profunda; Rprime; Sprime; R mellada; QRS mono/bi/trifásico, ancho, bajo voltaje, variable; T positiva/negativa/bifásica/mellada/alta respecto a R; alternancia; ST elevado/deprimido; prematuridad; pausa compensadora; escape; artefacto.
+
+Devuelve JSON exactamente conforme al esquema. Si algo no es medible, usa null.
 `;
 }
 
 function responseSchema() {
   const nullableNumber = { type: "NUMBER", nullable: true };
-  const confidence = { type: "STRING", enum: ["alta", "media", "baja"] };
+  const confidence = { type: "NUMBER" };
   const point = {
     type: "OBJECT",
-    required: ["x", "y"],
+    required: ["x", "y", "confidence"],
     properties: {
       x: { type: "INTEGER" },
-      y: { type: "INTEGER" }
+      y: { type: "INTEGER" },
+      confidence
+    }
+  };
+  const finding = {
+    type: "OBJECT",
+    required: ["name", "state", "confidence", "evidence"],
+    properties: {
+      name: { type: "STRING" },
+      state: { type: "STRING", enum: ["presente", "ausente", "indeterminada"] },
+      confidence,
+      evidence: { type: "STRING" }
     }
   };
 
   return {
     type: "OBJECT",
     required: [
-      "quality",
-      "calibration",
-      "mainLead",
-      "leads",
-      "rhythm",
-      "arrhythmias",
-      "conductionAbnormalities",
-      "atrialAbnormalities",
-      "ventricularAbnormalities",
-      "measurements",
-      "differentials",
-      "conclusion"
+      "quality", "calibration", "mainLead", "leads", "artifacts",
+      "suggestedInterpretation", "alternatives", "limitations"
     ],
     properties: {
       quality: {
         type: "OBJECT",
-        required: ["confidence", "score", "imageQuality", "limitations"],
+        required: ["status", "confidence", "imageQuality", "limitations"],
         properties: {
+          status: { type: "STRING", enum: ["interpretable", "parcial", "no interpretable"] },
           confidence,
-          score: { type: "NUMBER" },
           imageQuality: { type: "STRING" },
           limitations: { type: "ARRAY", items: { type: "STRING" } }
         }
       },
       calibration: {
         type: "OBJECT",
-        required: ["scaleReliable", "confidence", "source", "pxPerMmX", "pxPerMmY"],
+        required: ["scaleReliable", "confidence", "source", "pxPerMmX", "pxPerMmY", "gridAngleDeg", "pulse1mV"],
         properties: {
           scaleReliable: { type: "BOOLEAN" },
           confidence,
           source: { type: "STRING" },
           pxPerMmX: nullableNumber,
-          pxPerMmY: nullableNumber
+          pxPerMmY: nullableNumber,
+          gridAngleDeg: nullableNumber,
+          pulse1mV: {
+            type: "OBJECT",
+            required: ["detected", "confidence", "box"],
+            properties: {
+              detected: { type: "BOOLEAN" },
+              confidence,
+              box: { type: "ARRAY", items: { type: "INTEGER" } }
+            }
+          }
         }
       },
       mainLead: { type: "STRING" },
@@ -291,81 +322,67 @@ function responseSchema() {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          required: ["name", "box", "baselineY", "confidence", "points", "markers", "segments"],
+          required: ["name", "box", "confidence", "quality", "trace", "complexes", "morphology", "visualEvidence"],
           properties: {
             name: { type: "STRING" },
             box: { type: "ARRAY", items: { type: "INTEGER" } },
-            baselineY: nullableNumber,
             confidence,
-            points: { type: "ARRAY", items: point },
-            markers: {
+            quality: { type: "STRING" },
+            trace: { type: "ARRAY", items: point },
+            complexes: {
               type: "ARRAY",
               items: {
                 type: "OBJECT",
-                required: ["type", "x", "y", "confidence"],
+                required: ["id", "accepted", "confidence", "startX", "endX", "markers", "morphology", "evidence"],
                 properties: {
-                  type: {
-                    type: "STRING",
-                    enum: [
-                      "P", "Q", "R", "S", "T",
-                      "pStart", "pEnd", "prStart", "prEnd",
-                      "qrsStart", "qrsEnd", "stStart", "stEnd",
-                      "tStart", "tPeak", "tEnd", "iso"
-                    ]
+                  id: { type: "STRING" },
+                  accepted: { type: "BOOLEAN" },
+                  confidence,
+                  startX: { type: "INTEGER" },
+                  endX: { type: "INTEGER" },
+                  markers: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      required: ["type", "x", "y", "confidence"],
+                      properties: {
+                        type: { type: "STRING" },
+                        x: { type: "INTEGER" },
+                        y: { type: "INTEGER" },
+                        confidence
+                      }
+                    }
                   },
-                  x: { type: "INTEGER" },
-                  y: { type: "INTEGER" },
-                  confidence
+                  morphology: { type: "ARRAY", items: finding },
+                  evidence: { type: "STRING" }
                 }
               }
             },
-            segments: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                required: ["name", "startX", "endX", "confidence"],
-                properties: {
-                  name: { type: "STRING", enum: ["P", "PR", "QRS", "ST", "T", "QT"] },
-                  startX: { type: "INTEGER" },
-                  endX: { type: "INTEGER" },
-                  confidence
-                }
-              }
-            }
+            morphology: { type: "ARRAY", items: finding },
+            visualEvidence: { type: "STRING" }
           }
         }
       },
-      rhythm: {
-        type: "OBJECT",
-        required: ["diagnosis", "heartRateBpm", "regularity", "pQrsRelationship", "confidence", "explanation"],
-        properties: {
-          diagnosis: { type: "STRING" },
-          heartRateBpm: nullableNumber,
-          regularity: { type: "STRING" },
-          pQrsRelationship: { type: "STRING" },
-          confidence,
-          explanation: { type: "STRING" }
-        }
-      },
-      arrhythmias: { type: "ARRAY", items: findingSchema(confidence) },
-      conductionAbnormalities: { type: "ARRAY", items: findingSchema(confidence) },
-      atrialAbnormalities: { type: "ARRAY", items: findingSchema(confidence) },
-      ventricularAbnormalities: { type: "ARRAY", items: findingSchema(confidence) },
-      measurements: {
+      artifacts: {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          required: ["key", "parameter", "value", "unit", "confidence", "evidence"],
+          required: ["type", "box", "confidence", "evidence"],
           properties: {
-            key: {
-              type: "STRING",
-              enum: [
-                "heartRate", "rr", "pDuration", "pAmplitude", "pArea",
-                "pr", "qrsDuration", "qrsAmplitude", "rAmplitude",
-                "qt", "qtc", "stDeviation", "tAmplitude", "axis", "pQrsRatio"
-              ]
-            },
-            parameter: { type: "STRING" },
+            type: { type: "STRING" },
+            box: { type: "ARRAY", items: { type: "INTEGER" } },
+            confidence,
+            evidence: { type: "STRING" }
+          }
+        }
+      },
+      visualMeasurements: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          required: ["key", "value", "unit", "confidence", "evidence"],
+          properties: {
+            key: { type: "STRING" },
             value: nullableNumber,
             unit: { type: "STRING" },
             confidence,
@@ -373,31 +390,31 @@ function responseSchema() {
           }
         }
       },
-      differentials: {
+      suggestedInterpretation: {
+        type: "OBJECT",
+        required: ["label", "confidence", "evidenceFor", "evidenceAgainst", "missingData"],
+        properties: {
+          label: { type: "STRING" },
+          confidence,
+          evidenceFor: { type: "ARRAY", items: { type: "STRING" } },
+          evidenceAgainst: { type: "ARRAY", items: { type: "STRING" } },
+          missingData: { type: "ARRAY", items: { type: "STRING" } }
+        }
+      },
+      alternatives: {
         type: "ARRAY",
         items: {
           type: "OBJECT",
-          required: ["name", "confidence", "reason"],
+          required: ["label", "confidence", "reason", "missingData"],
           properties: {
-            name: { type: "STRING" },
+            label: { type: "STRING" },
             confidence,
-            reason: { type: "STRING" }
+            reason: { type: "STRING" },
+            missingData: { type: "ARRAY", items: { type: "STRING" } }
           }
         }
       },
-      conclusion: { type: "STRING" }
-    }
-  };
-}
-
-function findingSchema(confidence) {
-  return {
-    type: "OBJECT",
-    required: ["name", "confidence", "evidence"],
-    properties: {
-      name: { type: "STRING" },
-      confidence,
-      evidence: { type: "STRING" }
+      limitations: { type: "ARRAY", items: { type: "STRING" } }
     }
   };
 }
@@ -409,48 +426,24 @@ async function callGeminiWithFallback({ models, payload, apiKey }) {
 
   for (const model of models) {
     attemptedModels.push(model);
-
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-      if (attempt > 0) {
-        await sleep(RETRY_DELAYS_MS[attempt - 1]);
-      }
-
+      if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
       const result = await callGeminiModel({ model, payload, apiKey });
-      if (result.ok) {
-        return { ok: true, model, raw: result.raw, attemptedModels };
-      }
-
+      if (result.ok) return { ok: true, model, raw: result.raw, attemptedModels };
       lastStatus = result.status;
       lastDetails = result.raw;
-
-      if (result.status === 400 || result.status === 404) {
-        break;
-      }
+      if (result.status === 400 || result.status === 404) break;
       if (!RETRYABLE_STATUS.has(result.status)) {
-        return {
-          ok: false,
-          status: result.status,
-          details: result.raw,
-          attemptedModels
-        };
+        return { ok: false, status: result.status, details: result.raw, attemptedModels };
       }
     }
   }
 
-  return {
-    ok: false,
-    status: lastStatus,
-    details: lastDetails,
-    attemptedModels
-  };
+  return { ok: false, status: lastStatus, details: lastDetails, attemptedModels };
 }
 
 async function callGeminiModel({ model, payload, apiKey }) {
-  const endpoint =
-    "https://generativelanguage.googleapis.com/v1beta/models/" +
-    encodeURIComponent(model) +
-    ":generateContent";
-
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -460,159 +453,213 @@ async function callGeminiModel({ model, payload, apiKey }) {
       },
       body: JSON.stringify(payload)
     });
-
     let raw;
     try {
       raw = await response.json();
     } catch {
-      raw = { error: { message: "Gemini devolvió una respuesta no JSON" } };
+      raw = { error: { message: "Respuesta remota no JSON" } };
     }
-
     return { ok: response.ok, status: response.status, raw };
   } catch (error) {
     return {
       ok: false,
       status: 503,
-      raw: {
-        error: {
-          status: "NETWORK_ERROR",
-          message: error?.message || "No se pudo conectar con Gemini"
-        }
-      }
+      raw: { error: { status: "NETWORK_ERROR", message: cleanText(error?.message || "Error de red", 300) } }
     };
   }
 }
 
 function sanitizeResult(result, input) {
   const safe = result && typeof result === "object" ? result : {};
-  safe.quality = safe.quality || {
-    confidence: "baja",
-    score: 0,
-    imageQuality: "No valorada",
-    limitations: ["Respuesta incompleta"]
-  };
-  safe.quality.score = clampNumber(safe.quality.score, 0, 1, 0);
-  safe.quality.limitations = stringArray(safe.quality.limitations);
-
-  safe.calibration = safe.calibration || {};
-  safe.calibration.scaleReliable = Boolean(safe.calibration.scaleReliable);
-  safe.calibration.pxPerMmX = finiteOrNull(safe.calibration.pxPerMmX);
-  safe.calibration.pxPerMmY = finiteOrNull(safe.calibration.pxPerMmY);
-
-  safe.mainLead = String(safe.mainLead || input.primaryLead || "II");
-  safe.leads = Array.isArray(safe.leads)
-    ? safe.leads.slice(0, 12).map(sanitizeLead)
-    : [];
-  safe.rhythm = safe.rhythm || {};
-  safe.arrhythmias = sanitizeFindings(safe.arrhythmias);
-  safe.conductionAbnormalities = sanitizeFindings(safe.conductionAbnormalities);
-  safe.atrialAbnormalities = sanitizeFindings(safe.atrialAbnormalities);
-  safe.ventricularAbnormalities = sanitizeFindings(safe.ventricularAbnormalities);
-  safe.measurements = Array.isArray(safe.measurements)
-    ? safe.measurements.slice(0, 40).map(item => ({
-        key: String(item?.key || ""),
-        parameter: String(item?.parameter || ""),
-        value: finiteOrNull(item?.value),
-        unit: String(item?.unit || ""),
-        confidence: confidenceValue(item?.confidence),
-        evidence: String(item?.evidence || "")
-      }))
-    : [];
-  safe.differentials = Array.isArray(safe.differentials)
-    ? safe.differentials.slice(0, 20).map(item => ({
-        name: String(item?.name || ""),
-        confidence: confidenceValue(item?.confidence),
-        reason: String(item?.reason || "")
-      }))
-    : [];
-  safe.conclusion = String(safe.conclusion || "");
+  safe.quality = sanitizeQuality(safe.quality);
+  safe.calibration = sanitizeCalibration(safe.calibration);
+  safe.mainLead = LEAD_NAMES.has(safe.mainLead) ? safe.mainLead : input.primaryLead || "II";
+  safe.leads = sanitizeLeads(safe.leads, input.leads);
+  safe.artifacts = sanitizeArtifacts(safe.artifacts);
+  safe.visualMeasurements = sanitizeVisualMeasurements(safe.visualMeasurements);
+  safe.suggestedInterpretation = sanitizeSuggestion(safe.suggestedInterpretation);
+  safe.alternatives = sanitizeAlternatives(safe.alternatives);
+  safe.limitations = sanitizeStringArray(safe.limitations, 20, 300);
   return safe;
 }
 
-function sanitizeLead(lead) {
-  const box = Array.isArray(lead?.box) && lead.box.length >= 4
-    ? lead.box.slice(0, 4).map(value => clampInt(value, 0, 1000))
-    : [0, 0, 1000, 1000];
-
-  const points = Array.isArray(lead?.points)
-    ? lead.points.slice(0, 900).map(sanitizePoint).sort((a, b) => a.x - b.x)
-    : [];
-
-  const markerTypes = new Set([
-    "P", "Q", "R", "S", "T", "pStart", "pEnd", "prStart", "prEnd",
-    "qrsStart", "qrsEnd", "stStart", "stEnd", "tStart", "tPeak", "tEnd", "iso"
-  ]);
-
-  const markers = Array.isArray(lead?.markers)
-    ? lead.markers.slice(0, 300)
-        .filter(marker => markerTypes.has(marker?.type))
-        .map(marker => ({
-          id: crypto.randomUUID(),
-          type: marker.type,
-          x: clampInt(marker.x, 0, 1000),
-          y: clampInt(marker.y, 0, 1000),
-          confidence: confidenceValue(marker.confidence)
-        }))
-    : [];
-
-  const segments = Array.isArray(lead?.segments)
-    ? lead.segments.slice(0, 100).map(segment => ({
-        name: String(segment?.name || ""),
-        startX: clampInt(segment?.startX, 0, 1000),
-        endX: clampInt(segment?.endX, 0, 1000),
-        confidence: confidenceValue(segment?.confidence)
-      }))
-    : [];
-
+function sanitizeQuality(value) {
   return {
-    id: crypto.randomUUID(),
-    name: String(lead?.name || "?"),
-    box,
-    baselineY: finiteOrNull(lead?.baselineY),
-    confidence: confidenceValue(lead?.confidence),
-    points,
+    status: ["interpretable", "parcial", "no interpretable"].includes(value?.status) ? value.status : "parcial",
+    confidence: clamp01(value?.confidence),
+    imageQuality: cleanText(value?.imageQuality || "No especificada", 500),
+    limitations: sanitizeStringArray(value?.limitations, 20, 300)
+  };
+}
+
+function sanitizeCalibration(value) {
+  return {
+    scaleReliable: Boolean(value?.scaleReliable),
+    confidence: clamp01(value?.confidence),
+    source: cleanText(value?.source || "no determinada", 200),
+    pxPerMmX: finiteOrNull(value?.pxPerMmX),
+    pxPerMmY: finiteOrNull(value?.pxPerMmY),
+    gridAngleDeg: finiteOrNull(value?.gridAngleDeg),
+    pulse1mV: {
+      detected: Boolean(value?.pulse1mV?.detected),
+      confidence: clamp01(value?.pulse1mV?.confidence),
+      box: sanitizeBox(value?.pulse1mV?.box)
+    }
+  };
+}
+
+function sanitizeLeads(values, declared) {
+  if (!Array.isArray(values)) return [];
+  const used = new Set();
+  return values.slice(0, MAX_LEADS).map((lead, index) => {
+    let name = LEAD_NAMES.has(lead?.name) ? lead.name : declared[index] || "II";
+    if (used.has(name)) name = declared.find(item => !used.has(item)) || name;
+    used.add(name);
+    const complexes = Array.isArray(lead?.complexes)
+      ? lead.complexes.slice(0, MAX_COMPLEXES).map((complex, i) => sanitizeComplex(complex, i))
+      : [];
+    return {
+      name,
+      box: sanitizeBox(lead?.box),
+      confidence: clamp01(lead?.confidence),
+      quality: cleanText(lead?.quality || "No especificada", 300),
+      trace: sanitizePoints(lead?.trace, MAX_POINTS_PER_LEAD),
+      complexes,
+      morphology: sanitizeFindings(lead?.morphology, 40),
+      visualEvidence: cleanText(lead?.visualEvidence || "", 800)
+    };
+  });
+}
+
+function sanitizeComplex(complex, index) {
+  const markers = Array.isArray(complex?.markers)
+    ? complex.markers.slice(0, MAX_MARKERS_PER_COMPLEX).map(marker => ({
+        type: MARKER_TYPES.has(marker?.type) ? marker.type : "iso",
+        x: clampCoord(marker?.x),
+        y: clampCoord(marker?.y),
+        confidence: clamp01(marker?.confidence)
+      })).sort((a, b) => a.x - b.x)
+    : [];
+  return {
+    id: cleanText(complex?.id || `c${index + 1}`, 60),
+    accepted: complex?.accepted !== false,
+    confidence: clamp01(complex?.confidence),
+    startX: clampCoord(complex?.startX),
+    endX: clampCoord(complex?.endX),
     markers,
-    segments
+    morphology: sanitizeFindings(complex?.morphology, 30),
+    evidence: cleanText(complex?.evidence || "", 600)
   };
 }
 
-function sanitizePoint(point) {
+function sanitizeFindings(values, max) {
+  if (!Array.isArray(values)) return [];
+  return values.slice(0, max).map(item => ({
+    name: cleanText(item?.name || "hallazgo", 120),
+    state: ["presente", "ausente", "indeterminada"].includes(item?.state) ? item.state : "indeterminada",
+    confidence: clamp01(item?.confidence),
+    evidence: cleanText(item?.evidence || "", 400)
+  }));
+}
+
+function sanitizeArtifacts(values) {
+  if (!Array.isArray(values)) return [];
+  return values.slice(0, 30).map(item => ({
+    type: cleanText(item?.type || "artefacto", 100),
+    box: sanitizeBox(item?.box),
+    confidence: clamp01(item?.confidence),
+    evidence: cleanText(item?.evidence || "", 400)
+  }));
+}
+
+function sanitizeVisualMeasurements(values) {
+  if (!Array.isArray(values)) return [];
+  return values.slice(0, 40).map(item => ({
+    key: cleanText(item?.key || "measurement", 80),
+    value: finiteOrNull(item?.value),
+    unit: cleanText(item?.unit || "", 40),
+    confidence: clamp01(item?.confidence),
+    evidence: cleanText(item?.evidence || "", 400)
+  }));
+}
+
+function sanitizeSuggestion(value) {
   return {
-    x: clampInt(point?.x, 0, 1000),
-    y: clampInt(point?.y, 0, 1000)
+    label: cleanText(value?.label || "Interpretación visual no concluyente", 180),
+    confidence: clamp01(value?.confidence),
+    evidenceFor: sanitizeStringArray(value?.evidenceFor, 15, 300),
+    evidenceAgainst: sanitizeStringArray(value?.evidenceAgainst, 15, 300),
+    missingData: sanitizeStringArray(value?.missingData, 15, 300)
   };
 }
 
-function sanitizeFindings(items) {
-  return Array.isArray(items)
-    ? items.slice(0, 30).map(item => ({
-        name: String(item?.name || ""),
-        confidence: confidenceValue(item?.confidence),
-        evidence: String(item?.evidence || "")
-      }))
-    : [];
+function sanitizeAlternatives(values) {
+  if (!Array.isArray(values)) return [];
+  return values.slice(0, 3).map(item => ({
+    label: cleanText(item?.label || "Alternativa", 180),
+    confidence: clamp01(item?.confidence),
+    reason: cleanText(item?.reason || "", 500),
+    missingData: sanitizeStringArray(item?.missingData, 12, 250)
+  }));
 }
 
-function confidenceValue(value) {
-  return ["alta", "media", "baja"].includes(value) ? value : "baja";
+function sanitizePoints(values, max) {
+  if (!Array.isArray(values)) return [];
+  return values.slice(0, max).map(item => ({
+    x: clampCoord(item?.x),
+    y: clampCoord(item?.y),
+    confidence: clamp01(item?.confidence)
+  })).sort((a, b) => a.x - b.x);
 }
 
-function stringArray(value) {
-  return Array.isArray(value) ? value.slice(0, 30).map(String) : [];
+function sanitizeBox(value) {
+  const source = Array.isArray(value) ? value.slice(0, 4).map(clampCoord) : [0, 0, 1000, 1000];
+  while (source.length < 4) source.push(source.length < 2 ? 0 : 1000);
+  const x1 = Math.min(source[0], source[2]);
+  const y1 = Math.min(source[1], source[3]);
+  const x2 = Math.max(source[0], source[2]);
+  const y2 = Math.max(source[1], source[3]);
+  return [x1, y1, x2, y2];
+}
+
+function sanitizeStringArray(value, maxItems, maxChars) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, maxItems).map(item => cleanText(item, maxChars)).filter(Boolean);
+}
+
+function sanitizeRemoteError(value) {
+  return {
+    code: Number(value?.error?.code || 0) || null,
+    status: cleanText(value?.error?.status || "REMOTE_ERROR", 100),
+    message: cleanText(value?.error?.message || "Error del modelo", 500)
+  };
+}
+
+function safeErrorLabel(status) {
+  if (status === 429) return "Cuota o límite temporal alcanzado";
+  if (status === 503) return "Modelo temporalmente saturado";
+  if (status === 404) return "Modelo no disponible";
+  if (status === 400) return "Solicitud no compatible con el modelo";
+  return "No se pudo completar el análisis visual";
+}
+
+function cleanText(value, max = MAX_TEXT) {
+  return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
 function finiteOrNull(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
-function clampNumber(value, min, max, fallback) {
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+function clampCoord(value) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.max(0, Math.min(1000, n)) : 0;
 }
 
-function clampInt(value, min, max) {
-  return Math.round(clampNumber(value, min, max, min));
+function clamp01(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
 }
 
 function uniqueModels(models) {
