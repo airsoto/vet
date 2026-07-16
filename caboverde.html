@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071c2c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CV Meteo">
+  <meta name="format-detection" content="telephone=no">
+  <title>Cabo Verde · Meteo & Mar</title>
+
+  <!-- Leaflet: mapa interactivo -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --bg:#061522;
+      --panel:rgba(10,33,50,.78);
+      --panel-solid:#0b263a;
+      --text:#f2fbff;
+      --muted:#9db6c5;
+      --cyan:#35d6e5;
+      --blue:#43a9ff;
+      --sun:#ffd166;
+      --green:#54e2a4;
+      --danger:#ff6b7a;
+      --line:rgba(255,255,255,.11);
+      --shadow:0 18px 55px rgba(0,0,0,.34);
+      --radius:24px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      padding-top:env(safe-area-inset-top);
+      padding-right:env(safe-area-inset-right);
+      padding-bottom:env(safe-area-inset-bottom);
+      padding-left:env(safe-area-inset-left);
+      min-height:100vh;
+      color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(53,214,229,.16), transparent 31rem),
+        radial-gradient(circle at 88% 0%, rgba(67,169,255,.15), transparent 30rem),
+        linear-gradient(145deg,#061522 0%,#082437 52%,#071c2c 100%);
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.26;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:28px 28px;
+      mask-image:linear-gradient(to bottom,black,transparent 82%);
+    }
+
+    button{font:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    a{-webkit-tap-highlight-color:transparent}
+    input,button,select,textarea{font-size:16px}
+    body{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+    .app{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+    .app{width:min(1460px,100%);margin:auto;padding:22px}
+    .glass{
+      background:var(--panel);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+    }
+
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:20px;
+      padding:18px 20px;
+      border-radius:22px;
+      margin-bottom:20px;
+    }
+
+    .brand{display:flex;align-items:center;gap:14px;min-width:0}
+    .logo{
+      width:52px;height:52px;display:grid;place-items:center;
+      border-radius:18px;
+      font-size:28px;
+      background:linear-gradient(145deg,var(--cyan),var(--blue));
+      box-shadow:0 10px 30px rgba(53,214,229,.25);
+      flex:0 0 auto;
+    }
+    h1{font-size:clamp(1.18rem,3vw,1.72rem);margin:0;letter-spacing:-.035em}
+    .subtitle{margin:3px 0 0;color:var(--muted);font-size:.88rem}
+
+    .locate-btn{
+      border:0;border-radius:16px;padding:13px 17px;
+      color:#03131d;font-weight:850;cursor:pointer;
+      background:linear-gradient(135deg,#66ecf1,#56b7ff);
+      box-shadow:0 9px 22px rgba(67,169,255,.2);
+      transition:.2s transform,.2s filter;
+      white-space:nowrap;
+    }
+    .locate-btn:hover{transform:translateY(-2px);filter:brightness(1.05)}
+    .locate-btn:disabled{cursor:wait;opacity:.7;transform:none}
+
+    .hero{
+      display:grid;
+      grid-template-columns:minmax(0,1.35fr) minmax(350px,.65fr);
+      gap:20px;
+    }
+
+    .map-card{
+      min-height:570px;
+      border-radius:var(--radius);
+      padding:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    #map{
+      height:550px;
+      width:100%;
+      border-radius:18px;
+      background:#0a2e43;
+      z-index:1;
+    }
+    .map-overlay{
+      position:absolute;
+      z-index:500;
+      top:26px;left:26px;
+      max-width:min(385px,calc(100% - 52px));
+      padding:15px 17px;
+      border-radius:18px;
+      background:rgba(4,21,33,.82);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter:blur(16px);
+      box-shadow:0 12px 28px rgba(0,0,0,.28);
+      pointer-events:none;
+    }
+    .eyebrow{
+      text-transform:uppercase;
+      font-size:.68rem;
+      letter-spacing:.17em;
+      color:var(--cyan);
+      font-weight:850;
+    }
+    #placeName{margin:4px 0 1px;font-size:1.45rem}
+    #coords{color:var(--muted);font-size:.82rem}
+    .accuracy{margin-top:8px;font-size:.75rem;color:#c6d8e2}
+
+    .side{display:flex;flex-direction:column;gap:20px}
+    .current-card{
+      border-radius:var(--radius);
+      padding:24px;
+      min-height:300px;
+      position:relative;
+      overflow:hidden;
+    }
+    .current-card::after{
+      content:"";
+      position:absolute;width:190px;height:190px;border-radius:50%;
+      right:-65px;top:-50px;
+      background:radial-gradient(circle,rgba(255,209,102,.25),transparent 70%);
+    }
+    .current-top{display:flex;justify-content:space-between;gap:12px;position:relative;z-index:1}
+    .weather-icon{font-size:4.2rem;line-height:1;filter:drop-shadow(0 10px 20px rgba(0,0,0,.25))}
+    .temp-main{font-size:clamp(4.1rem,10vw,6.4rem);font-weight:200;letter-spacing:-.09em;line-height:.92;margin-top:18px}
+    .temp-main sup{font-size:.35em;vertical-align:top;position:relative;top:.18em;letter-spacing:0}
+    #condition{font-size:1.15rem;font-weight:760;margin:8px 0 3px}
+    #updated{color:var(--muted);font-size:.78rem}
+    .mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}
+    .mini{
+      padding:12px 10px;border-radius:15px;
+      background:rgba(255,255,255,.055);
+      border:1px solid rgba(255,255,255,.07);
+    }
+    .mini span{display:block;color:var(--muted);font-size:.68rem;margin-bottom:4px}
+    .mini strong{font-size:.95rem}
+
+    .sea-card{
+      padding:22px;border-radius:var(--radius);
+      display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;
+      background:
+        linear-gradient(135deg,rgba(11,48,75,.88),rgba(8,81,101,.75)),
+        var(--panel);
+    }
+    .sea-orb{
+      width:82px;height:82px;border-radius:50%;
+      display:grid;place-items:center;font-size:2.25rem;
+      background:linear-gradient(145deg,rgba(91,221,241,.3),rgba(49,116,236,.38));
+      border:1px solid rgba(255,255,255,.17);
+      box-shadow:inset 0 0 22px rgba(255,255,255,.08),0 14px 30px rgba(0,0,0,.2);
+    }
+    .sea-temp{font-size:2.2rem;font-weight:300;letter-spacing:-.05em}
+    .sea-label{font-weight:800}
+    .sea-note{color:var(--muted);font-size:.75rem;margin-top:4px;line-height:1.35}
+
+    .tomorrow{
+      margin-top:20px;
+      border-radius:var(--radius);
+      padding:24px;
+    }
+    .section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:19px}
+    .section-head h2{margin:2px 0 0;font-size:1.45rem}
+    .date-pill{
+      border:1px solid var(--line);border-radius:999px;padding:9px 13px;
+      color:#c8dbe5;background:rgba(255,255,255,.045);font-size:.8rem;
+    }
+    .forecast-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px}
+    .tomorrow-summary{
+      border-radius:20px;padding:20px;
+      background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));
+      border:1px solid var(--line);
+    }
+    .tomorrow-condition{display:flex;gap:15px;align-items:center}
+    #tomorrowIcon{font-size:3rem}
+    #tomorrowText{font-size:1.08rem;font-weight:800}
+    .range{font-size:2.4rem;font-weight:260;letter-spacing:-.06em;margin:17px 0}
+    .forecast-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .forecast-stat{
+      padding:11px;border-radius:14px;background:rgba(255,255,255,.045);
+    }
+    .forecast-stat span{display:block;color:var(--muted);font-size:.67rem;margin-bottom:4px}
+    .forecast-stat strong{font-size:.9rem}
+
+    .hourly-wrap{overflow:hidden}
+    .hourly-title{font-size:.78rem;color:var(--muted);margin-bottom:10px}
+    .hourly{
+      display:grid;grid-template-columns:repeat(8,minmax(72px,1fr));
+      gap:9px;overflow-x:auto;padding:2px 2px 9px;
+      scrollbar-width:thin;
+    }
+    .hour{
+      min-width:72px;padding:13px 8px;text-align:center;border-radius:16px;
+      background:rgba(255,255,255,.045);border:1px solid var(--line);
+    }
+    .hour-time{font-size:.7rem;color:var(--muted)}
+    .hour-icon{font-size:1.65rem;margin:8px 0}
+    .hour-temp{font-weight:800}
+    .hour-rain{font-size:.68rem;color:#7edfff;margin-top:5px}
+
+    .status{
+      margin-top:18px;border-radius:18px;padding:14px 16px;
+      display:flex;align-items:center;gap:12px;
+      color:#cfdee7;font-size:.84rem;
+    }
+    .status-dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);box-shadow:0 0 16px var(--cyan);flex:0 0 auto}
+    .status.error .status-dot{background:var(--danger);box-shadow:0 0 16px var(--danger)}
+    .status.warning .status-dot{background:var(--sun);box-shadow:0 0 16px var(--sun)}
+    footer{text-align:center;color:#7893a3;font-size:.73rem;padding:20px 10px 4px;line-height:1.6}
+
+    .skeleton{position:relative;overflow:hidden;color:transparent!important}
+    .skeleton::after{
+      content:"";position:absolute;inset:0;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent);
+      animation:shine 1.35s infinite;
+    }
+    @keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+    .pulse{animation:pulse 1.2s infinite}
+    @keyframes pulse{50%{opacity:.48}}
+
+    .leaflet-control-zoom a{background:#0c2a3e!important;color:white!important;border-color:rgba(255,255,255,.12)!important}
+    .leaflet-control-attribution{background:rgba(4,18,29,.78)!important;color:#aec3cf!important}
+    .leaflet-control-attribution a{color:#70dce8!important}
+    .position-marker{
+      width:22px;height:22px;border-radius:50%;
+      background:#4de1eb;border:4px solid white;
+      box-shadow:0 0 0 9px rgba(77,225,235,.2),0 5px 18px rgba(0,0,0,.35);
+    }
+
+
+    @media(max-width:980px){
+      .app{padding:14px}
+      header{
+        position:sticky;
+        top:calc(8px + env(safe-area-inset-top));
+        z-index:1000;
+        margin-bottom:14px;
+      }
+      .hero{grid-template-columns:1fr}
+      .side{display:grid;grid-template-columns:1fr 1fr}
+      .current-card{min-height:275px}
+      .forecast-layout{grid-template-columns:1fr}
+      .map-card{min-height:480px}
+      #map{height:460px}
+    }
+
+    @media(max-width:720px){
+      :root{--radius:20px}
+      .app{
+        width:100%;
+        padding:8px;
+        padding-bottom:calc(14px + env(safe-area-inset-bottom));
+      }
+
+      header{
+        top:calc(6px + env(safe-area-inset-top));
+        padding:10px 11px;
+        border-radius:18px;
+        gap:8px;
+        margin-bottom:10px;
+      }
+
+      .brand{gap:10px;min-width:0}
+      .logo{
+        width:42px;
+        height:42px;
+        border-radius:14px;
+        font-size:23px;
+      }
+      h1{
+        font-size:1rem;
+        line-height:1.1;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        max-width:48vw;
+      }
+      .subtitle{display:none}
+
+      .locate-btn{
+        min-height:44px;
+        padding:10px 13px;
+        font-size:.78rem;
+        border-radius:14px;
+        flex:0 0 auto;
+      }
+
+      .hero{gap:10px}
+      .map-card{
+        min-height:auto;
+        height:min(52vh,430px);
+        padding:6px;
+        border-radius:20px;
+      }
+      #map{
+        height:100%;
+        min-height:330px;
+        border-radius:15px;
+      }
+
+      .map-overlay{
+        top:13px;
+        left:13px;
+        right:13px;
+        max-width:none;
+        padding:10px 12px;
+        border-radius:15px;
+      }
+      .map-overlay .eyebrow{font-size:.59rem}
+      #placeName{
+        margin-top:3px;
+        font-size:1rem;
+        line-height:1.2;
+      }
+      #coords{font-size:.7rem}
+      .accuracy{
+        margin-top:4px;
+        font-size:.65rem;
+      }
+
+      .side{
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .current-card{
+        min-height:auto;
+        padding:17px;
+        border-radius:20px;
+      }
+      .current-top{align-items:flex-start}
+      .temp-main{
+        margin-top:10px;
+        font-size:4.6rem;
+        line-height:.9;
+      }
+      .weather-icon{
+        font-size:3.5rem;
+        margin-top:4px;
+      }
+      #condition{
+        font-size:1rem;
+        margin-top:8px;
+      }
+      #updated{font-size:.7rem}
+
+      .mini-grid{
+        margin-top:16px;
+        gap:7px;
+      }
+      .mini{
+        min-height:65px;
+        padding:10px 8px;
+        border-radius:13px;
+      }
+      .mini span{font-size:.62rem}
+      .mini strong{font-size:.86rem}
+
+      .sea-card{
+        grid-template-columns:66px 1fr;
+        gap:13px;
+        padding:16px;
+        border-radius:20px;
+      }
+      .sea-orb{
+        width:66px;
+        height:66px;
+        font-size:1.8rem;
+      }
+      .sea-temp{font-size:1.9rem}
+      .sea-label{font-size:.9rem}
+      .sea-note{font-size:.68rem}
+
+      .tomorrow{
+        margin-top:10px;
+        padding:16px;
+        border-radius:20px;
+      }
+      .section-head{
+        align-items:center;
+        margin-bottom:14px;
+      }
+      .section-head h2{
+        margin-top:2px;
+        font-size:1.12rem;
+      }
+      .date-pill{
+        padding:7px 10px;
+        font-size:.65rem;
+        max-width:45%;
+        text-align:center;
+      }
+
+      .forecast-layout{
+        grid-template-columns:1fr;
+        gap:14px;
+      }
+      .tomorrow-summary{
+        padding:15px;
+        border-radius:17px;
+      }
+      #tomorrowIcon{font-size:2.5rem}
+      #tomorrowText{font-size:.95rem}
+      .range{
+        margin:13px 0;
+        font-size:2rem;
+      }
+      .forecast-stats{
+        grid-template-columns:1fr 1fr;
+        gap:7px;
+      }
+      .forecast-stat{
+        padding:10px;
+        border-radius:12px;
+      }
+      .forecast-stat span{font-size:.61rem}
+      .forecast-stat strong{font-size:.82rem}
+
+      .hourly-wrap{
+        width:100%;
+        overflow:visible;
+      }
+      .hourly-title{font-size:.7rem}
+      .hourly{
+        display:flex;
+        gap:8px;
+        overflow-x:auto;
+        scroll-snap-type:x mandatory;
+        padding-bottom:8px;
+        -webkit-overflow-scrolling:touch;
+      }
+      .hour{
+        min-width:78px;
+        scroll-snap-align:start;
+        border-radius:15px;
+        padding:12px 8px;
+      }
+
+      .status{
+        margin-top:10px;
+        padding:12px 13px;
+        border-radius:16px;
+        font-size:.73rem;
+        line-height:1.35;
+      }
+      footer{
+        padding:15px 8px 5px;
+        font-size:.66rem;
+      }
+
+      .leaflet-control-zoom{
+        margin-right:8px!important;
+        margin-bottom:8px!important;
+      }
+      .leaflet-control-zoom a{
+        width:42px!important;
+        height:42px!important;
+        line-height:42px!important;
+        font-size:22px!important;
+      }
+      .leaflet-control-attribution{
+        font-size:8px!important;
+        max-width:65vw;
+      }
+    }
+
+    @media(max-width:390px){
+      h1{max-width:42vw;font-size:.94rem}
+      .locate-btn{padding:9px 10px;font-size:.72rem}
+      .temp-main{font-size:4.15rem}
+      .mini strong{font-size:.79rem}
+      .map-card{height:min(48vh,390px)}
+      #map{min-height:310px}
+    }
+
+    @media(orientation:landscape) and (max-height:520px){
+      header{
+        position:relative;
+        top:auto;
+      }
+      .hero{
+        grid-template-columns:1.15fr .85fr;
+      }
+      .map-card{
+        height:78vh;
+      }
+      .side{
+        display:flex;
+      }
+      .tomorrow{
+        margin-top:10px;
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce){
+      *{
+        animation-duration:.01ms!important;
+        animation-iteration-count:1!important;
+        scroll-behavior:auto!important;
+        transition-duration:.01ms!important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="glass">
+      <div class="brand">
+        <div class="logo">🌊</div>
+        <div>
+          <h1>Cabo Verde · Meteo & Mar</h1>
+          <p class="subtitle">El tiempo exactamente donde estás</p>
+        </div>
+      </div>
+      <button class="locate-btn" id="locateBtn">⌖ Localizarme</button>
+    </header>
+
+    <section class="hero">
+      <article class="map-card glass">
+        <div id="map" aria-label="Mapa de Cabo Verde"></div>
+        <div class="map-overlay">
+          <div class="eyebrow">Tu posición</div>
+          <h2 id="placeName">Buscando ubicación…</h2>
+          <div id="coords">Activa el permiso de localización</div>
+          <div class="accuracy" id="accuracy"></div>
+        </div>
+      </article>
+
+      <aside class="side">
+        <article class="current-card glass">
+          <div class="current-top">
+            <div>
+              <div class="eyebrow">Ahora</div>
+              <div class="temp-main" id="airTemp">--<sup>°C</sup></div>
+            </div>
+            <div class="weather-icon" id="currentIcon">🌤️</div>
+          </div>
+          <div id="condition">Esperando datos meteorológicos</div>
+          <div id="updated">—</div>
+
+          <div class="mini-grid">
+            <div class="mini"><span>Sensación</span><strong id="feels">-- °C</strong></div>
+            <div class="mini"><span>Viento</span><strong id="wind">-- km/h</strong></div>
+            <div class="mini"><span>Humedad</span><strong id="humidity">-- %</strong></div>
+          </div>
+        </article>
+
+        <article class="sea-card glass">
+          <div class="sea-orb">🌊</div>
+          <div>
+            <div class="sea-label">Temperatura del agua</div>
+            <div class="sea-temp" id="seaTemp">-- °C</div>
+            <div class="sea-note" id="seaNote">Estimación de la superficie marina próxima</div>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="tomorrow glass">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Próximas 24–48 horas</div>
+          <h2>Previsión para mañana</h2>
+        </div>
+        <div class="date-pill" id="tomorrowDate">—</div>
+      </div>
+
+      <div class="forecast-layout">
+        <div class="tomorrow-summary">
+          <div class="tomorrow-condition">
+            <div id="tomorrowIcon">🌤️</div>
+            <div id="tomorrowText">Esperando previsión</div>
+          </div>
+          <div class="range"><span id="tomorrowMax">--°</span> <span style="color:#6e8d9f">/</span> <span id="tomorrowMin">--°</span></div>
+          <div class="forecast-stats">
+            <div class="forecast-stat"><span>Prob. de lluvia</span><strong id="rainChance">-- %</strong></div>
+            <div class="forecast-stat"><span>Precipitación</span><strong id="rainSum">-- mm</strong></div>
+            <div class="forecast-stat"><span>Viento máximo</span><strong id="windMax">-- km/h</strong></div>
+            <div class="forecast-stat"><span>Índice UV</span><strong id="uvMax">--</strong></div>
+          </div>
+        </div>
+
+        <div class="hourly-wrap">
+          <div class="hourly-title">Evolución durante el día</div>
+          <div class="hourly" id="hourlyForecast">
+            <div class="hour skeleton">00:00<br><br>--°</div>
+            <div class="hour skeleton">03:00<br><br>--°</div>
+            <div class="hour skeleton">06:00<br><br>--°</div>
+            <div class="hour skeleton">09:00<br><br>--°</div>
+            <div class="hour skeleton">12:00<br><br>--°</div>
+            <div class="hour skeleton">15:00<br><br>--°</div>
+            <div class="hour skeleton">18:00<br><br>--°</div>
+            <div class="hour skeleton">21:00<br><br>--°</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="status glass" id="status">
+      <div class="status-dot"></div>
+      <div id="statusText">Solicitando acceso al GPS…</div>
+    </div>
+
+    <footer>
+      Datos meteorológicos y marinos: Open-Meteo · Mapa: OpenStreetMap/Leaflet.<br>
+      La temperatura del mar es una estimación de modelo y puede diferir de la medición local.
+    </footer>
+  </main>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  "use strict";
+
+  const DEFAULT_POS = { lat: 15.120, lon: -23.605 };
+  const CAPE_VERDE_BOUNDS = { minLat: 14.75, maxLat: 17.25, minLon: -25.45, maxLon: -22.55 };
+
+  const islands = [
+    {name:"Santiago", lat:15.05, lon:-23.62},
+    {name:"Sal", lat:16.73, lon:-22.94},
+    {name:"Boa Vista", lat:16.10, lon:-22.81},
+    {name:"São Vicente", lat:16.87, lon:-24.99},
+    {name:"Santo Antão", lat:17.07, lon:-25.17},
+    {name:"São Nicolau", lat:16.61, lon:-24.28},
+    {name:"Fogo", lat:14.95, lon:-24.38},
+    {name:"Brava", lat:14.87, lon:-24.70},
+    {name:"Maio", lat:15.22, lon:-23.17},
+    {name:"Santa Luzia", lat:16.76, lon:-24.75}
+  ];
+
+  const $ = id => document.getElementById(id);
+  let map, marker, accuracyCircle;
+  let lastPosition = null;
+
+  const weatherCodes = {
+    0:["Despejado","☀️"], 1:["Mayormente despejado","🌤️"], 2:["Parcialmente nuboso","⛅"],
+    3:["Cubierto","☁️"], 45:["Niebla","🌫️"], 48:["Niebla con escarcha","🌫️"],
+    51:["Llovizna débil","🌦️"], 53:["Llovizna moderada","🌦️"], 55:["Llovizna intensa","🌧️"],
+    56:["Llovizna helada débil","🌧️"], 57:["Llovizna helada intensa","🌧️"],
+    61:["Lluvia débil","🌦️"], 63:["Lluvia moderada","🌧️"], 65:["Lluvia intensa","🌧️"],
+    66:["Lluvia helada débil","🌧️"], 67:["Lluvia helada intensa","🌧️"],
+    71:["Nieve débil","🌨️"], 73:["Nieve moderada","🌨️"], 75:["Nieve intensa","❄️"],
+    77:["Granos de nieve","🌨️"], 80:["Chubascos débiles","🌦️"], 81:["Chubascos moderados","🌧️"],
+    82:["Chubascos fuertes","⛈️"], 85:["Chubascos de nieve","🌨️"], 86:["Chubascos de nieve fuertes","❄️"],
+    95:["Tormenta","⛈️"], 96:["Tormenta con granizo","⛈️"], 99:["Tormenta fuerte con granizo","⛈️"]
+  };
+
+  function codeInfo(code){ return weatherCodes[code] || ["Tiempo variable","🌤️"]; }
+
+  function setStatus(text, type=""){
+    $("statusText").textContent = text;
+    $("status").className = "status glass" + (type ? " " + type : "");
+  }
+
+  function initMap(){
+    map = L.map("map", {
+      zoomControl:false,
+      attributionControl:true,
+      tap:true,
+      touchZoom:true,
+      scrollWheelZoom:false,
+      dragging:true
+    }).setView([15.6,-23.9], 7);
+    L.control.zoom({position:"bottomright"}).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    const archipelagoBounds = [[14.72,-25.5],[17.25,-22.5]];
+    L.rectangle(archipelagoBounds,{
+      color:"#48dce8",weight:1,fillOpacity:.025,dashArray:"5 8",opacity:.45
+    }).addTo(map);
+  }
+
+  function distanceKm(aLat,aLon,bLat,bLon){
+    const R=6371, dLat=(bLat-aLat)*Math.PI/180, dLon=(bLon-aLon)*Math.PI/180;
+    const x=Math.sin(dLat/2)**2 + Math.cos(aLat*Math.PI/180)*Math.cos(bLat*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  }
+
+  function nearestIsland(lat,lon){
+    return islands
+      .map(i=>({...i,distance:distanceKm(lat,lon,i.lat,i.lon)}))
+      .sort((a,b)=>a.distance-b.distance)[0];
+  }
+
+  function isCapeVerde(lat,lon){
+    const b=CAPE_VERDE_BOUNDS;
+    return lat>=b.minLat && lat<=b.maxLat && lon>=b.minLon && lon<=b.maxLon;
+  }
+
+  function setMapPosition(lat,lon,accuracy=0){
+    const icon=L.divIcon({className:"",html:'<div class="position-marker"></div>',iconSize:[22,22],iconAnchor:[11,11]});
+    if(marker) marker.setLatLng([lat,lon]);
+    else marker=L.marker([lat,lon],{icon}).addTo(map).bindPopup("Estás aquí");
+
+    if(accuracyCircle) accuracyCircle.remove();
+    if(accuracy>0){
+      accuracyCircle=L.circle([lat,lon],{
+        radius:accuracy,color:"#54dce7",weight:1,fillColor:"#45bcd1",fillOpacity:.10
+      }).addTo(map);
+    }
+    map.flyTo([lat,lon], Math.max(map.getZoom(), 11), {duration:1.2});
+  }
+
+  function updatePlace(lat,lon,accuracy){
+    const near=nearestIsland(lat,lon);
+    const inside=isCapeVerde(lat,lon);
+    $("placeName").textContent = inside ? `Isla de ${near.name}` : `Cerca de ${near.name}`;
+    $("coords").textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    $("accuracy").textContent = accuracy ? `Precisión aproximada: ±${Math.round(accuracy)} m` : "Ubicación aproximada";
+    if(!inside){
+      setStatus("La ubicación detectada parece estar fuera del archipiélago de Cabo Verde. Se muestran datos de ese punto.", "warning");
+    }
+  }
+
+  async function fetchJSON(url, timeout=13000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeout);
+    try{
+      const res=await fetch(url,{signal:controller.signal});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally { clearTimeout(timer); }
+  }
+
+  async function loadWeather(lat,lon){
+    const params=new URLSearchParams({
+      latitude:lat,
+      longitude:lon,
+      current:"temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
+      hourly:"temperature_2m,weather_code,precipitation_probability",
+      daily:"weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max",
+      timezone:"auto",
+      forecast_days:"3"
+    });
+
+    const data=await fetchJSON(`https://api.open-meteo.com/v1/forecast?${params}`);
+    renderCurrent(data);
+    renderTomorrow(data);
+  }
+
+  function renderCurrent(data){
+    const c=data.current;
+    if(!c) throw new Error("No hay datos actuales");
+    const [text,icon]=codeInfo(c.weather_code);
+    $("airTemp").innerHTML=`${Math.round(c.temperature_2m)}<sup>°C</sup>`;
+    $("currentIcon").textContent=icon;
+    $("condition").textContent=text;
+    $("feels").textContent=`${Math.round(c.apparent_temperature)} °C`;
+    $("wind").textContent=`${Math.round(c.wind_speed_10m)} km/h`;
+    $("humidity").textContent=`${Math.round(c.relative_humidity_2m)} %`;
+    $("updated").textContent=`Actualizado: ${new Date(c.time).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}`;
+  }
+
+  function renderTomorrow(data){
+    const d=data.daily;
+    const h=data.hourly;
+    if(!d || d.time.length<2) throw new Error("No hay previsión para mañana");
+
+    const i=1;
+    const date=new Date(`${d.time[i]}T12:00:00`);
+    const [text,icon]=codeInfo(d.weather_code[i]);
+    $("tomorrowDate").textContent=date.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+    $("tomorrowIcon").textContent=icon;
+    $("tomorrowText").textContent=text;
+    $("tomorrowMax").textContent=`${Math.round(d.temperature_2m_max[i])}°`;
+    $("tomorrowMin").textContent=`${Math.round(d.temperature_2m_min[i])}°`;
+    $("rainChance").textContent=`${Math.round(d.precipitation_probability_max[i] ?? 0)} %`;
+    $("rainSum").textContent=`${Number(d.precipitation_sum[i] ?? 0).toFixed(1)} mm`;
+    $("windMax").textContent=`${Math.round(d.wind_speed_10m_max[i])} km/h`;
+    $("uvMax").textContent=Number(d.uv_index_max[i] ?? 0).toFixed(1);
+
+    const dayPrefix=d.time[i];
+    const selected=[];
+    for(let idx=0;idx<h.time.length;idx++){
+      if(h.time[idx].startsWith(dayPrefix)){
+        const hour=new Date(h.time[idx]).getHours();
+        if(hour%3===0) selected.push(idx);
+      }
+    }
+
+    $("hourlyForecast").innerHTML=selected.slice(0,8).map(idx=>{
+      const time=new Date(h.time[idx]).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+      const [,hIcon]=codeInfo(h.weather_code[idx]);
+      const rain=Math.round(h.precipitation_probability[idx] ?? 0);
+      return `<div class="hour">
+        <div class="hour-time">${time}</div>
+        <div class="hour-icon">${hIcon}</div>
+        <div class="hour-temp">${Math.round(h.temperature_2m[idx])}°</div>
+        <div class="hour-rain">💧 ${rain}%</div>
+      </div>`;
+    }).join("");
+  }
+
+  function marineCandidatePoints(lat,lon){
+    const points=[{lat,lon,km:0}];
+    const radii=[3,7,12,20,35];
+    const bearings=[0,45,90,135,180,225,270,315];
+    for(const km of radii){
+      for(const deg of bearings){
+        const rad=deg*Math.PI/180;
+        const dLat=(km/111)*Math.cos(rad);
+        const dLon=(km/(111*Math.cos(lat*Math.PI/180)))*Math.sin(rad);
+        points.push({lat:lat+dLat,lon:lon+dLon,km});
+      }
+    }
+    return points;
+  }
+
+  async function tryMarinePoint(p){
+    const params=new URLSearchParams({
+      latitude:p.lat,
+      longitude:p.lon,
+      current:"sea_surface_temperature",
+      hourly:"sea_surface_temperature",
+      timezone:"auto",
+      forecast_days:"1",
+      cell_selection:"sea"
+    });
+    try{
+      const data=await fetchJSON(`https://marine-api.open-meteo.com/v1/marine?${params}`,7000);
+      let value=data.current?.sea_surface_temperature;
+      if(!Number.isFinite(value)){
+        const vals=(data.hourly?.sea_surface_temperature || []).filter(Number.isFinite);
+        value=vals[0];
+      }
+      return Number.isFinite(value) ? {...p,value} : null;
+    }catch{ return null; }
+  }
+
+  async function loadSeaTemperature(lat,lon){
+    $("seaNote").textContent="Buscando el punto marino más próximo…";
+    const candidates=marineCandidatePoints(lat,lon);
+
+    // Primero el punto GPS y después lotes concéntricos para limitar las peticiones.
+    for(let start=0; start<candidates.length; start+=8){
+      const batch=candidates.slice(start,start+8);
+      const results=(await Promise.all(batch.map(tryMarinePoint))).filter(Boolean);
+      if(results.length){
+        results.sort((a,b)=>a.km-b.km);
+        const best=results[0];
+        $("seaTemp").textContent=`${best.value.toFixed(1)} °C`;
+        $("seaNote").textContent=best.km<1
+          ? "Temperatura superficial estimada en tu posición"
+          : `Estimación marina válida a unos ${best.km} km de tu posición`;
+        return;
+      }
+    }
+    $("seaTemp").textContent="No disponible";
+    $("seaNote").textContent="No se encontró una celda marina próxima con datos";
+  }
+
+  async function usePosition(position, approximate=false){
+    const lat=position.coords.latitude;
+    const lon=position.coords.longitude;
+    const accuracy=position.coords.accuracy || 0;
+    lastPosition={lat,lon,accuracy};
+    setMapPosition(lat,lon,accuracy);
+    updatePlace(lat,lon,accuracy);
+    setStatus("Ubicación obtenida. Consultando meteorología y estado del mar…");
+
+    const results=await Promise.allSettled([loadWeather(lat,lon),loadSeaTemperature(lat,lon)]);
+    const weatherOK=results[0].status==="fulfilled";
+    const seaOK=results[1].status==="fulfilled";
+
+    if(weatherOK && seaOK){
+      setStatus(approximate
+        ? "Mostrando una ubicación inicial aproximada. Pulsa «Localizarme» para usar el GPS."
+        : "Datos actualizados para tu ubicación.");
+    } else if(weatherOK){
+      setStatus("Tiempo actualizado; la información marina no está disponible temporalmente.","warning");
+    } else {
+      setStatus("No se pudieron descargar los datos. Comprueba la conexión e inténtalo de nuevo.","error");
+    }
+  }
+
+  function requestLocation(){
+    const btn=$("locateBtn");
+    btn.disabled=true;
+    btn.textContent="⌛ Localizando…";
+    setStatus("Solicitando acceso al GPS…");
+
+    if(!navigator.geolocation){
+      btn.disabled=false; btn.textContent="⌖ Localizarme";
+      setStatus("Este navegador no admite geolocalización. Se muestra Praia como referencia.","warning");
+      usePosition({coords:{latitude:DEFAULT_POS.lat,longitude:DEFAULT_POS.lon,accuracy:0}},true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async pos=>{
+        btn.disabled=false; btn.textContent="⌖ Actualizar GPS";
+        await usePosition(pos,false);
+      },
+      async err=>{
+        btn.disabled=false; btn.textContent="⌖ Reintentar GPS";
+        const reasons={
+          1:"Permiso de ubicación denegado.",
+          2:"No se pudo determinar la posición.",
+          3:"La localización tardó demasiado."
+        };
+        setStatus(`${reasons[err.code] || "Error de geolocalización"} Se muestra Praia como referencia.`,"warning");
+        await usePosition({coords:{latitude:DEFAULT_POS.lat,longitude:DEFAULT_POS.lon,accuracy:0}},true);
+      },
+      {enableHighAccuracy:true,timeout:12000,maximumAge:120000}
+    );
+  }
+
+  $("locateBtn").addEventListener("click",requestLocation);
+
+  window.addEventListener("orientationchange",()=>{
+    setTimeout(()=>map && map.invalidateSize(),350);
+  });
+  window.addEventListener("resize",()=>{
+    clearTimeout(window.__mapResizeTimer);
+    window.__mapResizeTimer=setTimeout(()=>map && map.invalidateSize(),180);
+  });
+
+  initMap();
+
+  // La geolocalización requiere HTTPS o localhost.
+  if(location.protocol==="file:"){
+    setStatus("Para activar el GPS, publica el archivo por HTTPS o ábrelo mediante localhost. Se muestra Praia como referencia.","warning");
+    usePosition({coords:{latitude:DEFAULT_POS.lat,longitude:DEFAULT_POS.lon,accuracy:0}},true);
+  }else{
+    requestLocation();
+  }
+});
+</script>
+</body>
+</html>
