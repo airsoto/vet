@@ -61,12 +61,17 @@ export default {
         }
       };
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+const endpoint =
+  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+const response = await fetch(endpoint, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-goog-api-key": env.GEMINI_API_KEY
+  },
+  body: JSON.stringify(payload)
+});
 
       const raw = await response.json();
       if (!response.ok) {
@@ -221,8 +226,10 @@ function responseSchema() {
         required: ["diagnosis", "heartRateBpm", "regularity", "pQrsRelationship", "explanation"],
         properties: {
           diagnosis: { type: "STRING" },
-          heartRateBpm: { type: ["NUMBER", "NULL"] },
-          regularity: { type: "STRING" },
+heartRateBpm: {
+  type: "NUMBER",
+  nullable: true
+},          regularity: { type: "STRING" },
           pQrsRelationship: { type: "STRING" },
           explanation: { type: "STRING" }
         }
@@ -246,8 +253,10 @@ function responseSchema() {
           required: ["parameter", "value", "unit", "reference", "status", "comment"],
           properties: {
             parameter: { type: "STRING" },
-            value: { type: ["NUMBER", "NULL"] },
-            unit: { type: "STRING" },
+value: {
+  type: "NUMBER",
+  nullable: true
+},            unit: { type: "STRING" },
             reference: { type: "STRING" },
             status: { type: "STRING", enum: ["normal", "alto", "bajo", "anormal", "no medible", "revisar"] },
             comment: { type: "STRING" }
