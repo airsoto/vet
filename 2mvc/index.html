@@ -709,7 +709,7 @@
       .blocks { font-size: 11pt; }
     }
   
-    /* ===== 2MVC 7.0 · diseño visual, traducción Google y Gemini ===== */
+    /* ===== 2MVC 7.1 · diseño visual, traducción Google y Gemini ===== */
     .chapter-item{grid-template-columns:1fr auto;padding:11px 10px}
     .chapter-number,.page-tag,#inlinePages,#pagesToggle{display:none!important}
     .chapter-name{font-size:.9rem;line-height:1.38}
@@ -888,7 +888,7 @@
       <div class="brand-mark" aria-hidden="true">2M</div>
       <div class="brand-text">
         <div class="brand-title">2MVC</div>
-        <div class="brand-subtitle"></div>
+        <div class="brand-subtitle">VET</div>
       </div>
     </div>
 
@@ -1004,8 +1004,8 @@
   <script>
     "use strict";
 
-const APP = {
-      baseCandidates: ["../json/2mvc/"],
+    const APP = {
+      baseCandidates: ["./json/2mvc/", "json/2mvc/", "/json/2mvc/"],
       baseUrl: null,
       chapters: [],
       filtered: [],
@@ -1967,10 +1967,10 @@ const APP = {
     }
 
 
-    /* ===== 2MVC 7.0 · traducción automática y aprendizaje con Gemini ===== */
+    /* ===== 2MVC 7.1 · traducción automática y aprendizaje con Gemini ===== */
     const WORKER_URL = "https://ecgbot.angelsoto-hcvc.workers.dev";
     const GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single";
-    const INDEX_TRANSLATION_KEY = "2mvc-index-es-v2";
+    const INDEX_TRANSLATION_KEY = "2mvc-index-es-v3";
 
     Object.assign(APP, {
       currentOriginal: null,
@@ -2122,7 +2122,7 @@ const APP = {
         : options.translationFailed
           ? "Contenido original"
           : translated
-            ? "Traducido automáticamente por Google"
+            ? "Traducido automáticamente al español"
             : "Contenido original";
 
       dom.content.innerHTML = `
@@ -2153,7 +2153,7 @@ const APP = {
           ${options.translating ? `
             <div class="translation-banner">
               <span class="translation-spinner"></span>
-              Traduciendo automáticamente el capítulo al español mediante Google…
+              Traduciendo automáticamente todo el capítulo al español…
             </div>` : ""}
 
           <div class="ai-action-grid" translate="no">
@@ -2407,10 +2407,12 @@ const APP = {
 
     async function translateMany(values, onProgress) {
       const output = new Array(values.length).fill("");
-      const batches = makeTranslationBatches(values);
+      const batches = makeTranslationBatches(values, 3000);
       let completed = 0;
+      let cursor = 0;
+      const workers = Math.min(3, batches.length);
 
-      for (const batch of batches) {
+      async function translateBatch(batch) {
         const payload = batch.map(item =>
           `[[2MVC${String(item.index).padStart(4, "0")}]]\n${item.text}`
         ).join("\n");
@@ -2422,25 +2424,56 @@ const APP = {
           for (let i = 1; i < parts.length; i += 2) {
             mapped.set(Number(parts[i]), String(parts[i + 1] || "").trim());
           }
+          const missing = [];
           for (const item of batch) {
-            output[item.index] = mapped.get(item.index) || await googleTranslateText(item.text, "en", "es");
+            if (mapped.has(item.index)) output[item.index] = mapped.get(item.index);
+            else missing.push(item);
+          }
+          if (missing.length) {
+            const fallback = await workerTranslateBatch(missing.map(item => item.text));
+            missing.forEach((item, index) => output[item.index] = fallback[index] || item.text);
           }
         } catch {
-          for (const item of batch) {
-            output[item.index] = await googleTranslateText(item.text, "en", "es");
-          }
+          const fallback = await workerTranslateBatch(batch.map(item => item.text));
+          batch.forEach((item, index) => output[item.index] = fallback[index] || item.text);
         }
 
         completed += batch.length;
         onProgress?.(completed, values.length);
-        await new Promise(resolve => setTimeout(resolve, 80));
       }
+
+      async function runWorker() {
+        while (cursor < batches.length) {
+          const index = cursor++;
+          await translateBatch(batches[index]);
+          await new Promise(resolve => setTimeout(resolve, 60));
+        }
+      }
+
+      await Promise.all(Array.from({ length: workers }, runWorker));
       return output;
+    }
+
+
+    async function workerTranslateBatch(strings) {
+      const response = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "translate_batch",
+          strings
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success || !Array.isArray(data.result?.translations)) {
+        throw new Error(data.error || "No se pudo traducir el lote");
+      }
+      return data.result.translations;
     }
 
     async function translateChapterWithGoogle(chapter, entry) {
       if (APP.translationCache.has(entry.slug)) return APP.translationCache.get(entry.slug);
-      const stored = await translationDbGet(`chapter-object:${entry.slug}:v2`);
+      const stored = await translationDbGet(`chapter-object:${entry.slug}:v3`);
       if (stored) {
         APP.translationCache.set(entry.slug, stored);
         return stored;
@@ -2462,7 +2495,21 @@ const APP = {
         }
       }
 
-      for (const block of translated.orphan_content || []) addTarget(block.text, value => block.text = value);
+      for (const block of translated.orphan_content || []) {
+        addTarget(block.text, value => block.text = value);
+      }
+      for (let i = 0; i < (translated.unrecognized_headings || []).length; i++) {
+        addTarget(translated.unrecognized_headings[i], value => translated.unrecognized_headings[i] = value);
+      }
+      for (let i = 0; i < (translated.quality?.warnings || []).length; i++) {
+        addTarget(translated.quality.warnings[i], value => translated.quality.warnings[i] = value);
+      }
+      if (typeof translated.client_education_handout_available === "string") {
+        addTarget(
+          translated.client_education_handout_available,
+          value => translated.client_education_handout_available = value
+        );
+      }
       if (translated.credits?.acknowledgment) {
         addTarget(translated.credits.acknowledgment, value => translated.credits.acknowledgment = value);
       }
@@ -2471,7 +2518,7 @@ const APP = {
       translatedValues.forEach((value, index) => targets[index].setter(value));
 
       APP.translationCache.set(entry.slug, translated);
-      await translationDbSet(`chapter-object:${entry.slug}:v2`, translated);
+      await translationDbSet(`chapter-object:${entry.slug}:v3`, translated);
       return translated;
     }
 
@@ -2519,7 +2566,7 @@ const APP = {
         if (!main.present && !hasContent(main)) continue;
         lines.push(`\n# ${mainName}`);
         for (const block of main.content_blocks || []) {
-          lines.push(`${block.type === "bullet" ? "• " : ""}${block.text || ""}`);
+          if (block.text) lines.push(`${block.type === "bullet" ? "• " : ""}${block.text}`);
         }
         for (const [subName, sub] of Object.entries(main.subsections || {})) {
           if (sub.status === "missing") continue;
@@ -2529,12 +2576,13 @@ const APP = {
             continue;
           }
           for (const block of sub.content_blocks || []) {
+            if (!block.text) continue;
             const prefix = block.type === "bullet" ? "• " : block.type === "subheading" ? "### " : "";
-            lines.push(`${prefix}${block.text || ""}`);
+            lines.push(`${prefix}${block.text}`);
           }
         }
       }
-      return lines.join("\n").slice(0, 850000);
+      return lines.join("\n").replace(/\n{3,}/g, "\n\n").slice(0, 170000);
     }
 
     function chapterHeadings(chapter) {
@@ -2569,23 +2617,46 @@ const APP = {
           <div>
             <div class="ai-orbit"></div>
             <h3>${escapeHTML(message)}</h3>
-            <p>Gemini está analizando exclusivamente el contenido del capítulo.</p>
+            <p>Gemini está procesando el contenido clínico del capítulo.</p>
           </div>
         </div>`;
     }
 
-    async function requestGeminiLearning(action) {
+    async function requestGeminiLearning(action, options = {}) {
       const original = APP.currentOriginal || APP.current;
       if (!original || !APP.currentEntry) return;
+
       const isQuiz = action === "quiz";
+      const sourceText = chapterToStructuredText(original);
+      const sourceHash = fnv1a(sourceText);
+      const cacheKey = `ai:${action}:${APP.currentEntry.slug}:${sourceHash}:v2`;
+
+      if (!isQuiz && !options.force) {
+        const cached = await translationDbGet(cacheKey);
+        if (cached) {
+          openAiModal("⏱️ Estudiar en dos minutos", displayTitle(APP.currentEntry));
+          renderStudySummary(cached);
+          toast("Resumen recuperado de la caché");
+          return;
+        }
+      }
+
       openAiModal(
         isQuiz ? "🧠 Examen interactivo" : "⏱️ Estudiar en dos minutos",
         displayTitle(APP.currentEntry)
       );
       renderAiLoading(isQuiz ? "Creando 10 preguntas…" : "Creando el resumen científico…");
 
+      const startedAt = Date.now();
+      const timer = setInterval(() => {
+        const seconds = Math.round((Date.now() - startedAt) / 1000);
+        const paragraph = $("#aiModalBody .ai-loading p");
+        if (paragraph) paragraph.textContent = `Gemini está procesando el capítulo · ${seconds} s`;
+      }, 1000);
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
+      const timeout = setTimeout(() => controller.abort(), 50000);
+
       try {
         const response = await fetch(WORKER_URL, {
           method: "POST",
@@ -2593,25 +2664,37 @@ const APP = {
           body: JSON.stringify({
             action,
             title: original.title || APP.currentEntry.title,
-            content: chapterToStructuredText(original),
+            content: sourceText,
             headings: chapterHeadings(original),
-            outputLanguage: "es"
+            outputLanguage: "es",
+            variant: isQuiz ? crypto.randomUUID() : "summary-v2"
           }),
           signal: controller.signal
         });
         const data = await response.json();
-        if (!response.ok || !data.success) throw new Error(data.error || "Gemini no devolvió un resultado válido");
-        if (isQuiz) startQuiz(data.result);
-        else renderStudySummary(data.result);
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Gemini no devolvió un resultado válido");
+        }
+
+        if (isQuiz) {
+          startQuiz(data.result);
+        } else {
+          await translationDbSet(cacheKey, data.result);
+          renderStudySummary(data.result);
+        }
+
+        const duration = data.result?.meta?.durationMs;
+        toast(`Consulta completada${duration ? ` en ${(duration / 1000).toFixed(1)} s` : ""}`);
       } catch (error) {
         $("#aiModalBody").innerHTML = `
           <div class="ai-error">
             <h3>⚠ No se pudo completar la consulta</h3>
-            <p>${escapeHTML(error.name === "AbortError" ? "La solicitud superó el tiempo máximo." : error.message)}</p>
+            <p>${escapeHTML(error.name === "AbortError" ? "La solicitud superó los 50 segundos." : error.message)}</p>
             <button class="primary-btn" id="retryAi">Reintentar</button>
           </div>`;
-        $("#retryAi")?.addEventListener("click", () => requestGeminiLearning(action));
+        $("#retryAi")?.addEventListener("click", () => requestGeminiLearning(action, { force: true }));
       } finally {
+        clearInterval(timer);
         clearTimeout(timeout);
       }
     }
@@ -2681,7 +2764,7 @@ const APP = {
       const questions = Array.isArray(result.questions) ? result.questions.slice(0, 10) : [];
       if (questions.length !== 10) {
         $("#aiModalBody").innerHTML = `<div class="ai-error"><h3>Examen incompleto</h3><p>Gemini no devolvió exactamente 10 preguntas. Vuelve a intentarlo.</p><button class="primary-btn" id="retryExam">Generar otro examen</button></div>`;
-        $("#retryExam")?.addEventListener("click", () => requestGeminiLearning("quiz"));
+        $("#retryExam")?.addEventListener("click", () => requestGeminiLearning("quiz", { force: true }));
         return;
       }
       APP.quiz = { title: result.title || displayTitle(APP.currentEntry), questions, index: 0, score: 0, answered: false };
@@ -2773,7 +2856,7 @@ const APP = {
           </div>
         </div>`;
       $("#reviewTopicBtn")?.addEventListener("click", () => requestGeminiLearning("study_summary"));
-      $("#newQuizBtn")?.addEventListener("click", () => requestGeminiLearning("quiz"));
+      $("#newQuizBtn")?.addEventListener("click", () => requestGeminiLearning("quiz", { force: true }));
     }
 
     async function testLearningWorker() {
