@@ -4,12 +4,15 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000"
 ]);
 
-const VERSION = "7.0.0";
+const VERSION = "7.1.0";
 const DEFAULT_MODEL = "gemini-3.5-flash";
-const FALLBACK_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-latest"];
+const DEFAULT_LEARNING_MODEL = "gemini-3.1-flash-lite";
+const ECG_FALLBACK_MODELS = ["gemini-3.1-flash-lite"];
+const LEARNING_FALLBACK_MODELS = ["gemini-3.5-flash"];
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const MAX_BODY = 1_800_000;
-const MAX_CLINICAL_CONTENT = 900_000;
+const MAX_CLINICAL_CONTENT = 180_000;
+const MAX_TRANSLATION_CHARS = 55_000;
 
 export default {
   async fetch(request, env) {
@@ -26,7 +29,8 @@ export default {
         service: "Gemini veterinario: ECG y aprendizaje 2MVC",
         version: VERSION,
         model: env.GEMINI_MODEL || DEFAULT_MODEL,
-        actions: ["interpret_ecg", "study_summary", "quiz"]
+        learningModel: env.GEMINI_LEARNING_MODEL || DEFAULT_LEARNING_MODEL,
+        actions: ["interpret_ecg", "study_summary", "quiz", "translate_batch"]
       }, 200, cors);
     }
 
@@ -55,7 +59,10 @@ export default {
       const action = normalizeAction(input?.action);
       const task = prepareTask(action, input);
 
-      const models = unique([env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS]);
+      const models = action === "interpret_ecg"
+        ? unique([env.GEMINI_MODEL || DEFAULT_MODEL, ...ECG_FALLBACK_MODELS])
+        : unique([env.GEMINI_LEARNING_MODEL || DEFAULT_LEARNING_MODEL, ...LEARNING_FALLBACK_MODELS]);
+
       const payload = {
         contents: [{
           role: "user",
@@ -64,6 +71,9 @@ export default {
         generationConfig: {
           temperature: task.temperature,
           maxOutputTokens: task.maxOutputTokens,
+          thinkingConfig: {
+            thinkingLevel: task.thinkingLevel
+          },
           responseMimeType: "application/json",
           responseSchema: task.schema
         }
@@ -138,7 +148,7 @@ export default {
 
 function normalizeAction(action) {
   if (!action || action === "interpret-confirmed-trace") return "interpret_ecg";
-  if (["interpret_ecg", "study_summary", "quiz"].includes(action)) return action;
+  if (["interpret_ecg", "study_summary", "quiz", "translate_batch"].includes(action)) return action;
   throw new Error("Acción no válida");
 }
 
@@ -149,7 +159,19 @@ function prepareTask(action, input) {
       prompt: buildEcgPrompt(input),
       schema: ecgResponseSchema(),
       temperature: 0.1,
-      maxOutputTokens: 8192
+      maxOutputTokens: 6500,
+      thinkingLevel: "low"
+    };
+  }
+
+  if (action === "translate_batch") {
+    validateTranslationInput(input);
+    return {
+      prompt: buildTranslationPrompt(input),
+      schema: translationResponseSchema(),
+      temperature: 0,
+      maxOutputTokens: 7000,
+      thinkingLevel: "minimal"
     };
   }
 
@@ -158,16 +180,61 @@ function prepareTask(action, input) {
     return {
       prompt: buildStudyPrompt(input),
       schema: studyResponseSchema(),
-      temperature: 0.12,
-      maxOutputTokens: 12000
+      temperature: 0.1,
+      maxOutputTokens: 5200,
+      thinkingLevel: "minimal"
     };
   }
 
   return {
     prompt: buildQuizPrompt(input),
     schema: quizResponseSchema(),
-    temperature: 0.22,
-    maxOutputTokens: 12000
+    temperature: 0.18,
+    maxOutputTokens: 6500,
+    thinkingLevel: "minimal"
+  };
+}
+
+
+function validateTranslationInput(input) {
+  if (!input || typeof input !== "object") throw new Error("Solicitud de traducción vacía");
+  if (!Array.isArray(input.strings) || input.strings.length === 0) {
+    throw new Error("Faltan textos para traducir");
+  }
+  if (input.strings.length > 80) throw new Error("Demasiados textos en un lote");
+  const total = input.strings.reduce((sum, item) => sum + String(item || "").length, 0);
+  if (total > MAX_TRANSLATION_CHARS) throw new Error("Lote de traducción demasiado grande");
+}
+
+function buildTranslationPrompt(input) {
+  const strings = input.strings.map(item => clean(item, 12000));
+  return `
+Eres un traductor médico-veterinario profesional.
+Traduce del inglés al español todos los elementos del array de entrada.
+
+REGLAS OBLIGATORIAS
+1. Devuelve exactamente el mismo número de elementos y en el mismo orden.
+2. Traduce todo el contenido clínico al español natural y científico.
+3. Conserva exactamente nombres propios, nombres comerciales, abreviaturas, símbolos, dosis, cifras, unidades, vías y frecuencias.
+4. No resumas, no expliques, no añadas información y no elimines contenido.
+5. Conserva viñetas, signos y saltos internos cuando sean relevantes.
+6. Usa terminología veterinaria habitual en español.
+
+ARRAY DE ENTRADA
+${JSON.stringify(strings)}
+`;
+}
+
+function translationResponseSchema() {
+  return {
+    type: "OBJECT",
+    required: ["translations"],
+    properties: {
+      translations: {
+        type: "ARRAY",
+        items: { type: "STRING" }
+      }
+    }
   };
 }
 
@@ -317,7 +384,17 @@ function quizResponseSchema() {
 function sanitizeTaskResult(action, result) {
   if (action === "interpret_ecg") return sanitizeEcgResult(result);
   if (action === "study_summary") return sanitizeStudyResult(result);
+  if (action === "translate_batch") return sanitizeTranslationResult(result);
   return sanitizeQuizResult(result);
+}
+
+
+function sanitizeTranslationResult(result) {
+  return {
+    translations: Array.isArray(result?.translations)
+      ? result.translations.slice(0, 80).map(item => clean(item, 15000))
+      : []
+  };
 }
 
 function sanitizeStudyResult(result) {
@@ -517,16 +594,23 @@ async function callWithFallback(models, payload, apiKey) {
 
   for (const model of models) {
     attemptedModels.push(model);
-    for (const delay of [0, 1400, 3200]) {
-      if (delay) await sleep(delay);
-      const result = await callModel(model, payload, apiKey);
+
+    let result = await callModel(model, payload, apiKey);
+    if (result.ok) return { ok: true, model, raw: result.raw, attemptedModels };
+
+    lastStatus = result.status;
+    lastRaw = result.raw;
+
+    if (RETRYABLE.has(result.status)) {
+      await sleep(650);
+      result = await callModel(model, payload, apiKey);
       if (result.ok) return { ok: true, model, raw: result.raw, attemptedModels };
       lastStatus = result.status;
       lastRaw = result.raw;
-      if (result.status === 400 || result.status === 404) break;
-      if (!RETRYABLE.has(result.status)) {
-        return { ok: false, status: result.status, details: result.raw, attemptedModels };
-      }
+    }
+
+    if (![400, 404, 429, 500, 502, 503, 504].includes(result.status)) {
+      return { ok: false, status: result.status, details: result.raw, attemptedModels };
     }
   }
 
