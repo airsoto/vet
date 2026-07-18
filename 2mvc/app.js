@@ -1,7 +1,9 @@
 (async()=>{
   try{
     const parts=[
-      "bundle0.txt",
+      "bundle0a.txt",
+      "bundle0b.txt",
+      "bundle0c.txt",
       "bundle1.txt",
       "bundle2a.txt",
       "bundle2b.txt",
