@@ -6,13 +6,15 @@
       "bundle0c.txt",
       "bundle1.txt",
       "bundle2a.txt",
-      "bundle2b.txt",
-      "bundle2c.txt",
-      "bundle3a.txt",
-      "bundle3b1.txt",
-      "bundle3b2.txt",
-      "bundle3c1.txt",
-      "bundle3c2.txt"
+      "tail00.txt",
+      "tail01.txt",
+      "tail02_03.txt",
+      "tail04_05.txt",
+      "tail06_07.txt",
+      "tail08_09.txt",
+      "tail10_11.txt",
+      "tail12_13.txt",
+      "tail14.txt"
     ];
 
     const responses=await Promise.all(parts.map(async name=>{
