@@ -1,0 +1,72 @@
+name: Validate 2MVC
+
+on:
+  push:
+    paths:
+      - "2mvc/**"
+      - ".github/workflows/validate-2mvc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct application source
+        shell: bash
+        run: |
+          cat \
+            2mvc/bundle0a.txt \
+            2mvc/bundle0b.txt \
+            2mvc/bundle0c.txt \
+            2mvc/bundle1.txt \
+            2mvc/bundle2a.txt \
+            2mvc/tail00.txt \
+            2mvc/tail01.txt \
+            2mvc/tail02_03.txt \
+            2mvc/tail04_05.txt \
+            2mvc/tail06_07.txt \
+            2mvc/tail08_09.txt \
+            2mvc/tail10_11.txt \
+            2mvc/tail12_13.txt \
+            2mvc/tail14.txt \
+            | tr -d '\r\n ' \
+            | base64 --decode > /tmp/2mvc-app-source.js
+
+      - name: Validate JavaScript syntax and clinical catalogue
+        shell: bash
+        run: |
+          node --check /tmp/2mvc-app-source.js
+          node <<'NODE'
+          const fs = require('fs');
+          const source = fs.readFileSync('/tmp/2mvc-app-source.js', 'utf8');
+          const codes = source.match(/const SPECIALTY_CODES="([A-Q]+)";/)?.[1];
+          if (!codes || codes.length !== 843) {
+            throw new Error(`Expected 843 specialty assignments; received ${codes?.length || 0}`);
+          }
+          if (!source.includes('"Theriogenology":{label:"Teriogenología",icon:"theriogenology.png"}')) {
+            throw new Error('Theriogenology icon mapping is missing');
+          }
+          if (!source.includes('"../iconos/vet_calc_icons/"')) {
+            throw new Error('Primary icon directory is missing');
+          }
+          if (!source.includes('rich-specialties-843')) {
+            throw new Error('Enriched catalogue marker is missing');
+          }
+          console.log('2MVC catalogue validated:', codes.length, 'processes');
+          NODE
+
+      - name: Validate public entry files
+        shell: bash
+        run: |
+          test -s 2mvc/index.html
+          test -s 2mvc/app.css
+          test -s 2mvc/app.js
+          grep -q '¿qué quieres aprender hoy?' 2mvc/index.html
+          grep -q 'bundle0a.txt' 2mvc/app.js
+          grep -q 'tail14.txt' 2mvc/app.js
