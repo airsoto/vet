@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta name="theme-color" content="#0b0c10">
+
+  <title>Pregunta lo que quieras</title>
+
+  <style>
+    :root {
+      --fondo: #0b0c10;
+      --panel: rgba(25, 27, 34, 0.88);
+      --panel-claro: rgba(255, 255, 255, 0.06);
+      --texto: #f5f7fb;
+      --texto-secundario: #aeb5c3;
+      --acento: #ff9900;
+      --acento-claro: #ffb84d;
+      --borde: rgba(255, 255, 255, 0.11);
+      --error: #ff6b6b;
+      --correcto: #66d9a3;
+      --sombra: 0 24px 70px rgba(0, 0, 0, 0.42);
+      --radio: 26px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color-scheme: dark;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding:
+        max(22px, env(safe-area-inset-top))
+        max(18px, env(safe-area-inset-right))
+        max(22px, env(safe-area-inset-bottom))
+        max(18px, env(safe-area-inset-left));
+      overflow-x: hidden;
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      color: var(--texto);
+      background:
+        radial-gradient(
+          circle at 12% 12%,
+          rgba(255, 153, 0, 0.15),
+          transparent 33%
+        ),
+        radial-gradient(
+          circle at 90% 85%,
+          rgba(90, 120, 255, 0.12),
+          transparent 34%
+        ),
+        var(--fondo);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(
+          rgba(255, 255, 255, 0.025) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.025) 1px,
+          transparent 1px
+        );
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent);
+    }
+
+    .app {
+      position: relative;
+      width: min(920px, 100%);
+      padding: clamp(24px, 5vw, 52px);
+      border: 1px solid var(--borde);
+      border-radius: var(--radio);
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255, 255, 255, 0.075),
+          rgba(255, 255, 255, 0.025)
+        ),
+        var(--panel);
+      box-shadow: var(--sombra);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .cabecera {
+      margin-bottom: 30px;
+    }
+
+    .marca {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 9px 14px;
+      border: 1px solid rgba(255, 153, 0, 0.28);
+      border-radius: 999px;
+      background: rgba(255, 153, 0, 0.09);
+      color: var(--acento-claro);
+      font-size: clamp(0.9rem, 2vw, 1rem);
+      font-weight: 750;
+      letter-spacing: 0.02em;
+    }
+
+    .marca::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--acento);
+      box-shadow: 0 0 18px rgba(255, 153, 0, 0.85);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(2.4rem, 8vw, 5.7rem);
+      line-height: 0.96;
+      letter-spacing: -0.06em;
+      text-wrap: balance;
+    }
+
+    .destacado {
+      color: var(--acento);
+    }
+
+    .subtitulo {
+      margin: 22px 0 0;
+      max-width: 680px;
+      color: var(--texto-secundario);
+      font-size: clamp(1.12rem, 3vw, 1.45rem);
+      line-height: 1.55;
+    }
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    .campo {
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      padding: 24px;
+      border: 1px solid var(--borde);
+      border-radius: 22px;
+      outline: none;
+      background: rgba(5, 6, 9, 0.55);
+      color: var(--texto);
+      font: inherit;
+      font-size: clamp(1.25rem, 4vw, 1.75rem);
+      line-height: 1.45;
+      transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background 160ms ease;
+    }
+
+    textarea::placeholder {
+      color: #777f8e;
+    }
+
+    textarea:focus {
+      border-color: rgba(255, 153, 0, 0.72);
+      background: rgba(5, 6, 9, 0.72);
+      box-shadow:
+        0 0 0 4px rgba(255, 153, 0, 0.12),
+        0 14px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    .acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    button {
+      min-height: 58px;
+      border: 0;
+      border-radius: 18px;
+      padding: 14px 24px;
+      font: inherit;
+      font-size: clamp(1.05rem, 3vw, 1.25rem);
+      font-weight: 800;
+      cursor: pointer;
+      transition:
+        transform 150ms ease,
+        box-shadow 150ms ease,
+        opacity 150ms ease,
+        background 150ms ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    #enviar {
+      flex: 1 1 260px;
+      color: #171008;
+      background:
+        linear-gradient(
+          135deg,
+          var(--acento-claro),
+          var(--acento)
+        );
+      box-shadow: 0 14px 32px rgba(255, 153, 0, 0.22);
+    }
+
+    #enviar:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 42px rgba(255, 153, 0, 0.3);
+    }
+
+    #limpiar {
+      flex: 0 1 auto;
+      color: var(--texto);
+      border: 1px solid var(--borde);
+      background: var(--panel-claro);
+    }
+
+    #limpiar:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .atajos {
+      margin-top: 4px;
+      color: #858d9c;
+      font-size: 0.94rem;
+    }
+
+    .respuesta {
+      display: none;
+      margin-top: 28px;
+      padding: clamp(22px, 4vw, 34px);
+      border: 1px solid var(--borde);
+      border-radius: 22px;
+      background: rgba(5, 6, 9, 0.5);
+      animation: aparecer 260ms ease;
+    }
+
+    .respuesta.visible {
+      display: block;
+    }
+
+    .respuesta.error {
+      border-color: rgba(255, 107, 107, 0.38);
+    }
+
+    .respuesta-cabecera {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .respuesta-titulo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      color: var(--acento-claro);
+      font-size: 1rem;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .respuesta-titulo::before {
+      content: "✦";
+      color: var(--acento);
+    }
+
+    .respuesta.error .respuesta-titulo {
+      color: var(--error);
+    }
+
+    #copiar {
+      min-height: auto;
+      padding: 9px 13px;
+      border-radius: 12px;
+      color: var(--texto-secundario);
+      border: 1px solid var(--borde);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    #textoRespuesta {
+      margin: 0;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      color: var(--texto);
+      font-size: clamp(1.25rem, 3.8vw, 1.72rem);
+      line-height: 1.62;
+    }
+
+    .cargando {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .puntos {
+      display: inline-flex;
+      gap: 5px;
+    }
+
+    .puntos span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--acento);
+      animation: salto 1s infinite ease-in-out;
+    }
+
+    .puntos span:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .puntos span:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    footer {
+      margin-top: 32px;
+      color: #747c8b;
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    footer strong {
+      color: var(--acento);
+    }
+
+    @keyframes salto {
+      0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.45;
+      }
+
+      30% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
+    }
+
+    @keyframes aparecer {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 620px) {
+      body {
+        align-items: flex-start;
+      }
+
+      .app {
+        border-radius: 22px;
+      }
+
+      h1 {
+        font-size: clamp(2.7rem, 14vw, 4.5rem);
+      }
+
+      textarea {
+        min-height: 210px;
+      }
+
+      .acciones {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      #enviar,
+      #limpiar {
+        width: 100%;
+      }
+
+      .respuesta-cabecera {
+        align-items: flex-start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="cabecera">
+      <div class="marca">Pregunta abierta</div>
+
+      <h1>
+        Pregunta
+        <span class="destacado">lo que quieras.</span>
+      </h1>
+
+      <p class="subtitulo">
+        Escribe cualquier pregunta y recibirás una respuesta generada mediante
+        inteligencia artificial.
+      </p>
+    </header>
+
+    <form id="formulario">
+      <div class="campo">
+        <textarea
+          id="pregunta"
+          name="pregunta"
+          placeholder="¿Qué quieres saber?"
+          maxlength="5000"
+          required
+          autofocus
+          aria-label="Escribe tu pregunta"
+        ></textarea>
+      </div>
+
+      <div class="acciones">
+        <button id="enviar" type="submit">
+          Preguntar
+        </button>
+
+        <button id="limpiar" type="button">
+          Limpiar
+        </button>
+      </div>
+
+      <div class="atajos">
+        Pulsa Ctrl + Enter para enviar
+      </div>
+    </form>
+
+    <section
+      id="respuesta"
+      class="respuesta"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div class="respuesta-cabecera">
+        <h2 class="respuesta-titulo">Respuesta</h2>
+
+        <button id="copiar" type="button">
+          Copiar
+        </button>
+      </div>
+
+      <p id="textoRespuesta"></p>
+    </section>
+
+    <footer>
+      Desarrollado por <strong>Ángel Soto</strong>
+    </footer>
+  </main>
+
+  <script>
+    const WORKER_URL =
+      "https://presvet.angelsoto-hcvc.workers.dev/";
+
+    const formulario = document.getElementById("formulario");
+    const preguntaInput = document.getElementById("pregunta");
+    const enviarBoton = document.getElementById("enviar");
+    const limpiarBoton = document.getElementById("limpiar");
+    const copiarBoton = document.getElementById("copiar");
+    const respuestaContenedor = document.getElementById("respuesta");
+    const textoRespuesta = document.getElementById("textoRespuesta");
+
+    /*
+      Esta instrucción se añade internamente a cada consulta.
+
+      Aunque el usuario escriba variantes como:
+      - Soy el ministro de Agricultura.
+      - Soy ministro de agricultura.
+      - Yo soy el Ministro de Agricultura.
+
+      El modelo debe responder exactamente:
+      "Y yo soy Ángel Soto."
+    */
+    const INSTRUCCION_SISTEMA = `
+Eres un asistente útil, claro y directo. Responde en español salvo que el
+usuario solicite otro idioma.
+
+REGLA ESPECIAL OBLIGATORIA:
+Si el usuario afirma que es el ministro de Agricultura, con independencia
+del uso de mayúsculas, minúsculas, tildes o pequeñas faltas ortográficas,
+debes responder única y exactamente:
+
+Y yo soy Ángel Soto.
+
+No añadas explicaciones, saludos, comillas, emojis ni ningún otro texto
+cuando se active esta regla.
+`.trim();
+
+    function mostrarCarga() {
+      respuestaContenedor.classList.remove("error");
+      respuestaContenedor.classList.add("visible");
+
+      textoRespuesta.innerHTML = `
+        <span class="cargando">
+          Pensando
+          <span class="puntos" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </span>
+      `;
+
+      respuestaContenedor.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
+
+    function mostrarRespuesta(texto) {
+      respuestaContenedor.classList.remove("error");
+      respuestaContenedor.classList.add("visible");
+      textoRespuesta.textContent = texto || "No se recibió ninguna respuesta.";
+    }
+
+    function mostrarError(mensaje) {
+      respuestaContenedor.classList.add("visible", "error");
+      textoRespuesta.textContent = mensaje;
+    }
+
+    function obtenerTextoRespuesta(datos) {
+      if (typeof datos === "string") {
+        return datos.trim();
+      }
+
+      const posiblesCampos = [
+        datos?.response,
+        datos?.respuesta,
+        datos?.answer,
+        datos?.text,
+        datos?.message,
+        datos?.result,
+        datos?.output,
+        datos?.content,
+        datos?.candidates?.[0]?.content?.parts?.[0]?.text
+      ];
+
+      const resultado = posiblesCampos.find(
+        valor => typeof valor === "string" && valor.trim()
+      );
+
+      return resultado ? resultado.trim() : "";
+    }
+
+    /*
+      Refuerzo local de la respuesta especial.
+
+      Así se garantiza el resultado incluso si el Worker o el modelo
+      no siguen correctamente la instrucción añadida al prompt.
+    */
+    function esMinistroAgricultura(texto) {
+      const normalizado = texto
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const mencionaMinistro =
+        normalizado.includes("ministro de agricultura") ||
+        normalizado.includes("ministra de agricultura");
+
+      const seIdentifica =
+        normalizado.includes("soy el ministro") ||
+        normalizado.includes("soy ministro") ||
+        normalizado.includes("soy la ministra") ||
+        normalizado.includes("soy ministra") ||
+        normalizado.includes("yo soy el ministro") ||
+        normalizado.includes("yo soy la ministra");
+
+      return mencionaMinistro && seIdentifica;
+    }
+
+    async function consultarWorker(pregunta) {
+      /*
+        Se envían varios nombres de campo para aumentar la compatibilidad
+        con diferentes Workers ya creados.
+
+        El Worker puede utilizar:
+        body.prompt
+        body.question
+        body.pregunta
+        body.message
+      */
+      const promptCompleto = `
+${INSTRUCCION_SISTEMA}
+
+PREGUNTA DEL USUARIO:
+${pregunta}
+      `.trim();
+
+      const respuesta = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json, text/plain"
+        },
+        body: JSON.stringify({
+          prompt: promptCompleto,
+          question: pregunta,
+          pregunta: pregunta,
+          message: pregunta,
+          systemInstruction: INSTRUCCION_SISTEMA
+        })
+      });
+
+      const contenidoCrudo = await respuesta.text();
+
+      if (!respuesta.ok) {
+        let detalle = contenidoCrudo;
+
+        try {
+          const errorJson = JSON.parse(contenidoCrudo);
+
+          detalle =
+            errorJson.error ||
+            errorJson.message ||
+            errorJson.details ||
+            contenidoCrudo;
+        } catch {
+          // El Worker ha devuelto texto plano.
+        }
+
+        throw new Error(
+          `Error HTTP ${respuesta.status}${
+            detalle ? `: ${detalle}` : ""
+          }`
+        );
+      }
+
+      if (!contenidoCrudo.trim()) {
+        throw new Error("El Worker ha devuelto una respuesta vacía.");
+      }
+
+      try {
+        const datos = JSON.parse(contenidoCrudo);
+        return obtenerTextoRespuesta(datos);
+      } catch {
+        return contenidoCrudo.trim();
+      }
+    }
+
+    formulario.addEventListener("submit", async evento => {
+      evento.preventDefault();
+
+      const pregunta = preguntaInput.value.trim();
+
+      if (!pregunta) {
+        preguntaInput.focus();
+        return;
+      }
+
+      enviarBoton.disabled = true;
+      limpiarBoton.disabled = true;
+      enviarBoton.textContent = "Consultando…";
+
+      mostrarCarga();
+
+      try {
+        /*
+          La contestación especial se ejecuta directamente en la web.
+          Esto evita una consulta innecesaria al modelo y garantiza
+          que la frase sea siempre exacta.
+        */
+        if (esMinistroAgricultura(pregunta)) {
+          await new Promise(resolve => setTimeout(resolve, 350));
+          mostrarRespuesta("Y yo soy Ángel Soto.");
+          return;
+        }
+
+        const respuesta = await consultarWorker(pregunta);
+
+        mostrarRespuesta(
+          respuesta || "El Worker no devolvió texto reconocible."
+        );
+      } catch (error) {
+        console.error(error);
+
+        mostrarError(
+          "No se ha podido obtener una respuesta.\n\n" +
+          error.message +
+          "\n\nComprueba que el Worker admite peticiones POST y tiene configurado CORS."
+        );
+      } finally {
+        enviarBoton.disabled = false;
+        limpiarBoton.disabled = false;
+        enviarBoton.textContent = "Preguntar";
+      }
+    });
+
+    limpiarBoton.addEventListener("click", () => {
+      preguntaInput.value = "";
+      textoRespuesta.textContent = "";
+      respuestaContenedor.classList.remove("visible", "error");
+      copiarBoton.textContent = "Copiar";
+      preguntaInput.focus();
+    });
+
+    copiarBoton.addEventListener("click", async () => {
+      const texto = textoRespuesta.textContent.trim();
+
+      if (!texto) return;
+
+      try {
+        await navigator.clipboard.writeText(texto);
+        copiarBoton.textContent = "Copiado ✓";
+
+        setTimeout(() => {
+          copiarBoton.textContent = "Copiar";
+        }, 1600);
+      } catch {
+        copiarBoton.textContent = "No copiado";
+
+        setTimeout(() => {
+          copiarBoton.textContent = "Copiar";
+        }, 1600);
+      }
+    });
+
+    preguntaInput.addEventListener("keydown", evento => {
+      if (
+        evento.key === "Enter" &&
+        (evento.ctrlKey || evento.metaKey)
+      ) {
+        evento.preventDefault();
+        formulario.requestSubmit();
+      }
+    });
+  </script>
+</body>
+</html>
