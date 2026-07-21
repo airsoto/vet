@@ -1,1 +1,282 @@
 
+<!doctype html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Panel visual de estadísticas de visitas de los proyectos de Ángel Soto, generado a partir de exportaciones JSON de GoatCounter.">
+  <title>Estadísticas de visitas | Ángel Soto</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#07111f;--bg2:#0b192a;--panel:rgba(15,31,50,.84);--panel2:#142942;
+      --text:#f5f8ff;--muted:#9fb2ca;--line:rgba(255,255,255,.11);
+      --accent:#ff9900;--accent2:#00d7c7;--blue:#61a8ff;--purple:#9b86ff;
+      --green:#4de09b;--red:#ff6f7d;--yellow:#ffd166;--shadow:0 20px 55px rgba(0,0,0,.27);
+      --radius:22px;--font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    html[data-theme="light"]{
+      color-scheme:light;--bg:#edf4fb;--bg2:#f9fbfe;--panel:rgba(255,255,255,.9);--panel2:#edf4fb;
+      --text:#102238;--muted:#5e7187;--line:rgba(16,34,56,.12);--shadow:0 18px 45px rgba(38,68,102,.13);
+    }
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;min-height:100vh;font-family:var(--font);color:var(--text);line-height:1.5;background:radial-gradient(circle at 10% -5%,rgba(255,153,0,.18),transparent 32%),radial-gradient(circle at 95% 3%,rgba(0,215,199,.14),transparent 29%),linear-gradient(155deg,var(--bg),var(--bg2))}
+    button,input{font:inherit} button,a{-webkit-tap-highlight-color:transparent} a{color:inherit}
+    .shell{width:min(1500px,100%);margin:auto;padding:max(17px,env(safe-area-inset-top)) clamp(13px,3vw,34px) max(30px,env(safe-area-inset-bottom))}
+    .hero{position:relative;overflow:hidden;padding:clamp(22px,5vw,46px);border:1px solid var(--line);border-radius:30px;background:linear-gradient(135deg,rgba(255,153,0,.15),transparent 42%),linear-gradient(315deg,rgba(0,215,199,.11),transparent 45%),var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(14px)}
+    .hero:after{content:"";position:absolute;width:240px;height:240px;right:-105px;top:-105px;border-radius:50%;border:44px solid rgba(255,255,255,.025);pointer-events:none}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:9px;color:var(--accent2);font-size:.76rem;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
+    h1{max-width:940px;margin:0;font-size:clamp(2.15rem,7vw,4.8rem);line-height:.98;letter-spacing:-.055em}
+    .subtitle{max-width:830px;margin:16px 0 0;color:var(--muted);font-size:clamp(.98rem,2vw,1.12rem)}
+    .home a{display:inline-flex;align-items:center;gap:5px;color:var(--muted);text-decoration:none}.home a:hover{color:var(--text)}
+    .toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:28px}.periods{display:flex;flex-wrap:wrap;gap:8px}.actions{display:flex;gap:8px}
+    .btn,.period-btn{min-height:43px;border:1px solid var(--line);border-radius:13px;color:var(--text);background:rgba(255,255,255,.045);cursor:pointer;transition:.18s ease}.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;font-weight:780}.btn.icon{width:43px;padding:0}.btn:hover,.period-btn:hover{transform:translateY(-1px);border-color:rgba(255,153,0,.58)}.btn:disabled{opacity:.55;cursor:wait;transform:none}
+    .period-btn{min-width:58px;padding:9px 12px;font-size:.86rem;font-weight:830}.period-btn.active{color:#211403;border-color:var(--accent);background:var(--accent);box-shadow:0 8px 26px rgba(255,153,0,.22)}
+    .custom{display:none;grid-template-columns:1fr 1fr auto;gap:8px;width:min(620px,100%);margin-top:10px}.custom.visible{display:grid}.field{display:grid;gap:5px}.field label{font-size:.77rem;color:var(--muted);font-weight:760}input{width:100%;min-height:43px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--text);background:var(--panel2)}
+    main{margin-top:20px}.status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 2px 15px}.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.84rem}.dot{width:9px;height:9px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 5px rgba(255,209,102,.09)}.status.online .dot{background:var(--green);box-shadow:0 0 0 5px rgba(77,224,155,.1)}.status.error .dot{background:var(--red);box-shadow:0 0 0 5px rgba(255,111,125,.1)}.period-label{color:var(--muted);font-size:.83rem}
+    .privacy{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;margin-bottom:16px;padding:15px 17px;border:1px solid rgba(0,215,199,.22);border-radius:16px;background:rgba(0,215,199,.055);color:var(--muted);font-size:.86rem}.privacy strong{color:var(--text)}.privacy-icon{font-size:1.25rem}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.kpi,.card{border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(12px)}.kpi{min-height:150px;padding:19px;border-radius:var(--radius)}.kpi-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.kpi-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.055);font-size:1.25rem}.kpi-label{margin-top:13px;color:var(--muted);font-size:.79rem;font-weight:780;text-transform:uppercase;letter-spacing:.055em}.kpi-value{margin-top:2px;font-size:clamp(1.9rem,4vw,3rem);font-weight:900;line-height:1;letter-spacing:-.045em}.kpi-note{margin-top:9px;color:var(--muted);font-size:.8rem}.trend.up{color:var(--green)}.trend.down{color:var(--red)}.trend.flat{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:14px}.card{min-width:0;padding:clamp(17px,2.4vw,23px);border-radius:var(--radius)}.span12{grid-column:span 12}.span7{grid-column:span 7}.span6{grid-column:span 6}.span5{grid-column:span 5}.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:15px}.card-title{margin:0;font-size:1.08rem}.card-desc{margin:4px 0 0;color:var(--muted);font-size:.82rem}.badge{padding:6px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.73rem;font-weight:780;white-space:nowrap}.chart-wrap{position:relative;min-height:330px}canvas{display:block;width:100%}
+    .donut-layout{display:grid;grid-template-columns:minmax(175px,230px) 1fr;align-items:center;gap:16px}.donut-wrap{width:100%;max-width:230px;margin:auto}.legend{display:grid;gap:8px;min-width:0}.legend-item{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:.79rem}.legend-dot{width:9px;height:9px;border-radius:50%}.legend-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.legend-value{color:var(--muted);white-space:nowrap}
+    .bar-list{display:grid;gap:13px}.bar-item{min-width:0}.bar-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;font-size:.81rem}.bar-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}.bar-count{color:var(--muted);font-variant-numeric:tabular-nums}.bar-track,.mini-bar{display:block;overflow:hidden;height:8px;border-radius:999px;background:rgba(255,255,255,.065)}.bar-fill,.mini-bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .table-wrap{overflow:auto;max-height:610px}.pages-table{width:100%;border-collapse:collapse;font-size:.82rem}.pages-table th{position:sticky;top:0;z-index:2;padding:10px 8px;color:var(--muted);background:var(--panel);text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}.pages-table td{padding:11px 8px;border-top:1px solid var(--line);vertical-align:middle}.pages-table th:last-child,.pages-table td:last-child{text-align:right}.page-cell{display:grid;gap:3px;min-width:230px}.page-title{font-weight:760;text-decoration:none}.page-title:hover{color:var(--accent)}.page-path{max-width:540px;color:var(--muted);font-size:.73rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mini-bar{width:110px;height:7px}
+    .empty,.error-box{display:grid;place-items:center;min-height:170px;padding:20px;color:var(--muted);text-align:center;border:1px dashed var(--line);border-radius:15px}.error-box strong{color:var(--text)}.loading{min-height:170px;border-radius:15px;background:linear-gradient(100deg,rgba(255,255,255,.025) 30%,rgba(255,255,255,.075) 50%,rgba(255,255,255,.025) 70%);background-size:220% 100%;animation:shine 1.25s linear infinite}@keyframes shine{to{background-position:-220% 0}}
+    .tooltip{display:none;position:fixed;z-index:20;pointer-events:none;min-width:125px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);box-shadow:var(--shadow);font-size:.76rem}.tooltip span{color:var(--muted)}.tooltip strong{display:block;font-size:.92rem}.toast{position:fixed;z-index:30;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translate(-50%,25px);max-width:min(92vw,580px);padding:11px 15px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .footer{margin-top:22px;padding:25px 18px;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem;text-align:center}.footer a{color:var(--accent)}
+    @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.span7,.span5{grid-column:span 12}}
+    @media(max-width:760px){.span6{grid-column:span 12}.donut-layout{grid-template-columns:1fr}.legend{grid-template-columns:repeat(2,minmax(0,1fr))}.chart-wrap{min-height:285px}.toolbar{align-items:stretch}.actions{width:100%}.actions .btn:not(.icon){flex:1}}
+    @media(max-width:560px){.shell{padding-left:10px;padding-right:10px}.hero{border-radius:23px;padding:21px 17px}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi{min-height:139px;padding:15px}.grid{gap:10px}.card{padding:16px;border-radius:18px}.custom{grid-template-columns:1fr 1fr}.custom .btn{grid-column:1/-1}.legend{grid-template-columns:1fr}.pages-table th:nth-child(2),.pages-table td:nth-child(2){display:none}.btn-text{display:none}}
+    @media(max-width:390px){.kpis{grid-template-columns:1fr}.period-btn{min-width:52px;padding-inline:9px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div class="eyebrow">📊 Analítica web · datos locales</div>
+      <h1>Estadísticas de visitas</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+
+      <p class="subtitle">Panel construido directamente desde la exportación JSON de <strong>airsoto.goatcounter.com</strong>. No utiliza ni almacena claves API.</p>
+
+      <div class="toolbar">
+        <div>
+          <div class="periods" id="periods">
+            <button class="period-btn" data-period="1">Último día</button>
+            <button class="period-btn" data-period="7">7 días</button>
+            <button class="period-btn active" data-period="30">30 días</button>
+            <button class="period-btn" data-period="90">90 días</button>
+            <button class="period-btn" data-period="365">1 año</button>
+            <button class="period-btn" data-period="all">Todo</button>
+            <button class="period-btn" data-period="custom">Fechas</button>
+          </div>
+          <div class="custom" id="customDates">
+            <div class="field"><label for="dateStart">Desde</label><input id="dateStart" type="date"></div>
+            <div class="field"><label for="dateEnd">Hasta</label><input id="dateEnd" type="date"></div>
+            <button class="btn" id="applyDates">Aplicar fechas</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="refreshBtn">↻ <span class="btn-text">Recargar JSON</span></button>
+          <button class="btn" id="exportBtn">⇩ <span class="btn-text">CSV</span></button>
+          <button class="btn icon" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">☀️</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="status-row">
+        <div class="status" id="status"><span class="dot"></span><span id="statusText">Cargando archivos…</span></div>
+        <div class="period-label" id="periodLabel">—</div>
+      </div>
+
+      <aside class="privacy">
+        <div class="privacy-icon">🔐</div>
+        <div><strong>Sin clave API en el navegador.</strong> La página solo lee archivos estáticos situados en <code>json/visits/</code>. Ten en cuenta que, al publicarlos en GitHub Pages, cualquier visitante podrá descargar esos JSON y consultar sus estadísticas agregadas.</div>
+      </aside>
+
+      <section class="kpis">
+        <article class="kpi"><div class="kpi-top"><span class="kpi-icon">👁️</span></div><div class="kpi-label">Visitas a páginas</div><div class="kpi-value" id="kpiVisits">—</div><div class="kpi-note" id="kpiTrend">—</div></article>
+        <article class="kpi"><div class="kpi-top"><span class="kpi-icon">⚡</span></div><div class="kpi-label">Eventos</div><div class="kpi-value" id="kpiEvents">—</div><div class="kpi-note" id="kpiEventNote">—</div></article>
+        <article class="kpi"><div class="kpi-top"><span class="kpi-icon">📄</span></div><div class="kpi-label">Páginas activas</div><div class="kpi-value" id="kpiPages">—</div><div class="kpi-note">Con al menos una visita</div></article>
+        <article class="kpi"><div class="kpi-top"><span class="kpi-icon">📅</span></div><div class="kpi-label">Media diaria</div><div class="kpi-value" id="kpiAverage">—</div><div class="kpi-note" id="kpiBestDay">—</div></article>
+      </section>
+
+      <section class="grid">
+        <article class="card span12"><div class="card-head"><div><h2 class="card-title">Evolución del tráfico</h2><p class="card-desc">Suma de visitas registradas en cada día u hora.</p></div><span class="badge" id="trafficBadge">Por día</span></div><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Navegadores</h2><p class="card-desc">Versiones agrupadas por familia.</p></div></div><div class="donut-layout" id="browsersArea"><div class="loading"></div></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Sistemas operativos</h2><p class="card-desc">Versiones agrupadas por plataforma.</p></div></div><div class="donut-layout" id="systemsArea"><div class="loading"></div></div></article>
+        <article class="card span7"><div class="card-head"><div><h2 class="card-title">Páginas más visitadas</h2><p class="card-desc">Clasificación de los contenidos con mayor tráfico.</p></div></div><div class="table-wrap" id="pagesArea"><div class="loading"></div></div></article>
+        <article class="card span5"><div class="card-head"><div><h2 class="card-title">Países y regiones</h2><p class="card-desc">Procedencia geográfica agregada.</p></div></div><div id="locationsArea"><div class="loading"></div></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Fuentes de tráfico</h2><p class="card-desc">Referencias externas y accesos directos.</p></div></div><div id="refsArea"><div class="loading"></div></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Idiomas</h2><p class="card-desc">Idioma comunicado por el navegador.</p></div></div><div id="languagesArea"><div class="loading"></div></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Tipo de pantalla</h2><p class="card-desc">Agrupación según la anchura registrada.</p></div></div><div class="donut-layout" id="sizesArea"><div class="loading"></div></div></article>
+        <article class="card span6"><div class="card-head"><div><h2 class="card-title">Campañas</h2><p class="card-desc">Referencias marcadas como campañas por GoatCounter.</p></div></div><div id="campaignsArea"><div class="loading"></div></div></article>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (()=>{
+    'use strict';
+    const DATA_DIR='../json/visits';
+    const PUBLIC_ORIGIN='https://airsoto.github.io';
+    const FILES=['info.json','hit_stats.jsonl','language_stats.jsonl','size_stats.jsonl','location_stats.jsonl','system_stats.jsonl','browser_stats.jsonl','languages.jsonl','locations.jsonl','systems.jsonl','browsers.jsonl','refs.jsonl','paths.jsonl'];
+    const palette=['#ff9900','#00d7c7','#61a8ff','#9b86ff','#4de09b','#ff6f7d','#ffd166','#44c7f4','#c68cff','#8bd450'];
+    const nf=new Intl.NumberFormat('es-ES');
+    const compact=new Intl.NumberFormat('es-ES',{notation:'compact',maximumFractionDigits:1});
+    const dateFmt=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+    const shortFmt=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'short'});
+    const $=(s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+    const state={raw:null,maps:null,minDay:null,maxDay:null,start:null,end:null,period:'30',trafficPoints:[],hitAreas:[],loading:false,current:null,resizeTimer:null};
+
+    function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+    function fmt(v){return nf.format(Number(v)||0)} function fmtCompact(v){const n=Number(v)||0;return n<10000?fmt(n):compact.format(n)}
+    function parseDay(v){const [y,m,d]=String(v).slice(0,10).split('-').map(Number);return new Date(y,m-1,d)}
+    function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+    function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+    function startDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+    function endDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),23,59,59,999)}
+    function daysBetween(a,b){return Math.max(1,Math.floor((startDay(b)-startDay(a))/86400000)+1)}
+    function inRange(day,start=state.start,end=state.end){const k=String(day).slice(0,10);return k>=dayKey(start)&&k<=dayKey(end)}
+    function css(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}
+    function setStatus(type,text){$('#status').className=`status ${type||''}`.trim();$('#statusText').textContent=text}
+    function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),3300)}
+    function errorHtml(message){return `<div class="error-box"><div><strong>⚠️ No se pudieron leer los datos</strong><br>${esc(message)}<br><br>Comprueba que los archivos estén en <code>${DATA_DIR}/</code> y abre la página desde GitHub Pages o un servidor HTTP, no mediante <code>file://</code>.</div></div>`}
+
+    async function fetchFile(name,bust=false){
+      const url=new URL(`${DATA_DIR}/${name}`,document.baseURI);if(bust)url.searchParams.set('_',Date.now());
+      const res=await fetch(url,{cache:bust?'no-store':'default'});if(!res.ok)throw new Error(`${name}: HTTP ${res.status}`);
+      const text=await res.text();
+      if(name.endsWith('.json'))return JSON.parse(text);
+      const rows=[];for(const [i,line] of text.split(/\r?\n/).entries()){const s=line.trim();if(!s)continue;try{rows.push(JSON.parse(s))}catch(e){throw new Error(`${name}, línea ${i+1}: JSON no válido`)}}
+      return rows;
+    }
+
+    async function loadAll(bust=false){
+      if(state.loading)return;state.loading=true;$('#refreshBtn').disabled=true;setStatus('','Leyendo archivos JSON…');resetPanels();
+      try{
+        const entries=await Promise.all(FILES.map(async name=>[name,await fetchFile(name,bust)]));state.raw=Object.fromEntries(entries);
+        buildMaps();const hit=state.raw['hit_stats.jsonl'];if(!hit.length)throw new Error('hit_stats.jsonl no contiene registros.');
+        state.minDay=parseDay(hit[0].hour);state.maxDay=parseDay(hit[hit.length-1].hour);
+        setPeriod(state.period,false);render();
+        const created=state.raw['info.json']?.created_at?dateFmt.format(new Date(state.raw['info.json'].created_at)):null;
+        setStatus('online',`Datos cargados${created?` · exportación ${created}`:''}`);
+      }catch(e){console.error(e);setStatus('error','Error al cargar los JSON');showGlobalError(e.message||String(e));toast(e.message||'Error al cargar los datos')}
+      finally{state.loading=false;$('#refreshBtn').disabled=false}
+    }
+
+    function buildMaps(){
+      const r=state.raw;
+      state.maps={
+        paths:new Map(r['paths.jsonl'].map(x=>[x.id,x])),refs:new Map(r['refs.jsonl'].map(x=>[x.id,x])),
+        browsers:new Map(r['browsers.jsonl'].map(x=>[x.id,x])),systems:new Map(r['systems.jsonl'].map(x=>[x.id,x])),
+        languages:new Map(r['languages.jsonl'].map(x=>[x.iso_639_3,x.name||'(desconocido)'])),locations:new Map()
+      };
+      for(const x of r['locations.jsonl']){const key=x.country+(x.region?`-${x.region}`:'');state.maps.locations.set(key,x)}
+    }
+
+    function resetPanels(){['browsersArea','systemsArea','pagesArea','locationsArea','refsArea','languagesArea','sizesArea','campaignsArea'].forEach(id=>$(`#${id}`).innerHTML='<div class="loading"></div>');['kpiVisits','kpiEvents','kpiPages','kpiAverage'].forEach(id=>$(`#${id}`).textContent='—');clearCanvas($('#trafficChart'))}
+    function showGlobalError(message){['browsersArea','systemsArea','pagesArea','locationsArea','refsArea','languagesArea','sizesArea','campaignsArea'].forEach(id=>$(`#${id}`).innerHTML=errorHtml(message));$('#periodLabel').textContent='Archivos no disponibles'}
+
+    function setPeriod(period,doRender=true){
+      state.period=period;if(!state.maxDay)return;
+      if(period==='custom'){$('#customDates').classList.add('visible');$$('.period-btn').forEach(b=>b.classList.toggle('active',b.dataset.period===period));return}
+      $('#customDates').classList.remove('visible');state.end=endDay(state.maxDay);
+      state.start=period==='all'?startDay(state.minDay):startDay(addDays(state.maxDay,-(Number(period)-1)));
+      if(state.start<state.minDay)state.start=startDay(state.minDay);updatePeriodUi();if(doRender)render()
+    }
+    function updatePeriodUi(){$$('.period-btn').forEach(b=>b.classList.toggle('active',b.dataset.period===state.period));$('#dateStart').min=dayKey(state.minDay);$('#dateStart').max=dayKey(state.maxDay);$('#dateEnd').min=dayKey(state.minDay);$('#dateEnd').max=dayKey(state.maxDay);$('#dateStart').value=dayKey(state.start);$('#dateEnd').value=dayKey(state.end);$('#periodLabel').textContent=`${dateFmt.format(state.start)} — ${dateFmt.format(state.end)} · ${daysBetween(state.start,state.end)} días`}
+
+    function counter(rows,keyFn,filterFn=()=>true){const c=new Map();for(const row of rows){if(!filterFn(row))continue;const key=keyFn(row);c.set(key,(c.get(key)||0)+(Number(row.count)||0))}return c}
+    function entries(counterMap){return [...counterMap].map(([name,count])=>({name:String(name||'Desconocido'),count})).filter(x=>x.count>0).sort((a,b)=>b.count-a.count)}
+    function sumMap(m){let n=0;for(const v of m.values())n+=v;return n}
+
+    function aggregate(){
+      const r=state.raw,m=state.maps;
+      const hitRows=r['hit_stats.jsonl'].filter(x=>inRange(x.hour));
+      const pathCounts=counter(hitRows,x=>x.path_id);const refCounts=counter(hitRows,x=>x.ref_id);const daily=counter(hitRows,x=>String(x.hour).slice(0,10));const hourly=counter(hitRows,x=>String(x.hour).slice(0,13)+':00:00Z');
+      let visits=0,events=0;for(const [pid,count] of pathCounts){(m.paths.get(pid)?.event?events+=count:visits+=count)}
+      const pages=[...pathCounts].map(([pid,count])=>({...m.paths.get(pid),id:pid,count})).filter(x=>!x.event).sort((a,b)=>b.count-a.count);
+      const prevDays=daysBetween(state.start,state.end),prevEnd=endDay(addDays(state.start,-1)),prevStart=startDay(addDays(prevEnd,-(prevDays-1)));
+      let prevVisits=0;for(const x of r['hit_stats.jsonl']){if(!inRange(x.hour,prevStart,prevEnd))continue;if(!m.paths.get(x.path_id)?.event)prevVisits+=Number(x.count)||0}
+      const byBrowser=counter(r['browser_stats.jsonl'],x=>m.browsers.get(x.browser_id)?.name||'Desconocido',x=>inRange(x.day));
+      const bySystem=counter(r['system_stats.jsonl'],x=>m.systems.get(x.system_id)?.name||'Desconocido',x=>inRange(x.day));
+      const byLanguage=counter(r['language_stats.jsonl'],x=>m.languages.get(x.language)||x.language||'Desconocido',x=>inRange(x.day));
+      const byLocation=counter(r['location_stats.jsonl'],x=>locationLabel(x.location),x=>inRange(x.day));
+      const bySize=counter(r['size_stats.jsonl'],x=>screenGroup(Number(x.width)||0),x=>inRange(x.day));
+      const refGroups=new Map(),campaignGroups=new Map();
+      for(const [id,count] of refCounts){
+        const ref=m.refs.get(id),label=refLabel(ref);refGroups.set(label,(refGroups.get(label)||0)+count);
+        if(ref?.ref_scheme==='c'){const campaign=ref.ref||'Campaña sin nombre';campaignGroups.set(campaign,(campaignGroups.get(campaign)||0)+count)}
+      }
+      const refs=entries(refGroups);
+      const campaigns=entries(campaignGroups);
+      return {visits,events,pages,prevVisits,daily,hourly,browsers:entries(byBrowser),systems:entries(bySystem),languages:entries(byLanguage),locations:entries(byLocation),sizes:entries(bySize),refs,campaigns};
+    }
+
+    function locationLabel(code){if(!code)return 'Ubicación desconocida';const x=state.maps.locations.get(code);if(!x)return code;return x.region_name?`${x.country_name||x.country} · ${x.region_name}`:(x.country_name||x.country||code)}
+    function refLabel(x){if(!x||!x.ref)return 'Acceso directo / desconocido';if(x.ref_scheme==='c')return `Campaña: ${x.ref}`;return x.ref}
+    function screenGroup(w){if(!w)return 'Anchura desconocida';if(w<768)return 'Móvil (<768 px)';if(w<1024)return 'Tableta (768–1023 px)';if(w<1920)return 'Escritorio (1024–1919 px)';return 'Pantalla grande (≥1920 px)'}
+
+    function render(){if(!state.raw)return;updatePeriodUi();state.current=aggregate();renderKpis();renderTraffic();renderDonut('browsersArea','browserCanvas',state.current.browsers,'visitas');renderDonut('systemsArea','systemCanvas',state.current.systems,'visitas');renderPages();renderBars('locationsArea',state.current.locations,'No hay datos geográficos.');renderBars('refsArea',state.current.refs,'No hay referencias registradas.');renderBars('languagesArea',state.current.languages,'No hay datos de idioma.');renderDonut('sizesArea','sizeCanvas',state.current.sizes,'visitas');renderBars('campaignsArea',state.current.campaigns,'No se han registrado campañas en este periodo.')}
+    function renderKpis(){const d=state.current,days=daysBetween(state.start,state.end),avg=d.visits/days;$('#kpiVisits').textContent=fmtCompact(d.visits);$('#kpiEvents').textContent=fmtCompact(d.events);$('#kpiPages').textContent=fmt(d.pages.length);$('#kpiAverage').textContent=avg<10?avg.toFixed(1).replace('.',','):fmt(Math.round(avg));$('#kpiEventNote').textContent=d.events?`${((d.events/(d.visits+d.events))*100).toFixed(1).replace('.',',')} % de la actividad`:'Sin eventos';let trend='<span class="trend flat">Sin periodo previo comparable</span>';if(d.prevVisits>0){const p=(d.visits-d.prevVisits)/d.prevVisits*100;trend=`<span class="trend ${p>.05?'up':p<-.05?'down':'flat'}">${p>.05?'▲':p<-.05?'▼':'•'} ${Math.abs(p).toFixed(1).replace('.',',')} % frente al periodo anterior</span>`}$('#kpiTrend').innerHTML=trend;const best=[...d.daily].sort((a,b)=>b[1]-a[1])[0];$('#kpiBestDay').textContent=best?`Mejor día: ${shortFmt.format(parseDay(best[0]))} · ${fmt(best[1])}`:'Sin visitas'}
+
+    function trafficData(){const byHour=daysBetween(state.start,state.end)<=2;$('#trafficBadge').textContent=byHour?'Por hora':'Por día';const src=byHour?state.current.hourly:state.current.daily;return [...src].sort((a,b)=>a[0].localeCompare(b[0])).map(([key,value])=>{const date=new Date(byHour?key:`${key}T12:00:00`);return {date,value,label:byHour?`${shortFmt.format(date)} · ${String(date.getHours()).padStart(2,'0')}:00`:shortFmt.format(date)}})}
+    function setupCanvas(canvas,height){const dpr=Math.min(devicePixelRatio||1,2),width=Math.max(300,canvas.parentElement.clientWidth);canvas.style.height=`${height}px`;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,width,height}}
+    function clearCanvas(c){const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height)}
+    function niceMax(v){if(v<=5)return 5;const p=10**Math.floor(Math.log10(v)),n=v/p;return(n<=1?1:n<=2?2:n<=5?5:10)*p}
+    function renderTraffic(){state.trafficPoints=trafficData();drawLine($('#trafficChart'),state.trafficPoints)}
+    function drawLine(canvas,pts){const{ctx,width,height}=setupCanvas(canvas,innerWidth<690?280:330),pad={top:20,right:16,bottom:42,left:48},cw=width-pad.left-pad.right,ch=height-pad.top-pad.bottom;ctx.clearRect(0,0,width,height);if(!pts.length){ctx.fillStyle=css('--muted');ctx.textAlign='center';ctx.fillText('No hay visitas en este periodo',width/2,height/2);return}const max=niceMax(Math.max(...pts.map(p=>p.value),1));ctx.font='11px system-ui';ctx.strokeStyle=css('--line');ctx.fillStyle=css('--muted');ctx.textAlign='right';ctx.textBaseline='middle';for(let i=0;i<=4;i++){const y=pad.top+ch*i/4,val=Math.round(max*(1-i/4));ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(width-pad.right,y);ctx.stroke();ctx.fillText(fmtCompact(val),pad.left-8,y)}const xf=i=>pts.length===1?pad.left+cw/2:pad.left+cw*i/(pts.length-1),yf=v=>pad.top+ch-(v/max)*ch;const labels=Math.min(pts.length,innerWidth<690?4:7);ctx.textAlign='center';ctx.textBaseline='top';for(let i=0;i<labels;i++){const idx=Math.round(i*(pts.length-1)/Math.max(1,labels-1));ctx.fillText(pts[idx].label.split(' · ')[0],xf(idx),height-pad.bottom+13)}const fill=ctx.createLinearGradient(0,pad.top,0,pad.top+ch);fill.addColorStop(0,'rgba(255,153,0,.32)');fill.addColorStop(1,'rgba(0,215,199,.012)');ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(xf(i),yf(p.value)):ctx.moveTo(xf(i),yf(p.value)));ctx.lineTo(xf(pts.length-1),pad.top+ch);ctx.lineTo(xf(0),pad.top+ch);ctx.closePath();ctx.fillStyle=fill;ctx.fill();const stroke=ctx.createLinearGradient(pad.left,0,width-pad.right,0);stroke.addColorStop(0,css('--accent'));stroke.addColorStop(1,css('--accent2'));ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(xf(i),yf(p.value)):ctx.moveTo(xf(i),yf(p.value)));ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.lineJoin='round';ctx.stroke();state.hitAreas=pts.map((p,i)=>({x:xf(i),y:yf(p.value),p}));for(const a of state.hitAreas){ctx.beginPath();ctx.arc(a.x,a.y,pts.length>50?2:3.2,0,Math.PI*2);ctx.fillStyle=css('--panel2');ctx.fill();ctx.strokeStyle=css('--accent');ctx.lineWidth=1.7;ctx.stroke()}}
+
+    function normalize(items,limit=9){const arr=items.filter(x=>x.count>0).sort((a,b)=>b.count-a.count);if(arr.length<=limit)return arr;return [...arr.slice(0,limit-1),{name:'Otros',count:arr.slice(limit-1).reduce((s,x)=>s+x.count,0)}]}
+    function renderDonut(areaId,canvasId,raw,centerLabel){const area=$(`#${areaId}`),items=normalize(raw,8);if(!items.length){area.innerHTML='<div class="empty">No hay datos para este periodo.</div>';return}area.innerHTML=`<div class="donut-wrap"><canvas id="${canvasId}"></canvas></div><div class="legend" id="${canvasId}Legend"></div>`;drawDonut($(`#${canvasId}`),items,centerLabel);const total=items.reduce((s,x)=>s+x.count,0);$(`#${canvasId}Legend`).innerHTML=items.map((x,i)=>`<div class="legend-item"><span class="legend-dot" style="background:${palette[i%palette.length]}"></span><span class="legend-name" title="${esc(x.name)}">${esc(x.name)}</span><span class="legend-value">${fmt(x.count)} · ${((x.count/total)*100).toFixed(1).replace('.',',')} %</span></div>`).join('')}
+    function drawDonut(canvas,items,label){const size=Math.min(canvas.parentElement.clientWidth,230),{ctx,width,height}=setupCanvas(canvas,size),total=items.reduce((s,x)=>s+x.count,0),cx=width/2,cy=height/2,r=Math.min(width,height)*.39,inner=r*.63;let a=-Math.PI/2;ctx.clearRect(0,0,width,height);items.forEach((x,i)=>{const n=a+x.count/total*Math.PI*2;ctx.beginPath();ctx.arc(cx,cy,r,a+.012,n-.012);ctx.arc(cx,cy,inner,n-.012,a+.012,true);ctx.closePath();ctx.fillStyle=palette[i%palette.length];ctx.fill();a=n});ctx.fillStyle=css('--text');ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`850 ${Math.max(22,width*.12)}px system-ui`;ctx.fillText(fmtCompact(total),cx,cy-7);ctx.fillStyle=css('--muted');ctx.font=`700 ${Math.max(10,width*.047)}px system-ui`;ctx.fillText(label,cx,cy+19)}
+    function renderBars(id,raw,empty){const area=$(`#${id}`),items=normalize(raw,10);if(!items.length){area.innerHTML=`<div class="empty">${esc(empty)}</div>`;return}const max=Math.max(...items.map(x=>x.count),1);area.innerHTML=`<div class="bar-list">${items.map(x=>`<div class="bar-item"><div class="bar-meta"><span class="bar-name" title="${esc(x.name)}">${esc(x.name)}</span><span class="bar-count">${fmt(x.count)}</span></div><div class="bar-track"><span class="bar-fill" style="width:${Math.max(2,x.count/max*100).toFixed(2)}%"></span></div></div>`).join('')}</div>`}
+    function pageUrl(path){try{return new URL(path||'/',PUBLIC_ORIGIN).href}catch{return PUBLIC_ORIGIN}}
+    function renderPages(){const area=$('#pagesArea'),pages=state.current.pages.slice(0,30);if(!pages.length){area.innerHTML='<div class="empty">No hay páginas visitadas.</div>';return}const max=Math.max(...pages.map(x=>x.count),1);area.innerHTML=`<table class="pages-table"><thead><tr><th>Página</th><th>Actividad</th><th>Visitas</th></tr></thead><tbody>${pages.map((x,i)=>`<tr><td><div class="page-cell"><a class="page-title" href="${esc(pageUrl(x.path))}" target="_blank" rel="noopener">${i+1}. ${esc(x.title||x.path||'Página sin título')}</a><span class="page-path">${esc(x.path||'/')}</span></div></td><td><span class="mini-bar"><span style="width:${Math.max(2,x.count/max*100).toFixed(2)}%"></span></span></td><td><strong>${fmt(x.count)}</strong></td></tr>`).join('')}</tbody></table>`}
+
+    function exportCsv(){if(!state.current)return;const rows=[['posición','ruta','título','visitas'],...state.current.pages.map((x,i)=>[i+1,x.path||'',x.title||'',x.count])];const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(';')).join('\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`estadisticas_${dayKey(state.start)}_${dayKey(state.end)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500)}
+    function applyTheme(theme){document.documentElement.dataset.theme=theme;localStorage.setItem('visits_theme',theme);$('#themeBtn').textContent=theme==='light'?'🌙':'☀️';if(state.current)requestAnimationFrame(()=>{renderTraffic();renderDonut('browsersArea','browserCanvas',state.current.browsers,'visitas');renderDonut('systemsArea','systemCanvas',state.current.systems,'visitas');renderDonut('sizesArea','sizeCanvas',state.current.sizes,'visitas')})}
+    function pointer(e){if(!state.hitAreas.length)return;const rect=$('#trafficChart').getBoundingClientRect(),cx=e.touches?.[0]?.clientX??e.clientX,cy=e.touches?.[0]?.clientY??e.clientY,x=cx-rect.left,nearest=state.hitAreas.reduce((a,b)=>Math.abs(b.x-x)<Math.abs(a.x-x)?b:a),tip=$('#tooltip');tip.innerHTML=`<span>${esc(nearest.p.label)}</span><strong>${fmt(nearest.p.value)} visitas</strong>`;tip.style.display='block';tip.style.left=`${Math.min(innerWidth-155,Math.max(8,cx+12))}px`;tip.style.top=`${Math.min(innerHeight-75,Math.max(8,cy-62))}px`}
+
+    function bind(){
+      $('#periods').addEventListener('click',e=>{const b=e.target.closest('[data-period]');if(b)setPeriod(b.dataset.period)});
+      $('#applyDates').addEventListener('click',()=>{const a=parseDay($('#dateStart').value),b=parseDay($('#dateEnd').value);if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())||a>b){toast('Revisa las fechas seleccionadas.');return}if(a<state.minDay||b>state.maxDay){toast('Las fechas deben estar dentro del intervalo disponible.');return}state.start=startDay(a);state.end=endDay(b);state.period='custom';updatePeriodUi();render()});
+      $('#refreshBtn').addEventListener('click',()=>loadAll(true));$('#exportBtn').addEventListener('click',exportCsv);$('#themeBtn').addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light'));
+      const c=$('#trafficChart');c.addEventListener('mousemove',pointer);c.addEventListener('touchstart',pointer,{passive:true});c.addEventListener('mouseleave',()=>$('#tooltip').style.display='none');
+      addEventListener('resize',()=>{clearTimeout(state.resizeTimer);state.resizeTimer=setTimeout(()=>{if(state.current){renderTraffic();renderDonut('browsersArea','browserCanvas',state.current.browsers,'visitas');renderDonut('systemsArea','systemCanvas',state.current.systems,'visitas');renderDonut('sizesArea','sizeCanvas',state.current.sizes,'visitas')}},150)});
+    }
+    function init(){applyTheme(localStorage.getItem('visits_theme')||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));bind();loadAll()}
+    init();
+  })();
+  </script>
+</body>
+</html>
