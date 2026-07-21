@@ -4,7 +4,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000"
 ]);
 
-const VERSION = "7.1.0";
+const VERSION = "7.2.0";
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_LEARNING_MODEL = "gemini-3.1-flash-lite";
 const ECG_FALLBACK_MODELS = ["gemini-3.1-flash-lite"];
@@ -57,6 +57,13 @@ export default {
     try {
       const input = await request.json();
       const action = normalizeAction(input?.action);
+
+      // Cada examen recibe una variante nueva. Si el navegador envía una,
+      // se conserva; en caso contrario, el Worker la genera aquí.
+      if (action === "quiz") {
+        input.variant = clean(input.variant || crypto.randomUUID(), 160);
+      }
+
       const task = prepareTask(action, input);
 
       const models = action === "interpret_ecg"
@@ -70,6 +77,7 @@ export default {
         }],
         generationConfig: {
           temperature: task.temperature,
+          topP: task.topP,
           maxOutputTokens: task.maxOutputTokens,
           thinkingConfig: {
             thinkingLevel: task.thinkingLevel
@@ -130,6 +138,7 @@ export default {
         durationMs: Date.now() - started,
         analysisId,
         version: VERSION,
+        ...(action === "quiz" ? { quizVariant: input.variant } : {}),
         disclaimer: action === "interpret_ecg"
           ? "Interpretación orientativa basada en un trazado confirmado por el veterinario. No incluye tratamiento."
           : "Material docente generado exclusivamente a partir del capítulo enviado. Debe contrastarse con la fuente original."
@@ -159,6 +168,7 @@ function prepareTask(action, input) {
       prompt: buildEcgPrompt(input),
       schema: ecgResponseSchema(),
       temperature: 0.1,
+      topP: 0.9,
       maxOutputTokens: 6500,
       thinkingLevel: "low"
     };
@@ -170,6 +180,7 @@ function prepareTask(action, input) {
       prompt: buildTranslationPrompt(input),
       schema: translationResponseSchema(),
       temperature: 0,
+      topP: 0.9,
       maxOutputTokens: 7000,
       thinkingLevel: "minimal"
     };
@@ -181,6 +192,7 @@ function prepareTask(action, input) {
       prompt: buildStudyPrompt(input),
       schema: studyResponseSchema(),
       temperature: 0.1,
+      topP: 0.9,
       maxOutputTokens: 5200,
       thinkingLevel: "minimal"
     };
@@ -189,12 +201,12 @@ function prepareTask(action, input) {
   return {
     prompt: buildQuizPrompt(input),
     schema: quizResponseSchema(),
-    temperature: 0.18,
+    temperature: 0.9,
+    topP: 0.95,
     maxOutputTokens: 6500,
     thinkingLevel: "minimal"
   };
 }
-
 
 function validateTranslationInput(input) {
   if (!input || typeof input !== "object") throw new Error("Solicitud de traducción vacía");
@@ -290,25 +302,58 @@ FORMATO
 
 function buildQuizPrompt(input) {
   const title = clean(input.title, 500);
+  const variant = clean(input.variant || crypto.randomUUID(), 160);
 
   return `
 Eres un profesor universitario de medicina veterinaria.
-Crea un examen interactivo de exactamente 10 preguntas sobre: ${title}.
+Crea un examen NUEVO e interactivo de exactamente 10 preguntas sobre: ${title}.
+
+IDENTIFICADOR ÚNICO DE ESTA GENERACIÓN
+${variant}
+
+Este identificador cambia en cada solicitud. Debes utilizarlo como semilla
+conceptual para variar el enfoque, el orden, la selección de apartados,
+la formulación de las preguntas y los distractores.
 
 FUENTE ÚNICA
 ${String(input.content).slice(0, MAX_CLINICAL_CONTENT)}
 
-REGLAS
-1. Toda pregunta y toda respuesta deben poder justificarse directamente con la fuente. No añadas información externa.
+OBJETIVO DE VARIEDAD
+- Cada examen debe ser distinto del anterior.
+- Pueden repetirse las preguntas más esenciales o conceptos fundamentales.
+- Evita generar siempre la misma selección de preguntas.
+- Cambia el orden de los temas y la posición de las respuestas correctas.
+- Varía los distractores sin hacerlos ambiguos ni falsamente plausibles.
+- Cuando el contenido lo permita, incluye casos clínicos breves diferentes.
+
+DISTRIBUCIÓN ORIENTATIVA
+- 4 preguntas esenciales: conceptos fundamentales que pueden repetirse
+  parcialmente entre exámenes.
+- 6 preguntas variables: deben explorar apartados diferentes en cada
+  generación, escogidos entre fisiopatología, signos, causas, diagnóstico
+  diferencial, pruebas, tratamiento, medicaciones, dosis, contraindicaciones,
+  seguimiento, complicaciones y pronóstico.
+
+REGLAS OBLIGATORIAS
+1. Toda pregunta, opción y explicación debe poder justificarse directamente
+   con la fuente. No añadas información externa.
 2. Redacta todo en español científico claro.
-3. Cada pregunta debe tener exactamente cuatro respuestas posibles y una sola correcta.
-4. Evita preguntas ambiguas, dobles negaciones, trampas lingüísticas y opciones parcialmente correctas.
+3. Cada pregunta debe tener exactamente cuatro respuestas posibles y una
+   sola correcta.
+4. Evita preguntas ambiguas, dobles negaciones, trampas lingüísticas y
+   opciones parcialmente correctas.
 5. Mezcla dificultad básica, intermedia y avanzada.
-6. Distribuye las preguntas entre definición/fisiopatología, signos, causas, diagnóstico, pruebas, tratamiento, medicaciones, dosis, contraindicaciones, seguimiento, complicaciones y pronóstico, según el contenido disponible.
-7. Incluye varias preguntas sobre cifras, dosis, vías, frecuencias, duraciones o umbrales cuando aparezcan en la fuente, conservándolos exactamente.
-8. Alterna la posición de la respuesta correcta; no la coloques siempre en el mismo índice.
-9. Después de cada respuesta correcta proporciona una explicación breve y científica basada en la fuente.
-10. No menciones la fuente, el prompt ni que eres una IA.
+6. Incluye preguntas sobre cifras, dosis, vías, frecuencias, duraciones o
+   umbrales cuando aparezcan en la fuente, conservándolos exactamente.
+7. No inventes dosis, cifras, pruebas diagnósticas ni recomendaciones.
+8. Reparte la respuesta correcta entre los índices 0, 1, 2 y 3. No uses
+   siempre la misma posición.
+9. No generes dos preguntas que evalúen exactamente el mismo dato dentro
+   del mismo examen.
+10. Después de cada respuesta correcta proporciona una explicación breve,
+    científica y basada exclusivamente en la fuente.
+11. No menciones la fuente, el identificador, el prompt ni que eres una IA.
+12. Devuelve exactamente 10 preguntas.
 `;
 }
 
@@ -388,7 +433,6 @@ function sanitizeTaskResult(action, result) {
   return sanitizeQuizResult(result);
 }
 
-
 function sanitizeTranslationResult(result) {
   return {
     translations: Array.isArray(result?.translations)
@@ -442,8 +486,6 @@ function sanitizeQuizResult(result) {
     questions
   };
 }
-
-
 
 function corsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.has(origin) ? origin : "https://airsoto.github.io";
