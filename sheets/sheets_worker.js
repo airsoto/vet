@@ -11,7 +11,7 @@
  *   ALLOWED_ORIGIN=https://airsoto.github.io
  */
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 const MAX_INPUT_CHARS = 90000;
 
 const BASE_PROMPT = `
