@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+  <script defer src="goat.js"></script>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07111d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Aero Control 7</title>
+<script defer src="goat.js"></script>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#edf8ff;font-family:system-ui,-apple-system,sans-serif}body{display:grid;place-items:center}.box{text-align:center;padding:24px}.spinner{width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(255,255,255,.15);border-top-color:#65d8ff;border-radius:50%;animation:g .8s linear infinite}small{opacity:.7}button{margin-top:18px;padding:10px 16px;border:0;border-radius:12px;background:#65d8ff;color:#07111d;font-weight:800}@keyframes g{to{transform:rotate(360deg)}}</style>
+</head>
+<body>
+<div class="box"><div class="spinner"></div><small id="status">Cargando aeropuerto…</small></div>
+<script>
+(async()=>{
+ const status=document.getElementById('status'),version='20260722-10';
+ try{
+  const parts=[];
+  for(let i=0;i<8;i++){
+   status.textContent=`Cargando aeropuerto… ${i+1}/8`;
+   const r=await fetch(`data${i}.txt?v=${version}`,{cache:'no-store'});
+   if(!r.ok)throw new Error(`No se pudo cargar data${i}.txt (${r.status})`);
+   parts.push((await r.text()).replace(/\s+/g,''));
+  }
+  const binary=atob(parts.join('')),bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  status.textContent='Preparando simulador…';
+  await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=`https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js?v=${version}`;s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar el descompresor'));document.head.appendChild(s)});
+  let html=new TextDecoder('utf-8').decode(window.pako.ungzip(bytes));
+  if(!html||!html.includes('<canvas'))throw new Error('El archivo reconstruido no es válido');
+
+  const targetPatch=`function angleDifference(a,b){return Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)))}
+  function inspectRunwayTrace(route,c){
+    if(!route||route.length<2)return null;
+    if(c.helipad){const last=route[route.length-1],d=Math.hypot(last.x-c.entry.x,last.y-c.entry.y);return d<=55?{entryDistance:d,progress:1}:null}
+    const dx=c.exit.x-c.entry.x,dy=c.exit.y-c.entry.y,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+    let entryIndex=-1,entryDistance=Infinity;
+    for(let i=0;i<route.length;i++){
+      const d=Math.hypot(route[i].x-c.entry.x,route[i].y-c.entry.y);
+      if(d<entryDistance){entryDistance=d;entryIndex=i}
+    }
+    if(entryDistance>42||entryIndex<0)return null;
+    let maxProgress=-Infinity,bestLateral=Infinity;
+    for(let i=entryIndex;i<route.length;i++){
+      const rx=route[i].x-c.entry.x,ry=route[i].y-c.entry.y;
+      const progress=rx*ux+ry*uy,lateral=Math.abs(rx*uy-ry*ux);
+      if(lateral<=34&&progress>maxProgress){maxProgress=progress;bestLateral=lateral}
+    }
+    const required=len*.25;
+    if(maxProgress<required)return{entryDistance,progress:maxProgress,required,incomplete:true};
+    return{entryDistance,progress:maxProgress,required,lateral:bestLateral};
+  }
+  function findCompatibleTarget(p,group,route=[]){
+    let best=null,bestScore=Infinity,bestEntry=null,bestExit=null,bestAngle=0,bestTrace=null;
+    for(const r of airport.runways){
+      const candidates=r.helipad?[{entry:r.threshold,exit:r.threshold,angle:0,helipad:true}]:[{entry:r.threshold,exit:r.end,angle:r.angle},{entry:r.end,exit:r.threshold,angle:Math.atan2(r.threshold.y-r.end.y,r.threshold.x-r.end.x)}];
+      for(const c of candidates){
+        const trace=inspectRunwayTrace(route,c);
+        if(!trace)continue;
+        const score=trace.entryDistance+(trace.incomplete?500:0);
+        if(score<bestScore){bestScore=score;best=r;bestEntry=c.entry;bestExit=c.exit;bestAngle=c.angle;bestTrace=trace}
+      }
+    }
+    if(!best)return null;
+    if(best.group!==group)return{wrong:best,d:bestTrace.entryDistance};
+    if(best.closed)return{closed:best,d:bestTrace.entryDistance};
+    if(bestTrace.incomplete)return{short:best,d:bestTrace.entryDistance,progress:bestTrace.progress,required:bestTrace.required};
+    return{runway:best,d:bestTrace.entryDistance,entry:{...bestEntry},exit:{...bestExit},angle:bestAngle,aligned:true}
+  }
+  function clearRunwayGuidance(a){if(!a)return;a.routeBlink=false;a.routeConfirmed=false;a.confirmedRunwayLabel='';for(const r of airport.runways)if(r.guidanceAircraft===a.id){r.guidanceAircraft=null;r.guidanceColor=null;r.guidanceEntry=null;r.guidanceExit=null;r.confirmFlashUntil=0}}
+
+  `;
+  html=html.replace(/function findCompatibleTarget\(p,group\)\s*\{[\s\S]*?\n\s*function beginLanding\(a,runway\)\s*\{/,' '+targetPatch+'function beginLanding(a,runway) {');
+  html=html.replace("a.state='landing'; a.x=runway.threshold.x; a.y=runway.threshold.y; a.heading=runway.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [runway.threshold] : [runway.threshold,runway.end];","const plan=a.landingPlan||{entry:runway.threshold,exit:runway.end,angle:runway.angle};\n    a.state='landing'; a.x=plan.entry.x; a.y=plan.entry.y; a.heading=plan.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [plan.entry] : [plan.entry,plan.exit];");
+  html=html.replace('const match=findCompatibleTarget(last,a.group);','const match=findCompatibleTarget(last,a.group,a.route);');
+  html=html.replace("const r=match.runway;appendRoutePoint(a,{x:r.threshold.x,y:r.threshold.y},7);a.assigned=r.id;a.routeIndex=Math.max(1,a.routeIndex);a.routeMode='drawn';","const r=match.runway;a.assigned=r.id;a.landingPlan={entry:{...match.entry},exit:{...match.exit},angle:match.angle};a.routeIndex=Math.max(1,a.routeIndex);a.routeMode='drawn';r.guidanceAircraft=a.id;r.guidanceColor=a.color;r.guidanceEntry={...match.entry};r.guidanceExit={...match.exit};r.confirmFlashUntil=mapTime+1000;a.routeBlink=true;a.routeConfirmed=true;a.confirmedRunwayLabel=r.label||r.id;");
+  html=html.replace("} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else {","} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else if(match?.short){\n      a.assigned=null;showToast(`${a.callsign}: continúe el trazo por el primer cuarto de pista`,'bad');tone('warn');\n    } else if(match?.misaligned){\n      a.assigned=null;showToast(`${a.callsign}: alinee el tramo final con la pista`,'bad');tone('warn');\n    } else {");
+  html=html.replace('function completeLanding(a,runway) {\n    landed++;','function completeLanding(a,runway) {\n    clearRunwayGuidance(a);a.landingPlan=null;\n    landed++;');
+  html=html.replace("const c=colorForGroup(r.group);\n    ctx.fillStyle=c;ctx.globalAlpha=.9;ctx.fillRect(-4,-w/2,7,w);ctx.globalAlpha=1;\n    ctx.restore();","const c=colorForGroup(r.group);\n    ctx.fillStyle=c;ctx.globalAlpha=.9;ctx.fillRect(-4,-w/2,7,w);ctx.globalAlpha=1;\n    if(r.confirmFlashUntil>mapTime&&Math.floor(mapTime/125)%2===0){const fc=r.guidanceColor||c;ctx.save();ctx.globalCompositeOperation='lighter';ctx.fillStyle=fc;ctx.globalAlpha=.38;ctx.shadowColor=fc;ctx.shadowBlur=compactDevice?14:28;roundedRect(ctx,-8,-w/2,len+16,w,7);ctx.fill();ctx.restore()}\n    if(r.guidanceAircraft&&r.guidanceColor){const reverse=r.guidanceEntry&&Math.hypot(r.guidanceEntry.x-r.end.x,r.guidanceEntry.y-r.end.y)<8,t=(mapTime*.00034)%1,localX=reverse?len*(1-t):len*t,glow=8+5*Math.sin(mapTime*.012);ctx.save();ctx.globalCompositeOperation='lighter';ctx.shadowColor=r.guidanceColor;ctx.shadowBlur=compactDevice?10:18;ctx.fillStyle=r.guidanceColor;ctx.globalAlpha=.98;ctx.beginPath();ctx.arc(localX,0,4.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.22;ctx.beginPath();ctx.arc(localX,0,glow,0,Math.PI*2);ctx.fill();ctx.restore()}\n    ctx.restore();");
+  html=html.replace("ctx.save();ctx.globalAlpha=a.state==='crashed'?a.crashAlpha:1;ctx.translate(a.x,a.y);ctx.rotate(a.heading);","const routeBlinkOff=a.routeBlink&&Math.floor(mapTime/500)%2===1;\n    if(a.routeConfirmed){const pulse=22+4*Math.sin(mapTime*.009),markColor=a.color||colorForGroup(a.group);ctx.save();ctx.translate(a.x,a.y);ctx.globalCompositeOperation='lighter';ctx.strokeStyle=markColor;ctx.lineWidth=compactDevice?2:2.5;ctx.globalAlpha=.75;ctx.shadowColor=markColor;ctx.shadowBlur=compactDevice?8:16;ctx.beginPath();ctx.arc(0,0,pulse,0,Math.PI*2);ctx.stroke();ctx.globalCompositeOperation='source-over';ctx.shadowBlur=0;ctx.fillStyle=markColor;ctx.globalAlpha=.96;ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('✓',0,-pulse-7);ctx.font='bold 9px system-ui';ctx.fillText(a.confirmedRunwayLabel||'OK',0,pulse+10);ctx.restore()}\n    ctx.save();ctx.globalAlpha=(a.state==='crashed'?a.crashAlpha:1)*(routeBlinkOff?.12:1);ctx.translate(a.x,a.y);ctx.rotate(a.heading);");
+  html=html.replace("selected=a;a.selected=true;a.route=[{x:a.x,y:a.y}];a.routeIndex=1;a.routeMode='drawn';a.assigned=null;","clearRunwayGuidance(a);selected=a;a.selected=true;a.route=[{x:a.x,y:a.y}];a.routeIndex=1;a.routeMode='drawn';a.assigned=null;");
+  html=html.replace("if(incidents>=3 && !pendingGameOver){pendingGameOver=true;setTimeout(()=>{if(gameState==='playing')endGame();},1200);}","if(incidents>2 && !pendingGameOver){pendingGameOver=true;showToast('TERCER CHOQUE · REINICIANDO NIVEL','bad');setTimeout(()=>{if(gameState==='playing')startLevel();},1400);}");
+  html=html.replace("if(incidents>=3 && !pendingGameOver){\n      pendingGameOver=true;\n      setTimeout(()=>{if(gameState==='playing')endGame();},1450);\n    }","if(incidents>2 && !pendingGameOver){\n      pendingGameOver=true;\n      showToast('TERCER CHOQUE · REINICIANDO NIVEL','bad');\n      setTimeout(()=>{if(gameState==='playing')startLevel();},1600);\n    }");
+  html=html.replace("ui.incidentValue.textContent='●'.repeat(incidents)+'○'.repeat(Math.max(0,3-incidents));","ui.incidentValue.textContent='●'.repeat(Math.min(incidents,2))+'○'.repeat(Math.max(0,2-incidents));");
+
+  const responsiveCss=`
+    html,body,#app{width:100%;height:100%;height:100dvh}
+    #gameCanvas{contain:strict;will-change:contents}
+    @media(pointer:fine){#gameCanvas{cursor:crosshair}.icon-btn:hover{background:rgba(255,255,255,.095);transform:translateY(-1px)}#departureBtn:hover:not(:disabled){filter:brightness(1.08)}}
+    @media(pointer:coarse){.glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(7,20,32,.94)}button{touch-action:manipulation}.icon-btn{min-width:44px;min-height:44px}}
+    @media(pointer:coarse) and (orientation:landscape) and (max-height:500px){#hud{height:46px;gap:4px}.hud-brand,.hud-stats,.hud-actions{min-height:42px;border-radius:13px}.hud-brand{padding:4px 6px}.logo-mark{width:31px;height:31px;border-radius:10px;font-size:14px}.hud-stats{padding:3px;gap:1px}.stat{min-width:55px;padding:4px 6px}.stat b{font-size:13px}.stat small{font-size:7px;margin-top:3px}.hud-stats .stat:nth-child(3){display:none}.hud-actions{padding:2px;gap:2px}.icon-btn{width:40px;height:40px;min-width:40px;min-height:40px}#departureBtn{min-width:145px;height:48px;border-radius:14px;padding:5px 10px;grid-template-columns:28px 1fr auto}.depart-icon{font-size:19px}.depart-copy strong{font-size:10px}.depart-copy small{font-size:8px}#hintBar{max-width:44vw;min-height:30px;padding:6px 10px;font-size:8px}#toast{top:calc(var(--safe-top) + 52px);font-size:10px;padding:8px 12px}.menu-minimal{padding:12px 14px 10px;gap:8px 12px}#levelGrid{gap:4px}.level-card,.level-card[data-level="7"]{min-height:56px}}
+    @media(orientation:portrait) and (max-width:900px) and (pointer:fine){#rotateOverlay{display:none!important}}
+    @media(prefers-reduced-motion:reduce){.rotate-phone{animation:none!important}#toast{transition:none}}
+  `;
+  html=html.replace('</style>',responsiveCss+'</style>');
+  html=html.replace("let view = { cssW:innerWidth, cssH:innerHeight, dpr:1, scale:1, ox:0, oy:0 };","const coarsePointer=window.matchMedia?.('(pointer:coarse)').matches??false;\n  const compactDevice=coarsePointer&&Math.min(innerWidth,innerHeight)<=520;\n  let view = { cssW:innerWidth, cssH:innerHeight, dpr:1, scale:1, ox:0, oy:0 };\n  let resizeRaf=0,lastRenderAt=0;");
+  html=html.replace(/  function resize\(\) \{[\s\S]*?\n  \}\n\n  function setWorldTransform\(\)/,`  function resize() {
+    const rect=canvas.getBoundingClientRect();
+    view.cssW=Math.max(1,Math.round(rect.width));view.cssH=Math.max(1,Math.round(rect.height));
+    const area=view.cssW*view.cssH;
+    const maxDpr=compactDevice?(area>650000?1.25:1.45):coarsePointer?1.6:(area>1800000?1.35:area>1000000?1.6:2);
+    view.dpr=Math.min(maxDpr,window.devicePixelRatio||1);
+    const nextW=Math.max(1,Math.round(view.cssW*view.dpr)),nextH=Math.max(1,Math.round(view.cssH*view.dpr));
+    if(canvas.width!==nextW||canvas.height!==nextH){canvas.width=nextW;canvas.height=nextH;ctx.imageSmoothingEnabled=true;}
+    view.scale=Math.min(view.cssW/WORLD.w,view.cssH/WORLD.h);
+    view.ox=(view.cssW-WORLD.w*view.scale)/2;view.oy=(view.cssH-WORLD.h*view.scale)/2;
+  }
+
+  function setWorldTransform()`);
+  html=html.replace(/  function findAircraftAt\(p\) \{[\s\S]*?\n  \}\n\n  function appendRoutePoint/,`  function findAircraftAt(p) {
+    let best=null,bestD=Infinity;
+    const baseRadius=coarsePointer?76:54;
+    for(const a of aircraft){
+      if(a.state!=='air'||a.remove)continue;
+      const d=Math.hypot(a.x-p.x,a.y-p.y);
+      if(d<Math.max(baseRadius,a.size*(coarsePointer?3.2:2.5))&&d<bestD){best=a;bestD=d;}
+    }
+    return best;
+  }
+
+  function appendRoutePoint`);
+  html=html.replace("if(d<3)return;\n    const steps=Math.max(1,Math.ceil(d/spacing));\n    for(let i=1;i<=steps;i++){\n      if(a.route.length>=720)break;","if(d<(coarsePointer?2.2:3))return;\n    const steps=Math.max(1,Math.ceil(d/spacing));\n    const routeLimit=compactDevice?520:720;\n    for(let i=1;i<=steps;i++){\n      if(a.route.length>=routeLimit)break;");
+  html=html.replace("canvas.addEventListener('pointerdown',e=>{\n    if(gameState!=='playing')return;","canvas.addEventListener('pointerdown',e=>{\n    if(gameState!=='playing'||!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;");
+  html=html.replace("e.preventDefault(); pointerId=e.pointerId;canvas.setPointerCapture?.(pointerId);","e.preventDefault();pointerId=e.pointerId;canvas.setPointerCapture?.(pointerId);");
+  html=html.replace("canvas.addEventListener('pointermove',e=>{\n    if(!selected||e.pointerId!==pointerId||gameState!=='playing')return;\n    e.preventDefault();const p=screenToWorld(e);p.x=clamp(p.x,-20,WORLD.w+20);p.y=clamp(p.y,-20,WORLD.h+20);\n    appendRoutePoint(selected,p,7);\n  },{passive:false});","canvas.addEventListener('pointermove',e=>{\n    if(!selected||e.pointerId!==pointerId||gameState!=='playing')return;\n    e.preventDefault();\n    const samples=e.getCoalescedEvents?.()||[e],spacing=coarsePointer?5:7;\n    for(const sample of samples){const p=screenToWorld(sample);p.x=clamp(p.x,-20,WORLD.w+20);p.y=clamp(p.y,-20,WORLD.h+20);appendRoutePoint(selected,p,spacing);}\n  },{passive:false});");
+  html=html.replace("ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();","const routeDrawStep=compactDevice?3:coarsePointer?2:1;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i+=routeDrawStep)ctx.lineTo(pts[i].x,pts[i].y);const routeLast=pts[pts.length-1];ctx.lineTo(routeLast.x,routeLast.y);ctx.stroke();");
+  html=html.replace("ctx.shadowColor=a.color;ctx.shadowBlur=9;","ctx.shadowColor=a.color;ctx.shadowBlur=compactDevice?4:coarsePointer?6:9;");
+  html=html.replace("ctx.shadowColor=a.warning?COLORS.warning:c;ctx.shadowBlur=a.warning?18:10;","ctx.shadowColor=a.warning?COLORS.warning:c;ctx.shadowBlur=compactDevice?(a.warning?10:4):(a.warning?18:10);");
+  html=html.replace("canvas.addEventListener('pointercancel',finishPointer,{passive:false});","canvas.addEventListener('pointercancel',finishPointer,{passive:false});\n  canvas.addEventListener('lostpointercapture',finishPointer,{passive:false});\n  canvas.addEventListener('contextmenu',e=>e.preventDefault());");
+  html=html.replace("window.addEventListener('resize',resize,{passive:true});\n  window.addEventListener('orientationchange',()=>setTimeout(resize,120),{passive:true});",`function scheduleResize(){if(resizeRaf)return;resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;resize();});}
+  window.addEventListener('resize',scheduleResize,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(scheduleResize,100),{passive:true});
+  window.visualViewport?.addEventListener('resize',scheduleResize,{passive:true});
+  window.visualViewport?.addEventListener('scroll',scheduleResize,{passive:true});
+
+  document.addEventListener('keydown',e=>{
+    if(e.repeat||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||''))return;
+    if(e.code==='Space'){e.preventDefault();gameState==='playing'?pauseGame():gameState==='paused'&&resumeGame();}
+    else if(e.code==='Escape'){gameState==='playing'?pauseGame():gameState==='paused'&&resumeGame();}
+    else if(e.code==='KeyD'&&gameState==='playing'&&!ui.departureBtn.disabled)authorizeDeparture();
+    else if(e.code==='KeyR'&&(gameState==='playing'||gameState==='paused'))startLevel();
+    else if(e.code==='KeyN')setTimeMode(isNight()?'day':'night');
+    else if(e.code==='KeyM'){soundEnabled=!soundEnabled;safeStorage.setItem('aero7_sound',soundEnabled?'on':'off');ui.soundBtn.textContent=soundEnabled?'♪':'×';if(soundEnabled)tone('tap');}
+  });`);
+  html=html.replace(/  function frame\(now\) \{[\s\S]*?\n  \}\n\n  \/\/ ---------- Inicio ----------/,`  function frame(now) {
+    const dt=Math.min(.034,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
+    if(gameState==='playing')update(dt);
+    else {mapTime+=dt*1000;updateAmbience(dt);updateEffects(dt);}
+    const minRenderGap=coarsePointer?15.5:0;
+    if(!minRenderGap||now-lastRenderAt>=minRenderGap){render();lastRenderAt=now;}
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Inicio ----------`);
+  html=html.replace("buildLevelMenu();\n  level=LEVELS[0];airport=buildAirport('mega');seedAmbience();resize();\n  ui.soundBtn.textContent=soundEnabled?'♪':'×';","document.documentElement.classList.toggle('coarse-input',coarsePointer);\n  buildLevelMenu();\n  level=LEVELS[0];airport=buildAirport('mega');seedAmbience();resize();\n  ui.hintBar.textContent=coarsePointer?'Toca un avión y dibuja hasta entrar un cuarto en su pista':'Haz clic en un avión y arrastra hasta entrar un cuarto en su pista · Espacio: pausa';\n  ui.soundBtn.textContent=soundEnabled?'♪':'×';");
+
+  document.open();document.write(html);document.close();
+ }catch(e){console.error(e);document.body.innerHTML=`<div class="box"><strong>No se pudo cargar el simulador</strong><br><small>${String(e.message||e)}</small><br><button onclick="location.href=location.pathname+'?v=${version}'">Reintentar</button></div>`}
+})();
+</script>
+</body>
+</html>
