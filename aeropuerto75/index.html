@@ -1,1 +1,53 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#07111d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>Aero Control 7</title><style>html,body{margin:0;width:100%;height:100%;display:grid;place-items:center;background:#07111d;color:#edf8ff;font-family:system-ui}small{opacity:.65}</style></head><body><small>Cargando aeropuerto…</small><script>(async()=>{try{const names=Array.from({length:8},(_,i)=>`data${i}.txt`);const parts=await Promise.all(names.map(n=>fetch(n,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(n);return r.text()})));const s=atob(parts.join('').trim()),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);const t=await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();document.open();document.write(t);document.close()}catch(e){document.body.innerHTML='<p>No se pudo cargar el simulador.</p>';console.error(e)}})();</script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07111d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Aero Control 7</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#edf8ff;font-family:system-ui,-apple-system,sans-serif}body{display:grid;place-items:center}.box{text-align:center;padding:24px}.spinner{width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(255,255,255,.15);border-top-color:#65d8ff;border-radius:50%;animation:g .8s linear infinite}small{opacity:.7}button{margin-top:18px;padding:10px 16px;border:0;border-radius:12px;background:#65d8ff;color:#07111d;font-weight:800}@keyframes g{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="box"><div class="spinner"></div><small id="status">Cargando aeropuerto…</small></div>
+<script>
+(async()=>{
+ const status=document.getElementById('status');
+ const version='20260722-2';
+ try{
+  const parts=[];
+  for(let i=0;i<8;i++){
+   status.textContent=`Cargando aeropuerto… ${i+1}/8`;
+   const r=await fetch(`data${i}.txt?v=${version}`,{cache:'no-store'});
+   if(!r.ok)throw new Error(`No se pudo cargar data${i}.txt (${r.status})`);
+   parts.push((await r.text()).trim());
+  }
+  const binary=atob(parts.join(''));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  let html;
+  if('DecompressionStream' in window){
+   const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+   html=await new Response(stream).text();
+  }else{
+   status.textContent='Preparando compatibilidad…';
+   await new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js';
+    s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
+   });
+   html=new TextDecoder().decode(window.pako.ungzip(bytes));
+  }
+  if(!html||!html.includes('<canvas'))throw new Error('El archivo reconstruido no es válido');
+  document.open();document.write(html);document.close();
+ }catch(e){
+  console.error(e);
+  document.body.innerHTML=`<div class="box"><strong>No se pudo cargar el simulador</strong><br><small>${String(e.message||e)}</small><br><button onclick="location.reload()">Reintentar</button></div>`;
+ }
+})();
+</script>
+</body>
+</html>
