@@ -7,16 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Aero Control 7</title>
-<style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#edf8ff;font-family:system-ui,-apple-system,sans-serif}body{display:grid;place-items:center}.box{text-align:center;padding:24px}.spinner{width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(255,255,255,.15);border-top-color:#65d8ff;border-radius:50%;animation:g .8s linear infinite}small{opacity:.7}button{margin-top:18px;padding:10px 16px;border:0;border-radius:12px;background:#65d8ff;color:#07111d;font-weight:800}@keyframes g{to{transform:rotate(360deg)}}
-</style>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#edf8ff;font-family:system-ui,-apple-system,sans-serif}body{display:grid;place-items:center}.box{text-align:center;padding:24px}.spinner{width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(255,255,255,.15);border-top-color:#65d8ff;border-radius:50%;animation:g .8s linear infinite}small{opacity:.7}button{margin-top:18px;padding:10px 16px;border:0;border-radius:12px;background:#65d8ff;color:#07111d;font-weight:800}@keyframes g{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
 <div class="box"><div class="spinner"></div><small id="status">Cargando aeropuerto…</small></div>
 <script>
 (async()=>{
- const status=document.getElementById('status');
- const version='20260722-4';
+ const status=document.getElementById('status'),version='20260722-5';
  try{
   const parts=[];
   for(let i=0;i<8;i++){
@@ -25,22 +22,41 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;col
    if(!r.ok)throw new Error(`No se pudo cargar data${i}.txt (${r.status})`);
    parts.push((await r.text()).replace(/\s+/g,''));
   }
-  const binary=atob(parts.join(''));
-  const bytes=new Uint8Array(binary.length);
+  const binary=atob(parts.join('')),bytes=new Uint8Array(binary.length);
   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
   status.textContent='Preparando simulador…';
-  await new Promise((resolve,reject)=>{
-   const s=document.createElement('script');
-   s.src=`https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js?v=${version}`;
-   s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar el descompresor'));document.head.appendChild(s);
-  });
-  const html=new TextDecoder('utf-8').decode(window.pako.ungzip(bytes));
+  await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=`https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js?v=${version}`;s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar el descompresor'));document.head.appendChild(s)});
+  let html=new TextDecoder('utf-8').decode(window.pako.ungzip(bytes));
   if(!html||!html.includes('<canvas'))throw new Error('El archivo reconstruido no es válido');
+
+  const targetPatch=`function angleDifference(a,b){return Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)))}
+  function findCompatibleTarget(p,group,route=[]){
+    let best=null,bestD=Infinity,bestEntry=null,bestExit=null,bestAngle=0;
+    for(const r of airport.runways){
+      const candidates=r.helipad?[{entry:r.threshold,exit:r.threshold,angle:0}]:[{entry:r.threshold,exit:r.end,angle:r.angle},{entry:r.end,exit:r.threshold,angle:Math.atan2(r.threshold.y-r.end.y,r.threshold.x-r.end.x)}];
+      for(const c of candidates){const d=Math.hypot(p.x-c.entry.x,p.y-c.entry.y);if(d<bestD){bestD=d;best=r;bestEntry=c.entry;bestExit=c.exit;bestAngle=c.angle}}
+    }
+    if(!best||bestD>145)return null;
+    let aligned=true;
+    if(!best.helipad&&route.length>=2){const from=route[Math.max(0,route.length-12)],to=route[route.length-1],approach=Math.atan2(to.y-from.y,to.x-from.x);aligned=angleDifference(approach,bestAngle)<.82}
+    if(best.group!==group)return{wrong:best,d:bestD};
+    if(best.closed)return{closed:best,d:bestD};
+    if(!aligned)return{misaligned:best,d:bestD};
+    return{runway:best,d:bestD,entry:{...bestEntry},exit:{...bestExit},angle:bestAngle,aligned:true}
+  }
+  function clearRunwayGuidance(a){if(!a)return;for(const r of airport.runways)if(r.guidanceAircraft===a.id){r.guidanceAircraft=null;r.guidanceColor=null;r.guidanceEntry=null;r.guidanceExit=null}}
+
+  `;
+  html=html.replace(/function findCompatibleTarget\(p,group\)\s*\{[\s\S]*?\n\s*function beginLanding\(a,runway\)\s*\{/,' '+targetPatch+'function beginLanding(a,runway) {');
+  html=html.replace("a.state='landing'; a.x=runway.threshold.x; a.y=runway.threshold.y; a.heading=runway.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [runway.threshold] : [runway.threshold,runway.end];","const plan=a.landingPlan||{entry:runway.threshold,exit:runway.end,angle:runway.angle};\n    a.state='landing'; a.x=plan.entry.x; a.y=plan.entry.y; a.heading=plan.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [plan.entry] : [plan.entry,plan.exit];");
+  html=html.replace('const match=findCompatibleTarget(last,a.group);','const match=findCompatibleTarget(last,a.group,a.route);');
+  html=html.replace("const r=match.runway;appendRoutePoint(a,{x:r.threshold.x,y:r.threshold.y},7);a.assigned=r.id;a.routeIndex=Math.max(1,a.routeIndex);a.routeMode='drawn';","const r=match.runway;appendRoutePoint(a,match.entry,7);a.assigned=r.id;a.landingPlan={entry:{...match.entry},exit:{...match.exit},angle:match.angle};a.routeIndex=Math.max(1,a.routeIndex);a.routeMode='drawn';r.guidanceAircraft=a.id;r.guidanceColor=a.color;r.guidanceEntry={...match.entry};r.guidanceExit={...match.exit};");
+  html=html.replace("} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else {","} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else if(match?.misaligned){\n      a.assigned=null;showToast(`${a.callsign}: alinee el tramo final con la pista`,'bad');tone('warn');\n    } else {");
+  html=html.replace('function completeLanding(a,runway) {\n    landed++;','function completeLanding(a,runway) {\n    clearRunwayGuidance(a);a.landingPlan=null;\n    landed++;');
+  html=html.replace("const c=colorForGroup(r.group);\n    ctx.fillStyle=c;ctx.globalAlpha=.9;ctx.fillRect(-4,-w/2,7,w);ctx.globalAlpha=1;\n    ctx.restore();","const c=colorForGroup(r.group);\n    ctx.fillStyle=c;ctx.globalAlpha=.9;ctx.fillRect(-4,-w/2,7,w);ctx.globalAlpha=1;\n    if(r.guidanceAircraft&&r.guidanceColor){const reverse=r.guidanceEntry&&Math.hypot(r.guidanceEntry.x-r.end.x,r.guidanceEntry.y-r.end.y)<8,t=(mapTime*.00034)%1,localX=reverse?len*(1-t):len*t,glow=8+5*Math.sin(mapTime*.012);ctx.save();ctx.globalCompositeOperation='lighter';ctx.shadowColor=r.guidanceColor;ctx.shadowBlur=18;ctx.fillStyle=r.guidanceColor;ctx.globalAlpha=.98;ctx.beginPath();ctx.arc(localX,0,4.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.22;ctx.beginPath();ctx.arc(localX,0,glow,0,Math.PI*2);ctx.fill();ctx.restore()}\n    ctx.restore();");
+
   document.open();document.write(html);document.close();
- }catch(e){
-  console.error(e);
-  document.body.innerHTML=`<div class="box"><strong>No se pudo cargar el simulador</strong><br><small>${String(e.message||e)}</small><br><button onclick="location.href=location.pathname+'?v=${version}'">Reintentar</button></div>`;
- }
+ }catch(e){console.error(e);document.body.innerHTML=`<div class="box"><strong>No se pudo cargar el simulador</strong><br><small>${String(e.message||e)}</small><br><button onclick="location.href=location.pathname+'?v=${version}'">Reintentar</button></div>`}
 })();
 </script>
 </body>
