@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f3ead2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Crayon Orbit — Dibuja. Construye. Resuelve.</title>
+<title>Crayon Pysics —</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f3ead2'/%3E%3Cpath d='M10 43 Q24 16 53 28' stroke='%232d5f86' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='42' r='8' fill='%23dd594d'/%3E%3Cpath d='M49 14l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z' fill='%23e7b541'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -101,8 +101,8 @@ body.large-ui{--ui-scale:1.16;font-size:calc(16px * var(--ui-scale))}body.high-c
 <section id="homeScreen" class="screen active" aria-label="Portada">
   <div class="hero paper-card">
     <div class="logo-orbit"><div class="logo-ball"></div><div class="logo-star">★</div></div>
-    <h1>CRAYON<br>ORBIT</h1>
-    <div class="tagline">DIBUJA · CONSTRUYE · RESUELVE</div>
+    <h1>CRAYON<br>PHYSICS</h1>
+    <div class="tagline"></div>
     <div class="home-actions">
       <button class="crayon-btn primary wide" data-nav="mapScreen">▶ Campaña</button>
       <button class="crayon-btn green" id="sandboxBtn">∞ Modo libre</button>
@@ -348,47 +348,341 @@ class LevelManager{
 }
 
 class PhysicsWorld{
-  constructor(app){this.app=app;this.engine=M.Engine.create({enableSleeping:true});this.world=this.engine.world;this.engine.positionIterations=8;this.engine.velocityIterations=7;this.engine.constraintIterations=4;this.bodies=new Map();this.userConstraints=[];this.staticConstraints=[];this.pivots=[];this.anchors=[];this.ball=null;this.stars=[];this.ballStart={x:100,y:100};this.boundBodies=[];this.lastRocketSound=0;M.Events.on(this.engine,'collisionStart',e=>this.onCollisions(e.pairs))}
-  clear(){M.World.clear(this.world,false);M.Engine.clear(this.engine);this.bodies.clear();this.userConstraints=[];this.staticConstraints=[];this.pivots=[];this.anchors=[];this.ball=null;this.stars=[];this.boundBodies=[]}
-  addBody(body,visual={}){body.plugin=body.plugin||{};body.plugin.visual=visual;body.plugin.uid=visual.uid||uid();this.bodies.set(body.plugin.uid,body);M.World.add(this.world,body);return body}
-  addPlatform(p){const b=M.Bodies.rectangle(p.x,p.y,p.w,p.h,{isStatic:true,angle:p.a||0,friction:.85,restitution:.05,label:'platform'});return this.addBody(b,{type:'platform',color:'#2d5f86',w:p.w,h:p.h,static:true})}
-  addBall(x,y){const b=M.Bodies.circle(x,y,22,{label:'ball',friction:.025,frictionAir:.006,restitution:.28,density:.0035});this.ball=this.addBody(b,{type:'ball',color:'#dd594d',r:22});this.ballStart={x,y};return b}
-  addStar(s){const b=M.Bodies.circle(s.x,s.y,s.r||22,{isStatic:true,isSensor:true,label:'star'});b.plugin.collected=false;this.stars.push(this.addBody(b,{type:'star',color:'#e7b541',r:s.r||22}));return b}
-  addBlock(bd,isUser=false){const b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',friction:.7,restitution:.08,density:clamp((bd.mass||5)/50000,.001,.02)});if(bd.mass)M.Body.setMass(b,bd.mass);return this.addBody(b,{type:isUser?'box':'block',color:isUser?'#4e8b68':'#526f84',w:bd.w,h:bd.h,user:isUser,ink:bd.ink||0})}
-  addWheel(w,isUser=false){const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel',friction:.7,frictionStatic:1,restitution:.12,density:.003});return this.addBody(b,{type:'wheel',color:isUser?'#4e8b68':'#76558e',r:w.r,user:isUser,ink:w.ink||0})}
-  addRocket(r,isUser=false){const b=M.Bodies.rectangle(r.x,r.y,r.w||80,r.h||28,{angle:r.a||0,label:'rocket',friction:.5,restitution:.08,density:.003});b.plugin.rocket={fuel:r.fuel||240,max:r.fuel||240,active:false,thrust:.0009};return this.addBody(b,{type:'rocket',color:'#d97836',w:r.w||80,h:r.h||28,user:isUser,ink:r.ink||0})}
-  makeBounds(enabled=true){this.boundBodies.forEach(b=>M.World.remove(this.world,b));this.boundBodies=[];if(!enabled)return;const arr=[M.Bodies.rectangle(-30,H/2,60,H*2,{isStatic:true,label:'bound'}),M.Bodies.rectangle(W+30,H/2,60,H*2,{isStatic:true,label:'bound'}),M.Bodies.rectangle(W/2,H+35,W*2,70,{isStatic:true,label:'bound'})];arr.forEach(b=>{this.boundBodies.push(b);M.World.add(this.world,b)})}
-  createStroke(points,{user=true,color='#4e8b68',ink=0,closed=false}={}){
-    if(points.length<2)return null;const simp=this.simplify(points,5);if(simp.length<2)return null;
-    if(closed&&dist(simp[0],simp[simp.length-1])<50){
-      const verts=simp.slice(0,-1);if(verts.length>=3){try{const cx=verts.reduce((a,p)=>a+p.x,0)/verts.length,cy=verts.reduce((a,p)=>a+p.y,0)/verts.length;const rel=verts.map(p=>({x:p.x-cx,y:p.y-cy}));const b=M.Bodies.fromVertices(cx,cy,[rel],{label:user?'user':'shape',friction:.7,restitution:.08,density:.003},true);if(b){const body=this.addBody(b,{type:'shape',color,user,ink,points:rel});return body}}catch(e){}}
-    }
-    const parts=[];for(let i=1;i<simp.length;i++){const a=simp[i-1],b=simp[i],len=dist(a,b);if(len<8)continue;parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,len,16,{angle:Math.atan2(b.y-a.y,b.x-a.x),friction:.8,restitution:.06,density:.0025}))}
-    if(!parts.length)return null;const body=M.Body.create({parts,label:user?'user':'stroke',friction:.8,restitution:.06});const local=simp.map(p=>({x:p.x-body.position.x,y:p.y-body.position.y}));return this.addBody(body,{type:'stroke',color,user,ink,points:local})
+  constructor(app){
+    this.app=app;
+    this.engine=M.Engine.create({enableSleeping:true});
+    this.world=this.engine.world;
+    this.engine.positionIterations=10;
+    this.engine.velocityIterations=8;
+    this.engine.constraintIterations=6;
+    this.engine.gravity.scale=.001;
+    this.fixedDelta=1000/120;
+    this.accumulator=0;
+    this.maxSubSteps=6;
+    this.bodies=new Map();
+    this.userConstraints=[];
+    this.staticConstraints=[];
+    this.pivots=[];
+    this.anchors=[];
+    this.ball=null;
+    this.stars=[];
+    this.ballStart={x:100,y:100};
+    this.boundBodies=[];
+    this.lastRocketSound=0;
+    M.Events.on(this.engine,'collisionStart',e=>this.onCollisions(e.pairs));
   }
-  simplify(points,tol=5){if(points.length<=2)return points.slice();const sq=tol*tol;const out=[points[0]];let prev=points[0];for(let i=1;i<points.length-1;i++){const p=points[i];if((p.x-prev.x)**2+(p.y-prev.y)**2>sq){out.push(p);prev=p}}out.push(points[points.length-1]);return out}
+  clear(){
+    M.World.clear(this.world,false);
+    M.Engine.clear(this.engine);
+    this.accumulator=0;
+    this.bodies.clear();
+    this.userConstraints=[];
+    this.staticConstraints=[];
+    this.pivots=[];
+    this.anchors=[];
+    this.ball=null;
+    this.stars=[];
+    this.boundBodies=[];
+  }
+  applyMaterial(body,props={}){
+    const all=body.parts?.length>1?body.parts:[body];
+    for(const part of all){
+      if(props.friction!=null)part.friction=props.friction;
+      if(props.frictionStatic!=null)part.frictionStatic=props.frictionStatic;
+      if(props.frictionAir!=null)part.frictionAir=props.frictionAir;
+      if(props.restitution!=null)part.restitution=props.restitution;
+      if(props.slop!=null)part.slop=props.slop;
+      if(props.sleepThreshold!=null)part.sleepThreshold=props.sleepThreshold;
+    }
+    Object.assign(body,props);
+    return body;
+  }
+  staticSolids(){return [...this.bodies.values()].filter(b=>b.isStatic&&!b.isSensor&&b.label!=='bound').concat(this.boundBodies)}
+  separateFromStatics(body,maxPasses=5){
+    if(!body||body.isStatic||body.isSensor)return;
+    const statics=this.staticSolids();
+    if(!statics.length)return;
+    for(let pass=0;pass<maxPasses;pass++){
+      const hits=M.Query.collides(body,statics).filter(c=>c.depth>.15);
+      if(!hits.length)break;
+      const c=hits.reduce((best,x)=>!best||x.depth>best.depth?x:best,null);
+      const aIsBody=c.bodyA===body||c.bodyA?.parent===body;
+      const sign=aIsBody?-1:1;
+      M.Body.translate(body,{x:c.normal.x*(c.depth+.7)*sign,y:c.normal.y*(c.depth+.7)*sign});
+    }
+    M.Body.setVelocity(body,{x:0,y:0});
+    M.Body.setAngularVelocity(body,0);
+  }
+  addBody(body,visual={}){
+    body.plugin=body.plugin||{};
+    body.plugin.visual=visual;
+    body.plugin.uid=visual.uid||uid();
+    this.bodies.set(body.plugin.uid,body);
+    M.World.add(this.world,body);
+    if(!body.isStatic&&!body.isSensor)this.separateFromStatics(body);
+    return body;
+  }
+  addPlatform(p){
+    const collisionH=Math.max(24,p.h||20);
+    const chamfer=Math.min(10,collisionH*.42,Math.max(2,p.w*.04));
+    const b=M.Bodies.rectangle(p.x,p.y,p.w,collisionH,{isStatic:true,angle:p.a||0,label:'platform',chamfer:{radius:chamfer},friction:.95,frictionStatic:1,restitution:0,slop:.01});
+    this.applyMaterial(b,{friction:.95,frictionStatic:1,restitution:0,slop:.01});
+    return this.addBody(b,{type:'platform',color:'#2d5f86',w:p.w,h:p.h,collisionH,static:true});
+  }
+  addBall(x,y){
+    const b=M.Bodies.circle(x,y,21.5,{label:'ball',friction:.1,frictionStatic:.55,frictionAir:.003,restitution:.12,density:.0038,slop:.01});
+    this.applyMaterial(b,{friction:.1,frictionStatic:.55,frictionAir:.003,restitution:.12,slop:.01,sleepThreshold:90});
+    this.ball=this.addBody(b,{type:'ball',color:'#dd594d',r:22});
+    this.ballStart={x,y};
+    return b;
+  }
+  addStar(s){
+    const b=M.Bodies.circle(s.x,s.y,s.r||22,{isStatic:true,isSensor:true,label:'star'});
+    b.plugin.collected=false;
+    this.stars.push(this.addBody(b,{type:'star',color:'#e7b541',r:s.r||22}));
+    return b;
+  }
+  addBlock(bd,isUser=false){
+    const radius=Math.min(9,Math.max(2,Math.min(bd.w,bd.h)*.18));
+    const b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',chamfer:{radius},friction:bd.friction??.68,frictionStatic:.95,frictionAir:.0015,restitution:bd.restitution??.025,density:clamp((bd.mass||5)/50000,.001,.02),slop:.012});
+    if(bd.mass)M.Body.setMass(b,bd.mass);
+    this.applyMaterial(b,{friction:bd.friction??.68,frictionStatic:.95,frictionAir:.0015,restitution:bd.restitution??.025,slop:.012,sleepThreshold:80});
+    return this.addBody(b,{type:isUser?'box':'block',color:isUser?'#4e8b68':'#526f84',w:bd.w,h:bd.h,user:isUser,ink:bd.ink||0});
+  }
+  addWheel(w,isUser=false){
+    const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel',friction:.42,frictionStatic:1,frictionAir:.0012,restitution:.055,density:.0032,slop:.01});
+    this.applyMaterial(b,{friction:.42,frictionStatic:1,frictionAir:.0012,restitution:.055,slop:.01,sleepThreshold:90});
+    return this.addBody(b,{type:'wheel',color:isUser?'#4e8b68':'#76558e',r:w.r,user:isUser,ink:w.ink||0});
+  }
+  addRocket(r,isUser=false){
+    const rw=r.w||80,rh=r.h||28;
+    const b=M.Bodies.rectangle(r.x,r.y,rw,rh,{angle:r.a||0,label:'rocket',chamfer:{radius:Math.min(8,rh*.35)},friction:.55,frictionStatic:.9,frictionAir:.002,restitution:.025,density:.003,slop:.012});
+    this.applyMaterial(b,{friction:.55,frictionStatic:.9,frictionAir:.002,restitution:.025,slop:.012,sleepThreshold:100});
+    b.plugin.rocket={fuel:r.fuel||240,max:r.fuel||240,active:false,thrust:.0009};
+    return this.addBody(b,{type:'rocket',color:'#d97836',w:rw,h:rh,user:isUser,ink:r.ink||0});
+  }
+  makeBounds(enabled=true){
+    this.boundBodies.forEach(b=>M.World.remove(this.world,b));
+    this.boundBodies=[];
+    if(!enabled)return;
+    const opts={isStatic:true,label:'bound',friction:.95,frictionStatic:1,restitution:0,slop:.01};
+    const arr=[M.Bodies.rectangle(-35,H/2,70,H*2,opts),M.Bodies.rectangle(W+35,H/2,70,H*2,opts),M.Bodies.rectangle(W/2,H+40,W*2,80,opts)];
+    arr.forEach(b=>{this.applyMaterial(b,opts);this.boundBodies.push(b);M.World.add(this.world,b)});
+  }
+  createStroke(points,{user=true,color='#4e8b68',ink=0,closed=false}={}){
+    if(points.length<2)return null;
+    const simp=this.simplify(points,4.25);
+    if(simp.length<2)return null;
+    if(closed&&dist(simp[0],simp[simp.length-1])<50){
+      const verts=simp.slice(0,-1);
+      if(verts.length>=3){
+        try{
+          const cx=verts.reduce((a,p)=>a+p.x,0)/verts.length,cy=verts.reduce((a,p)=>a+p.y,0)/verts.length;
+          const rel=verts.map(p=>({x:p.x-cx,y:p.y-cy}));
+          const b=M.Bodies.fromVertices(cx,cy,[rel],{label:user?'user':'shape',friction:.65,frictionStatic:.95,frictionAir:.0015,restitution:.02,density:.003,slop:.012},true);
+          if(b){
+            this.applyMaterial(b,{friction:.65,frictionStatic:.95,frictionAir:.0015,restitution:.02,slop:.012,sleepThreshold:85});
+            return this.addBody(b,{type:'shape',color,user,ink,points:rel});
+          }
+        }catch(e){}
+      }
+    }
+    const thickness=16;
+    const radius=thickness/2;
+    const parts=[];
+    for(let i=1;i<simp.length;i++){
+      const a=simp[i-1],b=simp[i],len=dist(a,b);
+      if(len<7)continue;
+      const angle=Math.atan2(b.y-a.y,b.x-a.x);
+      const extended=len+radius*1.35;
+      parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,extended,thickness,{angle,chamfer:{radius:radius*.72},friction:.68,frictionStatic:.98,restitution:.018,density:.0026,slop:.01}));
+    }
+    for(let i=0;i<simp.length;i++){
+      if(i>0&&i<simp.length-1&&dist(simp[i-1],simp[i+1])<12)continue;
+      parts.push(M.Bodies.circle(simp[i].x,simp[i].y,radius*.94,{friction:.68,frictionStatic:.98,restitution:.018,density:.0026,slop:.01}));
+    }
+    if(!parts.length)return null;
+    const body=M.Body.create({parts,label:user?'user':'stroke',friction:.68,frictionStatic:.98,frictionAir:.0015,restitution:.018,slop:.01});
+    this.applyMaterial(body,{friction:.68,frictionStatic:.98,frictionAir:.0015,restitution:.018,slop:.01,sleepThreshold:85});
+    const local=simp.map(p=>({x:p.x-body.position.x,y:p.y-body.position.y}));
+    return this.addBody(body,{type:'stroke',color,user,ink,points:local,thickness});
+  }
+  simplify(points,tol=5){
+    if(points.length<=2)return points.slice();
+    const radial=[points[0]];
+    let prev=points[0];
+    for(let i=1;i<points.length-1;i++){
+      const p=points[i];
+      if(dist(p,prev)>=tol*.65){radial.push(p);prev=p}
+    }
+    radial.push(points[points.length-1]);
+    const sqTol=tol*tol;
+    const sqSeg=(p,a,b)=>{let x=a.x,y=a.y,dx=b.x-x,dy=b.y-y;if(dx||dy){const t=((p.x-x)*dx+(p.y-y)*dy)/(dx*dx+dy*dy);if(t>1){x=b.x;y=b.y}else if(t>0){x+=dx*t;y+=dy*t}}dx=p.x-x;dy=p.y-y;return dx*dx+dy*dy};
+    const rdp=(arr,first,last,out)=>{let max=sqTol,index=-1;for(let i=first+1;i<last;i++){const d=sqSeg(arr[i],arr[first],arr[last]);if(d>max){index=i;max=d}}if(index>0){if(index-first>1)rdp(arr,first,index,out);out.push(arr[index]);if(last-index>1)rdp(arr,index,last,out)}};
+    if(radial.length<=2)return radial;
+    const out=[radial[0]];rdp(radial,0,radial.length-1,out);out.push(radial[radial.length-1]);
+    return out;
+  }
   addPivot(x,y){const p={x,y,uid:uid(),used:false};this.pivots.push(p);return p}
-  attachPivot(body,pivot,user=true){const local=M.Vector.rotate(M.Vector.sub(pivot,body.position),-body.angle);const c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:1,length:0});c.plugin={uid:uid(),kind:'pivot',user,pivot:{x:pivot.x,y:pivot.y},bodyUid:body.plugin.uid};M.World.add(this.world,c);(user?this.userConstraints:this.staticConstraints).push(c);pivot.used=true;return c}
-  endpointAt(p){const hits=M.Query.point([...this.bodies.values()].filter(b=>!b.isSensor),p).filter(b=>b.label!=='bound');const body=hits.find(b=>b.label!=='platform')||hits[0]||null;if(body){const local=M.Vector.rotate(M.Vector.sub(p,body.position),-body.angle);return {body,point:local,world:p}}return {body:null,point:p,world:p}}
-  addRope(a,b,user=true){const ea=this.endpointAt(a),eb=this.endpointAt(b);const opts={stiffness:.75,damping:.08,length:dist(a,b)};if(ea.body){opts.bodyA=ea.body;opts.pointA=ea.point}else opts.pointA=a;if(eb.body){opts.bodyB=eb.body;opts.pointB=eb.point}else opts.pointB=b;const c=M.Constraint.create(opts);c.plugin={uid:uid(),kind:'rope',user,aUid:ea.body?.plugin.uid||null,bUid:eb.body?.plugin.uid||null,aPoint:ea.point,bPoint:eb.point,aWorld:ea.body?null:a,bWorld:eb.body?null:b};M.World.add(this.world,c);(user?this.userConstraints:this.staticConstraints).push(c);return c}
-  removeUserBody(body){if(!body?.plugin?.visual?.user)return 0;const ink=body.plugin.visual.ink||0;[...this.userConstraints].forEach(c=>{if(c.bodyA===body||c.bodyB===body)this.removeConstraint(c)});this.bodies.delete(body.plugin.uid);M.World.remove(this.world,body);return ink}
+  attachPivot(body,pivot,user=true){
+    const local=M.Vector.rotate(M.Vector.sub(pivot,body.position),-body.angle);
+    const c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:.98,damping:.16,length:0,angularStiffness:0});
+    c.plugin={uid:uid(),kind:'pivot',user,pivot:{x:pivot.x,y:pivot.y},bodyUid:body.plugin.uid};
+    M.World.add(this.world,c);
+    (user?this.userConstraints:this.staticConstraints).push(c);
+    pivot.used=true;
+    M.Sleeping.set(body,false);
+    return c;
+  }
+  endpointAt(p){
+    const candidates=[...this.bodies.values()].filter(b=>!b.isSensor&&b.label!=='bound');
+    let hits=M.Query.point(candidates,p);
+    if(!hits.length){
+      const region={min:{x:p.x-14,y:p.y-14},max:{x:p.x+14,y:p.y+14}};
+      hits=M.Query.region(candidates,region).sort((a,b)=>dist(a.position,p)-dist(b.position,p));
+    }
+    const body=hits.find(b=>b.label!=='platform')||hits[0]||null;
+    if(body){
+      const local=M.Vector.rotate(M.Vector.sub(p,body.position),-body.angle);
+      return {body,point:local,world:p};
+    }
+    return {body:null,point:p,world:p};
+  }
+  addRope(a,b,user=true){
+    const ea=this.endpointAt(a),eb=this.endpointAt(b);
+    const opts={stiffness:.88,damping:.14,length:Math.max(8,dist(a,b))};
+    if(ea.body){opts.bodyA=ea.body;opts.pointA=ea.point}else opts.pointA=a;
+    if(eb.body){opts.bodyB=eb.body;opts.pointB=eb.point}else opts.pointB=b;
+    const c=M.Constraint.create(opts);
+    c.plugin={uid:uid(),kind:'rope',user,aUid:ea.body?.plugin.uid||null,bUid:eb.body?.plugin.uid||null,aPoint:ea.point,bPoint:eb.point,aWorld:ea.body?null:a,bWorld:eb.body?null:b};
+    M.World.add(this.world,c);
+    (user?this.userConstraints:this.staticConstraints).push(c);
+    if(ea.body)M.Sleeping.set(ea.body,false);
+    if(eb.body)M.Sleeping.set(eb.body,false);
+    return c;
+  }
+  removeUserBody(body){
+    if(!body?.plugin?.visual?.user)return 0;
+    const ink=body.plugin.visual.ink||0;
+    [...this.userConstraints].forEach(c=>{if(c.bodyA===body||c.bodyB===body)this.removeConstraint(c)});
+    this.bodies.delete(body.plugin.uid);
+    M.World.remove(this.world,body);
+    return ink;
+  }
   removeConstraint(c){M.World.remove(this.world,c);this.userConstraints=this.userConstraints.filter(x=>x!==c);this.staticConstraints=this.staticConstraints.filter(x=>x!==c)}
-  bodyAt(p,userOnly=false){const hits=M.Query.point([...this.bodies.values()],p).reverse();return hits.find(b=>!b.isSensor&&b.label!=='bound'&&(!userOnly||b.plugin?.visual?.user))||null}
-  activateRocketAt(p){const b=this.bodyAt(p,false);if(b?.plugin?.rocket){b.plugin.rocket.active=true;return true}return false}
-  update(dt){M.Engine.update(this.engine,dt);for(const b of this.bodies.values()){if(!b.isStatic){const sp=M.Vector.magnitude(b.velocity);if(sp>32)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),32));if(Math.abs(b.angularVelocity)>1.2)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*1.2)}if(b.plugin?.rocket?.active&&b.plugin.rocket.fuel>0){const r=b.plugin.rocket,dir={x:Math.cos(b.angle),y:Math.sin(b.angle)};M.Body.applyForce(b,{x:b.position.x-Math.sin(b.angle)*8,y:b.position.y+Math.cos(b.angle)*8},{x:dir.x*r.thrust,y:dir.y*r.thrust});r.fuel-=dt*.06;if(performance.now()-this.lastRocketSound>180){this.app.audio.rocket();this.lastRocketSound=performance.now()}}}
+  bodyAt(p,userOnly=false){
+    const candidates=[...this.bodies.values()];
+    const hits=M.Query.point(candidates,p).reverse();
+    return hits.find(b=>!b.isSensor&&b.label!=='bound'&&(!userOnly||b.plugin?.visual?.user))||null;
+  }
+  activateRocketAt(p){const b=this.bodyAt(p,false);if(b?.plugin?.rocket){b.plugin.rocket.active=true;M.Sleeping.set(b,false);return true}return false}
+  applyContinuousForces(stepMs){
+    for(const b of this.bodies.values()){
+      if(b.plugin?.rocket?.active&&b.plugin.rocket.fuel>0){
+        const r=b.plugin.rocket,dir={x:Math.cos(b.angle),y:Math.sin(b.angle)};
+        M.Sleeping.set(b,false);
+        M.Body.applyForce(b,{x:b.position.x-Math.sin(b.angle)*8,y:b.position.y+Math.cos(b.angle)*8},{x:dir.x*r.thrust,y:dir.y*r.thrust});
+        r.fuel-=stepMs*.06;
+        if(performance.now()-this.lastRocketSound>180){this.app.audio.rocket();this.lastRocketSound=performance.now()}
+      }
+    }
+  }
+  stabiliseDynamics(){
+    for(const b of this.bodies.values()){
+      if(b.isStatic||b.isSensor)continue;
+      const sp=M.Vector.magnitude(b.velocity);
+      if(sp>27)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),27));
+      if(Math.abs(b.angularVelocity)>1.35)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*1.35);
+      if(!Number.isFinite(b.position.x)||!Number.isFinite(b.position.y)){M.Body.setPosition(b,{x:W/2,y:80});M.Body.setVelocity(b,{x:0,y:0});M.Body.setAngularVelocity(b,0)}
+    }
+  }
+  update(dt){
+    this.accumulator+=Math.min(dt,50);
+    let steps=0;
+    while(this.accumulator>=this.fixedDelta&&steps<this.maxSubSteps){
+      this.applyContinuousForces(this.fixedDelta);
+      M.Engine.update(this.engine,this.fixedDelta);
+      this.stabiliseDynamics();
+      this.accumulator-=this.fixedDelta;
+      steps++;
+    }
+    if(steps===this.maxSubSteps)this.accumulator=0;
     if(this.ball&&(this.ball.position.y>H+180||this.ball.position.x<-160||this.ball.position.x>W+160))this.resetBall();
   }
-  resetBall(){if(!this.ball)return;M.Body.setPosition(this.ball,this.ballStart);M.Body.setVelocity(this.ball,{x:0,y:0});M.Body.setAngularVelocity(this.ball,0)}
-  onCollisions(pairs){for(const p of pairs){const a=p.bodyA,b=p.bodyB;if((a.label==='ball'&&b.label==='star')||(b.label==='ball'&&a.label==='star')){const s=a.label==='star'?a:b;this.app.collectStar(s)}const rocket=a.plugin?.rocket?a:b.plugin?.rocket?b:null;if(rocket&&p.collision.depth>1)rocket.plugin.rocket.active=true;const rel=M.Vector.magnitude(M.Vector.sub(a.velocity||{x:0,y:0},b.velocity||{x:0,y:0}));this.app.audio.hit(rel)}}
+  resetBall(){
+    if(!this.ball)return;
+    M.Sleeping.set(this.ball,false);
+    M.Body.setPosition(this.ball,this.ballStart);
+    M.Body.setVelocity(this.ball,{x:0,y:0});
+    M.Body.setAngularVelocity(this.ball,0);
+    this.ball.positionPrev.x=this.ballStart.x;
+    this.ball.positionPrev.y=this.ballStart.y;
+  }
+  onCollisions(pairs){
+    for(const p of pairs){
+      const a=p.bodyA,b=p.bodyB;
+      if((a.label==='ball'&&b.label==='star')||(b.label==='ball'&&a.label==='star')){
+        const s=a.label==='star'?a:b;
+        this.app.collectStar(s);
+      }
+      const rocket=a.plugin?.rocket?a:b.plugin?.rocket?b:null;
+      if(rocket&&p.collision.depth>.4){rocket.plugin.rocket.active=true;M.Sleeping.set(rocket,false)}
+      if(!a.isSensor&&!b.isSensor){
+        const rel=M.Vector.magnitude(M.Vector.sub(a.velocity||{x:0,y:0},b.velocity||{x:0,y:0}));
+        this.app.audio.hit(rel);
+      }
+    }
+  }
   serializeUser(){
-    const bodies=[];for(const b of this.bodies.values()){const v=b.plugin?.visual;if(!v?.user)continue;const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity};if(v.points)base.points=v.points.map(p=>({...p}));if(v.r)base.r=v.r;if(v.w){base.w=v.w;base.h=v.h}bodies.push(base)}
-    const constraints=this.userConstraints.map(c=>({kind:c.plugin.kind,uid:c.plugin.uid,aUid:c.bodyA?.plugin?.uid||null,bUid:c.bodyB?.plugin?.uid||null,aPoint:c.pointA?{...c.pointA}:null,bPoint:c.pointB?{...c.pointB}:null,aWorld:c.bodyA?null:{...c.pointA},bWorld:c.bodyB?null:{...c.pointB},length:c.length,pivot:c.plugin.pivot||null,bodyUid:c.plugin.bodyUid||null}));return {bodies,constraints,pivots:this.pivots.filter(p=>p.user).map(p=>({...p}))}
+    const bodies=[];
+    for(const b of this.bodies.values()){
+      const v=b.plugin?.visual;
+      if(!v?.user)continue;
+      const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity};
+      if(v.points)base.points=v.points.map(p=>({...p}));
+      if(v.r)base.r=v.r;
+      if(v.w){base.w=v.w;base.h=v.h}
+      bodies.push(base);
+    }
+    const constraints=this.userConstraints.map(c=>({kind:c.plugin.kind,uid:c.plugin.uid,aUid:c.bodyA?.plugin?.uid||null,bUid:c.bodyB?.plugin?.uid||null,aPoint:c.pointA?{...c.pointA}:null,bPoint:c.pointB?{...c.pointB}:null,aWorld:c.bodyA?null:{...c.pointA},bWorld:c.bodyB?null:{...c.pointB},length:c.length,pivot:c.plugin.pivot||null,bodyUid:c.plugin.bodyUid||null}));
+    return {bodies,constraints,pivots:this.pivots.filter(p=>p.user).map(p=>({...p}))};
   }
   restoreUser(state){
-    for(const b of [...this.bodies.values()])if(b.plugin?.visual?.user)this.removeUserBody(b);for(const c of [...this.userConstraints])this.removeConstraint(c);this.pivots=this.pivots.filter(p=>!p.user);
-    const map=new Map();for(const s of state.bodies||[]){let b;if(s.type==='wheel')b=this.addWheel({x:s.pos.x,y:s.pos.y,r:s.r,ink:s.ink},true);else if(s.type==='box')b=this.addBlock({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,ink:s.ink},true);else if(s.type==='rocket')b=this.addRocket({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,fuel:240,ink:s.ink},true);else if(s.type==='stroke'){const pts=s.points.map(p=>M.Vector.add(M.Vector.rotate(p,s.angle),s.pos));b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink})}else if(s.type==='shape'){const pts=s.points.map(p=>M.Vector.add(M.Vector.rotate(p,s.angle),s.pos));pts.push(pts[0]);b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink,closed:true})}if(b){const generatedUid=b.plugin.uid;this.bodies.delete(generatedUid);b.plugin.uid=s.uid;this.bodies.set(s.uid,b);M.Body.setVelocity(b,s.vel||{x:0,y:0});M.Body.setAngularVelocity(b,s.av||0);map.set(s.uid,b)}}
-    for(const p of state.pivots||[]){const np={...p};this.pivots.push(np)}
-    for(const c of state.constraints||[]){if(c.kind==='pivot'){const body=map.get(c.bodyUid||c.aUid);if(body){const p=c.pivot||c.bWorld||{x:body.position.x,y:body.position.y};this.attachPivot(body,p,true)}}else{const a=c.aUid?map.get(c.aUid):null,b=c.bUid?map.get(c.bUid):null;const pa=a?M.Vector.add(a.position,M.Vector.rotate(c.aPoint||{x:0,y:0},a.angle)):(c.aWorld||c.aPoint);const pb=b?M.Vector.add(b.position,M.Vector.rotate(c.bPoint||{x:0,y:0},b.angle)):(c.bWorld||c.bPoint);this.addRope(pa,pb,true)}}
+    for(const b of [...this.bodies.values()])if(b.plugin?.visual?.user)this.removeUserBody(b);
+    for(const c of [...this.userConstraints])this.removeConstraint(c);
+    this.pivots=this.pivots.filter(p=>!p.user);
+    const map=new Map();
+    for(const s of state.bodies||[]){
+      let b;
+      if(s.type==='wheel')b=this.addWheel({x:s.pos.x,y:s.pos.y,r:s.r,ink:s.ink},true);
+      else if(s.type==='box')b=this.addBlock({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,ink:s.ink},true);
+      else if(s.type==='rocket')b=this.addRocket({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,fuel:240,ink:s.ink},true);
+      else if(s.type==='stroke'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink})}
+      else if(s.type==='shape'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));pts.push(pts[0]);b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink,closed:true})}
+      if(b){
+        const generatedUid=b.plugin.uid;
+        this.bodies.delete(generatedUid);
+        b.plugin.uid=s.uid;
+        this.bodies.set(s.uid,b);
+        M.Body.setPosition(b,s.pos);
+        M.Body.setAngle(b,s.angle||0);
+        M.Body.setVelocity(b,s.vel||{x:0,y:0});
+        M.Body.setAngularVelocity(b,s.av||0);
+        map.set(s.uid,b);
+      }
+    }
+    for(const p of state.pivots||[])this.pivots.push({...p});
+    for(const c of state.constraints||[]){
+      if(c.kind==='pivot'){
+        const body=map.get(c.bodyUid||c.aUid);
+        if(body){const p=c.pivot||c.bWorld||{x:body.position.x,y:body.position.y};this.attachPivot(body,p,true)}
+      }else{
+        const a=c.aUid?map.get(c.aUid):null,b=c.bUid?map.get(c.bUid):null;
+        const pa=a?M.Vector.add(a.position,M.Vector.rotate(c.aPoint||{x:0,y:0},a.angle)):(c.aWorld||c.aPoint);
+        const pb=b?M.Vector.add(b.position,M.Vector.rotate(c.bPoint||{x:0,y:0},b.angle)):(c.bWorld||c.bPoint);
+        this.addRope(pa,pb,true);
+      }
+    }
   }
 }
 
@@ -403,7 +697,43 @@ class GameRenderer{
   draw(){this.beginWorld();const ctx=this.ctx,pw=this.app.physics;for(const b of pw.bodies.values())if(!b.isSensor&&b.label!=='bound')this.drawBody(b);for(const c of [...pw.staticConstraints,...pw.userConstraints])this.drawConstraint(c);for(const p of pw.pivots)this.drawPivot(p);for(const a of pw.anchors)this.drawAnchor(a);for(const s of pw.stars)if(!s.plugin.collected)this.drawStar(s);this.drawTrail();this.app.particles.draw(ctx);this.drawInput();this.endWorld()}
   scribbleLine(points,color,width=12,closed=false){const ctx=this.ctx;if(points.length<2)return;ctx.lineCap='round';ctx.lineJoin='round';for(let pass=0;pass<3;pass++){ctx.beginPath();for(let i=0;i<points.length;i++){const p=points[i],j=(Math.sin(i*12.4+pass*2.2))*1.3;if(i===0)ctx.moveTo(p.x+j,p.y-j);else ctx.lineTo(p.x+j,p.y-j)}if(closed)ctx.closePath();ctx.strokeStyle=color;ctx.globalAlpha=pass===0?.84:.28;ctx.lineWidth=width+(pass-1)*2;ctx.stroke()}ctx.globalAlpha=1}
   bodyPoints(b,v){return v.points.map(p=>M.Vector.add(b.position,M.Vector.rotate(p,b.angle)))}
-  drawBody(b){const ctx=this.ctx,v=b.plugin.visual||{};ctx.save();ctx.translate(b.position.x,b.position.y);ctx.rotate(b.angle);if(v.type==='platform'||v.type==='block'||v.type==='box'){ctx.shadowColor='rgba(36,51,66,.12)';ctx.shadowBlur=5;ctx.shadowOffsetY=3;for(let i=0;i<3;i++){ctx.strokeStyle=v.color||'#2d5f86';ctx.globalAlpha=i? .32:.9;ctx.lineWidth=Math.max(3,(v.h||20)/3+i*2);ctx.beginPath();ctx.moveTo(-(v.w||50)/2+3,Math.sin(i)*2);ctx.lineTo((v.w||50)/2-3,Math.cos(i)*2);ctx.stroke()}ctx.globalAlpha=1}else if(v.type==='ball'){ctx.fillStyle='#dd594d';ctx.beginPath();ctx.arc(0,0,v.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(126,35,31,.46)';ctx.lineWidth=3;for(let i=-10;i<=10;i+=5){ctx.beginPath();ctx.arc(i*.25,i*.1,v.r*.75,0.25,2.8);ctx.stroke()}}else if(v.type==='wheel'){ctx.strokeStyle=v.color||'#76558e';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,v.r-5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=.35;ctx.lineWidth=3;ctx.beginPath();ctx.arc(1,-1,v.r-11,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(-v.r+8,0);ctx.lineTo(v.r-8,0);ctx.moveTo(0,-v.r+8);ctx.lineTo(0,v.r-8);ctx.stroke();ctx.globalAlpha=1}else if(v.type==='rocket'){ctx.fillStyle='#d97836';ctx.beginPath();ctx.roundRect(-v.w/2,-v.h/2,v.w,v.h,8);ctx.fill();ctx.fillStyle='#f3ead2';ctx.beginPath();ctx.arc(v.w*.16,0,v.h*.23,0,Math.PI*2);ctx.fill();ctx.fillStyle='#76558e';ctx.beginPath();ctx.moveTo(-v.w/2,-v.h/2);ctx.lineTo(-v.w/2-18,0);ctx.lineTo(-v.w/2,v.h/2);ctx.closePath();ctx.fill();const r=b.plugin.rocket;if(r?.active&&r.fuel>0){ctx.fillStyle='#e7b541';ctx.beginPath();ctx.moveTo(-v.w/2-10,-8);ctx.lineTo(-v.w/2-28-Math.random()*16,0);ctx.lineTo(-v.w/2-10,8);ctx.fill();this.app.particles.dust(b.position.x-Math.cos(b.angle)*v.w/2,b.position.y-Math.sin(b.angle)*v.w/2,'#d97836')}}ctx.restore();if(v.type==='stroke'||v.type==='shape')this.scribbleLine(this.bodyPoints(b,v),v.color||'#4e8b68',14,v.type==='shape');if(v.type==='ball'){if(M.Vector.magnitude(b.velocity)>3){this.trail.push({x:b.position.x,y:b.position.y,life:1});if(this.trail.length>18)this.trail.shift()}}}
+  drawBody(b){
+    const ctx=this.ctx,v=b.plugin.visual||{};
+    ctx.save();
+    ctx.translate(b.position.x,b.position.y);
+    ctx.rotate(b.angle);
+    if(v.type==='platform'||v.type==='block'||v.type==='box'){
+      const w=v.w||50,h=v.type==='platform'?(v.collisionH||v.h||20):(v.h||20),color=v.color||'#2d5f86';
+      ctx.shadowColor='rgba(36,51,66,.13)';ctx.shadowBlur=5;ctx.shadowOffsetY=3;
+      ctx.fillStyle=color;ctx.globalAlpha=v.type==='platform'?.24:.48;
+      ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,Math.min(9,h*.3));ctx.fill();
+      ctx.shadowColor='transparent';ctx.lineCap='round';
+      const rows=clamp(Math.ceil(h/6),3,14),step=(h-5)/Math.max(1,rows-1);
+      for(let i=0;i<rows;i++){
+        const y=-h/2+2.5+i*step,j=Math.sin(i*2.17+b.id*.13)*1.2;
+        ctx.strokeStyle=color;ctx.globalAlpha=i%3===0?.72:.34;ctx.lineWidth=3.2+(i%2)*1.1;
+        ctx.beginPath();ctx.moveTo(-w/2+4,y+j);ctx.lineTo(w/2-4,y-j*.55);ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }else if(v.type==='ball'){
+      ctx.fillStyle='#dd594d';ctx.beginPath();ctx.arc(0,0,v.r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(126,35,31,.46)';ctx.lineWidth=3;
+      for(let i=-10;i<=10;i+=5){ctx.beginPath();ctx.arc(i*.25,i*.1,v.r*.75,0.25,2.8);ctx.stroke()}
+    }else if(v.type==='wheel'){
+      ctx.strokeStyle=v.color||'#76558e';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,v.r-5,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=.35;ctx.lineWidth=3;ctx.beginPath();ctx.arc(1,-1,v.r-11,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-v.r+8,0);ctx.lineTo(v.r-8,0);ctx.moveTo(0,-v.r+8);ctx.lineTo(0,v.r-8);ctx.stroke();ctx.globalAlpha=1;
+    }else if(v.type==='rocket'){
+      ctx.fillStyle='#d97836';ctx.beginPath();ctx.roundRect(-v.w/2,-v.h/2,v.w,v.h,8);ctx.fill();
+      ctx.fillStyle='#f3ead2';ctx.beginPath();ctx.arc(v.w*.16,0,v.h*.23,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#76558e';ctx.beginPath();ctx.moveTo(-v.w/2,-v.h/2);ctx.lineTo(-v.w/2-18,0);ctx.lineTo(-v.w/2,v.h/2);ctx.closePath();ctx.fill();
+      const r=b.plugin.rocket;
+      if(r?.active&&r.fuel>0){ctx.fillStyle='#e7b541';ctx.beginPath();ctx.moveTo(-v.w/2-10,-8);ctx.lineTo(-v.w/2-28-Math.random()*16,0);ctx.lineTo(-v.w/2-10,8);ctx.fill();this.app.particles.dust(b.position.x-Math.cos(b.angle)*v.w/2,b.position.y-Math.sin(b.angle)*v.w/2,'#d97836')}
+    }
+    ctx.restore();
+    if(v.type==='stroke'||v.type==='shape')this.scribbleLine(this.bodyPoints(b,v),v.color||'#4e8b68',v.thickness||14,v.type==='shape');
+    if(v.type==='ball'&&M.Vector.magnitude(b.velocity)>3){this.trail.push({x:b.position.x,y:b.position.y,life:1});if(this.trail.length>18)this.trail.shift()}
+  }
   drawStar(s){const ctx=this.ctx,x=s.position.x,y=s.position.y,r=s.plugin.visual.r||22;ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()*.00035);ctx.fillStyle='#e7b541';ctx.strokeStyle='rgba(128,94,26,.5)';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;const px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
   drawConstraint(c){const ctx=this.ctx,a=c.bodyA?M.Vector.add(c.bodyA.position,M.Vector.rotate(c.pointA||{x:0,y:0},c.bodyA.angle)):c.pointA,b=c.bodyB?M.Vector.add(c.bodyB.position,M.Vector.rotate(c.pointB||{x:0,y:0},c.bodyB.angle)):c.pointB;if(!a||!b)return;if(c.plugin?.kind==='pivot'){this.drawPivot({x:b.x,y:b.y,used:true});return}ctx.strokeStyle='#76558e';ctx.lineWidth=5;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([])}
   drawPivot(p){const ctx=this.ctx;ctx.fillStyle=p.used?'#173f61':'#2d5f86';ctx.beginPath();ctx.arc(p.x,p.y,10,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f3ead2';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.stroke()}
