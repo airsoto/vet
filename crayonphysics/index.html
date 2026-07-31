@@ -411,13 +411,25 @@ class PhysicsWorld{
     this.app=app;
     this.engine=M.Engine.create({enableSleeping:true});
     this.world=this.engine.world;
-    this.engine.positionIterations=10;
-    this.engine.velocityIterations=8;
-    this.engine.constraintIterations=6;
-    this.engine.gravity.scale=.001;
-    this.fixedDelta=1000/120;
+    // Escala física: 100 px ≈ 1 m. 9,81 m/s² se expresa en px/ms².
+    this.pixelsPerMeter=100;
+    this.engine.positionIterations=14;
+    this.engine.velocityIterations=12;
+    this.engine.constraintIterations=10;
+    this.engine.gravity.scale=9.81*this.pixelsPerMeter/1e6;
+    // 180 Hz reduce el túnel a través de líneas finas y mejora los apilamientos.
+    this.fixedDelta=1000/180;
     this.accumulator=0;
-    this.maxSubSteps=6;
+    this.maxSubSteps=10;
+    this.materials={
+      platform:{friction:.82,frictionStatic:1.25,restitution:0,slop:.008},
+      ball:{friction:.32,frictionStatic:.9,frictionAir:.00055,restitution:.075,slop:.008,mass:4.8},
+      block:{friction:.62,frictionStatic:1.05,frictionAir:.00045,restitution:.025,slop:.009},
+      wheel:{friction:.72,frictionStatic:1.35,frictionAir:.00035,restitution:.035,slop:.008},
+      stroke:{friction:.68,frictionStatic:1.18,frictionAir:.0005,restitution:.018,slop:.008,density:.00175},
+      shape:{friction:.64,frictionStatic:1.1,frictionAir:.0005,restitution:.022,slop:.009,density:.0018},
+      rocket:{friction:.5,frictionStatic:.9,frictionAir:.0007,restitution:.02,slop:.009}
+    };
     this.bodies=new Map();
     this.userConstraints=[];
     this.staticConstraints=[];
@@ -453,7 +465,35 @@ class PhysicsWorld{
       if(props.slop!=null)part.slop=props.slop;
       if(props.sleepThreshold!=null)part.sleepThreshold=props.sleepThreshold;
     }
-    Object.assign(body,props);
+    if(props.friction!=null)body.friction=props.friction;
+    if(props.frictionStatic!=null)body.frictionStatic=props.frictionStatic;
+    if(props.frictionAir!=null)body.frictionAir=props.frictionAir;
+    if(props.restitution!=null)body.restitution=props.restitution;
+    if(props.slop!=null)body.slop=props.slop;
+    if(props.sleepThreshold!=null)body.sleepThreshold=props.sleepThreshold;
+    if(!body.isStatic&&props.density!=null)M.Body.setDensity(body,props.density);
+    if(!body.isStatic&&props.mass!=null)M.Body.setMass(body,Math.max(.05,props.mass));
+    if(!body.isStatic&&props.inertiaScale!=null&&Number.isFinite(body.inertia))M.Body.setInertia(body,body.inertia*props.inertiaScale);
+    body.plugin=body.plugin||{};
+    if(props.name)body.plugin.material=props.name;
+    return body;
+  }
+  makeCapsule(x,y,length,thickness,angle=0,opts={}){
+    const radius=Math.max(2,thickness/2),inner=Math.max(1,length-thickness);
+    if(length<=thickness*1.05){
+      const circle=M.Bodies.circle(x,y,length/2,{...opts});
+      M.Body.setAngle(circle,angle);
+      return circle;
+    }
+    const {isStatic:_static,label:_label,...childOpts}=opts;
+    const partOpts={...childOpts,isStatic:false,angle:0,label:_label||'capsulePart'};
+    const parts=[
+      M.Bodies.rectangle(x,y,inner,thickness,partOpts),
+      M.Bodies.circle(x-inner/2,y,radius,partOpts),
+      M.Bodies.circle(x+inner/2,y,radius,partOpts)
+    ];
+    const body=M.Body.create({parts,isStatic:!!opts.isStatic,label:opts.label||'capsule'});
+    M.Body.setAngle(body,angle);
     return body;
   }
   staticSolids(){return [...this.bodies.values()].filter(b=>b.isStatic&&!b.isSensor&&b.label!=='bound').concat(this.boundBodies)}
@@ -482,15 +522,17 @@ class PhysicsWorld{
     return body;
   }
   addPlatform(p){
-    const collisionH=Math.max(24,p.h||20);
-    const chamfer=Math.min(10,collisionH*.42,Math.max(2,p.w*.04));
-    const b=M.Bodies.rectangle(p.x,p.y,p.w,collisionH,{isStatic:true,angle:p.a||0,label:'platform',chamfer:{radius:chamfer},friction:.95,frictionStatic:1,restitution:0,slop:.01});
-    this.applyMaterial(b,{friction:.95,frictionStatic:1,restitution:0,slop:.01});
+    const collisionH=Math.max(22,p.h||20);
+    const mat={...this.materials.platform,name:'platform'};
+    // Cápsula fija: evita que ruedas y polígonos se enganchen en esquinas artificiales.
+    const b=this.makeCapsule(p.x,p.y,p.w,collisionH,p.a||0,{isStatic:true,label:'platform'});
+    this.applyMaterial(b,mat);
     return this.addBody(b,{type:'platform',color:'#2d5f86',w:p.w,h:p.h,collisionH,static:true});
   }
   addBall(x,y){
-    const b=M.Bodies.circle(x,y,21.5,{label:'ball',friction:.1,frictionStatic:.55,frictionAir:.003,restitution:.12,density:.0038,slop:.01});
-    this.applyMaterial(b,{friction:.1,frictionStatic:.55,frictionAir:.003,restitution:.12,slop:.01,sleepThreshold:90});
+    const mat={...this.materials.ball,name:'ball',sleepThreshold:100};
+    const b=M.Bodies.circle(x,y,21.5,{label:'ball'});
+    this.applyMaterial(b,mat);
     this.ball=this.addBody(b,{type:'ball',color:'#dd594d',r:22});
     this.ballStart={x,y};
     return b;
@@ -503,20 +545,23 @@ class PhysicsWorld{
   }
   addBlock(bd,isUser=false){
     const radius=Math.min(9,Math.max(2,Math.min(bd.w,bd.h)*.18));
-    const b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',chamfer:{radius},friction:bd.friction??.68,frictionStatic:.95,frictionAir:.0015,restitution:bd.restitution??.025,density:clamp((bd.mass||5)/50000,.001,.02),slop:.012});
-    if(bd.mass)M.Body.setMass(b,bd.mass);
-    this.applyMaterial(b,{friction:bd.friction??.68,frictionStatic:.95,frictionAir:.0015,restitution:bd.restitution??.025,slop:.012,sleepThreshold:80});
+    const base=this.materials.block;
+    const b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',chamfer:{radius}});
+    const naturalMass=clamp(bd.w*bd.h*.00145,2.5,18);
+    this.applyMaterial(b,{...base,name:'block',friction:bd.friction??base.friction,restitution:bd.restitution??base.restitution,mass:bd.mass??naturalMass,sleepThreshold:95});
     return this.addBody(b,{type:isUser?'box':'block',color:isUser?'#4e8b68':'#526f84',w:bd.w,h:bd.h,user:isUser,ink:bd.ink||0});
   }
   addWheel(w,isUser=false){
-    const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel',friction:.42,frictionStatic:1,frictionAir:.0012,restitution:.055,density:.0032,slop:.01});
-    this.applyMaterial(b,{friction:.42,frictionStatic:1,frictionAir:.0012,restitution:.055,slop:.01,sleepThreshold:90});
+    const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel'});
+    const mass=w.mass??clamp(Math.PI*w.r*w.r*.00142,3,18);
+    this.applyMaterial(b,{...this.materials.wheel,name:'wheel',mass,sleepThreshold:110});
     return this.addBody(b,{type:'wheel',color:isUser?'#4e8b68':'#76558e',r:w.r,user:isUser,ink:w.ink||0});
   }
   addRocket(r,isUser=false){
     const rw=r.w||80,rh=r.h||28;
-    const b=M.Bodies.rectangle(r.x,r.y,rw,rh,{angle:r.a||0,label:'rocket',chamfer:{radius:Math.min(8,rh*.35)},friction:.55,frictionStatic:.9,frictionAir:.002,restitution:.025,density:.003,slop:.012});
-    this.applyMaterial(b,{friction:.55,frictionStatic:.9,frictionAir:.002,restitution:.025,slop:.012,sleepThreshold:100});
+    const b=M.Bodies.rectangle(r.x,r.y,rw,rh,{angle:r.a||0,label:'rocket',chamfer:{radius:Math.min(8,rh*.35)}});
+    const mass=r.mass??clamp(rw*rh*.00205,3.8,9);
+    this.applyMaterial(b,{...this.materials.rocket,name:'rocket',mass,sleepThreshold:120});
     b.plugin.rocket={fuel:r.fuel||240,max:r.fuel||240,active:false,thrust:.0009};
     return this.addBody(b,{type:'rocket',color:'#d97836',w:rw,h:rh,user:isUser,ink:r.ink||0});
   }
@@ -538,9 +583,9 @@ class PhysicsWorld{
         try{
           const cx=verts.reduce((a,p)=>a+p.x,0)/verts.length,cy=verts.reduce((a,p)=>a+p.y,0)/verts.length;
           const rel=verts.map(p=>({x:p.x-cx,y:p.y-cy}));
-          const b=M.Bodies.fromVertices(cx,cy,[rel],{label:user?'user':'shape',friction:.65,frictionStatic:.95,frictionAir:.0015,restitution:.02,density:.003,slop:.012},true);
+          const b=M.Bodies.fromVertices(cx,cy,[rel],{label:user?'user':'shape'},true);
           if(b){
-            this.applyMaterial(b,{friction:.65,frictionStatic:.95,frictionAir:.0015,restitution:.02,slop:.012,sleepThreshold:85});
+            this.applyMaterial(b,{...this.materials.shape,name:'shape',sleepThreshold:105});
             return this.addBody(b,{type:'shape',color,user,ink,points:rel});
           }
         }catch(e){}
@@ -554,15 +599,15 @@ class PhysicsWorld{
       if(len<7)continue;
       const angle=Math.atan2(b.y-a.y,b.x-a.x);
       const extended=len+radius*1.35;
-      parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,extended,thickness,{angle,chamfer:{radius:radius*.72},friction:.68,frictionStatic:.98,restitution:.018,density:.0026,slop:.01}));
+      parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,extended,thickness,{angle,chamfer:{radius:radius*.78}}));
     }
     for(let i=0;i<simp.length;i++){
       if(i>0&&i<simp.length-1&&dist(simp[i-1],simp[i+1])<12)continue;
-      parts.push(M.Bodies.circle(simp[i].x,simp[i].y,radius*.94,{friction:.68,frictionStatic:.98,restitution:.018,density:.0026,slop:.01}));
+      parts.push(M.Bodies.circle(simp[i].x,simp[i].y,radius*.98));
     }
     if(!parts.length)return null;
-    const body=M.Body.create({parts,label:user?'user':'stroke',friction:.68,frictionStatic:.98,frictionAir:.0015,restitution:.018,slop:.01});
-    this.applyMaterial(body,{friction:.68,frictionStatic:.98,frictionAir:.0015,restitution:.018,slop:.01,sleepThreshold:85});
+    const body=M.Body.create({parts,label:user?'user':'stroke'});
+    this.applyMaterial(body,{...this.materials.stroke,name:'stroke',sleepThreshold:105});
     const local=simp.map(p=>({x:p.x-body.position.x,y:p.y-body.position.y}));
     return this.addBody(body,{type:'stroke',color,user,ink,points:local,thickness});
   }
@@ -585,7 +630,7 @@ class PhysicsWorld{
   addPivot(x,y){const p={x,y,uid:uid(),used:false};this.pivots.push(p);return p}
   attachPivot(body,pivot,user=true){
     const local=M.Vector.rotate(M.Vector.sub(pivot,body.position),-body.angle);
-    const c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:.98,damping:.16,length:0,angularStiffness:0});
+    const c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:.995,damping:.09,length:0,angularStiffness:0});
     c.plugin={uid:uid(),kind:'pivot',user,pivot:{x:pivot.x,y:pivot.y},bodyUid:body.plugin.uid};
     M.World.add(this.world,c);
     (user?this.userConstraints:this.staticConstraints).push(c);
@@ -609,7 +654,7 @@ class PhysicsWorld{
   }
   addRope(a,b,user=true){
     const ea=this.endpointAt(a),eb=this.endpointAt(b);
-    const opts={stiffness:.88,damping:.14,length:Math.max(8,dist(a,b))};
+    const opts={stiffness:.96,damping:.085,length:Math.max(8,dist(a,b)),angularStiffness:0};
     if(ea.body){opts.bodyA=ea.body;opts.pointA=ea.point}else opts.pointA=a;
     if(eb.body){opts.bodyB=eb.body;opts.pointB=eb.point}else opts.pointB=b;
     const c=M.Constraint.create(opts);
@@ -650,8 +695,13 @@ class PhysicsWorld{
     for(const b of this.bodies.values()){
       if(b.isStatic||b.isSensor)continue;
       const sp=M.Vector.magnitude(b.velocity);
-      if(sp>27)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),27));
-      if(Math.abs(b.angularVelocity)>1.35)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*1.35);
+      // Solo limita estados extremos; las colisiones normales conservan su impulso.
+      if(sp>42)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),42));
+      if(Math.abs(b.angularVelocity)>2.4)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*2.4);
+      if(Math.abs(b.velocity.x)<.0008&&Math.abs(b.velocity.y)<.0008&&Math.abs(b.angularVelocity)<.00008){
+        M.Body.setVelocity(b,{x:0,y:0});
+        M.Body.setAngularVelocity(b,0);
+      }
       if(!Number.isFinite(b.position.x)||!Number.isFinite(b.position.y)){M.Body.setPosition(b,{x:W/2,y:80});M.Body.setVelocity(b,{x:0,y:0});M.Body.setAngularVelocity(b,0)}
     }
   }
@@ -697,7 +747,7 @@ class PhysicsWorld{
     for(const b of this.bodies.values()){
       const v=b.plugin?.visual;
       if(!v?.user)continue;
-      const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity};
+      const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity,physics:{mass:b.mass,friction:b.friction,frictionStatic:b.frictionStatic,frictionAir:b.frictionAir,restitution:b.restitution}};
       if(v.points)base.points=v.points.map(p=>({...p}));
       if(v.r)base.r=v.r;
       if(v.w){base.w=v.w;base.h=v.h}
@@ -723,6 +773,7 @@ class PhysicsWorld{
         this.bodies.delete(generatedUid);
         b.plugin.uid=s.uid;
         this.bodies.set(s.uid,b);
+        if(s.physics)this.applyMaterial(b,s.physics);
         M.Body.setPosition(b,s.pos);
         M.Body.setAngle(b,s.angle||0);
         M.Body.setVelocity(b,s.vel||{x:0,y:0});
@@ -819,7 +870,7 @@ class DrawingSystem{
   eraseAt(p){const b=this.app.physics.bodyAt(p,true);if(b)this.eraseBody(b);else{const c=this.app.physics.userConstraints.find(c=>{const a=c.bodyA?M.Vector.add(c.bodyA.position,M.Vector.rotate(c.pointA||{x:0,y:0},c.bodyA.angle)):c.pointA,bp=c.bodyB?M.Vector.add(c.bodyB.position,M.Vector.rotate(c.pointB||{x:0,y:0},c.bodyB.angle)):c.pointB;return this.pointSegDistance(p,a,bp)<18});if(c){this.app.pushHistory();this.app.physics.removeConstraint(c);this.app.refundInk(50);this.app.afterAction();return}const pv=this.app.physics.pivots.find(x=>x.user&&dist(x,p)<20);if(pv){this.app.pushHistory();this.app.physics.pivots=this.app.physics.pivots.filter(x=>x!==pv);if(this.pendingPivot===pv)this.pendingPivot=null;this.app.refundInk(36);this.app.afterAction()}}}
   eraseBody(b){this.app.pushHistory();const ink=this.app.physics.removeUserBody(b);this.app.refundInk(ink*.8);this.app.afterAction();this.app.audio.tone(180,.06,'triangle',.04,-70)}
   pointSegDistance(p,a,b){if(!a||!b)return 999;const l2=(b.x-a.x)**2+(b.y-a.y)**2;if(!l2)return dist(p,a);let t=((p.x-a.x)*(b.x-a.x)+(p.y-a.y)*(b.y-a.y))/l2;t=clamp(t,0,1);return dist(p,{x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)})}
-  nudge(p){const ball=this.app.physics.ball;if(!ball||performance.now()-this.app.lastNudge<1200)return;const dir=p.x<ball.position.x?1:-1;M.Body.applyForce(ball,ball.position,{x:dir*.012,y:-.0015});this.app.lastNudge=performance.now();this.app.nudges++;this.app.audio.tone(190,.06,'triangle',.06,80)}
+  nudge(p){const ball=this.app.physics.ball;if(!ball||performance.now()-this.app.lastNudge<1200)return;const dir=p.x<ball.position.x?1:-1;const impulse={x:dir*1.45,y:-.18};M.Body.setVelocity(ball,{x:ball.velocity.x+impulse.x,y:ball.velocity.y+impulse.y});M.Sleeping.set(ball,false);this.app.lastNudge=performance.now();this.app.nudges++;this.app.audio.tone(190,.06,'triangle',.06,80)}
 }
 
 class Editor{
