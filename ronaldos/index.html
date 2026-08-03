@@ -75,7 +75,7 @@ a{color:var(--orange)}
 .dedication{margin:0;color:#d9d4ca;font-size:13px;font-weight:700}
 .authorBlock{margin:10px 0 0}
 .authorBlock h2{margin:0;font-size:clamp(13px,3vw,14px);font-weight:600}
-.authorBlock h2 span{color:#ff9900}
+.authorBlock h2 span{color:var(--orange)}
 .home{margin:2px 0 0;font-size:clamp(12px,2.8vw,13px)}
 .home a{text-decoration:none}
 .topActions{display:grid;gap:7px}
@@ -186,7 +186,19 @@ a{color:var(--orange)}
   cursor:pointer
 }
 .listen:disabled{opacity:.55}
-.micro{margin:9px 0 0;color:var(--muted);font-size:11px}
+.extend{
+  width:100%;
+  min-height:48px;
+  margin-top:9px;
+  border:1px solid rgba(255,153,0,.35);
+  border-radius:15px;
+  color:#ffd5a0;
+  background:rgba(255,153,0,.09);
+  font-weight:850;
+  cursor:pointer
+}
+.extend:disabled{opacity:.42;cursor:default}
+.micro{margin:9px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
 .answer{margin-top:16px}
 .answer label{display:block;margin-bottom:7px;font-size:12px;font-weight:850}
 .inputwrap{position:relative}
@@ -209,9 +221,49 @@ a{color:var(--orange)}
 .answer input:disabled{opacity:.74}
 .status{
   position:absolute;
-  right:14px;top:50%;
+  right:14px;top:27px;
   transform:translateY(-50%);
   font-size:20px
+}
+.suggestions{
+  position:absolute;
+  z-index:20;
+  top:calc(100% + 6px);
+  left:0;
+  right:0;
+  display:none;
+  max-height:230px;
+  overflow-y:auto;
+  padding:6px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#242428;
+  box-shadow:0 16px 35px rgba(0,0,0,.5)
+}
+.suggestions.show{display:grid;gap:4px}
+.suggestion{
+  min-height:43px;
+  padding:9px 11px;
+  border:0;
+  border-radius:10px;
+  color:var(--text);
+  background:transparent;
+  text-align:left;
+  font-weight:750;
+  cursor:pointer
+}
+.suggestion:hover,.suggestion:focus{
+  outline:0;
+  background:rgba(255,153,0,.13)
+}
+.suggestion mark{
+  padding:0;
+  color:#fff;
+  background:transparent;
+  text-decoration:underline;
+  text-decoration-color:var(--orange);
+  text-decoration-thickness:2px;
+  text-underline-offset:3px
 }
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}
 .btn{
@@ -399,11 +451,8 @@ a{color:var(--orange)}
         <h1>¿Cuánto sabes de LOS RONALDOS?</h1>
         <p class="dedication">Dedicado a: Nacho</p>
 
-        <!-- BLOQUE DESARROLLADO POR + HOME -->
         <div class="authorBlock">
-          <h2>
-            <span>Desarrollado por: Ángel Soto</span>
-          </h2>
+          <h2><span>Desarrollado por: Ángel Soto</span></h2>
           <p class="home">
             <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
               🏠 <span>volver a página de inicio</span>
@@ -438,21 +487,35 @@ a{color:var(--orange)}
         <i></i><i></i><i></i><i></i><i></i>
         <i></i><i></i><i></i><i></i><i></i>
       </div>
+
       <button class="listen" id="listen">▶ Repetir fragmento</button>
-      <p class="micro">El fragmento de 1 segundo se reproduce automáticamente.</p>
+      <button class="extend" id="extend">＋ Añadir 1 segundo</button>
+      <p class="micro" id="fragmentInfo">
+        Fragmento actual: 1 segundo · Premio máximo: 1 punto.
+      </p>
     </div>
 
     <div class="answer" id="answerArea">
       <label for="input">Nombre de la canción</label>
+
       <div class="inputwrap">
         <input
           id="input"
           autocomplete="off"
           autocapitalize="sentences"
           spellcheck="false"
+          aria-autocomplete="list"
+          aria-controls="suggestions"
+          aria-expanded="false"
           placeholder="Escribe el título…"
         >
         <span class="status" id="status"></span>
+        <div
+          class="suggestions"
+          id="suggestions"
+          role="listbox"
+          aria-label="Canciones coincidentes"
+        ></div>
       </div>
 
       <div class="actions">
@@ -477,7 +540,9 @@ a{color:var(--orange)}
   <section class="card end" id="end">
     <div class="eyebrow">Partida terminada</div>
     <h2>Resultado final</h2>
-    <div class="finalscore"><span id="finalScore">0</span><small> / 8</small></div>
+    <div class="finalscore">
+      <span id="finalScore">0</span><small> / <span id="finalMaximum">8</span></small>
+    </div>
 
     <div class="summary">
       <div><b id="finalCorrect">0</b><span>canciones acertadas</span></div>
@@ -489,7 +554,6 @@ a{color:var(--orange)}
   </section>
 </main>
 
-<!-- FOOTER -->
 <footer class="footer">
   <p>Creado por: Angel Soto DVM PhD
     (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)
@@ -510,79 +574,77 @@ a{color:var(--orange)}
 <div class="modal" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
   <div class="modalCard">
     <div class="modalHead">
-      <h2 id="infoTitle">Cómo está creado este juego</h2>
+      <h2 id="infoTitle">Cómo funciona el juego</h2>
       <button class="closeBtn" id="closeInfo" aria-label="Cerrar información">×</button>
     </div>
 
-    <p>Esta aplicación está construida en un único archivo HTML que incluye la estructura, los estilos CSS y la programación JavaScript.</p>
+    <p>Esta aplicación está construida en un único archivo HTML que contiene la estructura, los estilos CSS, la lista JSON de canciones y la programación JavaScript.</p>
 
     <ol>
-      <li>Las canciones se almacenan en una lista JSON incluida en el propio documento.</li>
-      <li>JavaScript baraja el orden de las canciones al comenzar cada partida.</li>
+      <li>Cada partida selecciona ocho canciones al azar.</li>
       <li>Cada ronda reproduce automáticamente el primer segundo del archivo MP3.</li>
-      <li>El jugador puede repetir ese mismo fragmento tantas veces como necesite.</li>
-      <li>Un acierto escribiendo el título vale 1 punto.</li>
+      <li>El botón <strong>Añadir 1 segundo</strong> prolonga el fragmento y lo vuelve a reproducir.</li>
+      <li>El premio máximo comienza en 1 punto y disminuye 0,2 puntos por cada segundo añadido.</li>
+      <li>La puntuación queda en 0 a partir de seis segundos.</li>
+      <li>Al escribir tres letras aparecen canciones coincidentes que pueden seleccionarse.</li>
       <li>Si se solicitan tres opciones, un acierto vale 0,5 puntos.</li>
       <li>Los archivos MP3 deben estar dentro de la subcarpeta <strong>canciones</strong>.</li>
     </ol>
-
-    <p>El botón de información contiene únicamente la explicación técnica del juego. No se incluye un descargador de YouTube, porque esa función requeriría un servidor externo y debe respetar los derechos de autor y las condiciones del servicio.</p>
   </div>
 </div>
 
 <script id="songs" type="application/json">
 [
-{"id":1,"title":"Adiós papá","file":"canciones/Adios papa.mp3"},
-{"id":2,"title":"Alguien espía","file":"canciones/Alguien espia.mp3"},
-{"id":3,"title":"Alguien sabe más","file":"canciones/Alguien sabe mas.mp3"},
-{"id":4,"title":"Ana y Choni","file":"canciones/Ana y Choni.mp3"},
-{"id":5,"title":"Árboles cruzados","file":"canciones/Arboles cruzados.mp3"},
-{"id":6,"title":"Así no se vive bien","file":"canciones/Asi no se vive bien.mp3"},
-{"id":7,"title":"Azul blues","file":"canciones/Azul blues.mp3"},
-{"id":8,"title":"Cero","file":"canciones/Cero.mp3"},
-{"id":9,"title":"Contágiame otra vez","file":"canciones/Contagiame otra vez.mp3"},
-{"id":10,"title":"Cuidado conmigo","file":"canciones/Cuidado conmigo.mp3"},
-{"id":11,"title":"Dime por qué","file":"canciones/Dime por que.mp3"},
-{"id":12,"title":"El gurú","file":"canciones/El guru.mp3"},
-{"id":13,"title":"El rock del Cayetano","file":"canciones/El rock del Cayetano.mp3"},
-{"id":14,"title":"En el próximo","file":"canciones/En el proximo.mp3"},
-{"id":15,"title":"Eres fresca","file":"canciones/Eres fresca.mp3"},
-{"id":16,"title":"Es verano","file":"canciones/Es verano.mp3"},
-{"id":17,"title":"Esperando un milagro","file":"canciones/Esperando un milagro Videoclip Oficial.mp3"},
-{"id":18,"title":"Final instrumental","file":"canciones/Final Instrumental.mp3"},
-{"id":19,"title":"Guárdalo","file":"canciones/Guardalo.mp3"},
-{"id":20,"title":"La fábrica del amor","file":"canciones/La fabrica del amor.mp3"},
-{"id":21,"title":"Lagarto","file":"canciones/Lagarto.mp3"},
-{"id":22,"title":"Me gustan las cerezas","file":"canciones/Me gustan las cerezas.mp3"},
-{"id":23,"title":"No como él","file":"canciones/No como el.mp3"},
-{"id":24,"title":"No está","file":"canciones/No esta.mp3"},
-{"id":25,"title":"No más amor","file":"canciones/No mas amor Los Ronaldos.mp3"},
-{"id":26,"title":"No me digas la verdad","file":"canciones/No me digas la verdad.mp3"},
-{"id":27,"title":"No me ha visto nadie","file":"canciones/No me ha visto nadie.mp3"},
-{"id":28,"title":"No me puedo marchar","file":"canciones/No me puedo marchar.mp3"},
-{"id":29,"title":"No puedo vivir sin ti","file":"canciones/No puedo vivir sin ti.mp3"},
-{"id":30,"title":"No se me ha perdido nada","file":"canciones/No se me ha perdido nada.mp3"},
-{"id":31,"title":"Pequeña Daisy","file":"canciones/Pequena Daisy.mp3"},
-{"id":32,"title":"Por las noches directo 07","file":"canciones/Por las noches directo 07.mp3"},
-{"id":33,"title":"Por las noches","file":"canciones/Por las noches.mp3"},
-{"id":34,"title":"Qué vamos a hacer","file":"canciones/Que vamos a hacer.mp3"},
-{"id":35,"title":"Quiero más","file":"canciones/Quiero mas.mp3"},
-{"id":36,"title":"Quiero que estemos pegados","file":"canciones/Quiero que estemos pegados.mp3"},
-{"id":37,"title":"Sabor salado","file":"canciones/Sabor salado.mp3"},
-{"id":38,"title":"Saca la lengua para bailar","file":"canciones/Saca la Lengua para bailar.mp3"},
-{"id":39,"title":"Sara ya tiene un amigo","file":"canciones/Sara ya tiene un amigo.mp3"},
-{"id":40,"title":"Sé dónde estás","file":"canciones/Se donde estas.mp3"},
-{"id":41,"title":"Sentí llamar","file":"canciones/Senti llamar.mp3"},
-{"id":42,"title":"Si os vais","file":"canciones/Si os vais.mp3"},
-{"id":43,"title":"Sí, sí","file":"canciones/Si si.mp3"},
-{"id":44,"title":"Siesta de alcohol","file":"canciones/Siesta de alcohol.mpg.mp3"},
-{"id":45,"title":"Solamente","file":"canciones/Solamente.mp3"},
-{"id":46,"title":"Tú verás","file":"canciones/Tu veras.mp3"},
-{"id":47,"title":"Voy a vivir","file":"canciones/Voy a vivir.mp3"},
-{"id":48,"title":"Ya no me engañas","file":"canciones/Ya no me enganas.mp3"},
-{"id":49,"title":"Ya volverán","file":"canciones/Ya volveran.mp3"}
+  {"id":1,"title":"Adiós papá","file":"canciones/Adios papa.mp3"},
+  {"id":2,"title":"Alguien espía","file":"canciones/Alguien espia.mp3"},
+  {"id":3,"title":"Alguien sabe más","file":"canciones/Alguien sabe mas.mp3"},
+  {"id":4,"title":"Ana y Choni","file":"canciones/Ana y Choni.mp3"},
+  {"id":5,"title":"Árboles cruzados","file":"canciones/Arboles cruzados.mp3"},
+  {"id":6,"title":"Así no se vive bien","file":"canciones/Asi no se vive bien.mp3"},
+  {"id":7,"title":"Azul blues","file":"canciones/Azul blues.mp3"},
+  {"id":8,"title":"Cero","file":"canciones/Cero.mp3"},
+  {"id":9,"title":"Contágiame otra vez","file":"canciones/Contagiame otra vez.mp3"},
+  {"id":10,"title":"Cuidado conmigo","file":"canciones/Cuidado conmigo.mp3"},
+  {"id":11,"title":"Dime por qué","file":"canciones/Dime por que.mp3"},
+  {"id":12,"title":"El gurú","file":"canciones/El guru.mp3"},
+  {"id":13,"title":"El rock del Cayetano","file":"canciones/El rock del Cayetano.mp3"},
+  {"id":14,"title":"En el próximo","file":"canciones/En el proximo.mp3"},
+  {"id":15,"title":"Eres fresca","file":"canciones/Eres fresca.mp3"},
+  {"id":16,"title":"Es verano","file":"canciones/Es verano.mp3"},
+  {"id":17,"title":"Esperando un milagro","file":"canciones/Esperando un milagro Videoclip Oficial.mp3"},
+  {"id":18,"title":"Final instrumental","file":"canciones/Final Instrumental.mp3"},
+  {"id":19,"title":"Guárdalo","file":"canciones/Guardalo.mp3"},
+  {"id":20,"title":"La fábrica del amor","file":"canciones/La fabrica del amor.mp3"},
+  {"id":21,"title":"Lagarto","file":"canciones/Lagarto.mp3"},
+  {"id":22,"title":"Me gustan las cerezas","file":"canciones/Me gustan las cerezas.mp3"},
+  {"id":23,"title":"No como él","file":"canciones/No como el.mp3"},
+  {"id":24,"title":"No está","file":"canciones/No esta.mp3"},
+  {"id":25,"title":"No más amor","file":"canciones/No mas amor Los Ronaldos.mp3"},
+  {"id":26,"title":"No me digas la verdad","file":"canciones/No me digas la verdad.mp3"},
+  {"id":27,"title":"No me ha visto nadie","file":"canciones/No me ha visto nadie.mp3"},
+  {"id":28,"title":"No me puedo marchar","file":"canciones/No me puedo marchar.mp3"},
+  {"id":29,"title":"No puedo vivir sin ti","file":"canciones/No puedo vivir sin ti.mp3"},
+  {"id":30,"title":"No se me ha perdido nada","file":"canciones/No se me ha perdido nada.mp3"},
+  {"id":31,"title":"Pequeña Daisy","file":"canciones/Pequena Daisy.mp3"},
+  {"id":32,"title":"Por las noches directo 07","file":"canciones/Por las noches directo 07.mp3"},
+  {"id":33,"title":"Por las noches","file":"canciones/Por las noches.mp3"},
+  {"id":34,"title":"Qué vamos a hacer","file":"canciones/Que vamos a hacer.mp3"},
+  {"id":35,"title":"Quiero más","file":"canciones/Quiero mas.mp3"},
+  {"id":36,"title":"Quiero que estemos pegados","file":"canciones/Quiero que estemos pegados.mp3"},
+  {"id":37,"title":"Sabor salado","file":"canciones/Sabor salado.mp3"},
+  {"id":38,"title":"Saca la lengua para bailar","file":"canciones/Saca la Lengua para bailar.mp3"},
+  {"id":39,"title":"Sara ya tiene un amigo","file":"canciones/Sara ya tiene un amigo.mp3"},
+  {"id":40,"title":"Sé dónde estás","file":"canciones/Se donde estas.mp3"},
+  {"id":41,"title":"Sentí llamar","file":"canciones/Senti llamar.mp3"},
+  {"id":42,"title":"Si os vais","file":"canciones/Si os vais.mp3"},
+  {"id":43,"title":"Sí, sí","file":"canciones/Si si.mp3"},
+  {"id":44,"title":"Siesta de alcohol","file":"canciones/Siesta de alcohol.mpg.mp3"},
+  {"id":45,"title":"Solamente","file":"canciones/Solamente.mp3"},
+  {"id":46,"title":"Tú verás","file":"canciones/Tu veras.mp3"},
+  {"id":47,"title":"Voy a vivir","file":"canciones/Voy a vivir.mp3"},
+  {"id":48,"title":"Ya no me engañas","file":"canciones/Ya no me enganas.mp3"},
+  {"id":49,"title":"Ya volverán","file":"canciones/Ya volveran.mp3"}
 ]
-
 </script>
 
 <script>
@@ -590,7 +652,12 @@ a{color:var(--orange)}
   'use strict';
 
   const SONGS = JSON.parse(document.getElementById('songs').textContent);
-  const FRAGMENT_SECONDS = 1;
+
+  const GAME_LENGTH = Math.min(8, SONGS.length);
+  const INITIAL_FRAGMENT_SECONDS = 1;
+  const MAX_FRAGMENT_SECONDS = 10;
+  const SECONDS_PENALTY = 0.2;
+  const OPTIONS_POINTS = 0.5;
 
   const $ = id => document.getElementById(id);
 
@@ -604,10 +671,13 @@ a{color:var(--orange)}
     counter: $('counter'),
     fill: $('fill'),
     listen: $('listen'),
+    extend: $('extend'),
+    fragmentInfo: $('fragmentInfo'),
     disc: $('disc'),
     wave: $('wave'),
     audio: $('audio'),
     input: $('input'),
+    suggestions: $('suggestions'),
     status: $('status'),
     check: $('check'),
     dontKnow: $('dontKnow'),
@@ -618,6 +688,7 @@ a{color:var(--orange)}
     feedbackText: $('feedbackText'),
     next: $('next'),
     finalScore: $('finalScore'),
+    finalMaximum: $('finalMaximum'),
     finalCorrect: $('finalCorrect'),
     finalWrong: $('finalWrong'),
     finalMessage: $('finalMessage'),
@@ -635,20 +706,22 @@ a{color:var(--orange)}
       score: 0,
       correct: 0,
       wrong: 0,
-      remaining: shuffle(SONGS.map(song => song.id)),
+      remaining: shuffle(SONGS.map(song => song.id)).slice(0, GAME_LENGTH),
       current: null,
       answered: false,
       usedOptions: false,
-      lastCorrect: null
+      fragmentSeconds: INITIAL_FRAGMENT_SECONDS
     };
   }
 
   function shuffle(array) {
     const result = [...array];
+
     for (let i = result.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [result[i], result[j]] = [result[j], result[i]];
     }
+
     return result;
   }
 
@@ -665,7 +738,22 @@ a{color:var(--orange)}
   }
 
   function formatScore(value) {
-    return Number.isInteger(value) ? String(value) : String(value).replace('.', ',');
+    const rounded = Number(Number(value).toFixed(1));
+    return Number.isInteger(rounded)
+      ? String(rounded)
+      : String(rounded).replace('.', ',');
+  }
+
+  function typedAnswerPoints() {
+    const extraSeconds = Math.max(
+      0,
+      state.fragmentSeconds - INITIAL_FRAGMENT_SECONDS
+    );
+
+    return Math.max(
+      0,
+      Number((1 - extraSeconds * SECONDS_PENALTY).toFixed(1))
+    );
   }
 
   function updateScoreboard() {
@@ -674,11 +762,30 @@ a{color:var(--orange)}
     E.wrong.textContent = state.wrong;
   }
 
+  function updateFragmentInfo() {
+    const seconds = state.fragmentSeconds;
+    const points = typedAnswerPoints();
+
+    E.fragmentInfo.textContent =
+      `Fragmento actual: ${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} · ` +
+      `Premio máximo: ${formatScore(points)} ${points === 1 ? 'punto' : 'puntos'}.`;
+
+    E.extend.disabled =
+      state.answered || seconds >= MAX_FRAGMENT_SECONDS;
+
+    E.extend.textContent =
+      seconds >= MAX_FRAGMENT_SECONDS
+        ? `Máximo: ${MAX_FRAGMENT_SECONDS} segundos`
+        : '＋ Añadir 1 segundo';
+  }
+
   function setPlaying(isPlaying) {
     E.disc.classList.toggle('playing', isPlaying);
     E.wave.classList.toggle('playing', isPlaying);
-    E.listen.disabled = isPlaying;
-    E.listen.textContent = isPlaying ? '♫ Escuchando…' : '▶ Repetir fragmento';
+    E.listen.disabled = isPlaying || state.answered;
+    E.listen.textContent = isPlaying
+      ? '♫ Escuchando…'
+      : '▶ Repetir fragmento';
   }
 
   function stopAudio(resetTime = true) {
@@ -688,7 +795,9 @@ a{color:var(--orange)}
     E.audio.pause();
 
     if (resetTime) {
-      try { E.audio.currentTime = 0; } catch (_) {}
+      try {
+        E.audio.currentTime = 0;
+      } catch (_) {}
     }
 
     setPlaying(false);
@@ -696,6 +805,7 @@ a{color:var(--orange)}
 
   async function playFragment() {
     const song = currentSong();
+
     if (!song || state.answered) return;
 
     stopAudio();
@@ -710,22 +820,169 @@ a{color:var(--orange)}
 
       timer = setTimeout(() => {
         E.audio.pause();
-        try { E.audio.currentTime = 0; } catch (_) {}
+
+        try {
+          E.audio.currentTime = 0;
+        } catch (_) {}
+
         setPlaying(false);
-      }, FRAGMENT_SECONDS * 1000);
+      }, state.fragmentSeconds * 1000);
     } catch (error) {
       setPlaying(false);
-      toast('Pulsa “Repetir fragmento” para iniciar el audio. Algunos navegadores bloquean la reproducción automática.');
+      toast(
+        'Pulsa “Repetir fragmento” para iniciar el audio. ' +
+        'Algunos navegadores bloquean la reproducción automática.'
+      );
     }
+  }
+
+  function extendFragment() {
+    if (
+      state.answered ||
+      state.fragmentSeconds >= MAX_FRAGMENT_SECONDS
+    ) return;
+
+    state.fragmentSeconds++;
+    updateFragmentInfo();
+    playFragment();
+  }
+
+  function hideSuggestions() {
+    E.suggestions.classList.remove('show');
+    E.suggestions.innerHTML = '';
+    E.input.setAttribute('aria-expanded', 'false');
+  }
+
+  function createHighlightedTitle(title, query) {
+    const normalizedQuery = normalize(query);
+    const fragment = document.createDocumentFragment();
+
+    if (!normalizedQuery) {
+      fragment.append(document.createTextNode(title));
+      return fragment;
+    }
+
+    const normalizedTitle = normalize(title);
+    const normalizedIndex = normalizedTitle.indexOf(normalizedQuery);
+
+    if (normalizedIndex < 0) {
+      fragment.append(document.createTextNode(title));
+      return fragment;
+    }
+
+    /*
+      Los títulos pueden contener tildes y signos. Para evitar cortar mal el
+      texto visible, se busca el tramo equivalente carácter por carácter.
+    */
+    let visibleStart = -1;
+    let visibleEnd = -1;
+    let normalizedPosition = 0;
+
+    for (let i = 0; i < title.length; i++) {
+      const normalizedChar = normalize(title[i]);
+
+      if (!normalizedChar) continue;
+
+      if (normalizedPosition === normalizedIndex && visibleStart < 0) {
+        visibleStart = i;
+      }
+
+      normalizedPosition += normalizedChar.length;
+
+      if (
+        visibleStart >= 0 &&
+        normalizedPosition >= normalizedIndex + normalizedQuery.length
+      ) {
+        visibleEnd = i + 1;
+        break;
+      }
+    }
+
+    if (visibleStart < 0 || visibleEnd < 0) {
+      fragment.append(document.createTextNode(title));
+      return fragment;
+    }
+
+    fragment.append(document.createTextNode(title.slice(0, visibleStart)));
+
+    const mark = document.createElement('mark');
+    mark.textContent = title.slice(visibleStart, visibleEnd);
+    fragment.append(mark);
+
+    fragment.append(document.createTextNode(title.slice(visibleEnd)));
+    return fragment;
+  }
+
+  function showSuggestions() {
+    if (state.answered || E.input.disabled) {
+      hideSuggestions();
+      return;
+    }
+
+    const rawSearch = E.input.value.trim();
+    const search = normalize(rawSearch);
+
+    if (search.length < 3) {
+      hideSuggestions();
+      return;
+    }
+
+    const matches = SONGS
+      .filter(song => normalize(song.title).includes(search))
+      .sort((a, b) => {
+        const aTitle = normalize(a.title);
+        const bTitle = normalize(b.title);
+        const aStarts = aTitle.startsWith(search);
+        const bStarts = bTitle.startsWith(search);
+
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+
+        const aPosition = aTitle.indexOf(search);
+        const bPosition = bTitle.indexOf(search);
+
+        if (aPosition !== bPosition) return aPosition - bPosition;
+
+        return a.title.localeCompare(b.title, 'es');
+      })
+      .slice(0, 8);
+
+    E.suggestions.innerHTML = '';
+
+    if (!matches.length) {
+      hideSuggestions();
+      return;
+    }
+
+    matches.forEach(song => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'suggestion';
+      button.role = 'option';
+      button.append(createHighlightedTitle(song.title, rawSearch));
+
+      button.addEventListener('click', () => {
+        E.input.value = song.title;
+        hideSuggestions();
+        E.input.focus();
+      });
+
+      E.suggestions.appendChild(button);
+    });
+
+    E.suggestions.classList.add('show');
+    E.input.setAttribute('aria-expanded', 'true');
   }
 
   function renderRound() {
     const song = currentSong();
+
     if (!song) return;
 
-    const roundNumber = SONGS.length - state.remaining.length;
-    E.counter.textContent = `Canción ${roundNumber} de ${SONGS.length}`;
-    E.fill.style.width = `${((roundNumber - 1) / SONGS.length) * 100}%`;
+    const roundNumber = GAME_LENGTH - state.remaining.length;
+
+    E.counter.textContent = `Canción ${roundNumber} de ${GAME_LENGTH}`;
+    E.fill.style.width =
+      `${((roundNumber - 1) / GAME_LENGTH) * 100}%`;
 
     E.audio.src = song.file;
     E.audio.load();
@@ -735,19 +992,23 @@ a{color:var(--orange)}
     E.status.textContent = '';
     E.check.disabled = false;
     E.dontKnow.disabled = false;
+    E.extend.disabled = false;
 
     E.hint.classList.remove('show');
     E.options.innerHTML = '';
     E.feedback.className = 'feedback';
     E.next.classList.remove('show');
 
+    hideSuggestions();
     updateScoreboard();
+    updateFragmentInfo();
 
     setTimeout(playFragment, 180);
   }
 
   function nextSong() {
     stopAudio();
+    hideSuggestions();
 
     if (!state.remaining.length) {
       finishGame();
@@ -757,7 +1018,7 @@ a{color:var(--orange)}
     state.current = state.remaining.shift();
     state.answered = false;
     state.usedOptions = false;
-    state.lastCorrect = null;
+    state.fragmentSeconds = INITIAL_FRAGMENT_SECONDS;
 
     renderRound();
   }
@@ -774,7 +1035,13 @@ a{color:var(--orange)}
       return;
     }
 
-    if (typed === expected || expected.startsWith(typed) || typed.startsWith(expected)) {
+    hideSuggestions();
+
+    if (
+      typed === expected ||
+      expected.startsWith(typed) ||
+      typed.startsWith(expected)
+    ) {
       resolveRound(true, false);
     } else {
       showOptions();
@@ -785,10 +1052,13 @@ a{color:var(--orange)}
   function showOptions() {
     if (state.answered || state.usedOptions) return;
 
+    hideSuggestions();
     state.usedOptions = true;
+
     E.input.disabled = true;
     E.check.disabled = true;
     E.dontKnow.disabled = true;
+    E.extend.disabled = true;
     E.status.textContent = '?';
 
     const right = currentSong();
@@ -804,15 +1074,21 @@ a{color:var(--orange)}
       button.type = 'button';
       button.className = 'option';
       button.textContent = choice.title;
+
       button.addEventListener('click', () => {
         resolveRound(choice.id === right.id, true);
       });
+
       E.options.appendChild(button);
     });
 
     E.hint.classList.add('show');
+
     requestAnimationFrame(() => {
-      E.hint.scrollIntoView({behavior:'smooth', block:'nearest'});
+      E.hint.scrollIntoView({
+        behavior:'smooth',
+        block:'nearest'
+      });
     });
   }
 
@@ -820,40 +1096,50 @@ a{color:var(--orange)}
     if (state.answered) return;
 
     stopAudio(false);
+    hideSuggestions();
 
     const song = currentSong();
+
     state.answered = true;
-    state.lastCorrect = correct;
 
     E.input.value = song.title;
     E.input.disabled = true;
     E.check.disabled = true;
     E.dontKnow.disabled = true;
+    E.extend.disabled = true;
     E.hint.classList.remove('show');
     E.status.textContent = correct ? '✓' : '✕';
 
     if (correct) {
-      const points = fromOptions ? 0.5 : 1;
-      state.score += points;
+      const points = fromOptions
+        ? OPTIONS_POINTS
+        : typedAnswerPoints();
+
+      state.score = Number((state.score + points).toFixed(1));
       state.correct++;
 
       E.feedback.className = 'feedback show ok';
-      E.feedbackTitle.textContent = fromOptions
-        ? '¡Correcto! +0,5 puntos'
-        : '¡Correcto! +1 punto';
-      E.feedbackText.textContent = `La canción era “${song.title}”.`;
+      E.feedbackTitle.textContent =
+        `¡Correcto! +${formatScore(points)} ` +
+        `${points === 1 ? 'punto' : 'puntos'}`;
+
+      E.feedbackText.textContent =
+        `La canción era “${song.title}”. ` +
+        `Has escuchado ${state.fragmentSeconds} ` +
+        `${state.fragmentSeconds === 1 ? 'segundo' : 'segundos'}.`;
     } else {
       state.wrong++;
 
       E.feedback.className = 'feedback show bad';
       E.feedbackTitle.textContent = 'Respuesta incorrecta';
-      E.feedbackText.textContent = `La canción era “${song.title}”. Esta ronda suma 0 puntos.`;
+      E.feedbackText.textContent =
+        `La canción era “${song.title}”. Esta ronda suma 0 puntos.`;
     }
 
     updateScoreboard();
 
-    const completed = SONGS.length - state.remaining.length;
-    E.fill.style.width = `${(completed / SONGS.length) * 100}%`;
+    const completed = GAME_LENGTH - state.remaining.length;
+    E.fill.style.width = `${(completed / GAME_LENGTH) * 100}%`;
 
     E.next.textContent = state.remaining.length
       ? 'Siguiente canción →'
@@ -864,24 +1150,32 @@ a{color:var(--orange)}
 
   function finishGame() {
     stopAudio();
+    hideSuggestions();
+
     E.game.classList.add('hidden');
     E.end.classList.add('show');
 
     E.finalScore.textContent = formatScore(state.score);
+    E.finalMaximum.textContent = GAME_LENGTH;
     E.finalCorrect.textContent = state.correct;
     E.finalWrong.textContent = state.wrong;
 
-    const ratio = state.score / SONGS.length;
+    const ratio = state.score / GAME_LENGTH;
 
     E.finalMessage.textContent =
-      ratio === 1 ? 'Pleno absoluto. Eres de la banda.' :
-      ratio >= 0.75 ? 'Muy buen oído. Casi no se te escapa una.' :
-      ratio >= 0.5 ? 'Buen resultado. Otra ronda y lo clavas.' :
-      'Necesitas otra vuelta al repertorio.';
+      ratio === 1
+        ? 'Pleno absoluto. Eres de la banda.'
+        : ratio >= 0.75
+          ? 'Muy buen oído. Casi no se te escapa una.'
+          : ratio >= 0.5
+            ? 'Buen resultado. Otra ronda y lo clavas.'
+            : 'Necesitas otra vuelta al repertorio.';
   }
 
   function newGame() {
     stopAudio();
+    hideSuggestions();
+
     state = freshState();
 
     E.end.classList.remove('show');
@@ -894,6 +1188,7 @@ a{color:var(--orange)}
 
   function toast(message) {
     clearTimeout(toastTimer);
+
     E.toast.textContent = message;
     E.toast.classList.add('show');
 
@@ -913,6 +1208,7 @@ a{color:var(--orange)}
   }
 
   E.listen.addEventListener('click', playFragment);
+  E.extend.addEventListener('click', extendFragment);
   E.check.addEventListener('click', checkTypedAnswer);
   E.dontKnow.addEventListener('click', showOptions);
   E.next.addEventListener('click', nextSong);
@@ -921,16 +1217,42 @@ a{color:var(--orange)}
   $('infoBtn').addEventListener('click', openInfo);
   $('closeInfo').addEventListener('click', closeInfo);
 
+  E.input.addEventListener('input', showSuggestions);
+
+  E.input.addEventListener('focus', () => {
+    if (normalize(E.input.value).length >= 3) {
+      showSuggestions();
+    }
+  });
+
   E.input.addEventListener('keydown', event => {
-    if (event.key === 'Enter') checkTypedAnswer();
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      checkTypedAnswer();
+    }
+
+    if (event.key === 'Escape') {
+      hideSuggestions();
+    }
   });
 
   E.infoModal.addEventListener('click', event => {
     if (event.target === E.infoModal) closeInfo();
   });
 
+  document.addEventListener('click', event => {
+    if (
+      event.target !== E.input &&
+      !E.suggestions.contains(event.target)
+    ) {
+      hideSuggestions();
+    }
+  });
+
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeInfo();
+    if (event.key === 'Escape' && E.infoModal.classList.contains('show')) {
+      closeInfo();
+    }
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -943,10 +1265,9 @@ a{color:var(--orange)}
   });
 
   /*
-    La partida comienza automáticamente.
     En iPhone y algunos navegadores, la reproducción automática con sonido
-    puede bloquearse hasta la primera interacción del usuario. En ese caso,
-    basta con pulsar “Repetir fragmento”.
+    puede bloquearse hasta la primera interacción. En ese caso basta con
+    pulsar “Repetir fragmento”.
   */
   newGame();
 })();
