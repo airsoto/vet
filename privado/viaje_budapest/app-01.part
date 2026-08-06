@@ -1,0 +1,66 @@
+(() => {
+  "use strict";
+  const HASH = "b10199c47c2ba609f89b7951575278bf2c59dced73f0eef7cca444b7f33beb88";
+  const STORAGE_KEY = "budapest2026Unlocked";
+  const FAV_KEY = "budapest2026Favorites";
+  const data = window.TRIP_DATA;
+  const $ = (s, p=document) => p.querySelector(s);
+  const $$ = (s, p=document) => [...p.querySelectorAll(s)];
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  const enc = new TextEncoder();
+  let activeDay = data.meta.startDate;
+  let siteFilter = "Todos";
+  let foodFilter = "Todos";
+  let favorites = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]"));
+  let toastTimer;
+
+  async function sha256(text){
+    const buffer = await crypto.subtle.digest("SHA-256", enc.encode(text));
+    return [...new Uint8Array(buffer)].map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  function maps(query){ return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`; }
+  function apple(query){ return `https://maps.apple.com/?q=${encodeURIComponent(query)}`; }
+  function mapActions(item){
+    if(!item.mapQuery) return "";
+    return `<div class="map-actions">
+      <a href="${maps(item.mapQuery)}" target="_blank" rel="noopener">Google Maps</a>
+      <a href="${apple(item.mapQuery)}" target="_blank" rel="noopener">Apple Maps</a>
+      ${item.website ? `<a href="${esc(item.website)}" target="_blank" rel="noopener">Web oficial</a>` : ""}
+    </div>`;
+  }
+  function showToast(message){
+    const el = $("#toast"); el.textContent = message; el.classList.remove("hidden");
+    clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.add("hidden"), 2200);
+  }
+  function copyText(text){
+    navigator.clipboard?.writeText(text).then(()=>showToast("Copiado")).catch(()=>showToast(text));
+  }
+  function unlock(){
+    $("#lockScreen").classList.add("hidden");
+    $("#appShell").classList.remove("hidden");
+    renderAll();
+    setTimeout(()=>window.scrollTo({top:0,behavior:"instant"}),0);
+  }
+  function lock(){
+    localStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem(STORAGE_KEY);
+    $("#appShell").classList.add("hidden"); $("#lockScreen").classList.remove("hidden");
+    $("#password").value = ""; $("#password").focus();
+  }
+
+  $("#unlockForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const pass = $("#password").value.trim();
+    if(await sha256(pass) === HASH){
+      const store = $("#rememberDevice").checked ? localStorage : sessionStorage;
+      store.setItem(STORAGE_KEY, "1");
+      $("#lockError").style.display = "none"; unlock();
+    } else {
+      $("#lockError").style.display = "block"; $("#password").select();
+    }
+  });
+  $("#lockAgain").addEventListener("click", lock);
+  if(localStorage.getItem(STORAGE_KEY)==="1" || sessionStorage.getItem(STORAGE_KEY)==="1") unlock();
+
+  function dateStatus(){
+    const now = new Date();
+    const start = new Date(`${data.meta.startDate}T

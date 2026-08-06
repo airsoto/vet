@@ -1,0 +1,45 @@
+00:00:00`);
+    const end = new Date(`${data.meta.endDate}T23:59:59`);
+    const days = Math.ceil((start-now)/86400000);
+    if(now < start) return days > 1 ? `Faltan ${days} días` : "El viaje empieza mañana";
+    if(now > end) return "Viaje finalizado";
+    const iso = now.toLocaleDateString("sv-SE",{timeZone:data.meta.timezone});
+    const day = data.days.find(d=>d.date===iso);
+    return day ? `${day.weekday}: ${day.title}` : "Viaje en curso";
+  }
+  function renderOverview(){
+    const o = $("#overview");
+    const f = data.flights.outbound;
+    o.innerHTML = `<div class="hero-card">
+      <span class="kicker">${data.meta.flag} ${esc(data.meta.travelerNote)}</span>
+      <h2>Budapest<br>sin perder al grupo.</h2>
+      <p>${esc(data.meta.subtitle)}. Plan principal, alternativas, reservas y mapas en una sola pantalla.</p>
+      <div class="hero-grid">
+        <div class="metric"><span>Fechas</span><strong>${esc(data.meta.dateRange)}</strong></div>
+        <div class="metric"><span>Personas</span><strong>${data.meta.travelers}</strong></div>
+        <div class="metric"><span>Hotel</span><strong>Medos · Oktogon</strong></div>
+        <div class="metric"><span>Vuelo de ida</span><strong>${esc(f.flight)} · ${esc(f.departure)}</strong></div>
+      </div>
+      <div class="today-card"><strong>${esc(dateStatus())}</strong><span>${esc(data.meta.note)}</span></div>
+      <div class="quick-actions">
+        <a class="btn" href="#dayDetail">Ver itinerario</a>
+        <a class="btn secondary" href="${maps(data.hotel.mapQuery)}" target="_blank" rel="noopener">Abrir hotel</a>
+        <a class="btn secondary" href="#reservations">Reservas clave</a>
+      </div>
+    </div>`;
+    $("#topStatus").textContent = dateStatus();
+  }
+  function renderTabs(){
+    $("#dayTabs").innerHTML = data.days.map(d=>`<button class="day-tab ${d.id===activeDay?"active":""}" data-day="${d.id}">${d.emoji} ${d.shortLabel}</button>`).join("");
+    $$(".day-tab").forEach(btn=>btn.addEventListener("click",()=>{activeDay=btn.dataset.day;renderTabs();renderDay();location.hash="dayDetail";}));
+  }
+  function emojiFromTitle(title){ const m=title.match(/^\p{Extended_Pictographic}/u); return m?m[0]:"•"; }
+  function renderDay(){
+    const d = data.days.find(x=>x.id===activeDay) || data.days[0];
+    $("#dayDetail").innerHTML = `<div class="card">
+      <div class="day-intro"><div><span class="pill">${esc(d.weekday)} · ${esc(d.zone)}</span><h2>${esc(d.title)}</h2><p>${esc(d.headline)}</p></div><div class="day-emoji">${d.emoji}</div></div>
+      <div class="notice" style="margin-top:14px"><strong>Objetivo:</strong> ${esc(d.focus)}</div>
+      <div class="timeline">${d.timeline.map(ev=>`<article class="event">
+        <div class="event-dot"><div class="event-emoji">${emojiFromTitle(ev.title)}</div><div class="event-time">${esc(ev.time)}</div></div>
+        <div><h3>${esc(ev.title.replace(/^\p{Extended_Pictographic}\ufe0f?\s*/u,""))}</h3><p>${esc(ev.note)}</p>
+        <div class="event-meta">
