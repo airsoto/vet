@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="es">
+<script defer src="../goat.js"></script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>Algoritmo de Shor · Simulador interactivo</title>
+
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#0b0d10;
+      --panel:#12161b;
+      --panel2:#171c22;
+      --text:#f4f7fb;
+      --muted:#8e99a8;
+      --line:rgba(255,255,255,.10);
+      --orange:#ff9900;
+      --green:#45e39b;
+      --red:#ff6470;
+      --blue:#67b7ff;
+      --shadow:0 20px 60px rgba(0,0,0,.26);
+      --radius:22px;
+    }
+
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html{background:var(--bg);scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 50% -10%,rgba(103,183,255,.10),transparent 34rem),
+        var(--bg);
+      color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+
+    button,input{font:inherit}
+    button{cursor:pointer}
+
+    .app{
+      width:min(980px,100%);
+      margin:0 auto;
+      padding:18px clamp(14px,4vw,30px) 0;
+    }
+
+    .top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(29px,6vw,56px);
+      letter-spacing:-.045em;
+      line-height:.98;
+    }
+
+    .infoBtn{
+      flex:0 0 auto;
+      width:46px;height:46px;
+      border-radius:50%;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.045);
+      color:var(--text);
+      font-weight:800;
+      font-size:20px;
+      display:grid;
+      place-items:center;
+      box-shadow:var(--shadow);
+    }
+    .infoBtn:hover{background:rgba(255,255,255,.085)}
+
+    .hero{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.018));
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .inputWrap{
+      padding:clamp(20px,5vw,38px);
+      text-align:center;
+    }
+
+    .eyebrow{
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.16em;
+      font-size:11px;
+      font-weight:800;
+      margin-bottom:8px;
+    }
+
+    #numberInput{
+      width:100%;
+      border:0;
+      outline:0;
+      background:transparent;
+      color:white;
+      text-align:center;
+      font-size:clamp(54px,15vw,126px);
+      font-weight:800;
+      letter-spacing:-.065em;
+      line-height:1;
+      padding:3px 0 8px;
+      caret-color:var(--orange);
+    }
+    #numberInput::placeholder{color:rgba(255,255,255,.14)}
+
+    .hint{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+      margin-top:10px;
+    }
+
+    .statusBar{
+      border-top:1px solid var(--line);
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      min-height:62px;
+    }
+    .statusItem{
+      padding:12px 14px;
+      text-align:center;
+      border-right:1px solid var(--line);
+    }
+    .statusItem:last-child{border-right:0}
+    .statusLabel{
+      color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.13em;
+      font-weight:800;
+    }
+    .statusValue{
+      margin-top:4px;
+      font-size:14px;
+      font-weight:750;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .result{
+      padding:clamp(24px,5vw,38px);
+      text-align:center;
+      border-top:1px solid var(--line);
+      min-height:185px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+    }
+    .resultTitle{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.15em;
+      margin-bottom:10px;
+    }
+    .factorLine{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:clamp(9px,2.8vw,20px);
+      font-size:clamp(43px,10vw,88px);
+      line-height:1;
+      letter-spacing:-.055em;
+      font-weight:850;
+    }
+    .factor{
+      color:var(--green);
+      text-shadow:0 0 28px rgba(69,227,155,.12);
+    }
+    .times{color:var(--muted);font-weight:500}
+    .waiting{
+      font-size:clamp(27px,6vw,45px);
+      color:rgba(255,255,255,.18);
+      letter-spacing:-.03em;
+      font-weight:750;
+    }
+    .subResult{
+      margin-top:13px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .work{
+      margin-top:16px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:rgba(255,255,255,.025);
+      overflow:hidden;
+    }
+    .workHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:13px 15px;
+      border-bottom:1px solid var(--line);
+    }
+    .workHead strong{
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    .live{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      color:var(--muted);
+      font-size:11px;
+    }
+    .dot{
+      width:7px;height:7px;border-radius:50%;
+      background:var(--green);
+      box-shadow:0 0 0 4px rgba(69,227,155,.09);
+    }
+
+    #log{
+      height:238px;
+      overflow:auto;
+      padding:12px 14px 18px;
+      font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+      font-size:11px;
+      line-height:1.55;
+      color:#aeb8c5;
+      scrollbar-width:thin;
+    }
+    .logLine{
+      display:grid;
+      grid-template-columns:38px 1fr;
+      gap:8px;
+      padding:2px 0;
+      border-bottom:1px solid rgba(255,255,255,.025);
+    }
+    .logN{color:#56606c;text-align:right}
+    .logOk{color:var(--green)}
+    .logWarn{color:#ffd166}
+    .logBad{color:var(--red)}
+    .logQ{color:var(--blue)}
+
+    .mathStrip{
+      margin-top:16px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+    .mathCard{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.022);
+      border-radius:16px;
+      padding:15px;
+      min-height:112px;
+    }
+    .mathCard b{
+      display:block;
+      font-size:12px;
+      margin-bottom:7px;
+    }
+    .mathCard span{
+      display:block;
+      font-size:12px;
+      line-height:1.5;
+      color:var(--muted);
+    }
+    code{
+      color:#e5edf7;
+      background:rgba(255,255,255,.055);
+      padding:.08em .32em;
+      border-radius:5px;
+    }
+
+    .note{
+      margin:14px 0 0;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.45;
+      text-align:center;
+    }
+
+    .footer{
+      margin-top:36px;
+      border-top:1px solid var(--line);
+      padding:26px 0 40px;
+      color:#9099a4;
+      font-size:11px;
+      line-height:1.55;
+    }
+    .footer a{color:#c8d3df}
+    .footer h4{margin:8px 0}
+
+    .home a{
+      color:#9aa5b2;
+      text-decoration:none;
+    }
+    .home a:hover{color:white}
+
+    dialog{
+      width:min(760px,calc(100% - 24px));
+      max-height:min(84vh,820px);
+      padding:0;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:#11161b;
+      color:var(--text);
+      box-shadow:0 30px 100px rgba(0,0,0,.55);
+    }
+    dialog::backdrop{
+      background:rgba(0,0,0,.70);
+      backdrop-filter:blur(5px);
+    }
+    .modalHead{
+      position:sticky;
+      top:0;
+      z-index:2;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 18px;
+      background:rgba(17,22,27,.94);
+      backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--line);
+    }
+    .modalHead h3{margin:0;font-size:18px}
+    .close{
+      width:38px;height:38px;border-radius:50%;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.05);
+      color:white;font-size:20px;
+    }
+    .modalBody{
+      padding:18px;
+      color:#c2cad4;
+      line-height:1.62;
+      font-size:14px;
+    }
+    .modalBody h4{
+      margin:22px 0 7px;
+      color:white;
+      font-size:15px;
+    }
+    .modalBody p{margin:8px 0}
+    .formula{
+      margin:12px 0;
+      padding:12px 14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:rgba(255,255,255,.03);
+      color:#eef4fb;
+      font-family:"SFMono-Regular",Consolas,monospace;
+      font-size:13px;
+      overflow:auto;
+    }
+    .tag{
+      display:inline-block;
+      margin-top:8px;
+      border:1px solid rgba(255,153,0,.3);
+      color:#ffb340;
+      border-radius:999px;
+      padding:4px 9px;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.07em;
+      text-transform:uppercase;
+    }
+
+    @media (max-width:680px){
+      .statusBar{grid-template-columns:repeat(2,1fr)}
+      .statusItem:nth-child(2){border-right:0}
+      .statusItem:nth-child(-n+2){border-bottom:1px solid var(--line)}
+      .mathStrip{grid-template-columns:1fr}
+      #log{height:220px}
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      html{scroll-behavior:auto}
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <div class="top">
+    <div>
+      <h1>Algoritmo de Shor</h1>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+      🏠 <span>volver a página de inicio</span>
+      </a>
+      </p>
+      </div>
+    </div>
+
+    <button class="infoBtn" id="infoBtn" aria-label="Información sobre el algoritmo">i</button>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="inputWrap">
+        <div class="eyebrow">Escribe un entero compuesto</div>
+        <input
+          id="numberInput"
+          inputmode="numeric"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="15"
+          maxlength="7"
+          aria-label="Número a factorizar"
+        >
+        <div class="hint">
+          La simulación arranca automáticamente · recomendación didáctica: números ≤ 1.000.000
+        </div>
+      </div>
+
+      <div class="statusBar">
+        <div class="statusItem">
+          <div class="statusLabel">Intento</div>
+          <div class="statusValue" id="sAttempt">—</div>
+        </div>
+        <div class="statusItem">
+          <div class="statusLabel">Base a</div>
+          <div class="statusValue" id="sBase">—</div>
+        </div>
+        <div class="statusItem">
+          <div class="statusLabel">Período r</div>
+          <div class="statusValue" id="sOrder">—</div>
+        </div>
+        <div class="statusItem">
+          <div class="statusLabel">Estado</div>
+          <div class="statusValue" id="sState">esperando</div>
+        </div>
+      </div>
+
+      <div class="result">
+        <div class="resultTitle">Factorización</div>
+        <div id="resultMain" class="waiting">N = p × q</div>
+        <div id="resultSub" class="subResult">Escribe un número para comenzar.</div>
+      </div>
+    </section>
+
+    <section class="work">
+      <div class="workHead">
+        <strong>Proceso de cálculo</strong>
+        <div class="live"><span class="dot"></span><span id="liveLabel">listo</span></div>
+      </div>
+      <div id="log" aria-live="polite"></div>
+    </section>
+
+    <section class="mathStrip">
+      <div class="mathCard">
+        <b>1 · Reducción clásica</b>
+        <span>Elegimos <code>a &lt; N</code> y calculamos <code>mcd(a,N)</code>. Si no es 1, ya tenemos un factor.</span>
+      </div>
+      <div class="mathCard">
+        <b>2 · Período</b>
+        <span>Buscamos el menor <code>r</code> que cumple <code>aʳ ≡ 1 (mod N)</code>. En Shor real, esta es la parte cuántica.</span>
+      </div>
+      <div class="mathCard">
+        <b>3 · Factores</b>
+        <span>Si <code>r</code> es par, calculamos <code>mcd(aʳᐟ²−1,N)</code> y <code>mcd(aʳᐟ²+1,N)</code>.</span>
+      </div>
+    </section>
+
+    <p class="note">
+      ⚛️ Esta página reproduce el flujo matemático de Shor, pero calcula el orden <em>r</em> de forma clásica.
+      Es una simulación educativa, no una computadora cuántica ni una herramienta para romper RSA.
+    </p>
+  </main>
+
+  <dialog id="infoDialog">
+    <div class="modalHead">
+      <h3>¿Qué hace el algoritmo de Shor?</h3>
+      <button class="close" id="closeInfo" aria-label="Cerrar">×</button>
+    </div>
+    <div class="modalBody">
+      <span class="tag">Resumen explicado</span>
+
+      <p>
+        El algoritmo de Shor es un algoritmo cuántico para encontrar factores de un número entero
+        transformando el problema de factorización en otro problema: <strong>encontrar el período
+        u orden de una función modular</strong>.
+      </p>
+
+      <h4>La idea central</h4>
+      <p>
+        Se elige un número <strong>a</strong> menor que <strong>N</strong>. Primero se calcula
+        <strong>mcd(a,N)</strong>. Si ese máximo común divisor es mayor que 1, ya hemos encontrado
+        un factor de N.
+      </p>
+
+      <p>
+        Si a y N son coprimos, se estudia la función:
+      </p>
+
+      <div class="formula">f(x) = aˣ mod N</div>
+
+      <p>
+        Como los restos módulo N se repiten, existe un período <strong>r</strong>: el menor entero
+        positivo que cumple:
+      </p>
+
+      <div class="formula">aʳ ≡ 1 (mod N)</div>
+
+      <h4>¿Dónde aparece la computación cuántica?</h4>
+      <p>
+        La aceleración de Shor está en encontrar ese período. El procedimiento cuántico prepara una
+        superposición de estados, evalúa la función modular y aplica una
+        <strong>Transformada Cuántica de Fourier (QFT)</strong>. La medición ofrece información
+        desde la que se recupera un candidato al período r.
+      </p>
+
+      <h4>Cómo salen los factores</h4>
+      <p>
+        Si r es par y <strong>aʳᐟ² no es congruente con −1 módulo N</strong>, entonces:
+      </p>
+
+      <div class="formula">aʳ − 1 = (aʳᐟ² − 1)(aʳᐟ² + 1)</div>
+
+      <p>
+        y los factores no triviales pueden aparecer al calcular:
+      </p>
+
+      <div class="formula">
+        p = mcd(aʳᐟ² − 1, N)<br>
+        q = mcd(aʳᐟ² + 1, N)
+      </div>
+
+      <p>
+        Si r es impar, si se obtiene el caso −1, o si los MCD son triviales, se escoge otro valor
+        de a y se repite. Por eso el algoritmo es <strong>probabilístico</strong>.
+      </p>
+
+      <h4>Por qué es importante</h4>
+      <p>
+        La relevancia criptográfica de Shor es que una computadora cuántica suficientemente capaz
+        podría factorizar eficientemente enteros grandes. RSA basa buena parte de su seguridad en
+        la dificultad práctica de factorizar un número N que es producto de dos primos grandes.
+      </p>
+
+      <h4>Qué representa esta web</h4>
+      <p>
+        Aquí las partes clásicas son reales y el período r se busca mediante cálculo modular
+        convencional. Es decir, <strong>se visualiza la lógica de Shor</strong>, pero se sustituye
+        el subprograma cuántico por una simulación clásica para que todo pueda ejecutarse en el navegador.
+      </p>
+    </div>
+  </dialog>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+  <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</a></p>
+  <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+  <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+  <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+  <p><strong>_______________________________________________</strong></p>
+  <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+  <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+  Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+  <p>_______________________________________________</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = sel => document.querySelector(sel);
+  const input = $("#numberInput");
+  const resultMain = $("#resultMain");
+  const resultSub = $("#resultSub");
+  const logEl = $("#log");
+  const sAttempt = $("#sAttempt");
+  const sBase = $("#sBase");
+  const sOrder = $("#sOrder");
+  const sState = $("#sState");
+  const liveLabel = $("#liveLabel");
+
+  const dialog = $("#infoDialog");
+  $("#infoBtn").addEventListener("click", () => dialog.showModal());
+  $("#closeInfo").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", e => {
+    const r = dialog.getBoundingClientRect();
+    const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    if (outside) dialog.close();
+  });
+
+  let runId = 0;
+  let debounceTimer = null;
+  let lineCount = 0;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function resetUI() {
+    logEl.innerHTML = "";
+    lineCount = 0;
+    sAttempt.textContent = "—";
+    sBase.textContent = "—";
+    sOrder.textContent = "—";
+    sState.textContent = "preparando";
+    liveLabel.textContent = "calculando";
+    resultMain.className = "waiting";
+    resultMain.textContent = "analizando…";
+    resultSub.textContent = "Aplicando las etapas del algoritmo.";
+  }
+
+  function log(msg, kind="") {
+    lineCount++;
+    const row = document.createElement("div");
+    row.className = "logLine";
+    row.innerHTML = `<span class="logN">${String(lineCount).padStart(2,"0")}</span><span class="${kind}"></span>`;
+    row.lastElementChild.textContent = msg;
+    logEl.appendChild(row);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function gcd(a,b){
+    a = a < 0n ? -a : a;
+    b = b < 0n ? -b : b;
+    while(b !== 0n){
+      [a,b] = [b,a % b];
+    }
+    return a;
+  }
+
+  function powBigInt(base, exp){
+    let out = 1n;
+    while(exp-- > 0) out *= base;
+    return out;
+  }
+
+  function isPrime(n){
+    if(n < 2n) return false;
+    if(n === 2n || n === 3n) return true;
+    if(n % 2n === 0n) return false;
+    for(let d=3n; d*d<=n; d+=2n){
+      if(n % d === 0n) return false;
+    }
+    return true;
+  }
+
+  function perfectPower(n){
+    const nn = Number(n);
+    const maxB = Math.floor(Math.log2(nn));
+    for(let b=2; b<=maxB; b++){
+      const approx = Math.round(Math.pow(nn, 1/b));
+      for(let a=Math.max(2,approx-1); a<=approx+1; a++){
+        if(powBigInt(BigInt(a), b) === n) return {a:BigInt(a), b};
+      }
+    }
+    return null;
+  }
+
+  function randomBigIntBelow(n){
+    // Devuelve un valor de 2 a n-2. Para esta demo n <= 1e6.
+    const span = Number(n - 3n);
+    if(span <= 1) return 2n;
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return 2n + BigInt(arr[0] % span);
+  }
+
+  async function findOrder(a, n, id){
+    let value = 1n;
+    const max = Number(n); // con límite didáctico <= 1e6
+    for(let r=1; r<=max; r++){
+      if(id !== runId) throw new Error("cancelled");
+      value = (value * a) % n;
+
+      if(r <= 7 || r % Math.max(40,Math.floor(max/25)) === 0){
+        log(`r=${r}:  ${a}^${r} mod ${n} = ${value}`, "logQ");
+      }
+
+      if(value === 1n) return r;
+
+      // Evita bloquear la interfaz.
+      if(r % 700 === 0) await sleep(0);
+    }
+    return null;
+  }
+
+  function showFactors(n, p, q, extra=""){
+    if(p > q) [p,q] = [q,p];
+
+    resultMain.className = "factorLine";
+    resultMain.innerHTML = `<span class="factor">${p}</span><span class="times">×</span><span class="factor">${q}</span>`;
+
+    const bothPrime = isPrime(p) && isPrime(q);
+    resultSub.textContent = bothPrime
+      ? `${n} = ${p} × ${q} · ambos factores son primos${extra ? " · " + extra : ""}`
+      : `${n} = ${p} × ${q} · factor no trivial encontrado${extra ? " · " + extra : ""}`;
+
+    sState.textContent = "factorizado";
+    liveLabel.textContent = "completado";
+  }
+
+  function showMessage(main, sub, state="detenido"){
+    resultMain.className = "waiting";
+    resultMain.textContent = main;
+    resultSub.textContent = sub;
+    sState.textContent = state;
+    liveLabel.textContent = state;
+  }
+
+  async function factorShor(n, id){
+    resetUI();
+    log(`N = ${n}`, "logQ");
+    await sleep(45);
+
+    if(n < 4n){
+      showMessage("sin factores", "Introduce un entero compuesto mayor que 3.", "entrada no válida");
+      log("N debe ser compuesto y mayor que 3.", "logBad");
+      return;
+    }
+
+    if(n > 1000000n){
+      showMessage("N demasiado grande", "Esta simulación clásica limita N a 1.000.000 para evitar bloquear el navegador.", "límite didáctico");
+      log("Límite de la demo: N ≤ 1.000.000.", "logWarn");
+      return;
+    }
+
+    if(isPrime(n)){
+      showMessage(`${n} es primo`, "No puede escribirse como producto de dos primos no triviales.", "primo");
+      log(`Prueba de primalidad: ${n} es primo.`, "logWarn");
+      return;
+    }
+
+    log("Paso 1 · comprobación de casos clásicos.", "logQ");
+
+    if(n % 2n === 0n){
+      log(`N es par → 2 divide exactamente a ${n}.`, "logOk");
+      showFactors(n, 2n, n/2n, "caso clásico inmediato");
+      sAttempt.textContent = "0";
+      sBase.textContent = "—";
+      sOrder.textContent = "—";
+      return;
+    }
+
+    const pp = perfectPower(n);
+    if(pp){
+      log(`Potencia perfecta detectada: ${n} = ${pp.a}^${pp.b}.`, "logOk");
+      if(pp.b === 2 && isPrime(pp.a)){
+        showFactors(n, pp.a, pp.a, "potencia perfecta");
+        sAttempt.textContent = "0";
+        return;
+      }
+      log("El algoritmo clásico puede reducir este caso antes de la búsqueda cuántica.", "logWarn");
+    } else {
+      log("N es impar y no se detecta como potencia perfecta.", "logOk");
+    }
+
+    const maxAttempts = 20;
+
+    for(let attempt=1; attempt<=maxAttempts; attempt++){
+      if(id !== runId) return;
+
+      sAttempt.textContent = `${attempt}/${maxAttempts}`;
+      sOrder.textContent = "…";
+      sState.textContent = "eligiendo a";
+
+      let a = randomBigIntBelow(n);
+      sBase.textContent = a.toString();
+      log(`Intento ${attempt}: elegimos a = ${a}.`, "logQ");
+      await sleep(22);
+
+      const g = gcd(a,n);
+      log(`mcd(${a}, ${n}) = ${g}.`, g > 1n ? "logOk" : "");
+
+      if(g > 1n && g < n){
+        showFactors(n, g, n/g, "factor encontrado antes del período");
+        sOrder.textContent = "no necesario";
+        return;
+      }
+
+      sState.textContent = "buscando r";
+      log(`Parte cuántica simulada: buscamos el orden r de ${a} módulo ${n}.`, "logQ");
+
+      const r = await findOrder(a,n,id);
+      if(id !== runId) return;
+
+      if(!r){
+        log("No se encontró un período válido; repetimos.", "logWarn");
+        continue;
+      }
+
+      sOrder.textContent = r;
+      log(`Período encontrado: r = ${r}, porque ${a}^${r} ≡ 1 (mod ${n}).`, "logOk");
+
+      if(r % 2 !== 0){
+        log(`r = ${r} es impar → este intento no sirve.`, "logWarn");
+        sState.textContent = "reintentando";
+        await sleep(25);
+        continue;
+      }
+
+      // Como a^(r/2) puede ser enorme, lo obtenemos modularmente.
+      let x = 1n;
+      for(let i=0;i<r/2;i++){
+        x = (x*a) % n;
+        if(i % 900 === 0) await sleep(0);
+      }
+
+      log(`x = a^(r/2) mod N = ${x}.`);
+      const minusOne = n - 1n;
+
+      if(x === minusOne){
+        log(`x ≡ -1 (mod N) → intento no útil; elegimos otro a.`, "logWarn");
+        sState.textContent = "reintentando";
+        continue;
+      }
+
+      const p = gcd(x - 1n, n);
+      const q = gcd(x + 1n, n);
+
+      log(`mcd(${x}-1, ${n}) = ${p}.`, "logQ");
+      log(`mcd(${x}+1, ${n}) = ${q}.`, "logQ");
+
+      const factor = (p > 1n && p < n) ? p : ((q > 1n && q < n) ? q : 1n);
+
+      if(factor !== 1n){
+        log(`Factor no trivial encontrado: ${factor}.`, "logOk");
+        showFactors(n, factor, n/factor, `r = ${r}, a = ${a}`);
+        return;
+      }
+
+      log("Los MCD obtenidos son triviales → repetimos.", "logWarn");
+    }
+
+    showMessage("sin éxito en 20 intentos", "Shor es probabilístico. Cambia el número o vuelve a escribirlo para repetir.", "sin convergencia");
+    log("Se agotó el número de intentos de esta simulación.", "logBad");
+  }
+
+  function schedule(){
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const raw = input.value.replace(/[^\d]/g,"");
+      input.value = raw;
+      runId++;
+
+      if(!raw){
+        logEl.innerHTML = "";
+        resultMain.className = "waiting";
+        resultMain.textContent = "N = p × q";
+        resultSub.textContent = "Escribe un número para comenzar.";
+        sAttempt.textContent = sBase.textContent = sOrder.textContent = "—";
+        sState.textContent = "esperando";
+        liveLabel.textContent = "listo";
+        return;
+      }
+
+      try{
+        factorShor(BigInt(raw), runId);
+      }catch(err){
+        showMessage("entrada no válida", "Escribe solamente un número entero positivo.", "error");
+      }
+    }, 280);
+  }
+
+  input.addEventListener("input", schedule);
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter"){
+      clearTimeout(debounceTimer);
+      schedule();
+      input.blur();
+    }
+  });
+
+  // Ejemplo inicial suave: no inicia hasta que el usuario escribe.
+  log("Esperando un valor de N…");
+})();
+</script>
+</body>
+</html>
