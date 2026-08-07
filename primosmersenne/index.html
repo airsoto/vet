@@ -330,6 +330,57 @@
       overflow-wrap:anywhere;
     }
 
+    .estimate-panel{
+      margin-top:18px;
+      padding:17px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:rgba(255,255,255,.018);
+    }
+
+    .estimate-title{
+      margin:0 0 12px;
+      font-size:14px;
+      font-weight:900;
+      letter-spacing:.02em;
+    }
+
+    .estimate-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+    }
+
+    .estimate-item{
+      min-width:0;
+      padding:12px;
+      border-radius:14px;
+      background:#090a0e;
+      border:1px solid var(--line);
+    }
+
+    .estimate-label{
+      color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      font-weight:800;
+      margin-bottom:5px;
+    }
+
+    .estimate-value{
+      font-size:16px;
+      font-weight:900;
+      overflow-wrap:anywhere;
+    }
+
+    .estimate-note{
+      margin:10px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+
     .number-box{
       margin-top:18px;
       display:none;
@@ -491,6 +542,7 @@
       .hero{border-radius:20px;padding:15px}
       .actions{grid-template-columns:1fr 54px}
       .details{grid-template-columns:1fr}
+      .estimate-grid{grid-template-columns:1fr 1fr}
       .metric{display:flex;justify-content:space-between;gap:14px;align-items:center}
       .metric-label{margin:0}
       .metric-value{text-align:right}
@@ -570,6 +622,31 @@
         </div>
         <div class="progress"><span id="progressBar"></span></div>
       </div>
+
+      <section class="estimate-panel" id="estimatePanel" aria-live="polite">
+        <h3 class="estimate-title">Estimación si se completan todas las iteraciones</h3>
+        <div class="estimate-grid">
+          <div class="estimate-item">
+            <div class="estimate-label">Iteraciones totales</div>
+            <div class="estimate-value" id="estimateTotal">—</div>
+          </div>
+          <div class="estimate-item">
+            <div class="estimate-label">Velocidad actual</div>
+            <div class="estimate-value" id="estimateSpeed">—</div>
+          </div>
+          <div class="estimate-item">
+            <div class="estimate-label">Tiempo total estimado</div>
+            <div class="estimate-value" id="estimateTime">—</div>
+          </div>
+          <div class="estimate-item">
+            <div class="estimate-label">Tiempo restante</div>
+            <div class="estimate-value" id="estimateRemaining">—</div>
+          </div>
+        </div>
+        <p class="estimate-note" id="estimateNote">
+          La estimación aparece después de medir las primeras iteraciones y se recalcula durante la prueba.
+        </p>
+      </section>
 
       <div class="details" id="details">
         <div class="metric">
@@ -684,6 +761,12 @@
     const numberBox = document.getElementById("numberBox");
     const numberValue = document.getElementById("numberValue");
 
+    const estimateTotal = document.getElementById("estimateTotal");
+    const estimateSpeed = document.getElementById("estimateSpeed");
+    const estimateTime = document.getElementById("estimateTime");
+    const estimateRemaining = document.getElementById("estimateRemaining");
+    const estimateNote = document.getElementById("estimateNote");
+
     const infoModal = document.getElementById("infoModal");
     const infoBtn = document.getElementById("infoBtn");
     const closeModal = document.getElementById("closeModal");
@@ -713,6 +796,11 @@
         supP.textContent = "p";
         digitsLine.textContent = "Escribe un exponente entero mayor o igual que 2.";
         metricDigits.textContent = "—";
+        estimateTotal.textContent = "—";
+        estimateSpeed.textContent = "—";
+        estimateTime.textContent = "—";
+        estimateRemaining.textContent = "—";
+        estimateNote.textContent = "La estimación aparece después de medir las primeras iteraciones y se recalcula durante la prueba.";
         numberBox.classList.remove("show");
         return;
       }
@@ -730,6 +818,16 @@
       const d = mersenneDigits(pNum);
       metricDigits.textContent = d.toLocaleString("es-ES");
       digitsLine.textContent = `M${toSubscript(raw)} tiene aproximadamente ${d.toLocaleString("es-ES")} dígito${d === 1 ? "" : "s"}.`;
+
+      if (pNum >= 2) {
+        estimateTotal.textContent = Math.max(0, pNum - 2).toLocaleString("es-ES");
+      } else {
+        estimateTotal.textContent = "—";
+      }
+      estimateSpeed.textContent = "—";
+      estimateTime.textContent = "—";
+      estimateRemaining.textContent = "—";
+      estimateNote.textContent = "La estimación aparece después de medir las primeras iteraciones y se recalcula durante la prueba.";
 
       // Mostrar el valor decimal solamente cuando sigue siendo razonable.
       if (pNum <= 20000) {
@@ -765,6 +863,10 @@
       progressWrap.classList.remove("show");
       progressBar.style.width = "0%";
       progressPct.textContent = "0 %";
+      estimateSpeed.textContent = "—";
+      estimateTime.textContent = "—";
+      estimateRemaining.textContent = "—";
+      estimateNote.textContent = "La estimación aparece después de medir las primeras iteraciones y se recalcula durante la prueba.";
     }
 
     function setBusy(busy) {
@@ -884,6 +986,26 @@
       return w;
     }
 
+    function formatDurationLong(ms) {
+      if (!Number.isFinite(ms) || ms < 0) return "—";
+      if (ms < 1000) return "< 1 s";
+
+      let seconds = Math.round(ms / 1000);
+      const days = Math.floor(seconds / 86400);
+      seconds %= 86400;
+      const hours = Math.floor(seconds / 3600);
+      seconds %= 3600;
+      const minutes = Math.floor(seconds / 60);
+      seconds %= 60;
+
+      const parts = [];
+      if (days) parts.push(`${days.toLocaleString("es-ES")} d`);
+      if (hours) parts.push(`${hours} h`);
+      if (minutes) parts.push(`${minutes} min`);
+      if (seconds || parts.length === 0) parts.push(`${seconds} s`);
+      return parts.slice(0, 3).join(" ");
+    }
+
     async function checkMersenne() {
       const raw = sanitizeExponent();
       if (!raw) {
@@ -933,6 +1055,24 @@
           progressBar.style.width = pct + "%";
           metricIterations.textContent = `${data.done.toLocaleString("es-ES")} / ${data.total.toLocaleString("es-ES")}`;
           metricTime.textContent = formatTime(data.elapsed);
+
+          estimateTotal.textContent = data.total.toLocaleString("es-ES");
+
+          if (data.done > 0 && data.elapsed > 0) {
+            const perMs = data.done / data.elapsed;
+            const iterPerSec = perMs * 1000;
+            const totalEstimatedMs = data.total / perMs;
+            const remainingMs = Math.max(0, (data.total - data.done) / perMs);
+
+            estimateSpeed.textContent =
+              iterPerSec >= 1
+                ? `${iterPerSec.toLocaleString("es-ES", {maximumFractionDigits: 2})} iter/s`
+                : `${(1000 / Math.max(iterPerSec, 1e-12)).toLocaleString("es-ES", {maximumFractionDigits: 2})} ms/iter`;
+
+            estimateTime.textContent = formatDurationLong(totalEstimatedMs);
+            estimateRemaining.textContent = formatDurationLong(remainingMs);
+            estimateNote.textContent = "Estimación basada en la velocidad media observada hasta este punto. Puede variar porque las operaciones BigInt se vuelven más costosas con exponentes grandes.";
+          }
           return;
         }
 
@@ -950,6 +1090,25 @@
           metricIterations.textContent = data.iterations.toLocaleString("es-ES");
           metricTime.textContent = formatTime(data.elapsed);
           progressBar.style.width = "100%";
+
+          if (data.exponentPrime) {
+            estimateTotal.textContent = data.iterations.toLocaleString("es-ES");
+            if (data.iterations > 0 && data.elapsed > 0) {
+              const ips = data.iterations / (data.elapsed / 1000);
+              estimateSpeed.textContent = `${ips.toLocaleString("es-ES", {maximumFractionDigits: 2})} iter/s`;
+            } else {
+              estimateSpeed.textContent = "—";
+            }
+            estimateTime.textContent = formatDurationLong(data.elapsed);
+            estimateRemaining.textContent = "0 s";
+            estimateNote.textContent = "Prueba completada: el tiempo mostrado ya es el tiempo real, no una estimación.";
+          } else {
+            estimateTotal.textContent = Math.max(0, p - 2).toLocaleString("es-ES");
+            estimateSpeed.textContent = "No necesario";
+            estimateTime.textContent = "No necesario";
+            estimateRemaining.textContent = "No necesario";
+            estimateNote.textContent = "El exponente es compuesto, por lo que Mₚ se descarta antes de ejecutar Lucas–Lehmer.";
+          }
           progressPct.textContent = "100 %";
 
           if (!data.exponentPrime) {
