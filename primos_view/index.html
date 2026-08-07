@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es">
-<script defer src="goat.js"></script>
+<script defer src="../goat.js"></script>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -37,7 +37,7 @@
 </a>
 </p>
 </div>
-<p class="sub">Explora los enteros como un cielo matemático. Los primos brillan, las familias especiales forman constelaciones y cada estrella revela su factorización.</p>
+<p class="sub">Explora los enteros como un cielo matemático. Los primos brillan, las familias especiales forman constelaciones y cada estrella revela su factorización. El universo puede ampliarse hasta 1.000.000, que contiene 78.498 números primos.</p>
 </div>
 <div class="headBtns"><button class="ico" id="statsBtn">Σ</button><button class="ico" id="infoBtn">i</button></div>
 </header>
@@ -123,12 +123,12 @@ Everyone is permitted to copy and distribute verbatim or modified copies of this
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const canvas=$("#space"),ctx=canvas.getContext("2d"),stage=$("#stage");
-const ranges=[100,500,1000,5000,10000,50000];
+const ranges=[100,500,1000,5000,10000,50000,100000,250000,500000,1000000];
 const mersenne=new Set([3,7,31,127,8191,131071,524287,2147483647]);
 const fermat=new Set([3,5,17,257,65537]);
 const perfect=new Set([6,28,496,8128,33550336]);
 const S={max:5000,z:1,tz:1,cx:0,cy:0,tcx:0,tcy:0,drag:false,lx:0,ly:0,reduced:matchMedia("(prefers-reduced-motion: reduce)").matches,const:false,selected:null,filters:{prime:false,composite:false,twin:false,mersenne:false,sophie:false,safe:false,pal:false,fermat:false,perfect:false},tour:null,sieve:null};
-let flags,primes=[],pts=[],twins=new Set(),sophie=new Set(),safe=new Set(),pal=new Set(),cache=new Map();
+let flags,primes=[],posX=new Float32Array(0),posY=new Float32Array(0),twins=new Set(),sophie=new Set(),safe=new Set(),pal=new Set(),cache=new Map();
 
 function makeSieve(n){const a=new Uint8Array(n+1);a.fill(1,2);for(let p=2;p*p<=n;p++)if(a[p])for(let k=p*p;k<=n;k+=p)a[k]=0;return a}
 function fact(n){if(cache.has(n))return cache.get(n);let x=n,r=[];for(let p=2;p*p<=x;p+=(p===2?1:2))while(x%p===0){r.push(p);x/=p}if(x>1)r.push(x);cache.set(n,r);return r}
@@ -136,38 +136,121 @@ function build(){
  cache.clear();flags=makeSieve(S.max);primes=[];twins.clear();sophie.clear();safe.clear();pal.clear();
  for(let n=2;n<=S.max;n++){if(flags[n])primes.push(n);if(flags[n]&&String(n)===String(n).split("").reverse().join(""))pal.add(n)}
  for(const p of primes){if(p+2<=S.max&&flags[p+2]){twins.add(p);twins.add(p+2)}if(2*p+1<=S.max&&flags[2*p+1])sophie.add(p);if(p>2&&flags[(p-1)/2])safe.add(p)}
- pts=[];const ga=Math.PI*(3-Math.sqrt(5));for(let n=2;n<=S.max;n++){const r=Math.sqrt(n)*5.2,a=n*ga;pts.push({n,x:Math.cos(a)*r,y:Math.sin(a)*r})}
- const rad=Math.sqrt(S.max)*5.4;S.cx=S.tcx=0;S.cy=S.tcy=0;S.z=S.tz=Math.max(.16,Math.min(1.15,Math.min(stage.clientWidth,stage.clientHeight)/(rad*2)));
+ posX=new Float32Array(S.max+1);posY=new Float32Array(S.max+1);
+ const ga=Math.PI*(3-Math.sqrt(5));
+ for(let n=2;n<=S.max;n++){const r=Math.sqrt(n)*5.2,a=n*ga;posX[n]=Math.cos(a)*r;posY[n]=Math.sin(a)*r}
+ const rad=Math.sqrt(S.max)*5.4;S.cx=S.tcx=0;S.cy=S.tcy=0;S.z=S.tz=Math.max(.045,Math.min(1.15,Math.min(stage.clientWidth,stage.clientHeight)/(rad*2)));
  updateRanges();hideCard();drawStats();
 }
 function cls(n){return{prime:!!flags[n],composite:n>1&&!flags[n],twin:twins.has(n),mersenne:mersenne.has(n),sophie:sophie.has(n),safe:safe.has(n),pal:pal.has(n),fermat:fermat.has(n),perfect:perfect.has(n)}}
 function match(c){const a=Object.keys(S.filters).filter(k=>S.filters[k]);return !a.length||a.every(k=>c[k])}
 function col(c){if(c.mersenne)return"#ffd76d";if(c.twin)return"#73e5ff";if(c.sophie)return"#ff7db2";if(c.safe)return"#aa91ff";if(c.pal)return"#63e7aa";if(c.fermat)return"#68a8ff";if(c.perfect)return"#ff9900";return c.prime?"#f4f7ff":"#455064"}
-function scr(p){return{x:(p.x-S.cx)*S.z+stage.clientWidth/2,y:(p.y-S.cy)*S.z+stage.clientHeight/2}}
+function scrN(n){return{x:(posX[n]-S.cx)*S.z+stage.clientWidth/2,y:(posY[n]-S.cy)*S.z+stage.clientHeight/2}}
 function world(x,y){return{x:(x-stage.clientWidth/2)/S.z+S.cx,y:(y-stage.clientHeight/2)/S.z+S.cy}}
 function resize(){const d=Math.min(devicePixelRatio||1,2),r=stage.getBoundingClientRect();canvas.width=r.width*d;canvas.height=r.height*d;canvas.style.width=r.width+"px";canvas.style.height=r.height+"px";ctx.setTransform(d,0,0,d,0,0);resizeChart()}
 function bg(){ctx.fillStyle="#05070c";ctx.fillRect(0,0,stage.clientWidth,stage.clientHeight);ctx.save();ctx.globalAlpha=.18;for(let i=0;i<70;i++){ctx.fillStyle=i%9?"#dbe6ff":"#68a8ff";ctx.beginPath();ctx.arc((i*97.3)%stage.clientWidth,(i*43.7)%stage.clientHeight,i%7?0.5:1.1,0,Math.PI*2);ctx.fill()}ctx.restore()}
 function connections(){
  if(!S.const)return;ctx.save();ctx.lineWidth=1;
- for(const p of primes){if(p+2<=S.max&&flags[p+2]){const a=scr(pts[p-2]),b=scr(pts[p]);ctx.strokeStyle="rgba(115,229,255,.18)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
- if(sophie.has(p)&&2*p+1<=S.max){const a=scr(pts[p-2]),b=scr(pts[2*p-1]);ctx.strokeStyle="rgba(255,125,178,.14)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}}
+ for(const p of primes){if(p+2<=S.max&&flags[p+2]){const a=scrN(p),b=scrN(p+2);ctx.strokeStyle="rgba(115,229,255,.18)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
+ if(sophie.has(p)&&2*p+1<=S.max){const a=scrN(p),b=scrN(2*p+1);ctx.strokeStyle="rgba(255,125,178,.14)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}}
  ctx.restore()
 }
 function draw(){
- bg();connections();let visible=0,w=stage.clientWidth,h=stage.clientHeight;
- for(const p of pts){const s=scr(p);if(s.x<-25||s.y<-25||s.x>w+25||s.y>h+25)continue;visible++;const c=cls(p.n);let a=c.prime ? .95 : .22;if(!match(c))a*=.06;if(S.const)a*=c.prime?1:.08;
- if(S.sieve){let dead=false;for(let i=0;i<=S.sieve.stage;i++){const q=S.sieve.bases[i];if(q&&p.n!==q&&p.n%q===0){dead=true;break}}a=dead ? .035 : .92}
- let r=(c.prime?2.15:1.05)+(c.twin?.45:0)+(c.sophie?.35:0)+(c.mersenne?2.2:0)+(S.selected===p.n?2:0);r*=Math.min(2.2,Math.max(.65,S.z*.85));
- const color=col(c);if(c.mersenne){ctx.save();ctx.strokeStyle=color;ctx.globalAlpha=.2*a;ctx.beginPath();ctx.arc(s.x,s.y,r*3,0,Math.PI*2);ctx.stroke();ctx.restore()}
- if(c.prime&&!S.reduced)r*=1+((Math.sin(performance.now()/700+p.n*.35)+1)/2)*.07;
- ctx.save();ctx.globalAlpha=a;ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=c.prime?8:0;ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();ctx.restore();
- if(S.z>1.5||S.selected===p.n||(c.mersenne&&S.z>.65)){ctx.save();ctx.globalAlpha=Math.min(1,a+.1);ctx.fillStyle=color;ctx.font="11px ui-monospace,monospace";ctx.fillText(p.n,s.x+r+3,s.y-3);ctx.restore()}
+ bg();connections();
+ const w=stage.clientWidth,h=stage.clientHeight;
+ let visible=0;
+
+ // Con rangos enormes se reduce solo la densidad de compuestos.
+ // Los primos permanecen en el universo y se renderizan con mayor prioridad.
+ let compStep=1;
+ if(S.max>100000) compStep=3;
+ if(S.max>250000) compStep=6;
+ if(S.max>500000) compStep=12;
+ if(S.z>0.45) compStep=Math.max(1,Math.floor(compStep/2));
+ if(S.z>1.2) compStep=1;
+
+ function drawOne(n,c,forcePrime=false){
+   const sx=(posX[n]-S.cx)*S.z+w/2, sy=(posY[n]-S.cy)*S.z+h/2;
+   if(sx<-25||sy<-25||sx>w+25||sy>h+25)return;
+   visible++;
+
+   let a=c.prime ? .95 : .20;
+   if(!match(c))a*=.06;
+   if(S.const)a*=c.prime?1:.07;
+
+   if(S.sieve){
+     let dead=false;
+     for(let i=0;i<=S.sieve.stage;i++){
+       const q=S.sieve.bases[i];
+       if(q&&n!==q&&n%q===0){dead=true;break}
+     }
+     a=dead ? .035 : .92;
+   }
+
+   let r=(c.prime?2.05:1.0)+(c.twin?.45:0)+(c.sophie?.35:0)+(c.mersenne?2.2:0)+(S.selected===n?2:0);
+   r*=Math.min(2.15,Math.max(.50,S.z*.9));
+
+   const color=col(c);
+   if(c.mersenne){
+     ctx.save();ctx.strokeStyle=color;ctx.globalAlpha=.22*a;
+     ctx.beginPath();ctx.arc(sx,sy,r*3.1,0,Math.PI*2);ctx.stroke();ctx.restore();
+   }
+
+   if(c.prime&&!S.reduced)r*=1+((Math.sin(performance.now()/700+n*.35)+1)/2)*.06;
+
+   ctx.save();ctx.globalAlpha=a;ctx.fillStyle=color;ctx.shadowColor=color;
+   ctx.shadowBlur=(c.prime&&S.max<=250000)?7:0;
+   ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fill();ctx.restore();
+
+   if(S.z>1.55||S.selected===n||(c.mersenne&&S.z>.45)){
+     ctx.save();ctx.globalAlpha=Math.min(1,a+.1);ctx.fillStyle=color;
+     ctx.font="11px ui-monospace,monospace";ctx.fillText(n,sx+r+3,sy-3);ctx.restore();
+   }
  }
- $("#vis").textContent=visible.toLocaleString("es-ES");$("#zoom").textContent="×"+S.z.toFixed(2)
+
+ // Compuestos: muestreo adaptativo.
+ for(let n=2;n<=S.max;n+=compStep){
+   if(!flags[n])drawOne(n,cls(n),false);
+ }
+
+ // Primos: todos a zoom medio/alto; a vista extremadamente lejana,
+ // muestreo visual para mantener fluidez, sin eliminarlos del dataset.
+ let primeStep=1;
+ if(S.max>=500000&&S.z<.10)primeStep=3;
+ else if(S.max>=250000&&S.z<.12)primeStep=2;
+ for(let i=0;i<primes.length;i+=primeStep){
+   const n=primes[i];
+   drawOne(n,cls(n),true);
+ }
+
+ $("#vis").textContent=visible.toLocaleString("es-ES");
+ $("#zoom").textContent="×"+S.z.toFixed(2);
+}function loop(){const e=S.reduced?1:.13;S.cx+=(S.tcx-S.cx)*e;S.cy+=(S.tcy-S.cy)*e;S.z+=(S.tz-S.z)*e;draw();requestAnimationFrame(loop)}
+function nearest(x,y,m=18){
+ let b=null,bd=m;
+ // Prioriza primos: son el contenido principal y permite selección fluida
+ // incluso con un millón de enteros.
+ let step=1;
+ if(primes.length>40000&&S.z<.12)step=2;
+ for(let i=0;i<primes.length;i+=step){
+   const n=primes[i],sx=(posX[n]-S.cx)*S.z+stage.clientWidth/2,sy=(posY[n]-S.cy)*S.z+stage.clientHeight/2;
+   const d=Math.hypot(sx-x,sy-y);
+   if(d<bd){b={n};bd=d}
+ }
+ // Con zoom cercano, permite también seleccionar compuestos de la zona.
+ if(S.z>.65){
+   const sample=Math.max(1,Math.floor(S.max/90000));
+   for(let n=2;n<=S.max;n+=sample){
+     if(flags[n])continue;
+     const sx=(posX[n]-S.cx)*S.z+stage.clientWidth/2,sy=(posY[n]-S.cy)*S.z+stage.clientHeight/2;
+     if(Math.abs(sx-x)>m||Math.abs(sy-y)>m)continue;
+     const d=Math.hypot(sx-x,sy-y);
+     if(d<bd){b={n};bd=d}
+   }
+ }
+ return b
 }
-function loop(){const e=S.reduced?1:.13;S.cx+=(S.tcx-S.cx)*e;S.cy+=(S.tcy-S.cy)*e;S.z+=(S.tz-S.z)*e;draw();requestAnimationFrame(loop)}
-function nearest(x,y,m=18){let b=null,bd=m;for(const p of pts){const s=scr(p),d=Math.hypot(s.x-x,s.y-y);if(d<bd){b=p;bd=d}}return b}
-function focus(n,z=3){if(n<2||n>S.max)return false;const p=pts[n-2];S.tcx=p.x;S.tcy=p.y;S.tz=Math.min(9,z);show(n);return true}
+function focus(n,z=3){if(n<2||n>S.max)return false;S.tcx=posX[n];S.tcy=posY[n];S.tz=Math.min(9,z);show(n);return true}
 function fmtFact(f){const c={};f.forEach(x=>c[x]=(c[x]||0)+1);return Object.entries(c).map(([p,k])=>k>1?`${p}^${k}`:p).join(" × ")}
 function show(n){
  S.selected=n;const c=cls(n),labs=[];for(const [k,l] of [["prime","primo"],["composite","compuesto"],["twin","gemelo"],["mersenne","Mersenne"],["sophie","Sophie Germain"],["safe","seguro"],["pal","palindrómico"],["fermat","Fermat"],["perfect","perfecto"]])if(c[k])labs.push(l);
@@ -223,9 +306,9 @@ canvas.ondblclick=e=>{const p=pos(e),w=world(p.x,p.y);S.tcx=w.x;S.tcy=w.y;S.tz=M
 $("#closeCard").onclick=hideCard;$("#prevPrime").onclick=e=>{if(e.currentTarget.dataset.n)focus(+e.currentTarget.dataset.n)};$("#nextPrime").onclick=e=>{if(e.currentTarget.dataset.n)focus(+e.currentTarget.dataset.n)};
 $("#filters").onclick=()=>$("#panel").classList.add("open");$("#closePanel").onclick=()=>$("#panel").classList.remove("open");$("#infoBtn").onclick=()=>openModal("#infoModal");$("#statsBtn").onclick=()=>{drawStats();openModal("#statsModal")};$$(".modalClose").forEach(b=>b.onclick=()=>closeModal(b.closest(".modal")));$$(".modal").forEach(m=>m.onclick=e=>{if(e.target===m)closeModal(m)});
 function openModal(s){$(s).classList.add("open");document.body.style.overflow="hidden"}function closeModal(m){m.classList.remove("open");document.body.style.overflow=""}
-$("#search").onkeydown=e=>{if(e.key!=="Enter")return;let n=+e.currentTarget.value.replace(/\D/g,"");if(!Number.isInteger(n)||n<2)return;if(n>S.max){const r=ranges.find(x=>x>=n);S.max=r||50000;build()}focus(Math.min(n,S.max),3.4)};
+$("#search").onkeydown=e=>{if(e.key!=="Enter")return;let n=+e.currentTarget.value.replace(/\D/g,"");if(!Number.isInteger(n)||n<2)return;if(n>S.max){const r=ranges.find(x=>x>=n);S.max=r||Math.min(1000000,n);build()}focus(Math.min(n,S.max),3.4)};
 $("#random").onclick=()=>focus(2+Math.floor(Math.random()*(S.max-1)),2.8);
-$("#reset").onclick=()=>{const rad=Math.sqrt(S.max)*5.4;S.tcx=S.tcy=S.cx=S.cy=0;S.tz=S.z=Math.max(.16,Math.min(1.15,Math.min(stage.clientWidth,stage.clientHeight)/(rad*2)))};
+$("#reset").onclick=()=>{const rad=Math.sqrt(S.max)*5.4;S.tcx=S.tcy=S.cx=S.cy=0;S.tz=S.z=Math.max(.045,Math.min(1.15,Math.min(stage.clientWidth,stage.clientHeight)/(rad*2)))};
 $("#const").onclick=e=>{S.const=!S.const;e.currentTarget.classList.toggle("active",S.const)};
 $("#motion").onclick=e=>{S.reduced=!S.reduced;e.currentTarget.classList.toggle("active",S.reduced)};
 
