@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f4ec">
+  <title>La Odisea — Homero</title>
+  <style>
+    :root {
+      --bg: #f7f4ec;
+      --panel: #fffdf8;
+      --text: #1e1e1e;
+      --muted: #6e6b63;
+      --border: #d9d4c8;
+      --accent: #8b5e34;
+      --accent-2: #ff9900;
+      --highlight: #f4df7d;
+      --note: #bed9ef;
+      --toolbar-bg: rgba(255, 253, 248, .96);
+      --shadow: 0 10px 30px rgba(0,0,0,.10);
+      --reader-font-size: 20px;
+      --reader-line-height: 1.72;
+      --reader-max-width: 760px;
+      --reader-font-family: Georgia, 'Times New Roman', serif;
+      --reader-align: left;
+      --bar-h: 54px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html[data-theme="light"] {
+      --bg: #f7f4ec;
+      --panel: #fffdf8;
+      --text: #1d1d1b;
+      --muted: #6d6a62;
+      --border: #d9d4c8;
+      --accent: #805f3d;
+      --toolbar-bg: rgba(255, 253, 248, .96);
+    }
+
+    html[data-theme="sepia"] {
+      --bg: #eee2c6;
+      --panel: #f5ead2;
+      --text: #2e271e;
+      --muted: #74634e;
+      --border: #cdbd9d;
+      --accent: #815a2f;
+      --toolbar-bg: rgba(245, 234, 210, .97);
+    }
+
+    html[data-theme="dark"] {
+      --bg: #151515;
+      --panel: #1c1c1c;
+      --text: #e8e6df;
+      --muted: #aaa69e;
+      --border: #373737;
+      --accent: #d1ad84;
+      --highlight: #6d5c1d;
+      --note: #244a68;
+      --toolbar-bg: rgba(28, 28, 28, .97);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    html[data-theme="eink"] {
+      --bg: #f4f4ee;
+      --panel: #f4f4ee;
+      --text: #000;
+      --muted: #454545;
+      --border: #777;
+      --accent: #000;
+      --highlight: #d2d2d2;
+      --note: #c4c4c4;
+      --toolbar-bg: #f4f4ee;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: background-color .15s ease, color .15s ease;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--accent); }
+    [hidden] { display: none !important; }
+
+    html[data-theme="eink"] *,
+    html[data-theme="eink"] *::before,
+    html[data-theme="eink"] *::after {
+      transition: none !important;
+      animation: none !important;
+      filter: none !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+    }
+
+    .site-page { width: min(1180px, 100%); margin: 0 auto; padding: 18px 16px 28px; }
+    .site-page-header { text-align: center; padding: 12px 0 16px; }
+    .site-page-header h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(34px, 7vw, 64px);
+      letter-spacing: .04em;
+      font-weight: 500;
+      margin: 0;
+    }
+    .book-subtitle { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .site-author-block a { text-decoration: none; }
+    .site-author-block a:hover { text-decoration: underline; }
+
+    .cover {
+      width: min(680px, 100%);
+      margin: 22px auto 34px;
+      text-align: center;
+      padding: clamp(28px, 6vw, 60px) 22px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .cover-kicker { letter-spacing: .18em; text-transform: uppercase; font-size: 12px; color: var(--muted); }
+    .cover h2 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(36px, 8vw, 72px);
+      font-weight: 500;
+      margin: 20px 0 4px;
+    }
+    .cover .author { margin: 0; font-size: 22px; }
+    .cover .translator { color: var(--muted); margin: 20px 0 28px; line-height: 1.5; }
+    .primary-btn, .secondary-btn {
+      min-height: 46px;
+      border-radius: 999px;
+      padding: 10px 22px;
+      border: 1px solid var(--text);
+      background: var(--text);
+      color: var(--panel);
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    .secondary-btn { background: transparent; color: var(--text); border-color: var(--border); }
+    .continue-label { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+
+    .loading-box, .error-box {
+      width: min(680px, 100%);
+      margin: 20px auto;
+      padding: 22px;
+      border: 1px solid var(--border);
+      text-align: center;
+      background: var(--panel);
+    }
+    .error-box p { margin: 0 0 14px; }
+
+    /* Reader */
+    .reader-container {
+      position: relative;
+      width: min(1040px, 100%);
+      height: min(86vh, 920px);
+      min-height: 590px;
+      margin: 10px auto 36px;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      isolation: isolate;
+    }
+    .reader-container:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh;
+      border: 0;
+      background: var(--panel);
+    }
+    .reader-container:fullscreen .reader-topbar { padding-top: var(--safe-top); height: calc(var(--bar-h) + var(--safe-top)); }
+    .reader-container:fullscreen .reader-bottombar { padding-bottom: var(--safe-bottom); height: calc(var(--bar-h) + var(--safe-bottom)); }
+
+    .reader-topbar, .reader-bottombar {
+      position: absolute;
+      left: 0; right: 0;
+      z-index: 20;
+      height: var(--bar-h);
+      display: grid;
+      align-items: center;
+      background: var(--toolbar-bg);
+      border-color: var(--border);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+    .reader-topbar { top: 0; grid-template-columns: auto 1fr auto auto; border-bottom: 1px solid var(--border); }
+    .reader-bottombar { bottom: 0; grid-template-columns: auto auto auto 1fr auto auto; border-top: 1px solid var(--border); }
+    .reader-container.controls-hidden .reader-topbar { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+    .reader-container.controls-hidden .reader-bottombar { opacity: 0; transform: translateY(100%); pointer-events: none; }
+
+    .icon-btn, .text-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      min-width: 46px;
+      min-height: 46px;
+      display: inline-grid;
+      place-items: center;
+      padding: 8px 10px;
+      color: var(--text);
+      border-radius: 8px;
+    }
+    .icon-btn:hover, .text-btn:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+    .icon-btn:focus-visible, .text-btn:focus-visible, .primary-btn:focus-visible, .secondary-btn:focus-visible,
+    input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .reader-title-mini { text-align: center; font-family: Georgia, 'Times New Roman', serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
+    .progress-wrap { min-width: 0; display: grid; gap: 3px; align-items: center; padding: 0 12px; }
+    .progress-label { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .progress-track { height: 2px; background: var(--border); overflow: hidden; }
+    .progress-bar { height: 100%; width: 0; background: var(--text); }
+    .mode-toggle { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; }
+    .mode-toggle button { border: 0; background: transparent; padding: 6px 9px; border-radius: 999px; font-size: 12px; }
+    .mode-toggle button.active { background: var(--text); color: var(--panel); }
+
+    .reader-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      padding: 0;
+      background: var(--panel);
+    }
+    .reading-shell {
+      position: absolute;
+      inset: 0;
+      width: min(var(--reader-max-width), calc(100% - 28px));
+      margin: 0 auto;
+      font-family: var(--reader-font-family);
+      font-size: var(--reader-font-size);
+      line-height: var(--reader-line-height);
+      text-align: var(--reader-align);
+      color: var(--text);
+    }
+
+    .continuous-viewport {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scroll-behavior: smooth;
+      padding: calc(var(--bar-h) + 32px) 4px calc(var(--bar-h) + 46px);
+    }
+    html[data-theme="eink"] .continuous-viewport { scroll-behavior: auto; }
+    .continuous-content { width: 100%; }
+
+    .page-viewport {
+      position: absolute;
+      top: calc(var(--bar-h) + 14px);
+      bottom: calc(var(--bar-h) + 14px);
+      left: 0; right: 0;
+      overflow: hidden;
+      scroll-behavior: auto;
+      touch-action: pan-y;
+    }
+    .page-flow {
+      width: 100%;
+      height: 100%;
+      column-width: var(--page-width, 700px);
+      column-gap: 0;
+      column-fill: auto;
+      overflow: visible;
+    }
+
+    .chapter-header { text-align: center; margin: 4px 0 40px; break-inside: avoid; }
+    .chapter-number { font-family: system-ui, sans-serif; text-transform: uppercase; letter-spacing: .18em; color: var(--muted); font-size: 12px; }
+    .chapter-header h2 { font-size: 1.35em; line-height: 1.25; font-weight: 500; margin: 12px auto 0; max-width: 95%; }
+    .verse-block {
+      position: relative;
+      margin: 0 0 1.15em;
+      padding-left: 2.2em;
+      orphans: 3;
+      widows: 3;
+    }
+    .verse-number {
+      position: absolute;
+      left: 0;
+      top: .1em;
+      width: 1.7em;
+      text-align: right;
+      color: var(--muted);
+      font-family: system-ui, sans-serif;
+      font-size: .66em;
+      line-height: 1.4;
+      user-select: none;
+    }
+    html[data-verse-numbers="off"] .verse-block { padding-left: 0; }
+    html[data-verse-numbers="off"] .verse-number { display: none; }
+    .verse-text { white-space: normal; }
+    .preface-content p { margin: 0 0 1.15em; }
+
+    ::highlight(user-highlights) { background: var(--highlight); color: inherit; }
+    ::highlight(note-ranges) { background: var(--note); color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
+    ::highlight(search-hit) { background: #ffae00; color: #111; }
+
+    .page-hint {
+      position: absolute;
+      z-index: 5;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      pointer-events: none;
+      font-family: system-ui, sans-serif;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .page-hint.left { left: 8px; }
+    .page-hint.right { right: 8px; }
+
+    /* Drawer / modal */
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(0,0,0,.44);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .modal {
+      width: min(680px, 100%);
+      max-height: min(82vh, 820px);
+      overflow: auto;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 14px;
+    }
+    .modal.wide { width: min(900px, 100%); }
+    .modal-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 54px;
+      padding: 8px 12px 8px 18px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h3 { margin: 0; font-size: 18px; }
+    .modal-body { padding: 18px; }
+    .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+    .toc-list, .result-list, .annotation-list { display: grid; gap: 6px; }
+    .toc-item, .result-item, .annotation-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: inherit;
+      border-radius: 10px;
+      padding: 11px 12px;
+    }
+    .toc-item.active { border-color: var(--text); }
+    .toc-item .status { float: right; color: var(--muted); }
+    .toc-item small, .result-item small, .annotation-item small { display: block; color: var(--muted); margin-top: 4px; }
+
+    .search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    input[type="search"], textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 11px 12px;
+    }
+    textarea { resize: vertical; min-height: 130px; }
+    .search-count { color: var(--muted); margin: 12px 0; font-size: 13px; }
+
+    .settings-grid { display: grid; gap: 18px; }
+    .setting-group { display: grid; gap: 8px; }
+    .setting-group label { font-weight: 700; font-size: 13px; }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .choice-btn {
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 9px;
+      padding: 8px 10px;
+    }
+    .choice-btn.active { background: var(--text); color: var(--panel); border-color: var(--text); }
+
+    .selection-toolbar {
+      position: fixed;
+      z-index: 120;
+      display: flex;
+      gap: 2px;
+      padding: 4px;
+      background: var(--text);
+      color: var(--panel);
+      border-radius: 9px;
+      box-shadow: var(--shadow);
+      max-width: calc(100vw - 20px);
+      overflow-x: auto;
+    }
+    .selection-toolbar button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 8px 9px;
+      white-space: nowrap;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .selection-toolbar button:hover { background: rgba(255,255,255,.14); }
+
+    .toast {
+      position: fixed;
+      z-index: 150;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      max-width: min(460px, calc(100vw - 32px));
+      background: var(--text);
+      color: var(--panel);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .wiki-extract { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; line-height: 1.65; white-space: pre-wrap; }
+    .wiki-source { color: var(--muted); font-size: 12px; margin-top: 16px; }
+    .selected-quote { padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--bg); margin-bottom: 12px; font-family: Georgia, serif; }
+
+    .footer {
+      max-width: 900px;
+      margin: 34px auto 0;
+      padding: 22px 0 10px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .footer a { color: inherit; }
+
+    body.reader-fullscreen .site-author-block,
+    body.reader-fullscreen .footer,
+    body.reader-fullscreen .site-page-header,
+    body.reader-fullscreen .cover,
+    body.reader-fullscreen .loading-box,
+    body.reader-fullscreen .error-box {
+      display: none !important;
+    }
+
+    @media (max-width: 720px) {
+      .site-page { padding-left: 10px; padding-right: 10px; }
+      .reader-container { height: calc(100svh - 22px); min-height: 560px; margin: 8px auto 24px; border-radius: 0; }
+      .reading-shell { width: min(var(--reader-max-width), calc(100% - 22px)); }
+      .reader-bottombar { grid-template-columns: auto auto 1fr auto auto; }
+      .reader-bottombar .mode-toggle { display: none; }
+      .progress-wrap { padding: 0 6px; }
+      .verse-block { padding-left: 1.8em; }
+      .modal { border-radius: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="site-page" id="sitePage">
+    <header class="site-page-header">
+      <h1>LA ODISEA</h1>
+      <p class="book-subtitle">Homero · Traducción de Luis Segalá y Estalella (1910)</p>
+
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+      <div class="site-author-block" style="margin:10px 0 0 0;">
+        <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+          <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+        </h2>
+        <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+          <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+            🏠 <span>volver a página de inicio</span>
+          </a>
+        </p>
+      </div>
+    </header>
+
+    <section id="loader" class="loading-box" aria-live="polite">Cargando La Odisea…</section>
+
+    <section id="loadError" class="error-box" hidden role="alert">
+      <p><strong>No se ha podido cargar La Odisea.</strong><br>Comprueba el archivo de datos e inténtalo de nuevo.</p>
+      <button class="secondary-btn" id="retryLoad">REINTENTAR</button>
+    </section>
+
+    <section id="cover" class="cover" hidden>
+      <div class="cover-kicker">Edición digital de lectura</div>
+      <h2 id="coverTitle">LA ODISEA</h2>
+      <p class="author" id="coverAuthor">Homero</p>
+      <p class="translator">Traducción de<br><strong id="coverTranslator">Luis Segalá y Estalella</strong></p>
+      <button class="primary-btn" id="startReading">COMENZAR LECTURA</button>
+      <p class="continue-label" id="continueLabel" hidden></p>
+    </section>
+
+    <section id="readerContainer" class="reader-container" hidden aria-label="Lector de La Odisea">
+      <div class="reader-stage" id="readerStage">
+        <div class="reading-shell" id="readingShell">
+          <div class="page-viewport" id="pageViewport" hidden>
+            <article class="page-flow" id="pageFlow"></article>
+          </div>
+          <div class="continuous-viewport" id="continuousViewport" hidden>
+            <article class="continuous-content" id="continuousContent"></article>
+          </div>
+        </div>
+        <span class="page-hint left">Anterior</span>
+        <span class="page-hint right">Siguiente</span>
+      </div>
+
+      <nav class="reader-topbar" aria-label="Controles superiores">
+        <button class="icon-btn" id="tocBtn" aria-label="Índice" title="Índice">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="reader-title-mini" id="readerMiniTitle">La Odisea</div>
+        <button class="icon-btn" id="searchBtn" aria-label="Buscar en el libro" title="Buscar">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        </button>
+        <button class="icon-btn" id="fullscreenBtn" aria-label="Pantalla completa" title="Pantalla completa">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        </button>
+      </nav>
+
+      <nav class="reader-bottombar" aria-label="Controles inferiores">
+        <button class="text-btn" id="settingsBtn" aria-label="Opciones de texto" title="Opciones de texto">Aa</button>
+        <button class="icon-btn" id="bookmarkBtn" aria-label="Marcadores, notas y subrayados" title="Marcadores y notas">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg>
+        </button>
+        <div class="mode-toggle" aria-label="Modo de lectura">
+          <button id="modePages" data-mode="pages">PÁGINAS</button>
+          <button id="modeScroll" data-mode="scroll">CONTINUO</button>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label" id="progressLabel">Canto I · 0 %</div>
+          <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+        </div>
+        <button class="icon-btn" id="prevBtn" aria-label="Anterior" title="Anterior">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button class="icon-btn" id="nextBtn" aria-label="Siguiente" title="Siguiente">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </nav>
+
+      <!-- Modal genérico: dentro del lector para seguir visible en Fullscreen -->
+      <div class="backdrop" id="modalBackdrop" hidden>
+        <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+          <header class="modal-head">
+            <h3 id="modalTitle">Ventana</h3>
+            <button class="icon-btn" id="modalClose" aria-label="Cerrar">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+          </header>
+          <div class="modal-body" id="modalBody"></div>
+        </section>
+      </div>
+
+      <!-- Menú de selección: dentro del lector para seguir visible en Fullscreen -->
+      <div class="selection-toolbar" id="selectionToolbar" hidden role="toolbar" aria-label="Acciones sobre el texto seleccionado">
+        <button data-action="wiki">WIKIPEDIA</button>
+        <button data-action="search">BUSCAR EN EL LIBRO</button>
+        <button data-action="highlight">SUBRAYAR</button>
+        <button data-action="note">NOTA</button>
+      </div>
+
+      <div class="toast" id="toast" hidden aria-live="polite"></div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2026 Angel Soto.
+      Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const BOOK_URLS = [
+        'json/la_odisea_segala_completa.json',
+        '/json/la_odisea_segala_completa.json'
+      ];
+      const NS = 'odysseyReader.';
+      const CACHE_NAME = 'odyssey-reader-v1';
+
+      const defaults = {
+        mode: 'pages',
+        theme: 'light',
+        fontSize: 20,
+        fontFamily: 'serif',
+        lineHeight: 'normal',
+        width: 'medium',
+        align: 'left',
+        verseNumbers: true,
+        position: { chapter: 1, verse: 1, offset: 0 },
+        completed: [],
+        bookmarks: [],
+        highlights: [],
+        notes: []
+      };
+
+      const state = {
+        book: null,
+        currentChapter: 1,
+        currentMode: 'pages',
+        pageIndex: 0,
+        pageCount: 1,
+        controlsVisible: true,
+        controlsTimer: null,
+        settings: { ...defaults },
+        currentSelection: null,
+        lastFocus: null,
+        modalType: null,
+        tempHighlightTimer: null,
+        bookStats: { totalChars: 1, chapterChars: [], cumulative: [] }
+      };
+
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+      const els = {
+        loader: $('#loader'), loadError: $('#loadError'), retryLoad: $('#retryLoad'), cover: $('#cover'),
+        coverTitle: $('#coverTitle'), coverAuthor: $('#coverAuthor'), coverTranslator: $('#coverTranslator'),
+        startReading: $('#startReading'), continueLabel: $('#continueLabel'), reader: $('#readerContainer'),
+        pageViewport: $('#pageViewport'), pageFlow: $('#pageFlow'), continuousViewport: $('#continuousViewport'),
+        continuousContent: $('#continuousContent'), readingShell: $('#readingShell'), readerMiniTitle: $('#readerMiniTitle'),
+        tocBtn: $('#tocBtn'), searchBtn: $('#searchBtn'), fullscreenBtn: $('#fullscreenBtn'), settingsBtn: $('#settingsBtn'),
+        bookmarkBtn: $('#bookmarkBtn'), modePages: $('#modePages'), modeScroll: $('#modeScroll'), progressLabel: $('#progressLabel'),
+        progressBar: $('#progressBar'), prevBtn: $('#prevBtn'), nextBtn: $('#nextBtn'),
+        modalBackdrop: $('#modalBackdrop'), modal: $('#modal'), modalTitle: $('#modalTitle'), modalBody: $('#modalBody'), modalClose: $('#modalClose'),
+        selectionToolbar: $('#selectionToolbar'), toast: $('#toast')
+      };
+
+      function safeParse(value, fallback) {
+        try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
+      }
+
+      function loadSettings() {
+        const saved = safeParse(localStorage.getItem(NS + 'settings'), {});
+        const position = safeParse(localStorage.getItem(NS + 'position'), defaults.position);
+        const completed = safeParse(localStorage.getItem(NS + 'completed'), []);
+        const bookmarks = safeParse(localStorage.getItem(NS + 'bookmarks'), []);
+        const highlights = safeParse(localStorage.getItem(NS + 'highlights'), []);
+        const notes = safeParse(localStorage.getItem(NS + 'notes'), []);
+        state.settings = { ...defaults, ...saved, position, completed, bookmarks, highlights, notes };
+        state.currentMode = state.settings.mode === 'scroll' ? 'scroll' : 'pages';
+        state.currentChapter = Number.isFinite(+position.chapter) ? +position.chapter : 1;
+        applySettingsToDocument();
+      }
+
+      function persistSettings() {
+        const compact = {
+          mode: state.currentMode,
+          theme: state.settings.theme,
+          fontSize: state.settings.fontSize,
+          fontFamily: state.settings.fontFamily,
+          lineHeight: state.settings.lineHeight,
+          width: state.settings.width,
+          align: state.settings.align,
+          verseNumbers: state.settings.verseNumbers
+        };
+        localStorage.setItem(NS + 'settings', JSON.stringify(compact));
+      }
+
+      function applySettingsToDocument() {
+        const root = document.documentElement;
+        root.dataset.theme = state.settings.theme || 'light';
+        root.dataset.verseNumbers = state.settings.verseNumbers === false ? 'off' : 'on';
+        const size = Math.min(32, Math.max(15, Number(state.settings.fontSize) || 20));
+        root.style.setProperty('--reader-font-size', size + 'px');
+        const font = state.settings.fontFamily === 'sans'
+          ? 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+          : 'Georgia, "Times New Roman", serif';
+        root.style.setProperty('--reader-font-family', font);
+        const lh = { compact: 1.48, normal: 1.72, wide: 1.95 }[state.settings.lineHeight] || 1.72;
+        root.style.setProperty('--reader-line-height', lh);
+        const width = { narrow: '610px', medium: '760px', wide: '940px' }[state.settings.width] || '760px';
+        root.style.setProperty('--reader-max-width', width);
+        root.style.setProperty('--reader-align', state.settings.align === 'justify' ? 'justify' : 'left');
+        const metaTheme = $('meta[name="theme-color"]');
+        if (metaTheme) metaTheme.content = state.settings.theme === 'dark' ? '#151515' : '#f7f4ec';
+      }
+
+      async function fetchBookResponse(url) {
+        try {
+          const response = await fetch(url, { cache: 'default' });
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          if ('caches' in window) {
+            try {
+              const cache = await caches.open(CACHE_NAME);
+              await cache.put(url, response.clone());
+            } catch (_) {}
+          }
+          return response;
+        } catch (err) {
+          if ('caches' in window) {
+            const cached = await caches.match(url);
+            if (cached) return cached;
+          }
+          throw err;
+        }
+      }
+
+      async function loadBook() {
+        els.loader.hidden = false;
+        els.loadError.hidden = true;
+        els.cover.hidden = true;
+        let lastError;
+        for (const url of BOOK_URLS) {
+          try {
+            const response = await fetchBookResponse(url);
+            const data = await response.json();
+            validateBook(data);
+            state.book = data;
+            buildBookStats();
+            hydrateCover();
+            els.loader.hidden = true;
+            els.cover.hidden = false;
+            return;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        console.error(lastError);
+        els.loader.hidden = true;
+        els.loadError.hidden = false;
+      }
+
+      function validateBook(data) {
+        if (!data || !data.metadata || !Array.isArray(data.chapters)) throw new Error('JSON no válido');
+        if (data.chapters.length !== 24) throw new Error('Se esperaban 24 cantos');
+        for (const ch of data.chapters) {
+          if (!Array.isArray(ch.verse_blocks)) throw new Error('Falta verse_blocks en ' + ch.title);
+        }
+      }
+
+      function buildBookStats() {
+        let cumulative = 0;
+        state.bookStats.chapterChars = state.book.chapters.map(ch => ch.verse_blocks.reduce((sum, b) => sum + (b.text || '').length, 0));
+        state.bookStats.cumulative = state.bookStats.chapterChars.map(len => {
+          const start = cumulative;
+          cumulative += len;
+          return start;
+        });
+        state.bookStats.totalChars = Math.max(1, cumulative);
+      }
+
+      function hydrateCover() {
+        const m = state.book.metadata;
+        els.coverTitle.textContent = (m.title || 'La Odisea').toUpperCase();
+        els.coverAuthor.textContent = m.author || 'Homero';
+        els.coverTranslator.textContent = m.translator || 'Luis Segalá y Estalella';
+        const pos = state.settings.position || defaults.position;
+        const hasProgress = localStorage.getItem(NS + 'position') !== null;
+        if (hasProgress) {
+          els.startReading.textContent = 'CONTINUAR LECTURA';
+          els.continueLabel.hidden = false;
+          els.continueLabel.textContent = formatPositionLabel(pos);
+        } else {
+          els.startReading.textContent = 'COMENZAR LECTURA';
+          els.continueLabel.hidden = true;
+        }
+      }
+
+      function formatPositionLabel(pos) {
+        if (+pos.chapter === 0) return 'Al lector';
+        const pct = Math.round(globalProgressFromPosition(pos) * 100);
+        return `Canto ${roman(+pos.chapter)} · ${pct} % del libro`;
+      }
+
+      function roman(n) {
+        return state.book?.chapters?.find(c => +c.number === +n)?.roman || String(n);
+      }
+
+      function getChapter(n = state.currentChapter) {
+        return state.book.chapters.find(c => +c.number === +n) || state.book.chapters[0];
+      }
+
+      function startReader() {
+        els.cover.hidden = true;
+        els.reader.hidden = false;
+        const pos = state.settings.position || defaults.position;
+        state.currentChapter = Number.isFinite(+pos.chapter) ? +pos.chapter : 1;
+        state.currentMode = state.settings.mode || 'pages';
+        renderCurrent(pos);
+        setControlsVisible(true);
+        resetControlsTimer();
+      }
+
+      function renderCurrent(position = null) {
+        const pos = position || capturePosition() || { chapter: state.currentChapter, verse: 1, offset: 0 };
+        state.currentChapter = +pos.chapter;
+        const target = state.currentMode === 'pages' ? els.pageFlow : els.continuousContent;
+        els.pageViewport.hidden = state.currentMode !== 'pages';
+        els.continuousViewport.hidden = state.currentMode !== 'scroll';
+        target.replaceChildren();
+
+        if (state.currentChapter === 0) renderPreface(target);
+        else renderChapter(target, getChapter(state.currentChapter));
+
+        updateMiniTitle();
+        updateModeButtons();
+        requestAnimationFrame(() => {
+          if (state.currentMode === 'pages') {
+            recalculatePagination(pos);
+          } else {
+            restorePosition(pos);
+            updateProgress();
+          }
+          renderPersistentRanges();
+        });
+      }
+
+      function renderPreface(target) {
+        const sec = document.createElement('section');
+        sec.className = 'preface-content';
+        const header = document.createElement('header');
+        header.className = 'chapter-header';
+        header.innerHTML = '<div class="chapter-number">PRÓLOGO</div><h2>Al lector</h2>';
+        sec.append(header);
+        const text = state.book.preface?.reading_text || state.book.preface?.raw_text || '';
+        for (const p of text.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean)) {
+          const para = document.createElement('p');
+          para.textContent = p.replace(/\s*\n\s*/g, ' ');
+          sec.append(para);
+        }
+        target.append(sec);
+      }
+
+      function renderChapter(target, chapter) {
+        const sec = document.createElement('section');
+        sec.className = 'chapter';
+        sec.dataset.chapter = chapter.number;
+
+        const header = document.createElement('header');
+        header.className = 'chapter-header';
+        const num = document.createElement('div');
+        num.className = 'chapter-number';
+        num.textContent = `CANTO ${chapter.roman || chapter.number}`;
+        const h2 = document.createElement('h2');
+        h2.textContent = titleCasePreserving(chapter.subtitle || chapter.title || '');
+        header.append(num, h2);
+        sec.append(header);
+
+        chapter.verse_blocks.forEach(block => {
+          const wrap = document.createElement('div');
+          wrap.className = 'verse-block';
+          wrap.dataset.verse = block.verse_start;
+          const number = document.createElement('span');
+          number.className = 'verse-number';
+          number.textContent = block.verse_start;
+          number.setAttribute('aria-hidden', 'true');
+          const text = document.createElement('span');
+          text.className = 'verse-text';
+          text.textContent = block.text || '';
+          wrap.append(number, text);
+          sec.append(wrap);
+        });
+        target.append(sec);
+      }
+
+      function titleCasePreserving(s) {
+        if (!s) return '';
+        if (s !== s.toUpperCase()) return s;
+        return s.toLocaleLowerCase('es').replace(/(^|[.!?—-]\s+)(\p{L})/gu, (m, p1, p2) => p1 + p2.toLocaleUpperCase('es'));
+      }
+
+      function updateMiniTitle() {
+        if (state.currentChapter === 0) els.readerMiniTitle.textContent = 'Al lector';
+        else {
+          const ch = getChapter();
+          els.readerMiniTitle.textContent = `${ch.title} · ${titleCasePreserving(ch.subtitle || '')}`;
+        }
+      }
+
+      function updateModeButtons() {
+        els.modePages.classList.toggle('active', state.currentMode === 'pages');
+        els.modeScroll.classList.toggle('active', state.currentMode === 'scroll');
+      }
+
+      function recalculatePagination(position = null) {
+        const width = els.pageViewport.clientWidth || 1;
+        els.pageFlow.style.setProperty('--page-width', width + 'px');
+        els.pageViewport.scrollLeft = 0;
+        requestAnimationFrame(() => {
+          state.pageCount = Math.max(1, Math.ceil(els.pageFlow.scrollWidth / width));
+          if (position) restorePosition(position);
+          else goToPage(Math.min(state.pageIndex, state.pageCount - 1), false);
+          updateProgress();
+        });
+      }
+
+      function goToPage(index, save = true) {
+        state.pageIndex = Math.max(0, Math.min(state.pageCount - 1, index));
+        els.pageViewport.scrollLeft = state.pageIndex * els.pageViewport.clientWidth;
+        updateProgress();
+        if (save) savePosition();
+      }
+
+      function next() {
+        if (state.currentMode === 'pages') {
+          if (state.pageIndex < state.pageCount - 1) return goToPage(state.pageIndex + 1);
+          markCurrentCompleted();
+          if (state.currentChapter < 24) return loadChapter(state.currentChapter + 1, { edge: 'start' });
+        } else {
+          if (state.currentChapter < 24) return loadChapter(state.currentChapter + 1, { edge: 'start' });
+        }
+        showToast('Has llegado al final de La Odisea.');
+      }
+
+      function prev() {
+        if (state.currentMode === 'pages') {
+          if (state.pageIndex > 0) return goToPage(state.pageIndex - 1);
+          if (state.currentChapter > 1) return loadChapter(state.currentChapter - 1, { edge: 'end' });
+          if (state.currentChapter === 1) return loadChapter(0, { edge: 'end' });
+        } else {
+          if (state.currentChapter > 1) return loadChapter(state.currentChapter - 1, { edge: 'start' });
+          if (state.currentChapter === 1) return loadChapter(0, { edge: 'start' });
+        }
+      }
+
+      function loadChapter(n, opts = {}) {
+        const currentPos = capturePosition();
+        if (currentPos) savePositionObject(currentPos);
+        state.currentChapter = +n;
+        let pos;
+        if (+n === 0) pos = { chapter: 0, verse: 0, offset: 0 };
+        else {
+          const ch = getChapter(+n);
+          const first = ch.verse_blocks[0]?.verse_start || 1;
+          const last = ch.verse_blocks[ch.verse_blocks.length - 1]?.verse_start || first;
+          pos = { chapter: +n, verse: opts.edge === 'end' ? last : first, offset: opts.edge === 'end' ? 999999 : 0 };
+        }
+        renderCurrent(pos);
+      }
+
+      function switchMode(mode) {
+        if (mode === state.currentMode) return;
+        const pos = capturePosition() || state.settings.position;
+        state.currentMode = mode;
+        state.settings.mode = mode;
+        persistSettings();
+        renderCurrent(pos);
+      }
+
+      function capturePosition() {
+        if (!state.book || els.reader.hidden) return state.settings.position;
+        if (state.currentChapter === 0) {
+          const viewport = state.currentMode === 'scroll' ? els.continuousViewport : els.pageViewport;
+          const ratio = state.currentMode === 'scroll'
+            ? viewport.scrollTop / Math.max(1, viewport.scrollHeight - viewport.clientHeight)
+            : state.pageIndex / Math.max(1, state.pageCount - 1);
+          return { chapter: 0, verse: 0, offset: 0, ratio };
+        }
+        const vp = state.currentMode === 'scroll' ? els.continuousViewport : els.pageViewport;
+        const r = vp.getBoundingClientRect();
+        const x = Math.min(r.right - 20, r.left + Math.max(30, r.width * .18));
+        const y = Math.min(r.bottom - 30, r.top + Math.max(40, r.height * .16));
+        const caret = caretFromPoint(x, y);
+        if (caret && caret.node) {
+          const block = caret.node.nodeType === Node.ELEMENT_NODE ? caret.node.closest?.('.verse-block') : caret.node.parentElement?.closest('.verse-block');
+          const textEl = block?.querySelector('.verse-text');
+          if (block && textEl && textEl.contains(caret.node)) {
+            const offset = offsetWithin(textEl, caret.node, caret.offset);
+            return { chapter: state.currentChapter, verse: +block.dataset.verse, offset };
+          }
+        }
+        const blocks = $$('.verse-block', state.currentMode === 'pages' ? els.pageFlow : els.continuousContent);
+        const visible = blocks.find(b => isVisibleInViewport(b, vp));
+        return {
+          chapter: state.currentChapter,
+          verse: +(visible?.dataset.verse || blocks[0]?.dataset.verse || 1),
+          offset: 0
+        };
+      }
+
+      function caretFromPoint(x, y) {
+        if (document.caretPositionFromPoint) {
+          const p = document.caretPositionFromPoint(x, y);
+          if (p) return { node: p.offsetNode, offset: p.offset };
+        }
+        if (document.caretRangeFromPoint) {
+          const r = document.caretRangeFromPoint(x, y);
+          if (r) return { node: r.startContainer, offset: r.startOffset };
+        }
+        return null;
+      }
+
+      function offsetWithin(root, node, offset) {
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(root);
+          range.setEnd(node, offset);
+          return range.toString().length;
+        } catch { return 0; }
+      }
+
+      function restorePosition(pos) {
+        if (!pos) return;
+        if (+pos.chapter === 0) {
+          if (state.currentMode === 'scroll') {
+            const max = Math.max(0, els.continuousViewport.scrollHeight - els.continuousViewport.clientHeight);
+            els.continuousViewport.scrollTop = Math.max(0, Math.min(max, (pos.ratio || 0) * max));
+          } else {
+            goToPage(Math.round((pos.ratio || 0) * Math.max(0, state.pageCount - 1)), false);
+          }
+          return;
+        }
+        const block = $(`.verse-block[data-verse="${CSS.escape(String(pos.verse))}"]`, state.currentMode === 'pages' ? els.pageFlow : els.continuousContent);
+        const textEl = block?.querySelector('.verse-text');
+        if (!textEl) return;
+        const point = textPointAtOffset(textEl, Math.max(0, +pos.offset || 0));
+        if (!point) return;
+        const range = document.createRange();
+        range.setStart(point.node, point.offset);
+        range.collapse(true);
+        const rect = range.getBoundingClientRect();
+        if (state.currentMode === 'scroll') {
+          const vpRect = els.continuousViewport.getBoundingClientRect();
+          els.continuousViewport.scrollTop += rect.top - vpRect.top - 60;
+        } else {
+          const vpRect = els.pageViewport.getBoundingClientRect();
+          const logicalX = rect.left - vpRect.left + els.pageViewport.scrollLeft;
+          const page = Math.max(0, Math.min(state.pageCount - 1, Math.floor(logicalX / Math.max(1, els.pageViewport.clientWidth))));
+          goToPage(page, false);
+        }
+      }
+
+      function textPointAtOffset(root, wanted) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let total = 0, node;
+        while ((node = walker.nextNode())) {
+          const len = node.nodeValue.length;
+          if (wanted <= total + len) return { node, offset: Math.min(len, wanted - total) };
+          total += len;
+        }
+        const last = root.lastChild;
+        if (last?.nodeType === Node.TEXT_NODE) return { node: last, offset: last.nodeValue.length };
+        return null;
+      }
+
+      function isVisibleInViewport(el, viewport) {
+        const vr = viewport.getBoundingClientRect();
+        return Array.from(el.getClientRects()).some(r => r.right > vr.left && r.left < vr.right && r.bottom > vr.top && r.top < vr.bottom);
+      }
+
+      function savePosition() {
+        const pos = capturePosition();
+        if (pos) savePositionObject(pos);
+      }
+
+      function savePositionObject(pos) {
+        state.settings.position = pos;
+        localStorage.setItem(NS + 'position', JSON.stringify(pos));
+        updateProgress();
+      }
+
+      function globalProgressFromPosition(pos) {
+        if (!state.book) return 0;
+        if (+pos.chapter <= 0) return 0;
+        const idx = Math.max(0, Math.min(23, +pos.chapter - 1));
+        const ch = state.book.chapters[idx];
+        const base = state.bookStats.cumulative[idx] || 0;
+        let within = 0;
+        for (const block of ch.verse_blocks) {
+          if (+block.verse_start < +pos.verse) within += (block.text || '').length;
+          else if (+block.verse_start === +pos.verse) {
+            within += Math.min((block.text || '').length, Math.max(0, +pos.offset || 0));
+            break;
+          } else break;
+        }
+        return Math.max(0, Math.min(1, (base + within) / state.bookStats.totalChars));
+      }
+
+      function updateProgress() {
+        if (!state.book || state.currentChapter === undefined) return;
+        let chapterRatio = 0;
+        if (state.currentMode === 'pages') chapterRatio = state.pageIndex / Math.max(1, state.pageCount - 1);
+        else chapterRatio = els.continuousViewport.scrollTop / Math.max(1, els.continuousViewport.scrollHeight - els.continuousViewport.clientHeight);
+
+        let global = 0;
+        if (state.currentChapter > 0) {
+          const idx = state.currentChapter - 1;
+          const base = state.bookStats.cumulative[idx] || 0;
+          global = (base + chapterRatio * (state.bookStats.chapterChars[idx] || 0)) / state.bookStats.totalChars;
+        }
+        const gPct = Math.max(0, Math.min(100, Math.round(global * 100)));
+        const cPct = Math.max(0, Math.min(100, Math.round(chapterRatio * 100)));
+        els.progressBar.style.width = gPct + '%';
+        els.progressLabel.textContent = state.currentChapter === 0
+          ? `Al lector · ${cPct} %`
+          : `Canto ${roman(state.currentChapter)} · ${cPct} % · Libro ${gPct} %`;
+        if (state.currentMode === 'scroll' && chapterRatio > .95) markCurrentCompleted();
+      }
+
+      function markCurrentCompleted() {
+        if (state.currentChapter < 1) return;
+        const set = new Set(state.settings.completed || []);
+        set.add(state.currentChapter);
+        state.settings.completed = [...set].sort((a,b) => a-b);
+        localStorage.setItem(NS + 'completed', JSON.stringify(state.settings.completed));
+      }
+
+      function setControlsVisible(show) {
+        state.controlsVisible = show;
+        els.reader.classList.toggle('controls-hidden', !show);
+      }
+
+      function resetControlsTimer() {
+        clearTimeout(state.controlsTimer);
+        if (modalIsOpen() || !els.selectionToolbar.hidden) return;
+        state.controlsTimer = setTimeout(() => setControlsVisible(false), 3400);
+      }
+
+      function openModal(title, content, type = 'generic', wide = false) {
+        state.lastFocus = document.activeElement;
+        state.modalType = type;
+        els.modalTitle.textContent = title;
+        els.modalBody.replaceChildren();
+        if (typeof content === 'string') els.modalBody.textContent = content;
+        else if (content) els.modalBody.append(content);
+        els.modal.classList.toggle('wide', wide);
+        els.modalBackdrop.hidden = false;
+        document.body.style.overflow = 'hidden';
+        setControlsVisible(true);
+        setTimeout(() => els.modalClose.focus(), 0);
+      }
+
+      function closeModal() {
+        if (els.modalBackdrop.hidden) return;
+        els.modalBackdrop.hidden = true;
+        els.modalBody.replaceChildren();
+        state.modalType = null;
+        document.body.style.overflow = '';
+        state.lastFocus?.focus?.();
+        resetControlsTimer();
+      }
+
+      function modalIsOpen() { return !els.modalBackdrop.hidden; }
+
+      function showTOC() {
+        const box = document.createElement('div');
+        box.className = 'toc-list';
+        if (state.book.preface) {
+          const b = makeButton('Al lector', '', () => { closeModal(); loadChapter(0); });
+          b.className = 'toc-item' + (state.currentChapter === 0 ? ' active' : '');
+          box.append(b);
+        }
+        state.book.chapters.forEach(ch => {
+          const completed = (state.settings.completed || []).includes(+ch.number);
+          const active = +ch.number === state.currentChapter;
+          const btn = document.createElement('button');
+          btn.className = 'toc-item' + (active ? ' active' : '');
+          btn.innerHTML = `<span>${escapeHTML(ch.title)}</span><span class="status">${completed ? '✓' : active ? '◐' : '○'}</span><small>${escapeHTML(titleCasePreserving(ch.subtitle || ''))}</small>`;
+          btn.addEventListener('click', () => { closeModal(); loadChapter(+ch.number, { edge: 'start' }); });
+          box.append(btn);
+        });
+        openModal('Índice', box, 'toc');
+      }
+
+      function showSettings() {
+        const wrap = document.createElement('div');
+        wrap.className = 'settings-grid';
+        wrap.append(
+          settingGroup('Tamaño de letra', [
+            ['A−', 'fontDown'], ['A+', 'fontUp']
+          ]),
+          settingGroup('Tipografía', [
+            ['Serif', 'font:serif'], ['Sans serif', 'font:sans']
+          ]),
+          settingGroup('Interlineado', [
+            ['Compacto', 'line:compact'], ['Normal', 'line:normal'], ['Amplio', 'line:wide']
+          ]),
+          settingGroup('Anchura', [
+            ['Estrecha', 'width:narrow'], ['Media', 'width:medium'], ['Amplia', 'width:wide']
+          ]),
+          settingGroup('Alineación', [
+            ['Izquierda', 'align:left'], ['Justificada', 'align:justify']
+          ]),
+          settingGroup('Tema', [
+            ['Claro', 'theme:light'], ['Sepia', 'theme:sepia'], ['Oscuro', 'theme:dark'], ['E-ink', 'theme:eink']
+          ]),
+          settingGroup('Números de verso', [
+            ['Mostrar', 'verse:on'], ['Ocultar', 'verse:off']
+          ]),
+          settingGroup('Modo de lectura', [
+            ['Páginas', 'mode:pages'], ['Continuo', 'mode:scroll']
+          ])
+        );
+        wrap.addEventListener('click', handleSettingAction);
+        openModal('Opciones de lectura', wrap, 'settings');
+        updateSettingActiveStates(wrap);
+      }
+
+      function settingGroup(label, choices) {
+        const g = document.createElement('div');
+        g.className = 'setting-group';
+        const l = document.createElement('label'); l.textContent = label;
+        const row = document.createElement('div'); row.className = 'choice-row';
+        choices.forEach(([text, action]) => {
+          const b = document.createElement('button');
+          b.className = 'choice-btn'; b.textContent = text; b.dataset.settingAction = action;
+          row.append(b);
+        });
+        g.append(l, row); return g;
+      }
+
+      function handleSettingAction(e) {
+        const btn = e.target.closest('[data-setting-action]');
+        if (!btn) return;
+        const action = btn.dataset.settingAction;
+        const pos = capturePosition();
+        if (action === 'fontDown') state.settings.fontSize = Math.max(15, state.settings.fontSize - 1);
+        else if (action === 'fontUp') state.settings.fontSize = Math.min(32, state.settings.fontSize + 1);
+        else {
+          const [kind, value] = action.split(':');
+          if (kind === 'font') state.settings.fontFamily = value;
+          if (kind === 'line') state.settings.lineHeight = value;
+          if (kind === 'width') state.settings.width = value;
+          if (kind === 'align') state.settings.align = value;
+          if (kind === 'theme') state.settings.theme = value;
+          if (kind === 'verse') state.settings.verseNumbers = value === 'on';
+          if (kind === 'mode') {
+            closeModal();
+            return switchMode(value);
+          }
+        }
+        applySettingsToDocument();
+        persistSettings();
+        updateSettingActiveStates(els.modalBody);
+        requestAnimationFrame(() => {
+          if (state.currentMode === 'pages') recalculatePagination(pos);
+          else restorePosition(pos);
+        });
+      }
+
+      function updateSettingActiveStates(root) {
+        $$('[data-setting-action]', root).forEach(btn => {
+          const a = btn.dataset.settingAction;
+          let active = false;
+          if (a.startsWith('font:')) active = a.endsWith(state.settings.fontFamily);
+          if (a.startsWith('line:')) active = a.endsWith(state.settings.lineHeight);
+          if (a.startsWith('width:')) active = a.endsWith(state.settings.width);
+          if (a.startsWith('align:')) active = a.endsWith(state.settings.align);
+          if (a.startsWith('theme:')) active = a.endsWith(state.settings.theme);
+          if (a.startsWith('verse:')) active = a.endsWith(state.settings.verseNumbers ? 'on' : 'off');
+          if (a.startsWith('mode:')) active = a.endsWith(state.currentMode);
+          btn.classList.toggle('active', active);
+        });
+      }
+
+      function showSearch(prefill = '') {
+        const wrap = document.createElement('div');
+        const row = document.createElement('div'); row.className = 'search-row';
+        const input = document.createElement('input'); input.type = 'search'; input.placeholder = 'Buscar en La Odisea'; input.value = prefill;
+        input.setAttribute('aria-label', 'Buscar en el libro');
+        const go = document.createElement('button'); go.className = 'secondary-btn'; go.textContent = 'BUSCAR';
+        row.append(input, go);
+        const count = document.createElement('div'); count.className = 'search-count';
+        const list = document.createElement('div'); list.className = 'result-list';
+        wrap.append(row, count, list);
+        const run = () => executeSearch(input.value, count, list);
+        go.addEventListener('click', run);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+        openModal('Buscar en el libro', wrap, 'search', true);
+        setTimeout(() => { input.focus(); if (prefill) run(); }, 0);
+      }
+
+      function normalizeWithMap(str) {
+        const chars = [];
+        const map = [];
+        for (let i = 0; i < str.length; i++) {
+          const d = str[i].normalize('NFD');
+          for (const c of d) {
+            if (/\p{M}/u.test(c)) continue;
+            chars.push(c.toLocaleLowerCase('es'));
+            map.push(i);
+          }
+        }
+        return { text: chars.join(''), map };
+      }
+
+      function executeSearch(query, countEl, listEl) {
+        listEl.replaceChildren();
+        const q = query.trim();
+        if (!q) { countEl.textContent = 'Escribe una palabra o frase.'; return; }
+        const qn = normalizeWithMap(q).text;
+        const results = [];
+        for (const ch of state.book.chapters) {
+          for (const block of ch.verse_blocks) {
+            const norm = normalizeWithMap(block.text || '');
+            let from = 0;
+            while (results.length < 250) {
+              const idx = norm.text.indexOf(qn, from);
+              if (idx < 0) break;
+              const origStart = norm.map[idx] ?? idx;
+              const origEnd = (norm.map[idx + qn.length - 1] ?? (origStart + q.length - 1)) + 1;
+              results.push({ chapter: +ch.number, verse: +block.verse_start, text: block.text, start: origStart, end: origEnd });
+              from = idx + Math.max(1, qn.length);
+            }
+            if (results.length >= 250) break;
+          }
+          if (results.length >= 250) break;
+        }
+        countEl.textContent = `${results.length}${results.length >= 250 ? '+' : ''} resultado${results.length === 1 ? '' : 's'}`;
+        results.forEach(res => {
+          const btn = document.createElement('button'); btn.className = 'result-item';
+          const before = res.text.slice(Math.max(0, res.start - 65), res.start);
+          const hit = res.text.slice(res.start, res.end);
+          const after = res.text.slice(res.end, Math.min(res.text.length, res.end + 80));
+          btn.textContent = `Canto ${roman(res.chapter)} · v. ${res.verse}\n“…${before}${hit}${after}…”`;
+          const sm = document.createElement('small'); sm.textContent = 'Ir a esta coincidencia'; btn.append(sm);
+          btn.addEventListener('click', () => {
+            closeModal();
+            jumpToPosition({ chapter: res.chapter, verse: res.verse, offset: res.start }, { highlightStart: res.start, highlightEnd: res.end });
+          });
+          listEl.append(btn);
+        });
+      }
+
+      function jumpToPosition(pos, temp = null) {
+        state.currentChapter = +pos.chapter;
+        renderCurrent(pos);
+        if (temp) setTimeout(() => showTempHighlight(+pos.verse, temp.highlightStart, temp.highlightEnd), 120);
+      }
+
+      function showTempHighlight(verse, start, end) {
+        if (!('highlights' in CSS) || !window.Highlight) return;
+        const textEl = $(`.verse-block[data-verse="${CSS.escape(String(verse))}"] .verse-text`, state.currentMode === 'pages' ? els.pageFlow : els.continuousContent);
+        if (!textEl) return;
+        const range = rangeForOffsets(textEl, start, end);
+        if (!range) return;
+        CSS.highlights.set('search-hit', new Highlight(range));
+        clearTimeout(state.tempHighlightTimer);
+        state.tempHighlightTimer = setTimeout(() => CSS.highlights.delete('search-hit'), 5000);
+      }
+
+      function showAnnotations() {
+        const wrap = document.createElement('div');
+        const actions = document.createElement('div'); actions.className = 'modal-actions';
+        const add = document.createElement('button'); add.className = 'secondary-btn'; add.textContent = 'AÑADIR MARCADOR AQUÍ';
+        add.addEventListener('click', () => { addBookmark(); closeModal(); });
+        actions.append(add);
+        wrap.append(actions);
+
+        const heading1 = document.createElement('h4'); heading1.textContent = 'Marcadores';
+        const bookmarks = document.createElement('div'); bookmarks.className = 'annotation-list';
+        (state.settings.bookmarks || []).slice().reverse().forEach(item => bookmarks.append(annotationRow(item, 'bookmark')));
+        if (!bookmarks.children.length) bookmarks.textContent = 'No hay marcadores.';
+
+        const heading2 = document.createElement('h4'); heading2.textContent = 'Notas y subrayados'; heading2.style.marginTop = '24px';
+        const anns = document.createElement('div'); anns.className = 'annotation-list';
+        const merged = [
+          ...(state.settings.notes || []).map(x => ({...x, kind: 'note'})),
+          ...(state.settings.highlights || []).map(x => ({...x, kind: 'highlight'}))
+        ].sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+        merged.forEach(item => anns.append(annotationRow(item, item.kind)));
+        if (!anns.children.length) anns.textContent = 'No hay notas ni subrayados.';
+
+        wrap.append(heading1, bookmarks, heading2, anns);
+        openModal('Marcadores y notas', wrap, 'annotations', true);
+      }
+
+      function annotationRow(item, kind) {
+        const row = document.createElement('div'); row.className = 'annotation-item';
+        const label = document.createElement('div');
+        label.textContent = item.chapter === 0 ? 'Al lector' : `Canto ${roman(item.chapter)} · v. ${item.verse}`;
+        const small = document.createElement('small');
+        small.textContent = kind === 'note' ? `${item.selectedText || ''}${item.note ? ' — ' + item.note : ''}` : (item.selectedText || 'Marcador de lectura');
+        const actions = document.createElement('div'); actions.className = 'modal-actions';
+        const go = document.createElement('button'); go.className = 'choice-btn'; go.textContent = 'ABRIR';
+        go.addEventListener('click', () => { closeModal(); jumpToPosition(item); });
+        const del = document.createElement('button'); del.className = 'choice-btn'; del.textContent = 'ELIMINAR';
+        del.addEventListener('click', () => { deleteAnnotation(item, kind); showAnnotationsAfterRefresh(); });
+        actions.append(go, del); row.append(label, small, actions); return row;
+      }
+
+      function showAnnotationsAfterRefresh() {
+        closeModal();
+        setTimeout(showAnnotations, 0);
+      }
+
+      function addBookmark() {
+        const pos = capturePosition();
+        if (!pos) return;
+        const list = state.settings.bookmarks || [];
+        list.push({ ...pos, id: uid(), createdAt: Date.now() });
+        state.settings.bookmarks = list.slice(-100);
+        localStorage.setItem(NS + 'bookmarks', JSON.stringify(state.settings.bookmarks));
+        showToast('Marcador añadido.');
+      }
+
+      function deleteAnnotation(item, kind) {
+        const key = kind === 'bookmark' ? 'bookmarks' : kind === 'note' ? 'notes' : 'highlights';
+        state.settings[key] = (state.settings[key] || []).filter(x => x.id !== item.id);
+        localStorage.setItem(NS + key, JSON.stringify(state.settings[key]));
+        renderPersistentRanges();
+      }
+
+      function showBookInfo() {
+        const m = state.book.metadata;
+        const box = document.createElement('div');
+        box.innerHTML = `<p><strong>${escapeHTML(m.title || 'La Odisea')}</strong><br>${escapeHTML(m.author || 'Homero')}</p>
+          <p>Traducción:<br><strong>${escapeHTML(m.translator || 'Luis Segalá y Estalella')}</strong></p>
+          <p>Edición de ${escapeHTML(String(m.edition_year || 1910))}</p>
+          <p>Fuente digital:<br>${escapeHTML(m.source || 'Wikisource')}</p>
+          <p>Texto en dominio público.</p>`;
+        openModal('Acerca del libro', box, 'about');
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else if (els.reader.requestFullscreen) await els.reader.requestFullscreen();
+          else {
+            document.body.classList.toggle('reader-fullscreen');
+            showToast('El navegador no ofrece Fullscreen API; se ha aplicado un modo de lectura limpio.');
+          }
+        } catch (e) {
+          showToast('No se ha podido activar la pantalla completa.');
+        }
+      }
+
+      function handleFullscreenChange() {
+        const active = document.fullscreenElement === els.reader;
+        document.body.classList.toggle('reader-fullscreen', active);
+        requestAnimationFrame(() => {
+          const pos = state.settings.position || capturePosition();
+          if (state.currentMode === 'pages') recalculatePagination(pos);
+          else restorePosition(pos);
+        });
+      }
+
+      function handlePageTap(e) {
+        if (state.currentMode !== 'pages') return;
+        if (e.target.closest('button,a,input,textarea,select')) return;
+        if (!window.getSelection().isCollapsed) return;
+        const r = els.pageViewport.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        if (x < r.width / 3) prev();
+        else if (x > r.width * 2 / 3) next();
+        else {
+          setControlsVisible(!state.controlsVisible);
+          if (state.controlsVisible) resetControlsTimer();
+        }
+      }
+
+      function handleSelectionChange() {
+        clearTimeout(handleSelectionChange.timer);
+        handleSelectionChange.timer = setTimeout(updateSelectionToolbar, 80);
+      }
+
+      function updateSelectionToolbar() {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) return hideSelectionToolbar();
+        const range = sel.getRangeAt(0);
+        const ancestor = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? range.commonAncestorContainer
+          : range.commonAncestorContainer.parentElement;
+        if (!ancestor?.closest?.('#readerContainer')) return hideSelectionToolbar();
+        const text = sel.toString().trim();
+        if (!text || text.length > 350) return hideSelectionToolbar();
+        const startBlock = (range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement)?.closest('.verse-block');
+        const endBlock = (range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer : range.endContainer.parentElement)?.closest('.verse-block');
+        let info = { text, sameBlock: false };
+        if (startBlock && endBlock && startBlock === endBlock) {
+          const textEl = startBlock.querySelector('.verse-text');
+          info = {
+            text,
+            sameBlock: true,
+            chapter: state.currentChapter,
+            verse: +startBlock.dataset.verse,
+            startOffset: offsetWithin(textEl, range.startContainer, range.startOffset),
+            endOffset: offsetWithin(textEl, range.endContainer, range.endOffset)
+          };
+        }
+        state.currentSelection = info;
+        $$('[data-action="highlight"], [data-action="note"]', els.selectionToolbar).forEach(b => b.disabled = !info.sameBlock);
+        const rect = range.getBoundingClientRect();
+        const toolbar = els.selectionToolbar;
+        toolbar.hidden = false;
+        requestAnimationFrame(() => {
+          const w = toolbar.offsetWidth, h = toolbar.offsetHeight;
+          const left = Math.max(10, Math.min(innerWidth - w - 10, rect.left + rect.width/2 - w/2));
+          const top = Math.max(10, rect.top - h - 8);
+          toolbar.style.left = left + 'px'; toolbar.style.top = top + 'px';
+        });
+        clearTimeout(state.controlsTimer);
+      }
+
+      function hideSelectionToolbar() {
+        els.selectionToolbar.hidden = true;
+        state.currentSelection = null;
+      }
+
+      function selectionAction(action) {
+        const s = state.currentSelection;
+        if (!s) return;
+        if (action === 'wiki') {
+          const term = s.text;
+          window.getSelection().removeAllRanges(); hideSelectionToolbar();
+          openWikipedia(term);
+        } else if (action === 'search') {
+          const term = s.text;
+          window.getSelection().removeAllRanges(); hideSelectionToolbar();
+          showSearch(term);
+        } else if (action === 'highlight' && s.sameBlock) {
+          addHighlight(s);
+          window.getSelection().removeAllRanges(); hideSelectionToolbar();
+        } else if (action === 'note' && s.sameBlock) {
+          openNoteEditor(s);
+        }
+      }
+
+      function addHighlight(s) {
+        const item = { id: uid(), chapter: s.chapter, verse: s.verse, startOffset: s.startOffset, endOffset: s.endOffset, selectedText: s.text, createdAt: Date.now() };
+        state.settings.highlights = [...(state.settings.highlights || []), item];
+        localStorage.setItem(NS + 'highlights', JSON.stringify(state.settings.highlights));
+        renderPersistentRanges();
+        showToast('Subrayado guardado.');
+      }
+
+      function openNoteEditor(s) {
+        const wrap = document.createElement('div');
+        const quote = document.createElement('div'); quote.className = 'selected-quote'; quote.textContent = s.text;
+        const ta = document.createElement('textarea'); ta.placeholder = 'Escribe tu nota…'; ta.setAttribute('aria-label', 'Nota');
+        const actions = document.createElement('div'); actions.className = 'modal-actions';
+        const save = document.createElement('button'); save.className = 'primary-btn'; save.textContent = 'GUARDAR';
+        save.addEventListener('click', () => {
+          const note = ta.value.trim();
+          const item = { id: uid(), chapter: s.chapter, verse: s.verse, startOffset: s.startOffset, endOffset: s.endOffset, selectedText: s.text, note, createdAt: Date.now() };
+          state.settings.notes = [...(state.settings.notes || []), item];
+          localStorage.setItem(NS + 'notes', JSON.stringify(state.settings.notes));
+          window.getSelection().removeAllRanges(); hideSelectionToolbar(); closeModal(); renderPersistentRanges(); showToast('Nota guardada.');
+        });
+        actions.append(save); wrap.append(quote, ta, actions);
+        openModal('Nota', wrap, 'note');
+        setTimeout(() => ta.focus(), 0);
+      }
+
+      function renderPersistentRanges() {
+        if (!('highlights' in CSS) || !window.Highlight) return;
+        CSS.highlights.delete('user-highlights');
+        CSS.highlights.delete('note-ranges');
+        if (state.currentChapter < 1) return;
+        const root = state.currentMode === 'pages' ? els.pageFlow : els.continuousContent;
+        const hs = [];
+        for (const item of state.settings.highlights || []) {
+          if (+item.chapter !== state.currentChapter) continue;
+          const el = $(`.verse-block[data-verse="${CSS.escape(String(item.verse))}"] .verse-text`, root);
+          const r = el && rangeForOffsets(el, item.startOffset, item.endOffset);
+          if (r) hs.push(r);
+        }
+        const ns = [];
+        for (const item of state.settings.notes || []) {
+          if (+item.chapter !== state.currentChapter) continue;
+          const el = $(`.verse-block[data-verse="${CSS.escape(String(item.verse))}"] .verse-text`, root);
+          const r = el && rangeForOffsets(el, item.startOffset, item.endOffset);
+          if (r) ns.push(r);
+        }
+        if (hs.length) CSS.highlights.set('user-highlights', new Highlight(...hs));
+        if (ns.length) CSS.highlights.set('note-ranges', new Highlight(...ns));
+      }
+
+      function rangeForOffsets(root, start, end) {
+        const a = textPointAtOffset(root, Math.max(0, +start || 0));
+        const b = textPointAtOffset(root, Math.max(0, +end || 0));
+        if (!a || !b) return null;
+        const r = document.createRange();
+        try { r.setStart(a.node, a.offset); r.setEnd(b.node, b.offset); return r; } catch { return null; }
+      }
+
+      async function openWikipedia(term) {
+        const box = document.createElement('div');
+        const status = document.createElement('p'); status.textContent = `Buscando “${term}” en Wikipedia…`;
+        box.append(status);
+        openModal('Wikipedia', box, 'wiki');
+        try {
+          const searchURL = new URL('https://es.wikipedia.org/w/api.php');
+          searchURL.search = new URLSearchParams({ action:'query', list:'search', srsearch:term, utf8:'1', format:'json', origin:'*' }).toString();
+          const sr = await fetch(searchURL);
+          if (!sr.ok) throw new Error('HTTP');
+          const sj = await sr.json();
+          const hit = sj?.query?.search?.[0];
+          if (!hit) {
+            els.modalBody.textContent = 'No se ha encontrado información en Wikipedia.';
+            return;
+          }
+          const title = hit.title;
+          const extractURL = new URL('https://es.wikipedia.org/w/api.php');
+          extractURL.search = new URLSearchParams({ action:'query', prop:'extracts', exintro:'1', explaintext:'1', redirects:'1', titles:title, format:'json', origin:'*' }).toString();
+          const er = await fetch(extractURL);
+          if (!er.ok) throw new Error('HTTP');
+          const ej = await er.json();
+          const page = Object.values(ej?.query?.pages || {})[0];
+          const extract = page?.extract || '';
+          renderWikipediaResult(title, extract);
+        } catch (e) {
+          els.modalBody.textContent = navigator.onLine
+            ? 'No se ha podido consultar Wikipedia en este momento.'
+            : 'Esta función necesita conexión a Internet.';
+        }
+      }
+
+      function renderWikipediaResult(title, extract) {
+        els.modalTitle.textContent = title;
+        els.modalBody.replaceChildren();
+        if (!extract) { els.modalBody.textContent = 'No se ha encontrado información en Wikipedia.'; return; }
+        const p = document.createElement('div'); p.className = 'wiki-extract';
+        let expanded = false;
+        const limit = 1100;
+        const draw = () => p.textContent = expanded || extract.length <= limit ? extract : extract.slice(0, limit).trimEnd() + '…';
+        draw();
+        const src = document.createElement('div'); src.className = 'wiki-source'; src.textContent = 'Fuente: Wikipedia';
+        const actions = document.createElement('div'); actions.className = 'modal-actions';
+        if (extract.length > limit) {
+          const more = document.createElement('button'); more.className = 'secondary-btn'; more.textContent = 'MOSTRAR MÁS';
+          more.addEventListener('click', () => { expanded = !expanded; more.textContent = expanded ? 'MOSTRAR MENOS' : 'MOSTRAR MÁS'; draw(); });
+          actions.append(more);
+        }
+        const open = document.createElement('a'); open.className = 'secondary-btn'; open.textContent = 'ABRIR EN WIKIPEDIA';
+        open.href = 'https://es.wikipedia.org/wiki/' + encodeURIComponent(title.replace(/ /g, '_'));
+        open.target = '_blank'; open.rel = 'noopener noreferrer';
+        actions.append(open);
+        els.modalBody.append(p, src, actions);
+      }
+
+      function makeButton(text, cls, onClick) {
+        const b = document.createElement('button'); b.textContent = text; if (cls) b.className = cls; b.addEventListener('click', onClick); return b;
+      }
+
+      function escapeHTML(s) {
+        return String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+      }
+
+      function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
+
+      function showToast(message) {
+        els.toast.textContent = message; els.toast.hidden = false;
+        clearTimeout(showToast.t); showToast.t = setTimeout(() => els.toast.hidden = true, 2200);
+      }
+
+      function handleKeyboard(e) {
+        if (modalIsOpen()) {
+          if (e.key === 'Escape') closeModal();
+          return;
+        }
+        if (e.key === 'Escape' && !els.selectionToolbar.hidden) { window.getSelection().removeAllRanges(); hideSelectionToolbar(); return; }
+        if (els.reader.hidden) return;
+        if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+        if (state.currentMode === 'pages') {
+          if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); next(); }
+          if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+        }
+        if (e.key.toLowerCase() === 'f' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); showSearch(); }
+      }
+
+      function onReaderActivity(e) {
+        if (e.type === 'pointermove' && e.pointerType === 'mouse') setControlsVisible(true);
+        resetControlsTimer();
+      }
+
+      // Events
+      els.retryLoad.addEventListener('click', loadBook);
+      els.startReading.addEventListener('click', startReader);
+      els.tocBtn.addEventListener('click', showTOC);
+      els.searchBtn.addEventListener('click', () => showSearch());
+      els.settingsBtn.addEventListener('click', showSettings);
+      els.bookmarkBtn.addEventListener('click', showAnnotations);
+      els.fullscreenBtn.addEventListener('click', toggleFullscreen);
+      els.prevBtn.addEventListener('click', prev);
+      els.nextBtn.addEventListener('click', next);
+      els.modePages.addEventListener('click', () => switchMode('pages'));
+      els.modeScroll.addEventListener('click', () => switchMode('scroll'));
+      els.modalClose.addEventListener('click', closeModal);
+      els.modalBackdrop.addEventListener('mousedown', e => { if (e.target === els.modalBackdrop) closeModal(); });
+      els.pageViewport.addEventListener('click', handlePageTap);
+      els.continuousViewport.addEventListener('scroll', () => { updateProgress(); clearTimeout(els.continuousViewport._saveT); els.continuousViewport._saveT = setTimeout(savePosition, 180); }, { passive: true });
+      els.selectionToolbar.addEventListener('click', e => {
+        const b = e.target.closest('[data-action]'); if (b && !b.disabled) selectionAction(b.dataset.action);
+      });
+      document.addEventListener('selectionchange', handleSelectionChange);
+      document.addEventListener('keydown', handleKeyboard);
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      window.addEventListener('resize', () => {
+        if (els.reader.hidden) return;
+        const pos = capturePosition();
+        clearTimeout(window._odResize);
+        window._odResize = setTimeout(() => state.currentMode === 'pages' ? recalculatePagination(pos) : restorePosition(pos), 100);
+      });
+      window.addEventListener('orientationchange', () => {
+        const pos = capturePosition();
+        setTimeout(() => state.currentMode === 'pages' ? recalculatePagination(pos) : restorePosition(pos), 240);
+      });
+      window.addEventListener('beforeunload', savePosition);
+      els.reader.addEventListener('pointerdown', onReaderActivity, { passive: true });
+      els.reader.addEventListener('pointermove', onReaderActivity, { passive: true });
+
+      // Mini menú adicional con pulsación prolongada sobre título del lector
+      els.readerMiniTitle.addEventListener('click', showBookInfo);
+
+      // Inicio
+      loadSettings();
+      loadBook();
+    })();
+  </script>
+</body>
+</html>
