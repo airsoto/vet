@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacer que TODO salga BIEN</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#111111;
+    --muted:#6d6d6d;
+    --line:#d8d8d8;
+    --green:#22a447;
+    --green-dark:#168237;
+    --shadow:#b8b8b8;
+  }
+
+  *{
+    box-sizing:border-box;
+  }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+  }
+
+  body{
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    padding:24px;
+    font-family:
+      "Courier New",
+      Courier,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      monospace;
+  }
+
+  .app{
+    width:min(92vw,680px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+
+  .main-button{
+    appearance:none;
+    border:2px solid #111;
+    background:#f5f5f5;
+    color:#111;
+    min-height:74px;
+    padding:18px 26px;
+    border-radius:10px;
+    font:700 clamp(15px,2.8vw,22px)/1.25 "Courier New", Courier, monospace;
+    letter-spacing:.01em;
+    cursor:pointer;
+    box-shadow:0 8px 0 var(--shadow);
+    transform:translateY(0);
+    transition:
+      transform .08s ease,
+      box-shadow .08s ease,
+      background .15s ease;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .main-button:hover{
+    background:#ededed;
+  }
+
+  .main-button:active,
+  .main-button.pressed{
+    transform:translateY(8px);
+    box-shadow:0 0 0 var(--shadow);
+  }
+
+  .main-button:focus-visible,
+  .continue-button:focus-visible{
+    outline:3px solid #111;
+    outline-offset:4px;
+  }
+
+  .computer-icon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:30px;
+    height:22px;
+    margin-right:10px;
+    border:2px solid #111;
+    border-radius:3px;
+    vertical-align:-4px;
+    position:relative;
+  }
+
+  .computer-icon::before{
+    content:"";
+    position:absolute;
+    width:12px;
+    height:2px;
+    background:#111;
+    bottom:-6px;
+    left:50%;
+    transform:translateX(-50%);
+  }
+
+  .computer-icon::after{
+    content:"";
+    position:absolute;
+    width:20px;
+    height:2px;
+    background:#111;
+    bottom:-10px;
+    left:50%;
+    transform:translateX(-50%);
+  }
+
+  .progress-panel{
+    width:min(100%,560px);
+    margin-top:42px;
+    opacity:0;
+    transform:translateY(8px);
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+
+  .progress-panel.visible{
+    opacity:1;
+    transform:translateY(0);
+  }
+
+  .progress-wrap{
+    position:relative;
+    width:100%;
+    height:38px;
+    border:2px solid #1a1a1a;
+    background:#f4f4f4;
+    overflow:hidden;
+  }
+
+  .progress-bar{
+    position:absolute;
+    inset:0 auto 0 0;
+    width:0%;
+    background:var(--green);
+  }
+
+  .progress-bar.running{
+    animation:fillProgress 5s linear forwards;
+  }
+
+  @keyframes fillProgress{
+    from{width:0%;}
+    to{width:100%;}
+  }
+
+  .progress-label{
+    position:absolute;
+    inset:0;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 12px;
+    font-weight:700;
+    font-size:clamp(11px,2.2vw,15px);
+    letter-spacing:.02em;
+    color:#111;
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:22px;
+    background:rgba(255,255,255,.82);
+    backdrop-filter:blur(3px);
+    opacity:0;
+    visibility:hidden;
+    transition:opacity .2s ease, visibility .2s ease;
+  }
+
+  .modal-backdrop.visible{
+    opacity:1;
+    visibility:visible;
+  }
+
+  .modal{
+    width:min(92vw,560px);
+    padding:30px 26px 24px;
+    background:#fff;
+    border:2px solid #111;
+    box-shadow:0 14px 36px rgba(0,0,0,.14);
+  }
+
+  .modal h1{
+    margin:0 0 18px;
+    font-size:clamp(21px,4vw,30px);
+    line-height:1.15;
+  }
+
+  .modal p{
+    margin:0;
+    font-size:clamp(14px,2.7vw,18px);
+    line-height:1.65;
+    white-space:pre-line;
+  }
+
+  .continue-button{
+    appearance:none;
+    border:1.5px solid #111;
+    background:#fff;
+    color:#111;
+    margin-top:26px;
+    padding:10px 16px;
+    border-radius:6px;
+    font:700 13px/1 "Courier New", Courier, monospace;
+    letter-spacing:.08em;
+    cursor:pointer;
+    box-shadow:0 4px 0 #bdbdbd;
+    transition:transform .08s ease, box-shadow .08s ease, background .15s ease;
+  }
+
+  .continue-button:hover{
+    background:#f4f4f4;
+  }
+
+  .continue-button:active{
+    transform:translateY(4px);
+    box-shadow:0 0 0 #bdbdbd;
+  }
+
+  .hidden{
+    display:none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="app" aria-live="polite">
+    <button id="mainButton" class="main-button" type="button">
+      <span class="computer-icon" aria-hidden="true"></span>
+      Hacer que TODO salga BIEN
+    </button>
+
+    <section id="progressPanel" class="progress-panel" aria-hidden="true">
+      <div class="progress-wrap" role="progressbar" aria-label="Progreso" aria-valuemin="0" aria-valuemax="100">
+        <div id="progressBar" class="progress-bar"></div>
+        <div class="progress-label">haciendo que "todo salga BIEN" en progreso</div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h1 id="modalTitle">TODO está bien ahora.</h1>
+      <p>Si todo sigue sin estar bien,
+intenta revisar tu configuración de la percepción de la realidad objetiva.</p>
+      <button id="continueButton" class="continue-button" type="button">CONTINUAR</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const mainButton = document.getElementById('mainButton');
+  const progressPanel = document.getElementById('progressPanel');
+  const progressBar = document.getElementById('progressBar');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const continueButton = document.getElementById('continueButton');
+
+  let running = false;
+  let finishTimer = null;
+
+  function typewriterClickSound() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(185, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(85, ctx.currentTime + 0.045);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(900, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.065);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.07);
+
+      setTimeout(() => ctx.close(), 140);
+    } catch (e) {
+      // Si el navegador bloquea Web Audio, la web sigue funcionando.
+    }
+  }
+
+  function startProcess() {
+    if (running) return;
+    running = true;
+
+    typewriterClickSound();
+
+    mainButton.classList.add('pressed');
+    mainButton.disabled = true;
+
+    setTimeout(() => {
+      mainButton.classList.remove('pressed');
+      mainButton.classList.add('hidden');
+
+      progressPanel.classList.add('visible');
+      progressPanel.setAttribute('aria-hidden', 'false');
+
+      progressBar.classList.remove('running');
+      void progressBar.offsetWidth;
+      progressBar.classList.add('running');
+
+      finishTimer = setTimeout(() => {
+        modalBackdrop.classList.add('visible');
+        continueButton.focus();
+      }, 5000);
+    }, 140);
+  }
+
+  function resetApp() {
+    clearTimeout(finishTimer);
+    running = false;
+
+    modalBackdrop.classList.remove('visible');
+
+    progressBar.classList.remove('running');
+    progressPanel.classList.remove('visible');
+    progressPanel.setAttribute('aria-hidden', 'true');
+
+    mainButton.classList.remove('hidden', 'pressed');
+    mainButton.disabled = false;
+    mainButton.focus();
+  }
+
+  mainButton.addEventListener('click', startProcess);
+  continueButton.addEventListener('click', resetApp);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modalBackdrop.classList.contains('visible')) {
+      resetApp();
+    }
+  });
+})();
+</script>
+</body>
+</html>
