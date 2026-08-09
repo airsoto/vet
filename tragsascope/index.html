@@ -1,6 +1,6 @@
-<!doctype html>
+ <!doctype html>
 <html lang="es">
-  <script defer src="../goat.js"></script>
+    <script defer src="../goat.js"></script>
 
 <head>
 <meta charset="utf-8">
@@ -49,7 +49,67 @@ const fdate=v=>{if(!v)return'No consta';const d=new Date(String(v).length===10?v
 const yr=v=>{const y=Number(String(v||'').slice(0,4));return Number.isFinite(y)?y:null};
 const deb=(fn,t=140)=>{let z;return(...a)=>{clearTimeout(z);z=setTimeout(()=>fn(...a),t)}};
 function status(t,e=false){$('status').textContent=t;$('status').className='status'+(e?' err':'')}
-async function load(){try{const r=await fetch('tragsa_red.json',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const x=await r.json();S.d={metadata:obj(x.metadata),statistics:obj(x.statistics),organizations:arr(x.organizations),people:arr(x.people),contracts:arr(x.contracts),relationships:arr(x.relationships),societary_events:arr(x.societary_events),role_intervals:arr(x.role_intervals),coincidences:arr(x.coincidences)};index();bind();render();status(`Datos cargados: ${NUM.format(S.d.contracts.length)} contratos, ${NUM.format(S.d.organizations.length)} organizaciones y ${NUM.format(S.d.people.length)} personas.`);hash()}catch(e){console.error(e);status('No se pudo cargar tragsa_red.json. Debe estar junto a index.html y servirse mediante HTTP (GitHub Pages o python3 -m http.server).',true)}}
+async function load(){
+try{
+  const BASE='json_tragsascope/';
+  status('Cargando índice de datos…');
+
+  const ir=await fetch(BASE+'index.json',{cache:'no-store'});
+  if(!ir.ok) throw Error('No se pudo cargar '+BASE+'index.json · HTTP '+ir.status);
+  const manifest=await ir.json();
+
+  const x={
+    metadata:obj(manifest.metadata),
+    statistics:obj(manifest.statistics),
+    organizations:[],people:[],contracts:[],relationships:[],
+    societary_events:[],role_intervals:[],coincidences:[]
+  };
+
+  const files=[];
+  for(const [collection,info] of Object.entries(obj(manifest.collections))){
+    for(const part of arr(info?.parts)){
+      if(part?.file) files.push({collection,file:part.file});
+    }
+  }
+
+  if(!files.length) throw Error('index.json no contiene fragmentos en collections.*.parts');
+
+  let loaded=0;
+  const total=files.length;
+  const CONCURRENCY=5;
+
+  const loadOne=async item=>{
+    const r=await fetch(BASE+item.file,{cache:'no-store'});
+    if(!r.ok) throw Error('Error cargando '+item.file+' · HTTP '+r.status);
+    const fragment=await r.json();
+    const target=fragment.type && Array.isArray(x[fragment.type]) ? fragment.type : item.collection;
+    if(!Array.isArray(x[target])) x[target]=[];
+    if(!Array.isArray(fragment.items)) throw Error(item.file+' no contiene un array items');
+    x[target].push(...fragment.items);
+    loaded++;
+    const pct=Math.round((loaded/total)*100);
+    status(`Cargando datos… ${loaded} / ${total} archivos · ${pct}%`);
+  };
+
+  for(let i=0;i<files.length;i+=CONCURRENCY){
+    await Promise.all(files.slice(i,i+CONCURRENCY).map(loadOne));
+  }
+
+  S.d={
+    metadata:obj(x.metadata),statistics:obj(x.statistics),
+    organizations:arr(x.organizations),people:arr(x.people),
+    contracts:arr(x.contracts),relationships:arr(x.relationships),
+    societary_events:arr(x.societary_events),role_intervals:arr(x.role_intervals),
+    coincidences:arr(x.coincidences)
+  };
+
+  index();bind();render();
+  status(`Datos cargados: ${NUM.format(S.d.contracts.length)} contratos, ${NUM.format(S.d.organizations.length)} organizaciones, ${NUM.format(S.d.people.length)} personas y ${NUM.format(total)} fragmentos.`);
+  hash();
+}catch(e){
+  console.error(e);
+  status('No se pudieron cargar los JSON troceados. Comprueba que index.html esté junto a la carpeta json_tragsascope/ y que dentro exista index.json con todos los fragmentos. La web debe servirse mediante HTTP (GitHub Pages o python3 -m http.server). Detalle: '+e.message,true)
+}}
 function index(){const d=S.d,I={};I.o=new Map(d.organizations.map(x=>[x.id,x]));I.p=new Map(d.people.map(x=>[x.id,x]));I.c=new Map(d.contracts.map(x=>[x.id,x]));I.rn=new Map;for(const r of d.relationships)for(const id of[r.source,r.target])if(id){if(!I.rn.has(id))I.rn.set(id,[]);I.rn.get(id).push(r)}I.cc=new Map;for(const c of d.contracts){if(!c.awardee_organization_id)continue;if(!I.cc.has(c.awardee_organization_id))I.cc.set(c.awardee_organization_id,[]);I.cc.get(c.awardee_organization_id).push(c)}I.ip=grp(d.role_intervals,x=>x.person_id);I.io=grp(d.role_intervals,x=>x.organization_id);I.eo=grp(d.societary_events,x=>x.organization_id);I.xp=grp(d.coincidences,x=>x.person_id);I.xo=new Map;for(const c of d.coincidences)for(const id of[c?.tragsa_relationship?.organization_id,c?.external_relationship?.organization_id].filter(Boolean)){if(!I.xo.has(id))I.xo.set(id,[]);I.xo.get(id).push(c)}I.po=new Map;for(const it of d.role_intervals){if(!it.organization_id||!it.person_id)continue;if(!I.po.has(it.organization_id))I.po.set(it.organization_id,new Set);I.po.get(it.organization_id).add(it.person_id)}I.cs=companyStats();I.search=searchIndex();S.i=I}
 function grp(a,fn){const m=new Map;for(const x of a){const k=fn(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x)}return m}
 function companyStats(){const m=new Map;for(const[oid,cs]of S.i?.cc||[]){const dates=cs.map(c=>c.award_date).filter(Boolean).sort(),am=cs.map(c=>Number(c.amount_ex_vat)).filter(Number.isFinite),tot=am.reduce((a,b)=>a+b,0);m.set(oid,{o:S.i.o.get(oid),count:cs.length,total:tot,avg:am.length?tot/am.length:null,first:dates[0]||null,last:dates.at(-1)||null})}return m}
