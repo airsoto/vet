@@ -51,12 +51,16 @@ const deb=(fn,t=140)=>{let z;return(...a)=>{clearTimeout(z);z=setTimeout(()=>fn(
 function status(t,e=false){$('status').textContent=t;$('status').className='status'+(e?' err':'')}
 async function load(){
 try{
-  const BASE='json_tragsascope/';
+  const BASE='./json_tragsascope/';
   status('Cargando índice de datos…');
 
   const ir=await fetch(BASE+'index.json',{cache:'no-store'});
   if(!ir.ok) throw Error('No se pudo cargar '+BASE+'index.json · HTTP '+ir.status);
   const manifest=await ir.json();
+
+  if(!manifest || typeof manifest!=='object'){
+    throw Error('El archivo index.json no contiene un manifiesto JSON válido');
+  }
 
   const x={
     metadata:obj(manifest.metadata),
@@ -110,7 +114,7 @@ try{
   console.error(e);
   status('No se pudieron cargar los JSON troceados. Comprueba que index.html esté junto a la carpeta json_tragsascope/ y que dentro exista index.json con todos los fragmentos. La web debe servirse mediante HTTP (GitHub Pages o python3 -m http.server). Detalle: '+e.message,true)
 }}
-function index(){const d=S.d,I={};I.o=new Map(d.organizations.map(x=>[x.id,x]));I.p=new Map(d.people.map(x=>[x.id,x]));I.c=new Map(d.contracts.map(x=>[x.id,x]));I.rn=new Map;for(const r of d.relationships)for(const id of[r.source,r.target])if(id){if(!I.rn.has(id))I.rn.set(id,[]);I.rn.get(id).push(r)}I.cc=new Map;for(const c of d.contracts){if(!c.awardee_organization_id)continue;if(!I.cc.has(c.awardee_organization_id))I.cc.set(c.awardee_organization_id,[]);I.cc.get(c.awardee_organization_id).push(c)}I.ip=grp(d.role_intervals,x=>x.person_id);I.io=grp(d.role_intervals,x=>x.organization_id);I.eo=grp(d.societary_events,x=>x.organization_id);I.xp=grp(d.coincidences,x=>x.person_id);I.xo=new Map;for(const c of d.coincidences)for(const id of[c?.tragsa_relationship?.organization_id,c?.external_relationship?.organization_id].filter(Boolean)){if(!I.xo.has(id))I.xo.set(id,[]);I.xo.get(id).push(c)}I.po=new Map;for(const it of d.role_intervals){if(!it.organization_id||!it.person_id)continue;if(!I.po.has(it.organization_id))I.po.set(it.organization_id,new Set);I.po.get(it.organization_id).add(it.person_id)}I.cs=companyStats();I.search=searchIndex();S.i=I}
+function index(){const d=S.d,I={};I.o=new Map(d.organizations.map(x=>[x.id,x]));I.p=new Map(d.people.map(x=>[x.id,x]));I.c=new Map(d.contracts.map(x=>[x.id,x]));I.rn=new Map;for(const r of d.relationships)for(const id of[r.source,r.target])if(id){if(!I.rn.has(id))I.rn.set(id,[]);I.rn.get(id).push(r)}I.cc=new Map;for(const c of d.contracts){if(!c.awardee_organization_id)continue;if(!I.cc.has(c.awardee_organization_id))I.cc.set(c.awardee_organization_id,[]);I.cc.get(c.awardee_organization_id).push(c)}I.ip=grp(d.role_intervals,x=>x.person_id);I.io=grp(d.role_intervals,x=>x.organization_id);I.eo=grp(d.societary_events,x=>x.organization_id);I.xp=grp(d.coincidences,x=>x.person_id);I.xo=new Map;for(const c of d.coincidences)for(const id of[c?.tragsa_relationship?.organization_id,c?.external_relationship?.organization_id].filter(Boolean)){if(!I.xo.has(id))I.xo.set(id,[]);I.xo.get(id).push(c)}I.po=new Map;for(const it of d.role_intervals){if(!it.organization_id||!it.person_id)continue;if(!I.po.has(it.organization_id))I.po.set(it.organization_id,new Set);I.po.get(it.organization_id).add(it.person_id)}S.i=I;I.cs=companyStats();I.search=searchIndex()}
 function grp(a,fn){const m=new Map;for(const x of a){const k=fn(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x)}return m}
 function companyStats(){const m=new Map;for(const[oid,cs]of S.i?.cc||[]){const dates=cs.map(c=>c.award_date).filter(Boolean).sort(),am=cs.map(c=>Number(c.amount_ex_vat)).filter(Number.isFinite),tot=am.reduce((a,b)=>a+b,0);m.set(oid,{o:S.i.o.get(oid),count:cs.length,total:tot,avg:am.length?tot/am.length:null,first:dates[0]||null,last:dates.at(-1)||null})}return m}
 function searchIndex(){const z=[];for(const o of S.d.organizations)z.push({k:'organization',id:o.id,t:o.name||o.legal_name||o.nif||'Empresa',s:o.nif?'NIF '+o.nif:'NIF no disponible',x:norm([o.name,o.legal_name,o.nif,o.category].filter(Boolean).join(' '))});for(const p of S.d.people)z.push({k:'person',id:p.id,t:p.name||'Persona',s:'Persona relacionada',x:norm([p.name,p.normalized_name].filter(Boolean).join(' '))});for(const c of S.d.contracts)z.push({k:'contract',id:c.id,t:c.object||c.expediente||'Contrato',s:`${c.contracting_entity||''} · ${c.awardee_name||''} · ${c.expediente||''}`,x:norm([c.object,c.expediente,c.awardee_name,c.awardee_nif,c.contracting_entity].filter(Boolean).join(' '))});for(const e of S.d.societary_events)z.push({k:'event',id:e.id,t:`${e.event_type||'BORME'} — ${e.company_name||''}`,s:`${fdate(e.publication_date)} · ${String(e.raw_text||'').slice(0,100)}`,x:norm([e.event_type,e.company_name,e.raw_text,e.document_id].filter(Boolean).join(' '))});for(const c of S.d.coincidences){const p=S.i?.p?.get(c.person_id)||S.d.people.find(x=>x.id===c.person_id);z.push({k:'coincidence',id:c.id,t:p?.name||'Coincidencia',s:`${c?.tragsa_relationship?.organization_name||''} ↔ ${c?.external_relationship?.organization_name||''}`,x:norm([p?.name,c?.tragsa_relationship?.organization_name,c?.tragsa_relationship?.role,c?.external_relationship?.organization_name,c?.external_relationship?.role,c.status].filter(Boolean).join(' '))})}return z}
