@@ -20,6 +20,28 @@ html[data-theme=light]{--bg:#f4f7fb;--p:#fff;--p2:#f0f4f9;--tx:#172236;--mu:#627
 .warnbox{margin-top:10px;padding:12px 14px;border:1px solid color-mix(in srgb,var(--o) 55%,var(--ln));background:color-mix(in srgb,var(--o) 8%,var(--p));border-radius:12px;color:var(--mu)}
 .warnbox b{color:var(--tx)}.amountFlag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--y) 55%,var(--ln));color:var(--y);font-size:.72rem;white-space:nowrap}
 .btn:disabled{opacity:.45;cursor:not-allowed}.dataUnavailable{opacity:.8}.rawcode{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--p2);border:1px solid var(--ln);padding:2px 6px;border-radius:6px}.subtle{font-size:.82rem;color:var(--mu)}
+
+
+/* Investigación societaria bajo demanda */
+.researchBox{margin-top:12px;border:1px solid var(--ln);background:var(--p2);border-radius:14px;padding:13px}
+.researchBox h3{margin:0 0 8px}.researchBox p{margin:6px 0;color:var(--mu)}
+.researchToolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.researchToolbar .btn{border-radius:10px}
+.researchCfg{display:grid;grid-template-columns:1fr auto;gap:8px;margin:10px 0}.researchCfg input{background:var(--p);color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:10px;min-width:0}
+.researchStatus{padding:10px 12px;border-radius:10px;border:1px dashed var(--ln);color:var(--mu);margin:8px 0}
+.researchResult{border:1px solid var(--ln);background:var(--p);border-radius:12px;padding:12px;margin:9px 0}
+.researchResult h4{margin:0 0 5px}.researchMeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.roleTag,.sourceTag,.matchTag{display:inline-flex;border:1px solid var(--ln);border-radius:999px;padding:2px 7px;font-size:.74rem;color:var(--mu)}
+.matchTag.exact{border-color:color-mix(in srgb,var(--g) 70%,var(--ln));color:var(--g)}
+.matchTag.possible{border-color:color-mix(in srgb,var(--y) 70%,var(--ln));color:var(--y)}
+.researchLinks{display:grid;gap:7px;margin-top:10px}.researchLinks a{display:block;text-decoration:none;border:1px solid var(--ln);background:var(--p);border-radius:10px;padding:9px}
+.researchLinks a:hover{border-color:var(--a)}
+.researchQuery{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;overflow-wrap:anywhere;color:var(--mu)}
+.researchSection{margin-top:14px}.researchSection>h4{margin:0 0 8px}
+.researchWarn{padding:10px 12px;border:1px solid color-mix(in srgb,var(--y) 55%,var(--ln));background:color-mix(in srgb,var(--y) 7%,var(--p));border-radius:10px;color:var(--mu)}
+.researchMatch{padding:9px 10px;border:1px solid color-mix(in srgb,var(--g) 45%,var(--ln));background:color-mix(in srgb,var(--g) 6%,var(--p));border-radius:10px;margin-top:7px}
+.researchPrimary{background:var(--a)!important;color:#08111f!important;border-color:var(--a)!important;font-weight:700}
+@media(max-width:650px){.researchCfg{grid-template-columns:1fr}.researchToolbar{display:grid;grid-template-columns:1fr}.researchToolbar .btn{width:100%}}
+
 </style>
 </head>
 <body>
@@ -339,6 +361,109 @@ function charts(){if(!window.Chart||!S.loaded.has('contracts'))return;Object.val
 
 
 
+
+
+/* ============================================================
+   INVESTIGACIÓN WEB DE EMPRESAS + CRUCE CON PERSONAS TRAGSA
+   ============================================================ */
+const R={
+  endpoint:localStorage.getItem('tragsascope_research_api')||'',
+  cachePrefix:'tragsascope_research_v1:'
+};
+function researchKey(o){return R.cachePrefix+(o?.nif||o?.id||norm(o?.name||''))}
+function researchLoadCache(o){try{return JSON.parse(localStorage.getItem(researchKey(o))||'null')}catch{return null}}
+function researchSaveCache(o,data){try{localStorage.setItem(researchKey(o),JSON.stringify({saved_at:new Date().toISOString(),data}))}catch(e){console.warn('No se pudo guardar investigación',e)}}
+function researchClearCache(o){try{localStorage.removeItem(researchKey(o))}catch{}}
+function companyAliases(o){
+  const out=[];for(const v of[o?.name,o?.legal_name]){const s=String(v||'').trim();if(s&&!out.includes(s))out.push(s)}
+  const n=String(o?.name||'');
+  if(/\bU\.?T\.?E\.?\b|\bUTE\b/i.test(n)){
+    const cleaned=n.replace(/^U\.?T\.?E\.?\s*/i,'').replace(/^UTE\s*/i,'');
+    for(const p of cleaned.split(/\s+-\s+|\s+\/\s+|\s*;\s*/)){const s=p.trim();if(s.length>4&&!out.includes(s))out.push(s)}
+  }
+  return out.slice(0,6)
+}
+function researchQueries(o){
+  const name=String(o?.legal_name||o?.name||'').trim(),nif=String(o?.nif||'').trim(),aliases=companyAliases(o);
+  const base=nif?`"${nif}" "${name}"`:`"${name}"`;
+  const qs=[
+    `${base} administrador OR administradores OR consejo de administración`,
+    `${base} consejero OR presidente OR secretario OR apoderado`,
+    `${base} propietario OR propietarios OR accionista OR accionistas OR socio único OR titular real`,
+    `${base} director OR gerente OR CEO OR empleado OR empleados`,
+    `site:boe.es/diario_borme ${base} nombramientos OR ceses OR apoderados`,
+    `site:boe.es ${base} BORME`,
+    `site:cnmv.es "${name}" consejo OR accionistas OR participaciones`,
+    `"${name}" "TRAGSA" OR "TRAGSATEC"`
+  ];
+  for(const a of aliases.slice(1))qs.push(`"${a}" administrador OR propietario OR consejero OR apoderado`);
+  return [...new Set(qs)].slice(0,12)
+}
+function searchUrl(provider,q){
+  const e=encodeURIComponent(q);
+  if(provider==='google')return 'https://www.google.com/search?q='+e;
+  if(provider==='duck')return 'https://duckduckgo.com/?q='+e;
+  return 'https://www.bing.com/search?q='+e
+}
+function openResearchSearches(o){
+  const qs=researchQueries(o);for(const q of qs.slice(0,6))window.open(searchUrl('bing',q),'_blank','noopener')
+}
+function personCanonical(v){return norm(v).replace(/\b(don|dona|doña|sr|sra|dr|dra)\b/g,' ').replace(/[^a-z0-9ñ ]+/g,' ').replace(/\s+/g,' ').trim()}
+function tokenSet(v){return new Set(personCanonical(v).split(' ').filter(x=>x.length>1))}
+function jaccard(a,b){const A=tokenSet(a),B=tokenSet(b);if(!A.size||!B.size)return 0;let inter=0;for(const x of A)if(B.has(x))inter++;return inter/(A.size+B.size-inter)}
+function matchKnownTragsa(name){
+  const n=personCanonical(name);if(!n)return null;let best=null;
+  for(const p of S.d.people||[]){
+    const pn=personCanonical(p.normalized_name||p.name||'');
+    if(!pn)continue;
+    let score=0,level='';
+    if(n===pn){score=1;level='exact'}
+    else{const nt=n.split(' ').filter(Boolean),pt=pn.split(' ').filter(Boolean);if(Math.min(nt.length,pt.length)>=3){score=jaccard(n,pn);if(score>=.92)level='possible'}}
+    if(level&&(!best||score>best.score))best={person:p,score,level};
+  }
+  return best
+}
+function normalizeResearchResponse(raw){
+  const d=obj(raw),people=[...arr(d.people),...arr(d.persons),...arr(d.people_found)],owners=[...arr(d.ownership),...arr(d.owners),...arr(d.shareholders)],sources=arr(d.sources);
+  return {company:d.company||null,people,owners,sources,notes:arr(d.notes),raw:d}
+}
+function researchPersonName(x){return x?.name||x?.full_name||x?.person||x?.person_name||x?.title||'Persona no identificada'}
+function researchRole(x){return x?.role||x?.position||x?.relation||x?.relationship||x?.type||'Vínculo no especificado'}
+function researchSourceUrl(x){return x?.source_url||x?.url||x?.evidence_url||x?.source?.url||''}
+function researchSourceLabel(x){return x?.source_title||x?.source_type||x?.source_name||x?.source?.title||x?.source||'Fuente web'}
+function roleGroup(role){const r=norm(role);if(/titular real|socio unico|socio único|accionista|propiet|ownership|matriz/.test(r))return'Propiedad / control';if(/consej|administr|president|secretari|apoderad|representant|liquidad/.test(r))return'Gobierno societario';if(/director|gerente|ceo|chief|responsable|manager/.test(r))return'Dirección';if(/emplead|trabajador|staff|employee/.test(r))return'Empleados';return'Otros vínculos'}
+function renderResearchData(o,data){
+  const d=normalizeResearchResponse(data),all=[...d.owners.map(x=>({...x,__owner:true})),...d.people],groups=new Map;
+  for(const x of all){const g=roleGroup(researchRole(x));if(!groups.has(g))groups.set(g,[]);groups.get(g).push(x)}
+  let html='';
+  if(!all.length)html+='<div class="researchStatus">La consulta no devolvió personas estructuradas. Revisa las fuentes o usa las búsquedas manuales.</div>';
+  for(const [g,items] of groups){html+=`<div class="researchSection"><h4>${esc(g)} (${NUM.format(items.length)})</h4>`;for(const x of items){const name=researchPersonName(x),role=researchRole(x),m=matchKnownTragsa(name),u=researchSourceUrl(x),sl=researchSourceLabel(x);html+=`<div class="researchResult"><h4>${esc(name)}</h4><div>${esc(role)}</div><div class="researchMeta"><span class="roleTag">${esc(g)}</span>${x?.company?`<span class="roleTag">${esc(x.company)}</span>`:''}${x?.confidence!=null?`<span class="roleTag">conf. ${esc(x.confidence)}</span>`:''}</div>${m?`<div class="researchMatch"><span class="matchTag ${m.level}">${m.level==='exact'?'Coincidencia exacta de nombre':'Posible coincidencia textual'}</span><br><b>${esc(m.person.name)}</b> aparece también entre las personas TRAGSA/TRAGSATEC cargadas en TragsaScope.<br><small>Esto no demuestra que sea la misma persona; debe verificarse con fuente primaria.</small></div>`:''}${u?`<p>${sourceLink(u,sl)}</p>`:''}</div>`}html+='</div>'}
+  if(d.sources.length){html+='<div class="researchSection"><h4>Fuentes devueltas</h4><div class="researchLinks">'+d.sources.map(s=>{const u=typeof s==='string'?s:(s.url||s.source_url||''),t=typeof s==='string'?s:(s.title||s.name||u||'Fuente');return u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`:''}).join('')+'</div></div>'}
+  if(d.notes.length)html+='<div class="researchSection"><h4>Notas</h4>'+d.notes.map(n=>`<div class="researchStatus">${esc(n)}</div>`).join('')+'</div>';
+  return html
+}
+function researchManualLinks(o){
+  const qs=researchQueries(o);return `<div class="researchLinks">${qs.map(q=>`<a href="${esc(searchUrl('bing',q))}" target="_blank" rel="noopener"><b>Buscar</b><div class="researchQuery">${esc(q)}</div></a>`).join('')}</div>`
+}
+function renderOnlineResearch(o){
+  const cached=researchLoadCache(o),qs=researchQueries(o);
+  $('odetail').innerHTML=`<div class="researchBox"><h3>Investigación societaria y profesional</h3><p>Se busca por nombre y NIF para localizar propietarios/titulares publicados, administradores, consejo, apoderados, directivos y empleados que aparezcan en fuentes públicas. Los nombres encontrados se comparan con las personas TRAGSA/TRAGSATEC presentes en el JSON.</p><div class="researchWarn"><b>Interpretación:</b> una coincidencia de nombre es solo una pista documental. No demuestra identidad, relación laboral, conflicto de interés ni irregularidad. No se buscan datos privados sensibles.</div><div class="researchCfg"><input id="researchApiInput" value="${esc(R.endpoint)}" placeholder="Endpoint de investigación automática (opcional)"><button id="saveResearchApi" class="btn">Guardar endpoint</button></div><div class="researchToolbar"><button id="runResearch" class="btn researchPrimary">Investigar automáticamente</button><button id="openResearch" class="btn">Abrir búsquedas web</button><button id="clearResearch" class="btn">Borrar caché</button></div><div id="researchState" class="researchStatus">${R.endpoint?'Endpoint automático configurado.':'Sin endpoint: la web puede preparar búsquedas, pero un HTML estático no puede extraer de forma fiable resultados de buscadores por CORS/antibot.'}</div><div><b>Empresa:</b> ${esc(o.name||o.legal_name||'')} · <b>NIF:</b> ${esc(o.nif||'no disponible')}</div><div id="researchOutput">${cached?`<div class="researchStatus">Resultado guardado localmente: ${fdate(cached.saved_at)}</div>${renderResearchData(o,cached.data)}`:researchManualLinks(o)}</div></div>`;
+  $('saveResearchApi').onclick=()=>{R.endpoint=$('researchApiInput').value.trim();localStorage.setItem('tragsascope_research_api',R.endpoint);$('researchState').textContent=R.endpoint?'Endpoint guardado.':'Endpoint eliminado; queda disponible el modo de búsquedas manuales.'};
+  $('openResearch').onclick=()=>openResearchSearches(o);
+  $('clearResearch').onclick=()=>{researchClearCache(o);$('researchOutput').innerHTML=researchManualLinks(o);$('researchState').textContent='Caché de esta empresa eliminado.'};
+  $('runResearch').onclick=()=>runAutomaticResearch(o,qs)
+}
+async function runAutomaticResearch(o,qs){
+  if(!R.endpoint){$('researchState').innerHTML='Para extracción automática necesitas un endpoint de investigación. Mientras tanto puedes usar <b>Abrir búsquedas web</b> y revisar las fuentes.';return}
+  const btn=$('runResearch');btn.disabled=true;btn.textContent='Investigando…';$('researchState').textContent='Consultando fuentes externas y cruzando nombres…';
+  try{
+    const payload={company:{id:o.id,name:o.name,legal_name:o.legal_name,nif:o.nif,category:o.category},queries:qs,known_tragsa_people:(S.d.people||[]).map(p=>({id:p.id,name:p.name,normalized_name:p.normalized_name})),requested_fields:['owners','beneficial_owners','shareholders','administrators','board','proxies','directors','employees','sources'],rules:{public_professional_information_only:true,require_source_url:true,do_not_infer_identity_from_name_match:true}};
+    const r=await fetch(R.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();researchSaveCache(o,data);$('researchOutput').innerHTML=renderResearchData(o,data)+researchManualLinks(o);$('researchState').textContent='Investigación terminada. Resultado guardado en este navegador.';
+  }catch(e){console.error(e);$('researchState').textContent='No se pudo completar la investigación automática: '+e.message+'. Puedes usar las búsquedas web manuales.'}
+  finally{btn.disabled=false;btn.textContent='Investigar automáticamente'}
+}
+
+
 function relName(r){return r.type==='ADJUDICA_A'?'adjudica':r.role||({SOCIAL_ROLE_EVENT:'cargo',OFFICIAL_BOARD_SNAPSHOT:'consejo',OFFICIAL_ORGCHART_SNAPSHOT:'directivo',SOCIO_UNICO_PUBLICADO:'socio único',TITULAR_REAL_VERIFICADO:'titular real'}[r.type]||r.type||'relación')}
 function openDrawer(t,s=''){$('dtitle').textContent=t;$('dsub').textContent=s;$('drawer').classList.add('open');$('back').classList.add('open')}function closeDrawer(){$('drawer').classList.remove('open');$('back').classList.remove('open')}
 async function openOrg(id){
@@ -347,9 +472,10 @@ openDrawer(o.name||o.legal_name||'Organización',o.nif?'NIF '+o.nif:'NIF no disp
 const hasBorme=declaredCount('societary_events')>0,hasIntervals=declaredCount('role_intervals')>0;
 $('dc').innerHTML=`<dl class="kv"><dt>Nombre</dt><dd>${esc(o.name||o.legal_name||'No consta')}</dd><dt>Razón social</dt><dd>${esc(o.legal_name||o.name||'No consta')}</dd><dt>NIF</dt><dd>${esc(o.nif||'No consta')}</dd><dt>Tipo mostrado</dt><dd>${esc(orgKind(o))}</dd><dt>Categoría original</dt><dd><span class="rawcode">${esc(o.category||'No consta')}</span></dd><dt>ID</dt><dd><code>${esc(o.id||'')}</code></dd></dl>${o.source_url?`<p>${sourceLink(o.source_url,'Fuente de la organización')}</p>`:''}
 <div class="note">Los contratos y relaciones se cargan únicamente cuando los solicitas.</div>
-<div class="tools" style="margin-top:10px"><button id="odContracts" class="btn">Contratos</button><button id="odRelations" class="btn">Relaciones</button><button id="odBorme" class="btn" ${hasBorme?'':'disabled'}>BORME</button></div><div id="odetail"></div>`;
+<div class="tools" style="margin-top:10px"><button id="odContracts" class="btn">Contratos</button><button id="odRelations" class="btn">Relaciones</button><button id="odInternet" class="btn researchPrimary">Investigar en Internet</button><button id="odBorme" class="btn" ${hasBorme?'':'disabled'}>BORME</button></div><div id="odetail"></div>`;
 $('odContracts').onclick=async()=>{await ensure(['contracts']);const cs=S.i.cc.get(id)||[],st=S.i.cs.get(id);$('odetail').innerHTML=`<h3>Contratos (${NUM.format(cs.length)})</h3><p><b>Importe cuantificado (>1 €):</b> ${money(st?.total||0)} · <b>Cuantías ≤1 €:</b> ${NUM.format(st?.nominal||0)} · <b>Primero:</b> ${fdate(st?.first)} · <b>Último:</b> ${fdate(st?.last)}</p>`+(cs.slice().sort((a,b)=>String(b.award_date||'').localeCompare(String(a.award_date||''))).slice(0,150).map(c=>`<div class="event" data-cx="${esc(c.id)}"><b>${esc(c.object||c.expediente||'Contrato')}</b><br><small>${fdate(c.award_date)} · ${amountHtml(c.amount_ex_vat)} · ${esc(c.contracting_entity||'')}</small></div>`).join('')||'<div class="status">No constan contratos.</div>');$('odetail').querySelectorAll('[data-cx]').forEach(x=>x.onclick=()=>openContract(x.dataset.cx))};
 $('odRelations').onclick=async()=>{await ensure(['relationships']);const rels=S.i.rn.get(id)||[];let html=`<h3>Relaciones (${NUM.format(rels.length)})</h3>`+(rels.map(x=>relHtml(x,id)).join('')||'<div class="status">No constan relaciones.</div>');if(hasIntervals){await ensure(['role_intervals']);const ints=S.i.io.get(id)||[];html+=`<h3>Periodos de cargos (${NUM.format(ints.length)})</h3>`+(ints.slice(0,100).map(i=>interval(i)).join('')||'<div class="status">No constan intervalos.</div>')}else html+='<div class="status">Esta versión declara 0 intervalos de cargos.</div>';$('odetail').innerHTML=html};
+$('odInternet').onclick=()=>renderOnlineResearch(o);
 if(hasBorme)$('odBorme').onclick=async()=>{await ensure(['societary_events']);const ev=S.i.eo.get(id)||[];$('odetail').innerHTML=`<h3>Eventos BORME (${NUM.format(ev.length)})</h3>`+(ev.slice().sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||''))).map(e=>`<div class="event"><b>${esc(e.event_type||'Evento')}</b> · ${fdate(e.publication_date)}<p>${esc(e.raw_text||'')}</p>${e.source_url?link(e.source_url,'Ver BORME'):''}</div>`).join('')||'<div class="status">No constan eventos BORME.</div>')};
 }
 async function openPerson(id,tab='resumen'){
