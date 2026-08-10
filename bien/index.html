@@ -125,6 +125,58 @@
       inset 0 2px 4px rgba(0,0,0,.12);
   }
 
+  .main-button-text{
+    display:inline-flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:3px;
+    vertical-align:middle;
+  }
+
+  .main-button-small{
+    display:block;
+    font-size:.60em;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    opacity:.70;
+  }
+
+  .main-button-big{
+    display:block;
+    font-size:1em;
+    font-weight:700;
+  }
+
+  .instructions-button{
+    appearance:none;
+    margin-top:30px;
+    padding:8px 12px;
+    border:1.5px solid #111;
+    border-radius:6px;
+    background:linear-gradient(180deg,#fff,#ededed);
+    color:#111;
+    font:700 11px/1 "Courier New", Courier, monospace;
+    letter-spacing:.08em;
+    cursor:pointer;
+    box-shadow:0 3px 0 #aaa, 0 5px 8px rgba(0,0,0,.10);
+    transition:transform .08s ease, box-shadow .08s ease, background .15s ease;
+  }
+
+  .instructions-button:hover{
+    background:linear-gradient(180deg,#fff,#e6e6e6);
+  }
+
+  .instructions-button:active{
+    transform:translateY(3px);
+    box-shadow:0 0 0 #aaa;
+  }
+
+  .instructions-button:focus-visible{
+    outline:3px solid #111;
+    outline-offset:4px;
+  }
+
   .main-button:focus-visible,
   .continue-button:focus-visible{
     outline:3px solid #111;
@@ -306,8 +358,13 @@
   <main class="app" aria-live="polite">
     <button id="mainButton" class="main-button" type="button">
       <span class="computer-icon" aria-hidden="true"></span>
-      Hacer que TODO salga BIEN
+      <span class="main-button-text">
+        <span class="main-button-small">PULSA AQUÍ para</span>
+        <span class="main-button-big">Hacer que TODO salga BIEN</span>
+      </span>
     </button>
+
+    <button id="instructionsButton" class="instructions-button" type="button">INSTRUCCIONES</button>
 
     <section id="progressPanel" class="progress-panel" aria-hidden="true">
       <div class="progress-wrap" role="progressbar" aria-label="Progreso" aria-valuemin="0" aria-valuemax="100">
@@ -316,6 +373,17 @@
       </div>
     </section>
   </main>
+
+  <div id="instructionsBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
+    <div class="modal">
+      <h1 id="instructionsTitle">INSTRUCCIONES</h1>
+      <p>1. Pulsa el botón principal.
+2. Espera 5 segundos mientras se procesa la realidad.
+3. Lee el resultado.
+4. Si fuera necesario, pulsa CONTINUAR y vuelve a intentarlo.</p>
+      <button id="closeInstructionsButton" class="continue-button" type="button">ENTENDIDO</button>
+    </div>
+  </div>
 
   <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal">
@@ -329,6 +397,9 @@ intenta revisar tu configuración de la percepción de la realidad objetiva.</p>
 <script>
 (() => {
   const mainButton = document.getElementById('mainButton');
+  const instructionsButton = document.getElementById('instructionsButton');
+  const instructionsBackdrop = document.getElementById('instructionsBackdrop');
+  const closeInstructionsButton = document.getElementById('closeInstructionsButton');
   const progressPanel = document.getElementById('progressPanel');
   const progressBar = document.getElementById('progressBar');
   const modalBackdrop = document.getElementById('modalBackdrop');
@@ -382,6 +453,7 @@ intenta revisar tu configuración de la percepción de la realidad objetiva.</p>
     setTimeout(() => {
       mainButton.classList.remove('pressed');
       mainButton.classList.add('hidden');
+      instructionsButton.classList.add('hidden');
 
       progressPanel.classList.add('visible');
       progressPanel.setAttribute('aria-hidden', 'false');
@@ -408,15 +480,35 @@ intenta revisar tu configuración de la percepción de la realidad objetiva.</p>
     progressPanel.setAttribute('aria-hidden', 'true');
 
     mainButton.classList.remove('hidden', 'pressed');
+    instructionsButton.classList.remove('hidden');
     mainButton.disabled = false;
     mainButton.focus();
   }
 
   mainButton.addEventListener('click', startProcess);
+
+  instructionsButton.addEventListener('click', () => {
+    instructionsBackdrop.classList.add('visible');
+    closeInstructionsButton.focus();
+  });
+
+  closeInstructionsButton.addEventListener('click', () => {
+    instructionsBackdrop.classList.remove('visible');
+    instructionsButton.focus();
+  });
+
   continueButton.addEventListener('click', resetApp);
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && modalBackdrop.classList.contains('visible')) {
+    if (event.key !== 'Escape') return;
+
+    if (instructionsBackdrop.classList.contains('visible')) {
+      instructionsBackdrop.classList.remove('visible');
+      instructionsButton.focus();
+      return;
+    }
+
+    if (modalBackdrop.classList.contains('visible')) {
       resetApp();
     }
   });
