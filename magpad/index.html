@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>MagPad</title>
+  <style>
+    :root{--bg:#000;--panel:#080b10;--panel-2:#10151d;--line:#1b2430;--text:#f5f7fb;--muted:#8290a3;--blue:#2f9cff;--blue-soft:#7ec8ff;--radius:22px;--shadow:0 18px 60px rgba(0,0,0,.55)}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% 38%,rgba(47,156,255,.10),transparent 34%),#000;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;overscroll-behavior:none}
+    body{min-height:100dvh;display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom))}
+    button,a{font:inherit} button{touch-action:manipulation}
+    .topbar{width:min(94vw,520px);margin:0 auto 8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .home-link,.icon-btn,.small-btn{min-height:44px;border:1px solid var(--line);background:rgba(12,16,22,.86);color:var(--text);border-radius:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 13px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+    .home-link{font-size:.9rem}.top-actions{display:flex;gap:8px}.icon-btn{width:44px;padding:0;font-size:1.05rem}
+    button:focus-visible,a:focus-visible{outline:2px solid var(--blue-soft);outline-offset:3px}
+    main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}
+    .game-shell{width:min(94vw,520px);display:flex;flex-direction:column;align-items:center;gap:14px}.title-wrap{text-align:center;margin-top:2px}
+    h1{margin:0;font-size:clamp(1.65rem,7vw,2.3rem);letter-spacing:.23em;text-indent:.23em;font-weight:800}.level-label{margin-top:4px;color:var(--muted);font-size:.95rem;letter-spacing:.04em}
+    .progress-dots{display:flex;align-items:center;justify-content:center;gap:7px;min-height:18px}.dot{width:8px;height:8px;border-radius:50%;background:#1c2633;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);transition:.2s ease}.dot.unlocked{background:#35526f}.dot.current{transform:scale(1.25);background:var(--blue);box-shadow:0 0 12px rgba(47,156,255,.8)}.dot.done{background:var(--blue-soft);box-shadow:0 0 8px rgba(126,200,255,.45)}
+    .board-wrap{width:min(88vw,430px);aspect-ratio:1;position:relative;touch-action:none}
+    .board{position:absolute;inset:0;padding:clamp(13px,3.5vw,19px);display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:clamp(7px,2vw,11px);border-radius:var(--radius);background:linear-gradient(145deg,#151b24,#070a0f 58%,#0d1218);border:1px solid #202936;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.055),inset 0 -10px 28px rgba(0,0,0,.45)}
+    .board::before{content:"";position:absolute;inset:7px;border-radius:calc(var(--radius) - 8px);border:1px solid rgba(255,255,255,.025);pointer-events:none}
+    .cell{appearance:none;border:0;padding:0;min-width:0;min-height:0;border-radius:50%;background:radial-gradient(circle at 48% 42%,#111820 0 20%,#080c11 58%,#020305 100%);position:relative;cursor:pointer;touch-action:manipulation;outline:none;box-shadow:inset 0 6px 11px rgba(0,0,0,.78),inset 0 -2px 3px rgba(255,255,255,.025),0 1px 0 rgba(255,255,255,.02);transition:filter .18s ease,opacity .18s ease;overflow:visible}
+    .cell::after{content:"";position:absolute;inset:17%;border-radius:50%;background:radial-gradient(circle at 35% 27%,rgba(255,255,255,.19) 0 4%,rgba(255,255,255,.055) 8%,transparent 21%),radial-gradient(circle at 50% 55%,#3d4651 0,#252d36 47%,#12171d 74%,#080b0f 100%);transform:translateY(4px) scale(.9);box-shadow:inset 0 1px 2px rgba(255,255,255,.06),inset 0 -5px 8px rgba(0,0,0,.55),0 5px 8px rgba(0,0,0,.48);transition:transform .18s cubic-bezier(.2,.8,.25,1.35),background .18s ease,box-shadow .18s ease,filter .18s ease}
+    .cell:active:not(.disabled)::after{transform:translateY(6px) scale(.84)}
+    .cell.on::after{background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.88) 0 4%,rgba(255,255,255,.34) 8%,transparent 20%),radial-gradient(circle at 50% 50%,#b7e1ff 0,#69bfff 18%,#2f9cff 44%,#126ccc 72%,#07396f 100%);transform:translateY(-1px) scale(1);box-shadow:inset 0 1px 3px rgba(255,255,255,.5),inset 0 -6px 12px rgba(0,42,93,.38),0 0 10px rgba(47,156,255,.9),0 0 22px rgba(47,156,255,.55),0 4px 9px rgba(0,0,0,.5);filter:saturate(1.1)}
+    .cell.disabled{cursor:default;opacity:.36;background:radial-gradient(circle at 50% 50%,#07090c 0 43%,#030405 66%,#000 100%);box-shadow:inset 0 5px 9px rgba(0,0,0,.92),0 1px 0 rgba(255,255,255,.012)}.cell.disabled::after{inset:28%;background:#05070a;transform:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.95)}
+    .toolbar{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap}.small-btn{font-size:.88rem}.status-card{min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;width:min(88vw,430px)}
+    .status-message{opacity:0;transform:translateY(6px);transition:.22s ease;pointer-events:none}.status-message.show{opacity:1;transform:translateY(0);pointer-events:auto}.status-message strong{display:block;font-size:1.05rem;letter-spacing:.05em;margin-bottom:10px}
+    .primary-btn{min-height:46px;border:1px solid rgba(126,200,255,.38);color:#fff;background:linear-gradient(180deg,rgba(47,156,255,.98),rgba(13,102,205,.98));border-radius:14px;padding:0 18px;cursor:pointer;font-weight:700;box-shadow:0 0 0 1px rgba(255,255,255,.03) inset,0 8px 26px rgba(47,156,255,.25)}
+    footer{width:100%;text-align:center;padding-top:16px;font-size:.78rem;color:#5f6a79}
+    .modal-backdrop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:.2s ease}.modal-backdrop.open{opacity:1;pointer-events:auto}
+    .modal{width:min(92vw,390px);border:1px solid #202936;border-radius:22px;background:linear-gradient(180deg,rgba(17,22,30,.98),rgba(7,10,14,.98));box-shadow:0 24px 80px rgba(0,0,0,.65);padding:20px}.modal h2{margin:0 0 8px;font-size:1.25rem}.modal p{margin:0 0 18px;color:var(--muted);line-height:1.45}.modal-actions{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+    .level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:16px}.level-choice{aspect-ratio:1;border-radius:13px;border:1px solid var(--line);background:#0c1118;color:var(--text);font-weight:700;cursor:pointer}.level-choice.locked{color:#4b5664;cursor:not-allowed;background:#070a0e}.level-choice.completed{border-color:rgba(47,156,255,.42);color:var(--blue-soft)}.level-choice.current{background:#153b66;border-color:#397fbd}.lock{display:block;font-size:.7rem;margin-top:2px;opacity:.6}.intro-logo{text-align:center;letter-spacing:.2em;text-indent:.2em;font-size:1.65rem;font-weight:800;margin-bottom:10px}
+    @media (max-height:720px){body{padding-top:8px}.game-shell{gap:9px}.board-wrap{width:min(72vh,86vw,390px)}.status-card{min-height:52px}footer{padding-top:8px}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+  </style>
+</head>
+<body>
+  <div class="topbar"><a class="home-link" href="../index.html">← Volver a Home</a><div class="top-actions"><button class="icon-btn" id="soundBtn">🔊</button><button class="icon-btn" id="resetBtn">↻</button></div></div>
+  <main><section class="game-shell"><div class="title-wrap"><h1>MAGPAD</h1><div class="level-label" id="levelLabel">Nivel 1 de 10</div></div><div class="progress-dots" id="progressDots"></div><div class="board-wrap"><div class="board" id="board" role="grid"></div></div><div class="toolbar"><button class="small-btn" id="levelsBtn">Niveles</button></div><div class="status-card"><div class="status-message" id="statusMessage"></div></div></section></main>
+  <footer>Desarrollado por: Ángel Soto</footer>
+  <div class="modal-backdrop" id="introModal"><div class="modal"><div class="intro-logo">MAGPAD</div><p style="text-align:center">Enciende todas las celdas disponibles.</p><div class="modal-actions" style="justify-content:center"><button class="primary-btn" id="introPlayBtn">JUGAR</button></div></div></div>
+  <div class="modal-backdrop" id="levelsModal"><div class="modal"><h2>Niveles</h2><p>Selecciona cualquier nivel desbloqueado.</p><div class="level-grid" id="levelGrid"></div><div class="modal-actions" style="margin-top:16px"><button class="small-btn" id="closeLevelsBtn">Cerrar</button></div></div></div>
+  <div class="modal-backdrop" id="confirmModal"><div class="modal"><h2>¿Reiniciar nivel?</h2><p>Se apagarán todas las celdas activadas.</p><div class="modal-actions"><button class="small-btn" id="cancelResetBtn">Cancelar</button><button class="primary-btn" id="confirmResetBtn">Reiniciar</button></div></div></div>
+  <script>
+  (()=>{"use strict";
+    const TOTAL_LEVELS=10, STORAGE_KEY="magpad-save-v1";
+    const LEVELS=[
+      [0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0,0],
+      [1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
+      [0,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,1,0,1,1,0,1,0,1,0],
+      [1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1],
+      [1,1,1,1,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,1,1,1,1],
+      [1,1,0,1,0,0,1,1,0,1,1,0,1,1,0,0,1,0,1,1,1,0,1,0,1],
+      [1,1,1,0,1,1,0,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1],
+      [1,0,1,1,1,1,1,0,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,0,1],
+      [1,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,1,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+    let state={currentLevel:0,unlockedLevel:0,completed:Array(10).fill(false),soundOn:true,introSeen:false},cellStates=Array(25).fill(false),boardLocked=false,audioCtx=null;
+    const $=id=>document.getElementById(id),board=$("board"),levelLabel=$("levelLabel"),progressDots=$("progressDots"),soundBtn=$("soundBtn"),statusMessage=$("statusMessage"),introModal=$("introModal"),levelsModal=$("levelsModal"),confirmModal=$("confirmModal"),levelGrid=$("levelGrid");
+    function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}}
+    function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(x)state={...state,...x,completed:Array.from({length:10},(_,i)=>!!x.completed?.[i])}}catch(e){}}
+    function audio(){if(!state.soundOn)return null;try{if(!audioCtx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;audioCtx=new A()}if(audioCtx.state==="suspended")audioCtx.resume();return audioCtx}catch(e){return null}}
+    function beep(f,d,v=.05,t="sine",delay=0){const c=audio();if(!c)return;const s=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(v,s+.008);g.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(g);g.connect(c.destination);o.start(s);o.stop(s+d+.02)}
+    const playOn=()=>{beep(720,.055);beep(1080,.04,.025,"triangle",.018)},playOff=()=>beep(330,.07,.045),playWin=final=>{beep(523,.14,.05,"sine",0);beep(659,.14,.05,"sine",.11);beep(784,.22,.055,"sine",.22);if(final)beep(1046,.32,.05,"sine",.36)};
+    function renderProgress(){progressDots.innerHTML="";for(let i=0;i<10;i++){const d=document.createElement("span");d.className="dot"+(i<=state.unlockedLevel?" unlocked":"")+(state.completed[i]?" done":"")+(i===state.currentLevel?" current":"");progressDots.appendChild(d)}}
+    function renderBoard(){board.innerHTML="";LEVELS[state.currentLevel].forEach((enabled,i)=>{const b=document.createElement("button");b.className="cell"+(cellStates[i]?" on":"");b.setAttribute("aria-label",enabled?`Celda ${i+1} ${cellStates[i]?"activada":"apagada"}`:`Celda ${i+1} anulada`);if(!enabled){b.classList.add("disabled");b.disabled=true}else b.onclick=()=>toggle(i,b);board.appendChild(b)})}
+    function loadLevel(i){if(i<0||i>=10||i>state.unlockedLevel)return;boardLocked=false;state.currentLevel=i;cellStates.fill(false);levelLabel.textContent=`Nivel ${i+1} de 10`;statusMessage.className="status-message";statusMessage.innerHTML="";renderBoard();renderProgress();save()}
+    function toggle(i,b){if(boardLocked)return;audio();cellStates[i]=!cellStates[i];b.classList.toggle("on",cellStates[i]);b.animate([{transform:"scale(1)"},{transform:"scale(.91)"},{transform:"scale(1.04)"},{transform:"scale(1)"}],{duration:180});cellStates[i]?playOn():playOff();try{navigator.vibrate?.(10)}catch(e){};if(LEVELS[state.currentLevel].every((e,j)=>!e||cellStates[j]))complete()}
+    function complete(){if(boardLocked)return;boardLocked=true;const l=state.currentLevel,final=l===9;state.completed[l]=true;if(!final)state.unlockedLevel=Math.max(state.unlockedLevel,l+1);save();renderProgress();[...board.querySelectorAll(".cell.on")].forEach((c,i)=>setTimeout(()=>c.animate([{filter:"brightness(1)"},{filter:"brightness(1.7)"},{filter:"brightness(1)"}],{duration:330}),i*25));playWin(final);setTimeout(()=>{statusMessage.className="status-message show";if(final){statusMessage.innerHTML='<strong>¡MAGPAD COMPLETADO!</strong><div style="color:var(--muted);margin-bottom:12px">Has completado los 10 niveles</div><button class="primary-btn" id="replayBtn">Volver a jugar</button> <button class="small-btn" id="chooseBtn">Elegir nivel</button>';$("replayBtn").onclick=()=>loadLevel(0);$("chooseBtn").onclick=openLevels}else{statusMessage.innerHTML='<strong>NIVEL COMPLETADO</strong><button class="primary-btn" id="nextBtn">Siguiente nivel</button>';$("nextBtn").onclick=()=>loadLevel(l+1)}},420)}
+    function openLevels(){levelGrid.innerHTML="";for(let i=0;i<10;i++){const b=document.createElement("button");b.className="level-choice"+(state.completed[i]?" completed":"")+(i===state.currentLevel?" current":"");if(i>state.unlockedLevel){b.classList.add("locked");b.disabled=true;b.innerHTML=`${i+1}<span class="lock">🔒</span>`}else{b.textContent=i+1;b.onclick=()=>{levelsModal.classList.remove("open");loadLevel(i)}}levelGrid.appendChild(b)}levelsModal.classList.add("open")}
+    function reset(){cellStates.fill(false);boardLocked=false;statusMessage.className="status-message";statusMessage.innerHTML="";renderBoard()}
+    soundBtn.onclick=()=>{state.soundOn=!state.soundOn;soundBtn.textContent=state.soundOn?"🔊":"🔇";if(state.soundOn)playOn();save()};
+    $("resetBtn").onclick=()=>cellStates.some(Boolean)?confirmModal.classList.add("open"):reset();$("levelsBtn").onclick=openLevels;$("closeLevelsBtn").onclick=()=>levelsModal.classList.remove("open");$("cancelResetBtn").onclick=()=>confirmModal.classList.remove("open");$("confirmResetBtn").onclick=()=>{confirmModal.classList.remove("open");reset()};$("introPlayBtn").onclick=()=>{audio();state.introSeen=true;save();introModal.classList.remove("open")};
+    [levelsModal,confirmModal].forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove("open")});
+    load();state.currentLevel=Math.min(state.currentLevel,state.unlockedLevel);soundBtn.textContent=state.soundOn?"🔊":"🔇";loadLevel(state.currentLevel);if(!state.introSeen)requestAnimationFrame(()=>introModal.classList.add("open"));
+  })();
+  </script>
+</body>
+</html>
