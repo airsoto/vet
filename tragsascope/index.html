@@ -1,3 +1,6 @@
+
+
+
 <!doctype html>
 <html lang="es">
 <head>
@@ -210,6 +213,13 @@ tbody tr:hover{background:var(--p2)}
 .event{padding:10px 0;border-bottom:1px solid var(--ln)}
 .chartWrap{height:320px}
 .chartWrap canvas{width:100%!important;height:100%!important}
+
+.barList{display:grid;gap:8px;margin-top:12px;max-height:285px;overflow:auto;padding-right:4px}
+.barRow{display:grid;grid-template-columns:52px 1fr auto;gap:9px;align-items:center;font-size:.8rem}
+.barTrack{height:10px;border-radius:999px;background:var(--p2);overflow:hidden;border:1px solid var(--ln)}
+.barFill{height:100%;background:linear-gradient(90deg,var(--a),var(--v));border-radius:999px}
+.dataWarn{padding:10px 12px;border:1px solid color-mix(in srgb,#ff7b7b 55%,var(--ln));background:color-mix(in srgb,#ff7b7b 7%,var(--p));border-radius:11px;color:var(--mu);margin:9px 0}
+
 .mobile{display:none}
 
 @media(max-width:1100px){
@@ -244,7 +254,7 @@ tbody tr:hover{background:var(--p2)}
   <div class="wrap topin">
     <div class="brand">
       <b>TragsaScope</b>
-      <small>Contratación y relaciones documentadas</small>
+      <small></small>
     </div>
 
     <nav>
@@ -276,7 +286,7 @@ tbody tr:hover{background:var(--p2)}
     <div class="eyebrow">DATOS PÚBLICOS · PLACSP · BORME / BOE · VERIFICACIÓN DOCUMENTAL</div>
     <h1>TragsaScope</h1>
     <p>
-    
+      Explora contratos de TRAGSA y TRAGSATEC.
     </p>
     <div class="chips">
       <span>7.601 organizaciones</span>
@@ -375,9 +385,10 @@ tbody tr:hover{background:var(--p2)}
       <label class="field">
         Mostrar
         <select id="sharedMode">
-          <option value="external">En 2 o más adjudicatarias</option>
-          <option value="group_cross">TRAGSA/TRAGSATEC ↔ otra empresa</option>
-          <option value="all">Cualquier persona en 2 o más organizaciones</option>
+          <option value="external">Coincidencia exacta en ≥2 adjudicatarias</option>
+          <option value="reordered">Posible: mismo nombre en distinto orden</option>
+          <option value="group_cross">Grupo Tragsa ↔ adjudicataria</option>
+          <option value="all">Cualquier coincidencia exacta en ≥2 organizaciones</option>
         </select>
       </label>
       <label class="field">
@@ -436,9 +447,10 @@ tbody tr:hover{background:var(--p2)}
       <label class="field">
         Sociedad
         <select id="groupCompany">
-          <option value="both">TRAGSA + TRAGSATEC</option>
+          <option value="all">Todo el Grupo Tragsa</option>
           <option value="org:A28476208">TRAGSA</option>
           <option value="org:A79365821">TRAGSATEC</option>
+          <option value="GRUPO_TRAGSA">Grupo Tragsa · sociedad no individualizada</option>
         </select>
       </label>
     </div>
@@ -446,7 +458,7 @@ tbody tr:hover{background:var(--p2)}
 
   <div id="groupMetrics" class="metrics" style="margin-top:12px"></div>
 
-  <div class="grid2" style="margin-top:12px">
+  <div class="grid3" style="margin-top:12px">
     <div class="tableCard groupPanel">
       <h3 style="margin-top:0">TRAGSA</h3>
       <div id="tragsaPeople"><div class="status">Aún no cargado.</div></div>
@@ -454,6 +466,11 @@ tbody tr:hover{background:var(--p2)}
     <div class="tableCard groupPanel">
       <h3 style="margin-top:0">TRAGSATEC</h3>
       <div id="tragsatecPeople"><div class="status">Aún no cargado.</div></div>
+    </div>
+    <div class="tableCard groupPanel">
+      <h3 style="margin-top:0">Grupo Tragsa</h3>
+      <p class="mini">Personas cuya fuente acredita vínculo con el Grupo, pero no permite asignar con seguridad TRAGSA o TRAGSATEC.</p>
+      <div id="groupAllPeople"><div class="status">Aún no cargado.</div></div>
     </div>
   </div>
 </section>
@@ -495,7 +512,7 @@ tbody tr:hover{background:var(--p2)}
     <div class="tableCard">
       <b>Contratos por año</b>
       <div id="chartPlaceholder" class="status">El gráfico se crea después de cargar contratos.</div>
-      <div id="chartWrap" class="chartWrap hide"><canvas id="yearChart"></canvas></div>
+      <div id="chartWrap" class="chartWrap hide"></div>
     </div>
   </div>
 </section>
@@ -555,178 +572,106 @@ const BASE='./json_tragsascope/';
 const TRAGSA_ID='org:A28476208';
 const TRAGSATEC_ID='org:A79365821';
 const GROUP_IDS=new Set([TRAGSA_ID,TRAGSATEC_ID]);
+const GROUP_GENERIC='GRUPO_TRAGSA';
 
 const S={
   manifest:null,
-  d:{
-    organizations:[],
-    people:[],
-    contracts:[],
-    societary_events:[],
-    relationships:[],
-    role_intervals:[],
-    coincidences:[],
-    organizations_verified:[]
-  },
-  loaded:new Set(),
-  loading:new Map(),
-  i:{},
-  chart:null,
-  verified:null
+  d:{organizations:[],people:[],contracts:[],societary_events:[],relationships:[],role_intervals:[],coincidences:[],organizations_verified:[]},
+  loaded:new Set(),loading:new Map(),errors:[],i:{},verified:null,
+  official:{loaded:false,loading:null,data:null,people:new Map(),byExact:new Map(),byToken:new Map(),categories:{tragsa:[],tragsatec:[],group:[]}}
 };
 
 const NUM=new Intl.NumberFormat('es-ES');
 const EUR=new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'});
-
 const arr=v=>Array.isArray(v)?v:[];
 const obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+const deb=(fn,t=180)=>{let z;return(...a)=>{clearTimeout(z);z=setTimeout(()=>fn(...a),t)}};
+const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+const money=v=>v==null||!Number.isFinite(Number(v))?'No consta':EUR.format(Number(v));
 
 function norm(v){
-  return String(v??'')
-    .replaceAll('ª','a').replaceAll('º','o')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .toLowerCase().replace(/\s+/g,' ').trim();
+  return String(v??'').replace(/M\.\s*[ªa]/gi,'Maria').replace(/M[ª]/gi,'Maria').replaceAll('ª','a').replaceAll('º','o')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 }
-function personKey(v){
-  return norm(v)
-    .replace(/[^a-z0-9ñ]+/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
+function personKey(v){return norm(v).replace(/[^a-z0-9ñ]+/g,' ').replace(/\s+/g,' ').trim()}
+function personTokens(v){return personKey(v).split(' ').filter(x=>x.length>1)}
+function tokenKey(v){const t=personTokens(v);return t.length>=3?[...t].sort().join(' '):''}
+function companyNameKey(v){return norm(v).replace(/\b(sociedad|limitada|anonima|unipersonal|sl|slu|sa|sau|sme|mp)\b/g,' ').replace(/[^a-z0-9ñ]+/g,' ').replace(/\s+/g,' ').trim()}
+function rawEntityKey(o){
+  if(!o)return'';
+  const nif=String(o.nif||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(/^[A-Z0-9][A-Z0-9]{7,8}$/.test(nif))return'nif:'+nif;
+  return'name:'+companyNameKey(o.legal_name||o.name||o.id||'');
 }
-function esc(v){
-  return String(v??'')
-    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
-    .replaceAll('"','&quot;').replaceAll("'",'&#039;');
-}
-function deb(fn,t=180){
-  let z;
-  return(...a)=>{clearTimeout(z);z=setTimeout(()=>fn(...a),t)};
-}
-function money(v){
-  return v==null||!Number.isFinite(Number(v))?'No consta':EUR.format(Number(v));
-}
-
+function entityKey(o){return S.verified?.orgEntityKey?.get(o?.id)||rawEntityKey(o)}
+function isGroupOrg(o){return !!o&&(GROUP_IDS.has(o.id)||o.category==='grupo_tragsa')}
 function strictDate(v){
-  const s=String(v||'').trim();
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;
-  const [y,m,d]=s.split('-').map(Number);
-  const x=new Date(Date.UTC(y,m-1,d));
-  if(x.getUTCFullYear()!==y||x.getUTCMonth()!==m-1||x.getUTCDate()!==d)return null;
-  return s;
+  const s=String(v||'').trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;
+  const[y,m,d]=s.split('-').map(Number),x=new Date(Date.UTC(y,m-1,d));
+  return x.getUTCFullYear()===y&&x.getUTCMonth()===m-1&&x.getUTCDate()===d?s:null;
 }
-function fdate(v){
-  const s=strictDate(v);
-  if(!s)return v?'Fecha no determinada':'No consta';
-  return new Intl.DateTimeFormat('es-ES').format(new Date(s+'T00:00:00'));
-}
-function yearOf(v){
-  const s=strictDate(v);
-  return s?Number(s.slice(0,4)):null;
-}
-function status(t,e=false){
-  $('status').textContent=t;
-  $('status').className='status'+(e?' err':'');
-}
+function fdate(v){const s=strictDate(v);return s?new Intl.DateTimeFormat('es-ES').format(new Date(s+'T00:00:00')):(v?'Fecha no determinada':'No consta')}
+function yearOf(v){const s=strictDate(v);return s?Number(s.slice(0,4)):null}
+function status(t,e=false){const el=$('status');if(el){el.textContent=t;el.className='status'+(e?' err':'')}}
+function collectionInfo(name){return obj(S.manifest?.collections?.[name])}
+function declared(name){return Number(collectionInfo(name).total_items||0)}
 
-function cleanPersonName(v){
-  let s=String(v||'')
-    .replace(/\u00a0/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-
-  s=s.replace(
-    /\s+(Nombramientos|Ceses\/Dimisiones|Reelecciones|Datos registrales|Otros conceptos)\b.*$/i,
-    ''
-  ).trim();
-
-  return s;
-}
-
+const ROLE_PREFIX=/^(?<role>(?:adm\.?\s*(?:unico|único|solid|mancom)|administrador(?:a)?(?:\s+(?:único|unico|solidari[oa]|mancomunad[oa]))?|consejer[oa]|presidente|vicepresidente|secretari[oa](?:_no_consejer[oa])?|secreno consj|secrenoconsj|apoderad[oa]|apo\.?\s*(?:sol|man|man\.soli)|cons\.?del\.?sol|con\.?delegado|director(?:a)?(?:\s+general)?|gerente|socio\s+[úu]nico|representante|liquidador(?:a)?|auditor(?:a)?|vocal))\s*:\s*/i;
+const TRAILING_NOISE=/\s*[.\-–—]?\s*(?:Nombramientos|Ceses\/Dimisiones|Revocaciones|Reelecciones|Datos registrales|Otros conceptos|Modificaciones estatutarias|Cambio de domicilio social|Cambio de denominaci[oó]n social|Ampliaci[oó]n del objeto social)\b.*$/i;
+function cleanPersonName(v){return String(v||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').replace(TRAILING_NOISE,'').trim().replace(/^[,;:\-\s]+|[,;:\-\s]+$/g,'')}
 function splitDetail(detail){
-  const raw=cleanPersonName(detail?.name);
-  if(!raw)return[];
-  const parts=raw.split(';').map(cleanPersonName).filter(Boolean);
-  return parts.map(name=>({...detail,name}));
+  const raw=String(detail?.name||'').replace(/\u00a0/g,' ').trim();if(!raw)return[];
+  const out=[];
+  for(let part of raw.split(';')){
+    part=cleanPersonName(part);if(!part)continue;
+    let role=detail?.role||null;const m=part.match(ROLE_PREFIX);
+    if(m){role=(m.groups?.role||m[1]||role||'').replaceAll('_',' ').trim();part=cleanPersonName(part.slice(m[0].length))}
+    if(part)out.push({...detail,name:part,role});
+  }
+  return out;
 }
-
 function personNameQuality(name){
-  const raw=cleanPersonName(name),n=personKey(raw),bad=[];
-  if(!raw||raw.length<4)bad.push('nombre insuficiente');
+  const raw=cleanPersonName(name),k=personKey(raw),tok=personTokens(raw),bad=[];
+  if(!raw||k.length<5)bad.push('nombre insuficiente');
   if(raw.length>110)bad.push('texto demasiado largo');
-  if(/nombramientos|ceses\/dimisiones|modificaciones estatutarias|cambio de denominacion|cambio del organo|euros?|datos registrales/i.test(raw))bad.push('texto societario');
-  if(/^(consejero|presidente|secretario|apoderado|administrador|director|gerente)\s*:/i.test(raw))bad.push('cargo incrustado');
-  if(/^\d/.test(raw))bad.push('empieza por número');
-  if(n.split(' ').filter(Boolean).length<2)bad.push('menos de dos componentes');
+  if(tok.length<2)bad.push('menos de dos componentes');
+  if(tok.length>9)bad.push('demasiados componentes');
+  if(/;/.test(raw))bad.push('varias personas concatenadas');
+  if(/^\s*[\d.,/ -]+\s*$/.test(raw)||/\beuros?\b/i.test(raw))bad.push('importe o número');
+  if(/\b(modificaciones? estatutarias|cambio del organo|cambio de objeto|objeto social|resultante suscrito|reducci[oó]n de capital|fecha de cierre|otros conceptos|art[ií]culo de los estatutos|comienzo de operaciones|ampliaci[oó]n de las facultades)\b/i.test(raw))bad.push('texto societario');
+  if(/\b(auditores?|auditoria|auditoría|consultores?|sociedad|s\.?l\.?p?\.?|s\.?a\.?u?\.?|limited|ltd|gmbh|bank|banco|fundaci[oó]n|asociaci[oó]n)\b/i.test(raw)&&tok.length<=9)bad.push('posible organización');
   return{ok:bad.length===0,reasons:bad};
 }
+function roleQuality(role){return !/reducci[oó]n de capital|resultante suscrito|cambio del organo|otros conceptos|fecha de cierre|objeto social|modificaciones estatutarias|art[ií]culo/i.test(String(role||''))}
+function sourceClass(type){const s=norm(type);return s.includes('borme')||s.includes('boe')||s.includes('tragsa_oficial')||s.includes('tragsa_official')||s.includes('tragsa official')?'official':'web'}
+function sourceLabel(type){return String(type||'No consta').replaceAll('_',' ')}
+function confidenceLabel(v){const c=norm(v);return c==='high'?'ALTA':c==='medium'?'MEDIA':c==='linked'?'ÍNDICE':String(v||'No consta').toUpperCase()}
+function confidenceRank(v){const c=norm(v);return c==='high'?3:c==='medium'?2:c==='linked'?1:0}
+function evidenceRank(r){return confidenceRank(r?.detail?.confidence)*100+(sourceClass(r?.detail?.source_type)==='official'?20:0)+(strictDate(r?.detail?.date)?1:0)}
+function bestRow(rows){return[...arr(rows)].sort((a,b)=>evidenceRank(b)-evidenceRank(a))[0]||null}
 
-function sourceClass(type){
-  const s=norm(type);
-  if(s.includes('borme')||s.includes('boe')||s.includes('tragsa_oficial'))return'official';
-  return'web';
+async function fetchJSON(url,{manifest=false}={}){
+  const r=await fetch(url,{cache:manifest?'no-store':'no-cache'});
+  if(!r.ok)throw Error(`${url.split('/').pop()} · HTTP ${r.status}`);
+  return r.json();
 }
-function sourceLabel(type){
-  const s=String(type||'No consta');
-  return s==='TRAGSA_OFICIAL'?'TRAGSA oficial':s;
-}
-function confidenceLabel(v){
-  const c=norm(v);
-  return c==='high'?'ALTA':c==='medium'?'MEDIA':String(v||'No consta').toUpperCase();
-}
-function confidenceRank(v){
-  return norm(v)==='high'?2:norm(v)==='medium'?1:0;
-}
-function evidenceRank(row){
-  const d=row.detail;
-  return confidenceRank(d.confidence)*100
-    +(sourceClass(d.source_type)==='official'?20:0)
-    +(strictDate(d.date)?1:0);
-}
-function bestRow(rows){
-  return [...rows].sort((a,b)=>evidenceRank(b)-evidenceRank(a))[0]||null;
-}
-
-function collectionInfo(name){
-  return obj(S.manifest?.collections?.[name]);
-}
-function declared(name){
-  return Number(collectionInfo(name).total_items||0);
-}
-
 async function loadCollection(name){
   if(S.loaded.has(name))return S.d[name]||[];
   if(S.loading.has(name))return S.loading.get(name);
-
   const job=(async()=>{
-    const info=collectionInfo(name);
-    const parts=arr(info.parts);
-    const out=[];
-
-    if(!parts.length){
-      S.d[name]=[];
-      S.loaded.add(name);
-      reindex();
-      return[];
-    }
-
+    const info=collectionInfo(name),parts=arr(info.parts),out=[];
+    if(!parts.length){S.d[name]=[];S.loaded.add(name);reindex();return[]}
     let n=0;
     for(const part of parts){
       status(`Cargando ${name}… ${++n}/${parts.length}`);
-      const r=await fetch(BASE+part.file,{cache:'force-cache'});
-      if(!r.ok)throw Error(`${part.file} · HTTP ${r.status}`);
-      const f=await r.json();
-      out.push(...arr(f.items));
+      const f=await fetchJSON(BASE+part.file);
+      const items=Array.isArray(f)?f:arr(f.items);
+      out.push(...items);
       await new Promise(requestAnimationFrame);
     }
-
-    S.d[name]=out;
-    S.loaded.add(name);
-    reindex();
-    return out;
+    S.d[name]=out;S.loaded.add(name);reindex();return out;
   })().finally(()=>S.loading.delete(name));
-
-  S.loading.set(name,job);
-  return job;
+  S.loading.set(name,job);return job;
 }
 
 function reindex(){
@@ -734,1357 +679,264 @@ function reindex(){
   I.o=new Map(S.d.organizations.map(x=>[x.id,x]));
   I.p=new Map(S.d.people.map(x=>[x.id,x]));
   I.c=new Map(S.d.contracts.map(x=>[x.id,x]));
-
-  I.eByOrg=new Map;
-  for(const e of S.d.societary_events){
-    if(!e.organization_id)continue;
-    if(!I.eByOrg.has(e.organization_id))I.eByOrg.set(e.organization_id,[]);
-    I.eByOrg.get(e.organization_id).push(e);
-  }
-
-  I.cByOrg=new Map;
-  for(const c of S.d.contracts){
-    if(!c.awardee_organization_id)continue;
-    if(!I.cByOrg.has(c.awardee_organization_id))I.cByOrg.set(c.awardee_organization_id,[]);
-    I.cByOrg.get(c.awardee_organization_id).push(c);
-  }
-
+  I.cByOrg=new Map;for(const c of S.d.contracts){if(!c.awardee_organization_id)continue;if(!I.cByOrg.has(c.awardee_organization_id))I.cByOrg.set(c.awardee_organization_id,[]);I.cByOrg.get(c.awardee_organization_id).push(c)}
+  I.eByOrg=new Map;for(const e of S.d.societary_events){if(!e.organization_id)continue;if(!I.eByOrg.has(e.organization_id))I.eByOrg.set(e.organization_id,[]);I.eByOrg.get(e.organization_id).push(e)}
+  I.rolesByOrg=new Map;for(const r of S.d.role_intervals){if(!r.organization_id)continue;if(!I.rolesByOrg.has(r.organization_id))I.rolesByOrg.set(r.organization_id,[]);I.rolesByOrg.get(r.organization_id).push(r)}
+  I.relByNode=new Map;for(const r of S.d.relationships){for(const id of[r.source,r.target]){if(!id)continue;if(!I.relByNode.has(id))I.relByNode.set(id,[]);I.relByNode.get(id).push(r)}}
   I.search=[];
-  for(const o of S.d.organizations){
-    I.search.push({
-      k:'organization',
-      id:o.id,
-      t:o.name||o.legal_name||o.nif||'Empresa',
-      s:o.nif?'NIF '+o.nif:'NIF no disponible',
-      x:norm([o.name,o.legal_name,o.nif,...arr(o.linked_people)].join(' '))
-    });
-  }
-
-  for(const p of S.d.people){
-    const q=personNameQuality(p.name);
-    if(q.ok){
-      I.search.push({
-        k:'person',
-        id:p.id,
-        t:p.name||'Persona',
-        s:'Registro people',
-        x:norm([p.name,p.normalized_name].join(' '))
-      });
-    }
-  }
-
-  for(const c of S.d.contracts){
-    I.search.push({
-      k:'contract',
-      id:c.id,
-      t:c.object||c.expediente||'Contrato',
-      s:`${c.contracting_entity||''} · ${c.awardee_name||''}`,
-      x:norm([c.object,c.expediente,c.awardee_name,c.awardee_nif,c.contracting_entity].join(' '))
-    });
-  }
-
+  for(const o of S.d.organizations)I.search.push({k:'organization',id:o.id,t:o.name||o.legal_name||o.nif||'Empresa',s:o.nif?'NIF '+o.nif:'NIF no disponible',x:norm([o.name,o.legal_name,o.nif,...arr(o.linked_people)].join(' '))});
+  for(const p of S.d.people){if(personNameQuality(p.name).ok)I.search.push({k:'person',id:p.id,t:p.name||'Persona',s:'Registro BORME',x:norm([p.name,p.normalized_name].join(' '))})}
+  for(const c of S.d.contracts)I.search.push({k:'contract',id:c.id,t:c.object||c.expediente||'Contrato',s:`${c.contracting_entity||''} · ${c.awardee_name||''}`,x:norm([c.object,c.expediente,c.awardee_name,c.awardee_nif,c.contracting_entity].join(' '))});
   S.i=I;
 }
 
+function orgFromVerifiedToLight(vo){return S.i.o.get(vo?.id)||vo||null}
 function buildVerifiedIndex(){
-  const V={
-    byOrg:new Map(),
-    orgPeople:new Map(),
-    byPerson:new Map(),
-    rows:[],
-    sharedExternal:[],
-    sharedAll:[],
-    groupCross:[],
-    groupPeople:new Map(),
-    stats:{}
-  };
-
-  for(const org of S.d.organizations_verified){
-    V.byOrg.set(org.id,org);
+  const V={byOrg:new Map(),byNif:new Map(),orgPeople:new Map(),byPerson:new Map(),byToken:new Map(),orgEntityKey:new Map(),rows:[],sharedExact:[],sharedAll:[],reordered:[],stats:{}};
+  const nameNifs=new Map();
+  for(const vo of S.d.organizations_verified){
+    const nk=companyNameKey(vo.legal_name||vo.name||''),nif=String(vo.nif||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(nk&&/^[A-Z0-9][A-Z0-9]{7,8}$/.test(nif)){if(!nameNifs.has(nk))nameNifs.set(nk,new Set());nameNifs.get(nk).add(nif)}
+  }
+  for(const vo of S.d.organizations_verified){
+    V.byOrg.set(vo.id,vo);const nif=String(vo.nif||'').toUpperCase().trim();if(nif)V.byNif.set(nif,vo);
     const pmap=new Map();
-
-    for(const rawDetail of arr(org.linked_people_details)){
-      for(const detail of splitDetail(rawDetail)){
-        const name=cleanPersonName(detail.name);
-        const key=personKey(name);
-        const quality=personNameQuality(name);
-        if(!key)continue;
-
-        const row={org,detail:{...detail,name},key,quality};
-        V.rows.push(row);
-
-        if(!pmap.has(key)){
-          pmap.set(key,{key,name,org,rows:[],qualityOk:false});
-        }
-        const op=pmap.get(key);
-        op.rows.push(row);
-        if(quality.ok)op.qualityOk=true;
-
-        if(!V.byPerson.has(key)){
-          V.byPerson.set(key,{key,name,orgs:new Map(),qualityOk:false});
-        }
-        const person=V.byPerson.get(key);
-        if(!person.orgs.has(org.id)){
-          person.orgs.set(org.id,{org,rows:[]});
-        }
-        person.orgs.get(org.id).rows.push(row);
-        if(quality.ok)person.qualityOk=true;
-      }
+    for(const raw of arr(vo.linked_people_details))for(const detail of splitDetail(raw)){
+      const name=cleanPersonName(detail.name),key=personKey(name),quality=personNameQuality(name);if(!key)continue;
+      const row={org:vo,detail:{...detail,name},key,token:tokenKey(name),quality};V.rows.push(row);
+      if(!pmap.has(key))pmap.set(key,{key,name,org:vo,rows:[],qualityOk:false});const op=pmap.get(key);op.rows.push(row);if(quality.ok)op.qualityOk=true;
+      if(!V.byPerson.has(key))V.byPerson.set(key,{key,name,token:row.token,orgs:new Map(),qualityOk:false});const p=V.byPerson.get(key);if(!p.orgs.has(vo.id))p.orgs.set(vo.id,{org:vo,rows:[]});p.orgs.get(vo.id).rows.push(row);if(quality.ok)p.qualityOk=true;
     }
-
-    V.orgPeople.set(org.id,pmap);
+    // linked_people acts as a fallback when detailed evidence is absent.
+    for(const raw of arr(vo.linked_people)){
+      const name=cleanPersonName(raw),key=personKey(name),quality=personNameQuality(name);if(!key||pmap.has(key))continue;
+      const detail={name,role:null,source_type:'linked_people',source_url:vo.source_url||null,date:null,confidence:'linked',evidence:null};
+      const row={org:vo,detail,key,token:tokenKey(name),quality};V.rows.push(row);pmap.set(key,{key,name,org:vo,rows:[row],qualityOk:quality.ok});
+      if(!V.byPerson.has(key))V.byPerson.set(key,{key,name,token:row.token,orgs:new Map(),qualityOk:false});const p=V.byPerson.get(key);p.orgs.set(vo.id,{org:vo,rows:[row]});if(quality.ok)p.qualityOk=true;
+    }
+    V.orgPeople.set(vo.id,pmap);
   }
-
-  for(const [key,p] of V.byPerson){
-    if(!p.qualityOk)continue;
-
-    const orgEntries=[...p.orgs.values()];
-    const external=orgEntries.filter(x=>x.org.category!=='grupo_tragsa');
-    const group=orgEntries.filter(x=>GROUP_IDS.has(x.org.id));
-
-    if(orgEntries.length>=2)V.sharedAll.push(p);
-    if(external.length>=2)V.sharedExternal.push(p);
-    if(group.length&&external.length)V.groupCross.push(p);
+  for(const vo of S.d.organizations_verified){
+    const nk=companyNameKey(vo.legal_name||vo.name||''),nif=String(vo.nif||'').toUpperCase().replace(/[^A-Z0-9]/g,''),ns=nameNifs.get(nk);
+    V.orgEntityKey.set(vo.id,/^[A-Z0-9][A-Z0-9]{7,8}$/.test(nif)?'nif:'+nif:(ns?.size===1?'nif:'+([...ns][0]):'name:'+nk));
   }
-
-  const sorter=(a,b)=>{
-    const ae=[...a.orgs.values()].filter(x=>x.org.category!=='grupo_tragsa').length;
-    const be=[...b.orgs.values()].filter(x=>x.org.category!=='grupo_tragsa').length;
-    return be-ae||a.name.localeCompare(b.name,'es');
-  };
-  V.sharedAll.sort(sorter);
-  V.sharedExternal.sort(sorter);
-  V.groupCross.sort(sorter);
-
-  for(const gid of GROUP_IDS){
-    V.groupPeople.set(gid,[...(V.orgPeople.get(gid)?.values()||[])].filter(p=>p.qualityOk));
+  // Make the entity map available before computing shared-person statistics.
+  S.verified=V;
+  for(const p of V.byPerson.values()){if(!p.qualityOk)continue;if(p.token){if(!V.byToken.has(p.token))V.byToken.set(p.token,[]);V.byToken.get(p.token).push(p)}}
+  for(const p of V.byPerson.values()){
+    if(!p.qualityOk)continue;const ents=aggregatePersonEntities(p),ext=[...ents.values()].filter(x=>!isGroupOrg(x.org));
+    if(ents.size>=2)V.sharedAll.push(p);if(ext.length>=2)V.sharedExact.push(p);
   }
-
-  const uniqueGood=[...V.byPerson.values()].filter(p=>p.qualityOk).length;
-  const groupUnique=new Set();
-  for(const gid of GROUP_IDS){
-    for(const p of V.groupPeople.get(gid)||[])groupUnique.add(p.key);
+  for(const[token,people]of V.byToken){
+    const keys=new Set(people.map(p=>p.key));if(keys.size<2)continue;const ents=new Map();for(const p of people)for(const e of aggregatePersonEntities(p).values())if(!isGroupOrg(e.org))ents.set(e.entity,e);
+    if(ents.size>=2)V.reordered.push({token,people,entities:[...ents.values()]});
   }
-
-  V.stats={
-    uniquePeople:uniqueGood,
-    sharedExternal:V.sharedExternal.length,
-    sharedAll:V.sharedAll.length,
-    groupCross:V.groupCross.length,
-    groupUnique:groupUnique.size,
-    organizationsWithPeople:[...V.orgPeople.values()].filter(m=>[...m.values()].some(p=>p.qualityOk)).length
-  };
-
+  const sortP=(a,b)=>externalEntitiesForPerson(b).length-externalEntitiesForPerson(a).length||a.name.localeCompare(b.name,'es');V.sharedExact.sort(sortP);V.sharedAll.sort(sortP);V.reordered.sort((a,b)=>b.entities.length-a.entities.length);
+  V.stats={uniquePeople:[...V.byPerson.values()].filter(p=>p.qualityOk).length,organizationsWithPeople:[...V.orgPeople.values()].filter(m=>[...m.values()].some(p=>p.qualityOk)).length,sharedExact:V.sharedExact.length,reordered:V.reordered.length};
   S.verified=V;
 }
-
-async function ensureVerified(){
-  if(S.verified)return S.verified;
-  await loadCollection('organizations_verified');
-  buildVerifiedIndex();
-  renderPeopleMetrics();
-  renderOrganizations();
-  return S.verified;
+function findVerifiedOrg(light){
+  if(!S.verified||!light)return null;let v=S.verified.byOrg.get(light.id);if(!v&&light.nif)v=S.verified.byNif.get(String(light.nif).toUpperCase().trim());return v||null;
 }
-
-function getOrgPeople(orgId,onlyGood=true){
-  if(!S.verified)return[];
-  const list=[...(S.verified.orgPeople.get(orgId)?.values()||[])];
-  return onlyGood?list.filter(p=>p.qualityOk):list;
+async function ensureVerified(){if(S.verified)return S.verified;await loadCollection('organizations_verified');buildVerifiedIndex();renderPeopleMetrics();renderOrganizations();return S.verified}
+function verifiedOrgPeople(orgId){if(!S.verified)return[];let m=S.verified.orgPeople.get(orgId);if(!m){const light=S.i.o.get(orgId),v=findVerifiedOrg(light);if(v)m=S.verified.orgPeople.get(v.id)}return[...(m?.values()||[])].filter(p=>p.qualityOk)}
+function verifiedPerson(key){return S.verified?.byPerson.get(personKey(key))||null}
+function aggregatePersonEntities(p){
+  const m=new Map();if(!p)return m;
+  for(const entry of p.orgs.values()){
+    const ekey=entityKey(entry.org)||entry.org.id;if(!m.has(ekey))m.set(ekey,{entity:ekey,org:entry.org,orgIds:new Set(),rows:[]});const e=m.get(ekey);e.orgIds.add(entry.org.id);e.rows.push(...entry.rows);
+    // Prefer a record with NIF as the representative.
+    if(!e.org.nif&&entry.org.nif)e.org=entry.org;
+  }
+  return m;
 }
+function externalEntitiesForPerson(p){return[...aggregatePersonEntities(p).values()].filter(x=>!isGroupOrg(x.org))}
+function otherEntitiesForPerson(p,currentOrgId){const cur=S.i.o.get(currentOrgId)||S.verified?.byOrg.get(currentOrgId),ck=entityKey(cur)||currentOrgId;return[...aggregatePersonEntities(p).values()].filter(x=>x.entity!==ck)}
 
-function personRecord(key){
-  return S.verified?.byPerson.get(personKey(key))||null;
+async function loadOfficialPeople(){
+  if(S.official.loaded)return S.official;if(S.official.loading)return S.official.loading;
+  S.official.loading=(async()=>{
+    status('Cargando conjunto oficial ampliado del Grupo Tragsa…');
+    const data=await fetchJSON(BASE+'tragsa_people_extended.json');if(data?.format!=='tragsascope-tragsa-people-v1'||!Array.isArray(data.people))throw Error('tragsa_people_extended.json tiene un formato no reconocido');
+    const O={loaded:true,loading:null,data,people:new Map(),byExact:new Map(),byToken:new Map(),categories:{tragsa:[],tragsatec:[],group:[]}};
+    for(const p of data.people){
+      const key=personKey(p.normalized_name||p.name),tk=tokenKey(p.normalized_name||p.name);if(!key||!personNameQuality(p.name).ok)continue;const x={...p,key,token:tk};O.people.set(p.id,x);O.byExact.set(key,x);if(tk){if(!O.byToken.has(tk))O.byToken.set(tk,[]);O.byToken.get(tk).push(x)}
+      const aff=arr(p.affiliations);if(aff.some(a=>a.company_id===TRAGSA_ID))O.categories.tragsa.push(x);if(aff.some(a=>a.company_id===TRAGSATEC_ID))O.categories.tragsatec.push(x);if(aff.some(a=>!a.company_id&&String(a.company||'').toUpperCase()===GROUP_GENERIC))O.categories.group.push(x);
+    }
+    for(const k of Object.keys(O.categories))O.categories[k].sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    S.official=O;if($('peopleMetrics'))renderPeopleMetrics();if($('orgtb'))renderOrganizations();return O;
+  })().catch(e=>{S.official.loading=null;throw e});
+  return S.official.loading;
 }
-
-function orgsForPerson(key){
-  const p=personRecord(key);
-  return p?[...p.orgs.values()]:[];
+function officialMatchesForVerified(p){
+  if(!S.official.loaded||!p)return[];const exact=S.official.byExact.get(p.key);if(exact)return[{level:'exact',person:exact}];if(!p.token)return[];
+  return arr(S.official.byToken.get(p.token)).filter(x=>x.key!==p.key).map(person=>({level:'reordered',person}));
 }
-
-function externalOrgsForPerson(key){
-  return orgsForPerson(key).filter(x=>x.org.category!=='grupo_tragsa');
+function externalMatchesForOfficial(op){
+  if(!S.verified||!op)return[];const exact=S.verified.byPerson.get(op.key);if(exact&&externalEntitiesForPerson(exact).length)return[{level:'exact',person:exact}];if(!op.token)return[];
+  return arr(S.verified.byToken.get(op.token)).filter(p=>p.key!==op.key&&externalEntitiesForPerson(p).length).map(person=>({level:'reordered',person}));
 }
-
-function groupOrgsForPerson(key){
-  return orgsForPerson(key).filter(x=>GROUP_IDS.has(x.org.id));
-}
-
-function otherOrgsForPerson(key,currentId){
-  return orgsForPerson(key).filter(x=>x.org.id!==currentId);
-}
-
-function orgSharedPeople(orgId){
-  return getOrgPeople(orgId).filter(p=>otherOrgsForPerson(p.key,orgId).length>0);
-}
-
-function orgGroupMatches(orgId){
-  if(GROUP_IDS.has(orgId))return[];
-  return getOrgPeople(orgId).filter(p=>groupOrgsForPerson(p.key).length>0);
-}
-
-function bestPersonDetailForOrg(person,orgId){
-  const entry=person.orgs?.get?.(orgId);
-  return entry?bestRow(entry.rows):null;
-}
+function matchBadge(level){return level==='exact'?'<span class="pill external">Nombre exacto</span>':'<span class="pill shared">Posible · orden distinto</span>'}
 
 async function load(){
+  bind();
   try{
-    const r=await fetch(BASE+'index.json',{cache:'force-cache'});
-    if(!r.ok)throw Error('index.json · HTTP '+r.status);
-
-    S.manifest=await r.json();
-
-    await Promise.all([
-      loadCollection('organizations'),
-      loadCollection('people')
-    ]);
-
-    bind();
-    metrics();
-    renderOrganizations();
-    method();
-
-    status(
-      `Listo. ${NUM.format(S.d.organizations.length)} organizaciones y `+
-      `${NUM.format(S.d.people.length)} registros people cargados. `+
-      `Pulsa «Cargar personas de las empresas» para analizar personas y coincidencias.`
-    );
-
+    status('Cargando manifiesto…');S.manifest=await fetchJSON(BASE+'index.json',{manifest:true});
+    // Organizations are the only critical startup dataset. Search becomes usable as soon as they load.
+    await loadCollection('organizations');metrics();renderOrganizations();method();
+    status(`Listo para buscar empresas: ${NUM.format(S.d.organizations.length)} organizaciones. Cargando índice BORME auxiliar…`);
+    try{await loadCollection('people')}catch(e){console.warn(e);S.errors.push('people: '+e.message)}
+    reindex();renderOrganizations();
+    status(`Listo. ${NUM.format(S.d.organizations.length)} organizaciones disponibles. Personas de empresas y Grupo Tragsa se cargan al solicitarlas.`);
     hash();
-  }catch(e){
-    console.error(e);
-    status('Error cargando TragsaScope: '+e.message,true);
-  }
+  }catch(e){console.error(e);status('Error crítico: '+e.message,true)}
 }
 
 function bind(){
-  document.querySelectorAll('[data-go]').forEach(
-    b=>b.onclick=()=>$(b.dataset.go)?.scrollIntoView({behavior:'smooth'})
-  );
-
-  $('theme').onclick=()=>{
-    document.documentElement.dataset.theme=
-      document.documentElement.dataset.theme==='light'?'dark':'light';
-  };
-
-  $('clear').onclick=()=>{
-    $('q').value='';
-    $('sres').classList.add('hide');
-  };
-
-  $('q').oninput=deb(search);
-
-  $('verifiedSearchBtn').onclick=async()=>{
-    await ensureVerified();
-    search();
-    $('verifiedSearchBtn').textContent='Personas cargadas';
-    $('verifiedSearchBtn').classList.add('success');
-  };
-
-  $('loadPeopleBtn').onclick=async()=>{
-    await ensureVerified();
-    $('loadPeopleBtn').textContent='Personas cargadas';
-    $('loadPeopleBtn').classList.add('success');
-  };
-
-  $('orgq').oninput=deb(renderOrganizations);
-  $('orgmode').onchange=async()=>{
-    if(['with_people','shared','group_match'].includes($('orgmode').value)){
-      await ensureVerified();
-    }
-    renderOrganizations();
-  };
-
-  $('loadSharedBtn').onclick=async()=>{
-    await ensureVerified();
-    $('sharedTools').classList.remove('hide');
-    renderSharedPeople();
-    $('loadSharedBtn').textContent='Coincidencias calculadas';
-    $('loadSharedBtn').classList.add('success');
-  };
-
-  for(const id of['sharedq','sharedMode','sharedConfidence','sharedLimit']){
-    $(id).addEventListener(id==='sharedq'?'input':'change',deb(renderSharedPeople));
-  }
-
-  $('loadGroupBtn').onclick=async()=>{
-    await ensureVerified();
-    $('groupTools').classList.remove('hide');
-    renderGroupPeople();
-    $('loadGroupBtn').textContent='Personas del Grupo cargadas';
-    $('loadGroupBtn').classList.add('success');
-  };
-
-  for(const id of['groupq','groupMode','groupCompany']){
-    $(id).addEventListener(id==='groupq'?'input':'change',deb(renderGroupPeople));
-  }
-
-  $('loadContractsBtn').onclick=async()=>{
-    await loadCollection('contracts');
-    $('contractTools').classList.remove('hide');
-    renderContracts();
-    await renderChart();
-  };
-
-  for(const id of['cq','cwho','cy1','cy2','cmin']){
-    $(id).addEventListener(id==='cq'?'input':'change',deb(renderContracts));
-  }
-
-  $('contractsCsv').onclick=async()=>{
-    if(!S.loaded.has('contracts'))await loadCollection('contracts');
-    downloadContractsCsv(filteredContracts());
-  };
-
-  $('loadBormeBtn').onclick=async()=>{
-    await loadCollection('societary_events');
-    $('bormeTools').classList.remove('hide');
-    renderEvents();
-  };
-
-  for(const id of['eq','etype','ed1','ed2']){
-    $(id).addEventListener(
-      id==='eq'?'input':'change',
-      deb(()=>{if(S.loaded.has('societary_events'))renderEvents()})
-    );
-  }
-
-  $('dclose').onclick=closeDrawer;
-  $('back').onclick=closeDrawer;
-
-  document.addEventListener('click',e=>{
-    if(!e.target.closest('.searchArea'))$('sres').classList.add('hide');
-  });
-
-  window.onhashchange=hash;
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>$(b.dataset.go)?.scrollIntoView({behavior:'smooth'}));
+  $('theme').onclick=()=>document.documentElement.dataset.theme=document.documentElement.dataset.theme==='light'?'dark':'light';
+  $('clear').onclick=()=>{$('q').value='';$('sres').classList.add('hide')};$('q').oninput=deb(search);
+  $('verifiedSearchBtn').onclick=()=>runUI(async()=>{await ensureVerified();await loadOfficialPeople();search();$('verifiedSearchBtn').textContent='Personas cargadas'});
+  $('loadPeopleBtn').onclick=()=>runUI(async()=>{await ensureVerified();$('loadPeopleBtn').textContent='Personas cargadas'});
+  $('orgq').oninput=deb(renderOrganizations);$('orgmode').onchange=()=>runUI(async()=>{const m=$('orgmode').value;if(['with_people','shared','group_match'].includes(m))await ensureVerified();if(m==='group_match')await loadOfficialPeople();renderOrganizations()});
+  $('loadSharedBtn').onclick=()=>runUI(async()=>{await ensureVerified();if($('sharedMode').value==='group_cross')await loadOfficialPeople();$('sharedTools').classList.remove('hide');renderSharedPeople();$('loadSharedBtn').textContent='Coincidencias calculadas'});
+  for(const id of['sharedq','sharedConfidence','sharedLimit'])$(id).addEventListener(id==='sharedq'?'input':'change',deb(renderSharedPeople));
+  $('sharedMode').onchange=()=>runUI(async()=>{if($('sharedMode').value==='group_cross')await loadOfficialPeople();renderSharedPeople()});
+  $('loadGroupBtn').onclick=()=>runUI(async()=>{await ensureVerified();await loadOfficialPeople();$('groupTools').classList.remove('hide');renderGroupPeople();$('loadGroupBtn').textContent='Personas oficiales cargadas'});
+  for(const id of['groupq','groupMode','groupCompany'])$(id).addEventListener(id==='groupq'?'input':'change',deb(renderGroupPeople));
+  $('loadContractsBtn').onclick=()=>runUI(async()=>{await loadCollection('contracts');$('contractTools').classList.remove('hide');renderContracts();renderContractBars()});
+  for(const id of['cq','cwho','cy1','cy2','cmin'])$(id).addEventListener(id==='cq'?'input':'change',deb(()=>{renderContracts();renderContractBars()}));
+  $('contractsCsv').onclick=()=>runUI(async()=>{if(!S.loaded.has('contracts'))await loadCollection('contracts');downloadContractsCsv(filteredContracts())});
+  $('loadBormeBtn').onclick=()=>runUI(async()=>{await loadCollection('societary_events');$('bormeTools').classList.remove('hide');renderEvents()});
+  for(const id of['eq','etype','ed1','ed2'])$(id).addEventListener(id==='eq'?'input':'change',deb(()=>{if(S.loaded.has('societary_events'))renderEvents()}));
+  $('dclose').onclick=closeDrawer;$('back').onclick=closeDrawer;document.addEventListener('click',e=>{if(!e.target.closest('.searchArea'))$('sres').classList.add('hide')});window.onhashchange=hash;
 }
+async function runUI(fn){try{await fn()}catch(e){console.error(e);status('Error: '+e.message,true)}}
 
 function metrics(){
-  const s=obj(S.manifest?.statistics);
-  const v=collectionInfo('organizations_verified');
-
-  const a=[
-    ['Contratos',s.contracts||declared('contracts')],
-    ['Organizaciones',s.organizations||declared('organizations')],
-    ['Registros people',s.people||declared('people')],
-    ['Relaciones',s.relationships||declared('relationships')],
-    ['Eventos BORME',s.borme_events||declared('societary_events')],
-    ['Intervalos de cargos',s.role_intervals||declared('role_intervals')],
-    ['Importe conocido',money(s.total_awarded_ex_vat_known)],
-    ['Capa de personas',v.total_items?`${NUM.format(v.total_items)} organizaciones`:'No declarada']
-  ];
-
-  $('metrics').innerHTML=a.map(([l,v])=>
-    `<div class="metric"><small>${esc(l)}</small><strong>${typeof v==='number'?NUM.format(v):esc(v)}</strong></div>`
-  ).join('');
+  const s=obj(S.manifest?.statistics),v=collectionInfo('organizations_verified');const a=[['Contratos',s.contracts||declared('contracts')],['Organizaciones',s.organizations||declared('organizations')],['Registros people',s.people||declared('people')],['Relaciones',s.relationships||declared('relationships')],['Eventos BORME',s.borme_events||declared('societary_events')],['Intervalos de cargos',s.role_intervals||declared('role_intervals')],['Importe conocido',money(s.total_awarded_ex_vat_known)],['Capa de personas',v.total_items?`${NUM.format(v.total_items)} organizaciones`:'No declarada']];
+  $('metrics').innerHTML=a.map(([l,v])=>`<div class="metric"><small>${esc(l)}</small><strong>${typeof v==='number'?NUM.format(v):esc(v)}</strong></div>`).join('');
 }
-
-function renderPeopleMetrics(){
-  if(!S.verified)return;
-  const st=S.verified.stats;
-  const a=[
-    ['Personas únicas utilizables',st.uniquePeople],
-    ['Empresas con personas',st.organizationsWithPeople],
-    ['Personas en ≥2 adjudicatarias',st.sharedExternal],
-    ['TRAGSA/TRAGSATEC ↔ adjudicataria',st.groupCross]
-  ];
-
-  $('peopleMetrics').innerHTML=a.map(([l,v])=>
-    `<div class="metric"><small>${esc(l)}</small><strong>${NUM.format(v)}</strong></div>`
-  ).join('');
-}
+function computeOfficialCrossCount(){if(!S.verified||!S.official.loaded)return null;let n=0;for(const p of S.verified.byPerson.values())if(p.qualityOk&&externalEntitiesForPerson(p).length&&officialMatchesForVerified(p).length)n++;return n}
+function renderPeopleMetrics(){if(!S.verified)return;const cross=computeOfficialCrossCount(),a=[['Personas únicas utilizables',S.verified.stats.uniquePeople],['Empresas con personas',S.verified.stats.organizationsWithPeople],['Personas exactas en ≥2 adjudicatarias',S.verified.stats.sharedExact],['Cruces con Grupo Tragsa',cross==null?'—':cross]];$('peopleMetrics').innerHTML=a.map(([l,v])=>`<div class="metric"><small>${esc(l)}</small><strong>${typeof v==='number'?NUM.format(v):esc(v)}</strong></div>`).join('')}
 
 function search(){
-  const q=norm($('q').value);
-  if(q.length<2){
-    $('sres').classList.add('hide');
-    return;
-  }
-
-  const tok=q.split(' ').filter(Boolean);
-  const groups={organization:[],person:[],contract:[],verified:[]};
-
-  for(const x of S.i.search){
-    if(tok.every(t=>x.x.includes(t)))groups[x.k]?.push(x);
-    if(Object.values(groups).reduce((s,a)=>s+a.length,0)>90)break;
-  }
-
-  if(S.verified){
-    for(const p of S.verified.byPerson.values()){
-      if(!p.qualityOk)continue;
-      const orgNames=[...p.orgs.values()].map(x=>x.org.name||x.org.legal_name);
-      const text=norm([p.name,...orgNames].join(' '));
-      if(tok.every(t=>text.includes(t))){
-        groups.verified.push({
-          k:'verified',
-          id:p.key,
-          t:p.name,
-          s:`${p.orgs.size} organización${p.orgs.size===1?'':'es'}`,
-          x:text
-        });
-      }
-      if(groups.verified.length>=30)break;
-    }
-  }
-
-  const names={
-    organization:'Organizaciones',
-    person:'Personas de people',
-    contract:'Contratos',
-    verified:'Personas por empresa'
-  };
-
-  let h='';
-
-  for(const [k,a] of Object.entries(groups)){
-    if(!a.length)continue;
-    h+=`<div class="sg">${names[k]}</div>`+
-      a.slice(0,12).map(x=>
-        `<button class="sug" data-k="${x.k}" data-id="${esc(x.id)}">
-          <span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span>
-          <span class="badge">${esc(names[k])}</span>
-        </button>`
-      ).join('');
-  }
-
-  if(!S.verified){
-    h+=`<div class="sg">Personas por empresa</div>
-      <button id="searchVerified" class="sug">
-        <span><b>Buscar “${esc($('q').value)}” entre las personas de las empresas</b>
-        <small>Carga organizations_verified solo ahora.</small></span>
-        <span class="badge">Personas</span>
-      </button>`;
-  }
-
-  if(!S.loaded.has('contracts')){
-    h+=`<div class="sg">Contratos</div>
-      <button id="searchContracts" class="sug">
-        <span><b>Buscar “${esc($('q').value)}” en todos los contratos</b>
-        <small>Descarga los fragmentos de contratos solo ahora.</small></span>
-        <span class="badge">Contratos</span>
-      </button>`;
-  }
-
-  $('sres').innerHTML=h||'<div class="status">Sin resultados.</div>';
-  $('sres').classList.remove('hide');
-
-  $('sres').querySelectorAll('[data-k]').forEach(
-    b=>b.onclick=()=>openResult(b.dataset.k,b.dataset.id)
-  );
-
-  if($('searchVerified')){
-    $('searchVerified').onclick=async()=>{await ensureVerified();search()};
-  }
-  if($('searchContracts')){
-    $('searchContracts').onclick=async()=>{await loadCollection('contracts');search()};
-  }
+  const q=norm($('q').value);if(q.length<2){$('sres').classList.add('hide');return}const tok=q.split(' ').filter(Boolean),groups={organization:[],verified:[],official:[],person:[],contract:[]};
+  for(const x of S.i.search||[]){if(tok.every(t=>x.x.includes(t)))groups[x.k]?.push(x);if(Object.values(groups).reduce((s,a)=>s+a.length,0)>100)break}
+  if(S.verified)for(const p of S.verified.byPerson.values()){if(!p.qualityOk)continue;const names=[...aggregatePersonEntities(p).values()].map(x=>x.org.name||x.org.legal_name);const x=norm([p.name,...names].join(' '));if(tok.every(t=>x.includes(t)))groups.verified.push({k:'verified',id:p.key,t:p.name,s:`${aggregatePersonEntities(p).size} organización${aggregatePersonEntities(p).size===1?'':'es'}`});if(groups.verified.length>=30)break}
+  if(S.official.loaded)for(const op of S.official.people.values()){const x=norm([op.name,...arr(op.affiliations).map(a=>a.role),...arr(op.affiliations).map(a=>a.company)].join(' '));if(tok.every(t=>x.includes(t)))groups.official.push({k:'official',id:op.id,t:op.name,s:'Fuente oficial Grupo Tragsa'});if(groups.official.length>=25)break}
+  const label={organization:'Empresas y organizaciones',verified:'Personas de empresas',official:'Personas oficiales Grupo Tragsa',person:'Registros BORME',contract:'Contratos'};let h='';
+  for(const k of['organization','verified','official','contract','person'])if(groups[k].length)h+=`<div class="sg">${label[k]}</div>`+groups[k].slice(0,12).map(x=>`<button class="sug" data-k="${x.k}" data-id="${esc(x.id)}"><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span><span class="badge">${label[k]}</span></button>`).join('');
+  if(!S.verified)h+=`<div class="sg">Personas de empresas</div><button id="searchVerified" class="sug"><span><b>Buscar “${esc($('q').value)}” entre personas de las empresas</b><small>Cargar la capa verificada.</small></span><span class="badge">Cargar</span></button>`;
+  if(!S.official.loaded)h+=`<div class="sg">Grupo Tragsa</div><button id="searchOfficial" class="sug"><span><b>Buscar “${esc($('q').value)}” entre las personas oficiales del Grupo Tragsa</b><small>Cargar tragsa_people_extended.json.</small></span><span class="badge">Cargar</span></button>`;
+  if(!S.loaded.has('contracts'))h+=`<div class="sg">Contratos</div><button id="searchContracts" class="sug"><span><b>Buscar “${esc($('q').value)}” en contratos</b><small>Cargar los fragmentos de contratos.</small></span><span class="badge">Cargar</span></button>`;
+  $('sres').innerHTML=h||'<div class="status">Sin resultados.</div>';$('sres').classList.remove('hide');$('sres').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>openResult(b.dataset.k,b.dataset.id));
+  if($('searchVerified'))$('searchVerified').onclick=()=>runUI(async()=>{await ensureVerified();search()});if($('searchOfficial'))$('searchOfficial').onclick=()=>runUI(async()=>{await loadOfficialPeople();search()});if($('searchContracts'))$('searchContracts').onclick=()=>runUI(async()=>{await loadCollection('contracts');search()});
 }
+async function openResult(k,id){$('sres').classList.add('hide');if(k==='organization')openOrg(id);else if(k==='verified')openVerifiedPerson(id);else if(k==='official')openOfficialPerson(id);else if(k==='person')openBasicPerson(id);else if(k==='contract')openContract(id)}
 
-async function openResult(k,id){
-  $('sres').classList.add('hide');
-
-  if(k==='organization')openOrg(id);
-  else if(k==='person')openBasicPerson(id);
-  else if(k==='contract')openContract(id);
-  else if(k==='verified')openVerifiedPerson(id);
+function orgStats(id){
+  if(!S.verified)return{people:0,shared:0,group:0};const people=verifiedOrgPeople(id);let group=0;if(S.official.loaded)for(const p of people)if(officialMatchesForVerified(verifiedPerson(p.key)).length)group++;
+  const shared=people.filter(p=>otherEntitiesForPerson(verifiedPerson(p.key),id).some(e=>!isGroupOrg(e.org))).length;return{people:people.length,shared,group};
 }
-
-function orgPersonStats(orgId){
-  if(!S.verified)return{people:0,shared:0,group:0};
-  const people=getOrgPeople(orgId);
-  return{
-    people:people.length,
-    shared:people.filter(p=>otherOrgsForPerson(p.key,orgId).length>0).length,
-    group:GROUP_IDS.has(orgId)?0:people.filter(p=>groupOrgsForPerson(p.key).length>0).length
-  };
-}
-
-function personPreviewForOrg(orgId){
-  if(!S.verified)return'';
-  return getOrgPeople(orgId).slice(0,3).map(
-    p=>`<span class="pill" title="${esc(p.name)}">${esc(p.name)}</span>`
-  ).join('');
-}
-
+function previewForOrg(id){const a=S.verified?verifiedOrgPeople(id).slice(0,3).map(p=>p.name):arr(S.i.o.get(id)?.linked_people).slice(0,3).map(cleanPersonName);return a.map(n=>`<span class="pill" title="${esc(n)}">${esc(n)}</span>`).join('')}
 function renderOrganizations(){
-  const q=norm($('orgq')?.value||'');
-  const mode=$('orgmode')?.value||'all';
-
-  let rows=S.d.organizations.filter(o=>{
-    const lightPeople=arr(o.linked_people);
-
-    if(mode==='tragsa'&&!GROUP_IDS.has(o.id))return false;
-
-    if(mode==='with_people'){
-      if(!S.verified||orgPersonStats(o.id).people===0)return false;
-    }
-
-    if(mode==='shared'){
-      if(!S.verified||orgPersonStats(o.id).shared===0)return false;
-    }
-
-    if(mode==='group_match'){
-      if(!S.verified||orgPersonStats(o.id).group===0)return false;
-    }
-
-    if(q){
-      const verifiedNames=S.verified?getOrgPeople(o.id).map(p=>p.name):[];
-      if(!norm([o.name,o.legal_name,o.nif,...lightPeople,...verifiedNames].join(' ')).includes(q))return false;
-    }
-
-    return true;
-  });
-
-  const total=rows.length;
-  const a=rows.slice(0,350);
-
-  $('orgtb').innerHTML=a.map(o=>{
-    const st=orgPersonStats(o.id);
-    const preview=personPreviewForOrg(o.id);
-
-    return `<tr data-org="${esc(o.id)}">
-      <td>
-        <b>${esc(o.name||o.legal_name||'')}</b>
-        <div class="mini">${esc(o.category||'')}</div>
-      </td>
-      <td>${esc(o.nif||'No disponible')}</td>
-      <td>
-        ${S.verified?`<b>${NUM.format(st.people)}</b><div class="preview">${preview}</div>`:
-          `<span class="mini">${NUM.format(arr(o.linked_people).length)} en índice ligero<br>abre la empresa para cargar detalle</span>`}
-      </td>
-      <td>
-        ${S.verified
-          ?(st.shared?`<span class="pill shared">${NUM.format(st.shared)} persona${st.shared===1?'':'s'}</span>`:'—')
-          :'—'}
-      </td>
-      <td>
-        ${GROUP_IDS.has(o.id)
-          ?'<span class="pill group">Grupo Tragsa</span>'
-          :(S.verified&&st.group
-            ?`<span class="pill group">${NUM.format(st.group)} coincidencia${st.group===1?'':'s'}</span>`
-            :'—')}
-      </td>
-    </tr>`;
-  }).join('');
-
-  $('orgmob').innerHTML=a.map(o=>{
-    const st=orgPersonStats(o.id);
-    return `<div class="vcard" data-org="${esc(o.id)}">
-      <b>${esc(o.name||o.legal_name||'')}</b>
-      <div class="mini">${esc(o.nif||'NIF no disponible')}</div>
-      <div class="preview" style="margin-top:8px">
-        ${S.verified?`<span class="pill">${st.people} personas</span>`:`<span class="pill">abrir personas</span>`}
-        ${S.verified&&st.shared?`<span class="pill shared">${st.shared} compartidas</span>`:''}
-        ${S.verified&&st.group?`<span class="pill group">${st.group} con Grupo</span>`:''}
-      </div>
-    </div>`;
-  }).join('');
-
-  $('orgInfo').textContent=
-    `Mostrando ${NUM.format(a.length)} de ${NUM.format(total)} resultados `+
-    `(${NUM.format(S.d.organizations.length)} organizaciones totales).`;
-
-  document.querySelectorAll('[data-org]').forEach(
-    x=>x.onclick=()=>openOrg(x.dataset.org,'personas')
-  );
+  const q=norm($('orgq')?.value||''),mode=$('orgmode')?.value||'all';let rows=S.d.organizations.filter(o=>{
+    const st=orgStats(o.id);if(mode==='tragsa'&&!GROUP_IDS.has(o.id))return false;if(mode==='with_people'&&(!S.verified||!st.people))return false;if(mode==='shared'&&(!S.verified||!st.shared))return false;if(mode==='group_match'&&(!S.official.loaded||!st.group))return false;
+    if(q){const pn=S.verified?verifiedOrgPeople(o.id).map(p=>p.name):arr(o.linked_people);if(!norm([o.name,o.legal_name,o.nif,...pn].join(' ')).includes(q))return false}return true});
+  const total=rows.length,a=rows.slice(0,350);$('orgtb').innerHTML=a.map(o=>{const st=orgStats(o.id);return`<tr data-org="${esc(o.id)}"><td><b>${esc(o.name||o.legal_name||'')}</b><div class="mini">${esc(o.category||'')}</div></td><td>${esc(o.nif||'No disponible')}</td><td>${S.verified?`<b>${st.people}</b><div class="preview">${previewForOrg(o.id)}</div>`:`<span class="mini">${arr(o.linked_people).length} en índice ligero</span>`}</td><td>${S.verified&&st.shared?`<span class="pill shared">${st.shared}</span>`:'—'}</td><td>${GROUP_IDS.has(o.id)?'<span class="pill group">Grupo Tragsa</span>':S.official.loaded&&st.group?`<span class="pill group">${st.group}</span>`:'—'}</td></tr>`}).join('');
+  $('orgmob').innerHTML=a.map(o=>{const st=orgStats(o.id);return`<div class="vcard" data-org="${esc(o.id)}"><b>${esc(o.name||o.legal_name||'')}</b><div class="mini">${esc(o.nif||'NIF no disponible')}</div><div class="preview">${S.verified?`<span class="pill">${st.people} personas</span>`:'<span class="pill">abrir personas</span>'}${S.verified&&st.shared?`<span class="pill shared">${st.shared} compartidas</span>`:''}${S.official.loaded&&st.group?`<span class="pill group">${st.group} con Grupo</span>`:''}</div></div>`}).join('');
+  $('orgInfo').textContent=`Mostrando ${NUM.format(a.length)} de ${NUM.format(total)} resultados (${NUM.format(S.d.organizations.length)} organizaciones totales).`;$('orgtb').querySelectorAll('[data-org]').forEach(x=>x.onclick=()=>openOrg(x.dataset.org,'personas'));$('orgmob').querySelectorAll('[data-org]').forEach(x=>x.onclick=()=>openOrg(x.dataset.org,'personas'));
 }
 
 function sharedRows(){
-  if(!S.verified)return[];
-
-  const mode=$('sharedMode')?.value||'external';
-  const conf=$('sharedConfidence')?.value||'all';
-  const q=norm($('sharedq')?.value||'');
-
-  let rows=
-    mode==='group_cross'
-      ?S.verified.groupCross
-      :mode==='all'
-        ?S.verified.sharedAll
-        :S.verified.sharedExternal;
-
-  return rows.filter(p=>{
-    if(q&&!norm(p.name).includes(q))return false;
-
-    if(conf==='high'){
-      const qualifying=[...p.orgs.values()].filter(entry=>
-        entry.rows.some(r=>norm(r.detail.confidence)==='high')
-      );
-
-      if(mode==='external'){
-        if(qualifying.filter(x=>x.org.category!=='grupo_tragsa').length<2)return false;
-      }else if(mode==='group_cross'){
-        const g=qualifying.some(x=>GROUP_IDS.has(x.org.id));
-        const e=qualifying.some(x=>x.org.category!=='grupo_tragsa');
-        if(!g||!e)return false;
-      }else{
-        if(qualifying.length<2)return false;
-      }
-    }
-
-    return true;
-  });
+  if(!S.verified)return[];const mode=$('sharedMode')?.value||'external',q=norm($('sharedq')?.value||''),high=$('sharedConfidence')?.value==='high';
+  if(mode==='reordered')return S.verified.reordered.filter(g=>!q||g.people.some(p=>norm(p.name).includes(q))).filter(g=>!high||g.people.every(p=>[...p.orgs.values()].some(e=>e.rows.some(r=>norm(r.detail.confidence)==='high'))));
+  if(mode==='group_cross'){
+    if(!S.official.loaded)return[];const out=[];for(const p of S.verified.byPerson.values()){if(!p.qualityOk||!externalEntitiesForPerson(p).length)continue;const ms=officialMatchesForVerified(p);if(!ms.length)continue;if(q&&!norm(p.name).includes(q))continue;if(high&&![...p.orgs.values()].some(e=>e.rows.some(r=>norm(r.detail.confidence)==='high')))continue;out.push({person:p,matches:ms})}return out.sort((a,b)=>externalEntitiesForPerson(b.person).length-externalEntitiesForPerson(a.person).length);
+  }
+  const base=mode==='all'?S.verified.sharedAll:S.verified.sharedExact;return base.filter(p=>!q||norm(p.name).includes(q)).filter(p=>!high||[...p.orgs.values()].filter(e=>!isGroupOrg(e.org)).some(e=>e.rows.some(r=>norm(r.detail.confidence)==='high')));
 }
-
 function renderSharedPeople(){
-  if(!S.verified)return;
-
-  const rows=sharedRows();
-  const limit=Number($('sharedLimit')?.value||150);
-  const a=rows.slice(0,limit);
-
-  const companies=new Set();
-  for(const p of rows){
-    for(const e of p.orgs.values()){
-      if(e.org.category!=='grupo_tragsa')companies.add(e.org.id);
-    }
-  }
-
-  $('sharedSummary').innerHTML=[
-    ['Personas',rows.length],
-    ['Adjudicatarias implicadas',companies.size],
-    ['Cruces Grupo ↔ adjudicataria',S.verified.stats.groupCross],
-    ['Personas en ≥2 adjudicatarias',S.verified.stats.sharedExternal]
-  ].map(([l,v])=>
-    `<div class="metric"><small>${esc(l)}</small><strong>${NUM.format(v)}</strong></div>`
-  ).join('');
-
-  $('sharedList').innerHTML=
-    `<div class="status">${NUM.format(rows.length)} personas cumplen el filtro. Se muestran ${NUM.format(a.length)}.</div>`+
-    a.map(p=>sharedPersonCard(p)).join('');
-
-  $('sharedList').querySelectorAll('[data-person]').forEach(
-    b=>b.onclick=()=>openVerifiedPerson(b.dataset.person)
-  );
+  if(!S.verified)return;const mode=$('sharedMode').value,rows=sharedRows(),limit=Number($('sharedLimit').value||150),a=rows.slice(0,limit);$('sharedSummary').innerHTML=[['Resultados',rows.length],['Exactas en ≥2 adjudicatarias',S.verified.stats.sharedExact],['Posibles por orden',S.verified.stats.reordered],['Cruces Grupo',computeOfficialCrossCount()??'—']].map(([l,v])=>`<div class="metric"><small>${esc(l)}</small><strong>${typeof v==='number'?NUM.format(v):esc(v)}</strong></div>`).join('');
+  let cards='';if(mode==='reordered')cards=a.map(g=>`<div class="personCard sharedCard"><div class="personTop"><div><div class="personName">${esc(g.people.map(p=>p.name).join(' ↔ '))}</div><div class="personMeta">Mismos componentes del nombre en distinto orden · ${g.entities.length} empresas</div></div><div class="personBadges"><span class="pill shared">POSIBLE</span></div></div><div class="preview">${g.entities.slice(0,6).map(e=>`<span class="pill external">${esc(e.org.name||e.org.legal_name||'')}</span>`).join('')}</div></div>`).join('');
+  else if(mode==='group_cross')cards=a.map(x=>sharedCard(x.person,x.matches)).join('');else cards=a.map(p=>sharedCard(p,[])).join('');
+  $('sharedList').innerHTML=`<div class="status">${NUM.format(rows.length)} resultados. Se muestran ${NUM.format(a.length)}.</div>`+cards;$('sharedList').querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openVerifiedPerson(b.dataset.person));
 }
+function sharedCard(p,matches){const ext=externalEntitiesForPerson(p);return`<div class="personCard sharedCard"><div class="personTop"><div><div class="personName">${esc(p.name)}</div><div class="personMeta">${ext.length} adjudicataria${ext.length===1?'':'s'}</div></div><div class="personBadges">${matches.map(m=>matchBadge(m.level)).join('')}<button class="btn" data-person="${esc(p.key)}">Ver recorrido</button></div></div><div class="preview">${ext.slice(0,6).map(e=>`<span class="pill external">${esc(e.org.name||e.org.legal_name||'')}</span>`).join('')}</div></div>`}
 
-function sharedPersonCard(p){
-  const entries=[...p.orgs.values()];
-  const external=entries.filter(x=>x.org.category!=='grupo_tragsa');
-  const group=entries.filter(x=>GROUP_IDS.has(x.org.id));
-
-  return `<div class="personCard sharedCard">
-    <div class="personTop">
-      <div>
-        <div class="personName">${esc(p.name)}</div>
-        <div class="personMeta">
-          ${NUM.format(external.length)} adjudicataria${external.length===1?'':'s'}
-          ${group.length?` · también en ${esc(group.map(x=>x.org.name).join(' / '))}`:''}
-        </div>
-      </div>
-      <div class="personBadges">
-        ${external.length>=2?`<span class="pill shared">${external.length} empresas</span>`:''}
-        ${group.length?'<span class="pill group">Grupo Tragsa</span>':''}
-        <button class="btn" data-person="${esc(p.key)}">Ver recorrido</button>
-      </div>
-    </div>
-    <div class="preview">
-      ${entries.slice(0,6).map(x=>
-        `<span class="pill ${x.org.category==='grupo_tragsa'?'group':'external'}">${esc(x.org.name||x.org.legal_name||'')}</span>`
-      ).join('')}
-      ${entries.length>6?`<span class="pill">+${entries.length-6}</span>`:''}
-    </div>
-  </div>`;
-}
-
-function groupPeopleFor(gid){
-  if(!S.verified)return[];
-
-  const q=norm($('groupq')?.value||'');
-  const mode=$('groupMode')?.value||'all';
-
-  return (S.verified.groupPeople.get(gid)||[]).filter(p=>{
-    const best=bestRow(p.rows);
-    const search=norm([p.name,best?.detail?.role].join(' '));
-    if(q&&!search.includes(q))return false;
-    if(mode==='external'&&externalOrgsForPerson(p.key).length===0)return false;
-    return true;
-  }).sort((a,b)=>{
-    const ax=externalOrgsForPerson(a.key).length;
-    const bx=externalOrgsForPerson(b.key).length;
-    return bx-ax||a.name.localeCompare(b.name,'es');
-  });
-}
-
+function officialPeopleByCategory(cat){return arr(S.official.categories?.[cat])}
 function renderGroupPeople(){
-  if(!S.verified)return;
-
-  const sel=$('groupCompany')?.value||'both';
-
-  const tragsa=sel===TRAGSATEC_ID?[]:groupPeopleFor(TRAGSA_ID);
-  const ttec=sel===TRAGSA_ID?[]:groupPeopleFor(TRAGSATEC_ID);
-
-  const union=new Map();
-  for(const p of [...tragsa,...ttec])union.set(p.key,p);
-
-  const cross=[...union.values()].filter(p=>externalOrgsForPerson(p.key).length>0);
-
-  $('groupMetrics').innerHTML=[
-    ['Personas mostradas',union.size],
-    ['También en adjudicatarias',cross.length],
-    ['TRAGSA',tragsa.length],
-    ['TRAGSATEC',ttec.length]
-  ].map(([l,v])=>
-    `<div class="metric"><small>${esc(l)}</small><strong>${NUM.format(v)}</strong></div>`
-  ).join('');
-
-  renderGroupPanel('tragsaPeople',TRAGSA_ID,tragsa);
-  renderGroupPanel('tragsatecPeople',TRAGSATEC_ID,ttec);
+  if(!S.official.loaded)return;const q=norm($('groupq')?.value||''),mode=$('groupMode')?.value||'all',sel=$('groupCompany')?.value||'all';
+  function filt(a){return a.filter(op=>{if(q&&!norm([op.name,...arr(op.affiliations).map(x=>x.role)].join(' ')).includes(q))return false;if(mode==='external'&&!externalMatchesForOfficial(op).length)return false;return true})}
+  const tragsa=sel==='all'||sel===TRAGSA_ID?filt(officialPeopleByCategory('tragsa')):[],ttec=sel==='all'||sel===TRAGSATEC_ID?filt(officialPeopleByCategory('tragsatec')):[],group=sel==='all'||sel===GROUP_GENERIC?filt(officialPeopleByCategory('group')):[];const union=new Map;for(const p of[...tragsa,...ttec,...group])union.set(p.id,p);const cross=[...union.values()].filter(p=>externalMatchesForOfficial(p).length);
+  $('groupMetrics').innerHTML=[['Personas mostradas',union.size],['Con coincidencia externa',cross.length],['TRAGSA',tragsa.length],['TRAGSATEC',ttec.length],['Grupo sin sociedad individualizada',group.length]].map(([l,v])=>`<div class="metric"><small>${esc(l)}</small><strong>${NUM.format(v)}</strong></div>`).join('');renderGroupPanel('tragsaPeople',tragsa);renderGroupPanel('tragsatecPeople',ttec);renderGroupPanel('groupAllPeople',group);renderPeopleMetrics();renderOrganizations();
 }
+function renderGroupPanel(id,people){const el=$(id);el.innerHTML=people.length?people.slice(0,300).map(officialCard).join(''):'<div class="status">No hay personas que cumplan el filtro.</div>';el.querySelectorAll('[data-official]').forEach(b=>b.onclick=()=>openOfficialPerson(b.dataset.official))}
+function officialCard(op){const m=externalMatchesForOfficial(op),a=bestOfficialAffiliation(op);return`<div class="personCard groupCard"><div class="personTop"><div><div class="personName">${esc(op.name)}</div><div class="personMeta">${esc(a?.role||'Vínculo oficial')} · ${fdate(a?.observed_at)}</div></div><div class="personBadges">${m.length?m.map(x=>matchBadge(x.level)).join(''):'<span class="pill">Sin coincidencia externa</span>'}<button class="btn" data-official="${esc(op.id)}">Ver</button></div></div></div>`}
+function bestOfficialAffiliation(op){return[...arr(op?.affiliations)].sort((a,b)=>String(b.observed_at||'').localeCompare(String(a.observed_at||'')))[0]||null}
 
-function renderGroupPanel(containerId,gid,people){
-  const el=$(containerId);
-
-  if(($('groupCompany')?.value===TRAGSA_ID&&gid===TRAGSATEC_ID)||
-     ($('groupCompany')?.value===TRAGSATEC_ID&&gid===TRAGSA_ID)){
-    el.innerHTML='<div class="status">Oculto por el filtro de sociedad.</div>';
-    return;
-  }
-
-  el.innerHTML=people.length
-    ?people.map(p=>groupPersonCard(p,gid)).join('')
-    :'<div class="status">No hay personas que cumplan el filtro.</div>';
-
-  el.querySelectorAll('[data-person]').forEach(
-    b=>b.onclick=()=>openVerifiedPerson(b.dataset.person)
-  );
+function personCardForOrg(p,orgId){
+  const row=bestRow(p.rows),d=row?.detail||{},vp=verifiedPerson(p.key),others=otherEntitiesForPerson(vp,orgId).filter(e=>!isGroupOrg(e.org)),ms=S.official.loaded?officialMatchesForVerified(vp):[];return`<div class="personCard ${others.length?'sharedCard':''}"><div class="personTop"><div><div class="personName">${esc(p.name)}</div><div class="personMeta">${esc(d.role||'Cargo no determinado')} · ${fdate(d.date)}</div></div><div class="personBadges"><span class="quality ${norm(d.confidence)==='high'?'high':norm(d.confidence)==='medium'?'medium':'official'}">${esc(confidenceLabel(d.confidence))}</span>${others.length?`<span class="pill shared">También en ${others.length}</span>`:''}${ms.map(m=>matchBadge(m.level)).join('')}</div></div>${d.evidence?`<details><summary class="mini" style="cursor:pointer;margin-top:8px">Ver evidencia</summary><div class="evidence">${esc(d.evidence)}</div></details>`:''}<div class="tools" style="margin-top:9px"><button class="btn" data-person="${esc(p.key)}">Ver dónde aparece</button>${d.source_url?`<a class="btn" href="${esc(d.source_url)}" target="_blank" rel="noopener" style="text-decoration:none">Fuente</a>`:''}</div></div>`;
 }
-
-function groupPersonCard(p,gid){
-  const best=bestRow(p.rows);
-  const d=best?.detail||{};
-  const ext=externalOrgsForPerson(p.key);
-
-  return `<div class="personCard groupCard">
-    <div class="personTop">
-      <div>
-        <div class="personName">${esc(p.name)}</div>
-        <div class="personMeta">${esc(d.role||'Cargo no determinado')} · ${fdate(d.date)}</div>
-      </div>
-      <div class="personBadges">
-        ${ext.length
-          ?`<span class="pill external">También en ${ext.length} adjudicataria${ext.length===1?'':'s'}</span>`
-          :'<span class="pill">Sin coincidencia externa</span>'}
-        <button class="btn" data-person="${esc(p.key)}">Ver</button>
-      </div>
-    </div>
-    ${ext.length?`<div class="preview">${
-      ext.slice(0,4).map(x=>`<span class="pill external">${esc(x.org.name||'')}</span>`).join('')
-    }${ext.length>4?`<span class="pill">+${ext.length-4}</span>`:''}</div>`:''}
-  </div>`;
-}
-
-function personEvidenceCard(row,options={}){
-  const d=row.detail;
-  const conf=norm(d.confidence);
-  const sc=sourceClass(d.source_type);
-  const date=strictDate(d.date);
-  const other=options.currentOrgId?otherOrgsForPerson(row.key,options.currentOrgId):[];
-
-  return `<div class="personCard ${other.length?'sharedCard':''}">
-    <div class="personTop">
-      <div>
-        <div class="personName">${esc(d.name||'Nombre no consta')}</div>
-        <div class="personMeta">
-          ${esc(d.role||'Cargo no consta')} · ${date?fdate(date):'Fecha no determinada'}
-        </div>
-      </div>
-      <div class="personBadges">
-        <span class="quality ${conf==='high'?'high':'medium'}">${esc(confidenceLabel(d.confidence))}</span>
-        <span class="quality ${sc}">${esc(sourceLabel(d.source_type))}</span>
-        ${other.length?`<span class="pill shared">También en ${other.length}</span>`:''}
-      </div>
-    </div>
-
-    ${d.evidence
-      ?`<details>
-          <summary class="mini" style="cursor:pointer;margin-top:8px">Ver evidencia</summary>
-          <div class="evidence">${esc(d.evidence)}</div>
-        </details>`
-      :''}
-
-    <div class="tools" style="margin-top:9px">
-      <button class="btn" data-person="${esc(row.key)}">Ver dónde aparece</button>
-      ${d.source_url
-        ?`<a class="btn" href="${esc(d.source_url)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir fuente</a>`
-        :''}
-    </div>
-  </div>`;
-}
-
-function openDrawer(t,s=''){
-  $('dtitle').textContent=t;
-  $('dsub').textContent=s;
-  $('drawer').classList.add('open');
-  $('back').classList.add('open');
-}
-function closeDrawer(){
-  $('drawer').classList.remove('open');
-  $('back').classList.remove('open');
-}
-
-function tabs(names,active){
-  return `<div class="tabs">${
-    names.map(x=>
-      `<button class="btn ${x===active?'active':''}" data-tab="${x}">
-        ${x==='otras'?'Otras empresas':x[0].toUpperCase()+x.slice(1)}
-      </button>`
-    ).join('')
-  }</div><div id="tabc"></div>`;
-}
+function openDrawer(t,s=''){$('dtitle').textContent=t;$('dsub').textContent=s;$('drawer').classList.add('open');$('back').classList.add('open')}
+function closeDrawer(){$('drawer').classList.remove('open');$('back').classList.remove('open')}
+function tabs(names,active){const labels={personas:'Personas',otras:'Otras empresas',grupo:'Cruzar con Grupo',resumen:'Resumen',contratos:'Contratos',borme:'BORME',cargos:'Cargos BORME',relaciones:'Relaciones'};return`<div class="tabs">${names.map(x=>`<button class="btn ${x===active?'active':''}" data-tab="${x}">${labels[x]||x}</button>`).join('')}</div><div id="tabc"></div>`}
 
 function openOrg(id,tab='personas'){
-  const o=S.i.o.get(id);
-  if(!o)return;
-
-  history.replaceState(null,'','#empresa='+encodeURIComponent(id));
-  openDrawer(
-    o.name||o.legal_name||'Organización',
-    o.nif?'NIF '+o.nif:'NIF no disponible'
-  );
-
-  const names=['personas','otras','resumen','contratos','borme','relaciones'];
-  $('dc').innerHTML=tabs(names,tab);
-
-  const render=async t=>{
-    $('dc').querySelectorAll('[data-tab]').forEach(
-      x=>x.classList.toggle('active',x.dataset.tab===t)
-    );
-
-    const q=$('tabc');
-
+  const o=S.i.o.get(id);if(!o)return;history.replaceState(null,'','#empresa='+encodeURIComponent(id));openDrawer(o.name||o.legal_name||'Organización',o.nif?'NIF '+o.nif:'NIF no disponible');const names=['personas','otras','grupo','resumen','contratos','borme','cargos','relaciones'];$('dc').innerHTML=tabs(names,tab);
+  const render=async t=>{try{$('dc').querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));const q=$('tabc');
     if(t==='personas'){
-      q.innerHTML='<div class="status">Cargando personas de la empresa…</div>';
-      await ensureVerified();
-
-      const people=getOrgPeople(id);
-
-      q.innerHTML=
-        `<div class="note">
-          Se muestran personas extraídas de <code>linked_people_details</code>.
-          Cuando existe más de una evidencia para el mismo nombre, la tarjeta principal
-          prioriza HIGH y fuentes oficiales. Pulsa «Ver dónde aparece» para consultar
-          otras organizaciones con el mismo nombre normalizado.
-        </div>`+
-        `<h3>Personas documentadas (${NUM.format(people.length)})</h3>`+
-        (people.length
-          ?people.map(p=>{
-              const row=bestRow(p.rows);
-              return personEvidenceCard(row,{currentOrgId:id});
-            }).join('')
-          :'<div class="status">No constan personas utilizables para esta organización.</div>');
-
-      q.querySelectorAll('[data-person]').forEach(
-        b=>b.onclick=()=>openVerifiedPerson(b.dataset.person)
-      );
-
+      q.innerHTML='<div class="status">Cargando personas…</div>';try{await ensureVerified();const ps=verifiedOrgPeople(id);q.innerHTML=`<div class="note">Personas documentadas para esta organización. Se agrupan evidencias del mismo nombre y se prioriza HIGH/fuente oficial.</div><h3>Personas (${ps.length})</h3>`+(ps.length?ps.map(p=>personCardForOrg(p,id)).join(''):'<div class="status">No constan personas utilizables en la capa verificada.</div>');q.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openVerifiedPerson(b.dataset.person))}catch(e){const lp=arr(o.linked_people).map(cleanPersonName).filter(n=>personNameQuality(n).ok);q.innerHTML=`<div class="dataWarn"><b>No se pudo cargar organizations_verified:</b> ${esc(e.message)}. Se muestran los nombres del índice ligero como respaldo.</div>`+(lp.length?lp.map(n=>`<div class="personCard"><b>${esc(n)}</b></div>`).join(''):'<div class="status">Tampoco hay nombres en el índice ligero.</div>')}
     }else if(t==='otras'){
-      q.innerHTML='<div class="status">Calculando apariciones en otras organizaciones…</div>';
-      await ensureVerified();
-
-      const shared=orgSharedPeople(id);
-
-      q.innerHTML=
-        `<div class="note">
-          Coincidencia por <strong>nombre normalizado exacto</strong>. No demuestra por sí
-          sola que los registros correspondan a la misma persona.
-        </div>`+
-        `<h3>Personas de esta empresa que aparecen en otras organizaciones (${NUM.format(shared.length)})</h3>`+
-        (shared.length
-          ?shared.map(p=>{
-              const others=otherOrgsForPerson(p.key,id);
-              const inGroup=others.filter(x=>GROUP_IDS.has(x.org.id));
-              return `<div class="personCard sharedCard">
-                <div class="personTop">
-                  <div>
-                    <div class="personName">${esc(p.name)}</div>
-                    <div class="personMeta">${NUM.format(others.length)} organizaciones adicionales</div>
-                  </div>
-                  <div class="personBadges">
-                    ${inGroup.length?'<span class="pill group">También en Grupo Tragsa</span>':''}
-                    <button class="btn" data-person="${esc(p.key)}">Ver todas</button>
-                  </div>
-                </div>
-                <div style="margin-top:8px">
-                  ${others.map(x=>
-                    `<div class="companyHit" data-other-org="${esc(x.org.id)}">
-                      <div>
-                        <b>${esc(x.org.name||x.org.legal_name||'')}</b><br>
-                        <small>${esc(x.org.nif||'NIF no disponible')}</small>
-                      </div>
-                      <span class="pill ${x.org.category==='grupo_tragsa'?'group':'external'}">
-                        ${x.org.category==='grupo_tragsa'?'Grupo Tragsa':'Otra empresa'}
-                      </span>
-                    </div>`
-                  ).join('')}
-                </div>
-              </div>`;
-            }).join('')
-          :'<div class="status">No se encontraron nombres de esta empresa en otras organizaciones del JSON verificado.</div>');
-
-      q.querySelectorAll('[data-person]').forEach(
-        b=>b.onclick=()=>openVerifiedPerson(b.dataset.person)
-      );
-      q.querySelectorAll('[data-other-org]').forEach(
-        x=>x.onclick=()=>openOrg(x.dataset.otherOrg,'personas')
-      );
-
+      await ensureVerified();const ps=verifiedOrgPeople(id).map(p=>verifiedPerson(p.key)).filter(Boolean).filter(p=>otherEntitiesForPerson(p,id).filter(e=>!isGroupOrg(e.org)).length);q.innerHTML=`<div class="note">Coincidencia exacta de nombre normalizado. Las empresas duplicadas se unifican por NIF o razón social normalizada.</div><h3>Personas presentes en otras empresas (${ps.length})</h3>`+(ps.length?ps.map(p=>{const others=otherEntitiesForPerson(p,id).filter(e=>!isGroupOrg(e.org));return`<div class="personCard sharedCard"><div class="personTop"><div><div class="personName">${esc(p.name)}</div><div class="personMeta">${others.length} empresas adicionales</div></div><button class="btn" data-person="${esc(p.key)}">Ver todas</button></div>${others.map(e=>`<div class="companyHit" data-other-org="${esc(e.org.id)}"><div><b>${esc(e.org.name||e.org.legal_name||'')}</b><br><small>${esc(e.org.nif||'NIF no disponible')}</small></div><span class="pill external">Otra empresa</span></div>`).join('')}</div>`}).join(''):'<div class="status">No se encontraron nombres exactos en otras adjudicatarias.</div>');q.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openVerifiedPerson(b.dataset.person));q.querySelectorAll('[data-other-org]').forEach(x=>x.onclick=()=>openOrg(x.dataset.otherOrg,'personas'));
+    }else if(t==='grupo'){
+      await ensureVerified();await loadOfficialPeople();const ps=verifiedOrgPeople(id).map(p=>verifiedPerson(p.key)).filter(Boolean),hits=ps.map(p=>({p,m:officialMatchesForVerified(p)})).filter(x=>x.m.length);q.innerHTML=`<div class="note">Cruce contra las 568 personas del conjunto oficial ampliado. <b>Exacta</b> significa mismo nombre normalizado; <b>Posible · orden distinto</b> conserva los mismos componentes pero cambia su orden.</div><h3>Coincidencias para revisar (${hits.length})</h3>`+(hits.length?hits.map(x=>`<div class="personCard groupCard"><div class="personTop"><div><div class="personName">${esc(x.p.name)}</div><div class="personMeta">${x.m.map(m=>esc(m.person.name)).join(' · ')}</div></div><div class="personBadges">${x.m.map(m=>matchBadge(m.level)).join('')}<button class="btn" data-person="${esc(x.p.key)}">Ver recorrido</button></div></div></div>`).join(''):'<div class="status">No hay coincidencias con el conjunto oficial ampliado.</div>');q.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openVerifiedPerson(b.dataset.person));
     }else if(t==='resumen'){
-      const st=orgPersonStats(id);
-
-      q.innerHTML=`<dl class="kv">
-        <dt>Nombre</dt><dd>${esc(o.name||'No consta')}</dd>
-        <dt>Razón social</dt><dd>${esc(o.legal_name||o.name||'No consta')}</dd>
-        <dt>NIF</dt><dd>${esc(o.nif||'No consta')}</dd>
-        <dt>Categoría</dt><dd>${esc(o.category||'No consta')}</dd>
-        <dt>Personas verificadas cargadas</dt><dd>${S.verified?NUM.format(st.people):'Aún no cargadas'}</dd>
-        <dt>ID</dt><dd><code>${esc(o.id)}</code></dd>
-      </dl>
-      ${o.source_url
-        ?`<a class="src" href="${esc(o.source_url)}" target="_blank" rel="noopener">Fuente de la organización</a>`
-        :''}`;
-
+      const st=orgStats(id);q.innerHTML=`<dl class="kv"><dt>Nombre</dt><dd>${esc(o.name||'')}</dd><dt>Razón social</dt><dd>${esc(o.legal_name||o.name||'')}</dd><dt>NIF</dt><dd>${esc(o.nif||'No consta')}</dd><dt>Categoría</dt><dd>${esc(o.category||'')}</dd><dt>Personas</dt><dd>${S.verified?st.people:'Cargar pestaña Personas'}</dd><dt>ID</dt><dd><code>${esc(o.id)}</code></dd></dl>${o.source_url?`<a class="src" href="${esc(o.source_url)}" target="_blank" rel="noopener">Fuente de la organización</a>`:''}`;
     }else if(t==='contratos'){
-      q.innerHTML='<div class="status">Cargando contratos…</div>';
-      await loadCollection('contracts');
-
-      const cs=S.i.cByOrg.get(id)||[];
-
-      q.innerHTML=
-        `<h3>${NUM.format(cs.length)} contratos</h3>`+
-        (cs.slice()
-          .sort((a,b)=>String(b.award_date||'').localeCompare(String(a.award_date||'')))
-          .slice(0,180)
-          .map(c=>
-            `<div class="event" data-contract="${esc(c.id)}">
-              <b>${esc(c.object||c.expediente||'Contrato')}</b><br>
-              <small>${fdate(c.award_date)} · ${esc(c.contracting_entity||'')} · ${money(c.amount_ex_vat)}</small>
-            </div>`
-          ).join('')
-          ||'<div class="status">No constan contratos.</div>');
-
-      q.querySelectorAll('[data-contract]').forEach(
-        x=>x.onclick=()=>openContract(x.dataset.contract)
-      );
-
+      q.innerHTML='<div class="status">Cargando contratos…</div>';await loadCollection('contracts');const cs=S.i.cByOrg.get(id)||[];q.innerHTML=`<h3>${cs.length} contratos</h3>`+(cs.length?cs.slice().sort((a,b)=>String(b.award_date||'').localeCompare(String(a.award_date||''))).slice(0,180).map(c=>`<div class="event" data-contract="${esc(c.id)}"><b>${esc(c.object||c.expediente||'Contrato')}</b><br><small>${fdate(c.award_date)} · ${esc(c.contracting_entity||'')} · ${money(c.amount_ex_vat)}</small></div>`).join(''):'<div class="status">No constan contratos.</div>');q.querySelectorAll('[data-contract]').forEach(x=>x.onclick=()=>openContract(x.dataset.contract));
     }else if(t==='borme'){
-      q.innerHTML='<div class="status">Cargando BORME…</div>';
-      await loadCollection('societary_events');
-
-      const ev=S.i.eByOrg.get(id)||[];
-
-      q.innerHTML=
-        `<h3>${NUM.format(ev.length)} actos</h3>`+
-        (ev.slice()
-          .sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||'')))
-          .slice(0,200)
-          .map(e=>
-            `<div class="event">
-              <b>${esc(e.event_type||'BORME')}</b> · ${fdate(e.publication_date)}
-              <p>${esc(e.raw_text||'')}</p>
-              ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank" rel="noopener">Fuente</a>`:''}
-            </div>`
-          ).join('')
-          ||'<div class="status">No constan eventos.</div>');
-
+      q.innerHTML='<div class="status">Cargando eventos BORME…</div>';await loadCollection('societary_events');const ev=S.i.eByOrg.get(id)||[];q.innerHTML=`<h3>${ev.length} actos</h3>`+(ev.length?ev.slice().sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||''))).slice(0,200).map(e=>`<div class="event"><b>${esc(e.event_type||'BORME')}</b> · ${fdate(e.publication_date)}<p>${esc(e.raw_text||'')}</p>${e.source_url?`<a href="${esc(e.source_url)}" target="_blank" rel="noopener">Fuente</a>`:''}</div>`).join(''):'<div class="status">No constan eventos.</div>');
+    }else if(t==='cargos'){
+      q.innerHTML='<div class="status">Cargando intervalos BORME…</div>';if(!S.loaded.has('people'))try{await loadCollection('people')}catch{}await loadCollection('role_intervals');const rows=(S.i.rolesByOrg.get(id)||[]).filter(r=>roleQuality(r.role)).map(r=>({...r,p:S.i.p.get(r.person_id)})).filter(x=>x.p&&personNameQuality(x.p.name).ok);q.innerHTML=`<div class="note">Fechas aproximadas construidas con publicaciones BORME. Se ocultan automáticamente roles que son texto societario o importes.</div><h3>Cargos utilizables (${rows.length})</h3>`+(rows.length?rows.slice(0,250).map(x=>`<div class="event"><b>${esc(x.p.name)}</b> · ${esc(x.role||'Cargo')}<br><small>${fdate(x.valid_from_approx)} → ${x.valid_to_approx?fdate(x.valid_to_approx):'sin fecha final localizada'}</small>${x.start_evidence_url?`<br><a href="${esc(x.start_evidence_url)}" target="_blank" rel="noopener">Fuente de inicio</a>`:''}</div>`).join(''):'<div class="status">No constan intervalos personales limpios.</div>');
     }else{
-      q.innerHTML='<div class="status">Cargando relaciones completas…</div>';
-      await loadCollection('relationships');
-
-      const rs=S.d.relationships
-        .filter(r=>r.source===id||r.target===id)
-        .slice(0,300);
-
-      q.innerHTML=rs.length
-        ?rs.map(r=>
-          `<div class="event">
-            <b>${esc(r.type||r.role||'Relación')}</b><br>
-            <small>${esc(r.source||'')} → ${esc(r.target||'')}</small>
-            ${r.evidence_url?`<br><a href="${esc(r.evidence_url)}" target="_blank" rel="noopener">Fuente</a>`:''}
-          </div>`
-        ).join('')
-        :'<div class="status">No constan relaciones.</div>';
+      q.innerHTML='<div class="status">Cargando relaciones…</div>';await loadCollection('relationships');const rs=S.i.relByNode.get(id)||[];q.innerHTML=rs.length?rs.slice(0,350).map(r=>`<div class="event"><b>${esc(r.type||r.role||'Relación')}</b><br><small>${esc(nodeLabel(r.source,r))} → ${esc(nodeLabel(r.target,r))}</small>${r.raw_holder?`<br><small>Texto: ${esc(r.raw_holder)}</small>`:''}${r.evidence_url?`<br><a href="${esc(r.evidence_url)}" target="_blank" rel="noopener">Fuente</a>`:''}</div>`).join(''):'<div class="status">No constan relaciones.</div>';
     }
-  };
-
-  $('dc').querySelectorAll('[data-tab]').forEach(
-    b=>b.onclick=()=>render(b.dataset.tab)
-  );
-
-  render(tab);
+  }catch(e){console.error(e);$('tabc').innerHTML=`<div class="status err">No se pudo cargar esta sección: ${esc(e.message)}</div>`}};
+  $('dc').querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>render(b.dataset.tab));render(tab);
 }
+function nodeLabel(id,r){return S.i.o.get(id)?.name||S.i.p.get(id)?.name||(id===r?.source&&r?.raw_holder?r.raw_holder:id||'')}
 
 async function openVerifiedPerson(key){
-  await ensureVerified();
+  await ensureVerified();const p=verifiedPerson(key);if(!p)return;history.replaceState(null,'','#persona-empresa='+encodeURIComponent(p.key));openDrawer(p.name,'Apariciones documentadas del mismo nombre');const ents=[...aggregatePersonEntities(p).values()],ext=ents.filter(e=>!isGroupOrg(e.org));let official=[];try{await loadOfficialPeople();official=officialMatchesForVerified(p)}catch(e){console.warn(e)}
+  $('dc').innerHTML=`<dl class="kv"><dt>Nombre</dt><dd>${esc(p.name)}</dd><dt>Organizaciones distintas</dt><dd>${ents.length}</dd><dt>Adjudicatarias distintas</dt><dd>${ext.length}</dd><dt>Cruce Grupo Tragsa</dt><dd>${official.length?official.map(m=>(m.level==='exact'?'Exacta: ':'Posible, orden distinto: ')+m.person.name).join('<br>'):'No localizado'}</dd></dl><div class="note">Los nombres iguales no prueban identidad. Las empresas duplicadas se unifican por NIF/razón social para no inflar el número de organizaciones.</div><h3>Organizaciones</h3>${ents.map(e=>{const br=bestRow(e.rows),d=br?.detail||{};return`<div class="personCard ${isGroupOrg(e.org)?'groupCard':''}"><div class="personTop"><div><div class="personName">${esc(e.org.name||e.org.legal_name||'')}</div><div class="personMeta">${esc(e.org.nif||'NIF no disponible')} · ${esc(d.role||'Cargo no determinado')} · ${fdate(d.date)}</div></div><div class="personBadges"><span class="quality ${norm(d.confidence)==='high'?'high':'medium'}">${esc(confidenceLabel(d.confidence))}</span></div></div><div class="tools" style="margin-top:9px"><button class="btn" data-profile-org="${esc(e.org.id)}">Abrir empresa</button>${d.source_url?`<a class="btn" href="${esc(d.source_url)}" target="_blank" rel="noopener" style="text-decoration:none">Fuente</a>`:''}</div></div>`}).join('')}${official.length?`<h3>Coincidencias en el conjunto oficial del Grupo Tragsa</h3>${official.map(m=>officialProfileCard(m.person,m.level)).join('')}`:''}`;
+  $('dc').querySelectorAll('[data-profile-org]').forEach(b=>b.onclick=()=>openOrg(b.dataset.profileOrg,'personas'));$('dc').querySelectorAll('[data-official]').forEach(b=>b.onclick=()=>openOfficialPerson(b.dataset.official));
+}
+function officialProfileCard(op,level){return`<div class="personCard groupCard"><div class="personTop"><div><div class="personName">${esc(op.name)}</div><div class="personMeta">${arr(op.affiliations).map(a=>esc(`${a.company||'Grupo Tragsa'} · ${a.role||''}`)).slice(0,3).join('<br>')}</div></div><div class="personBadges">${matchBadge(level)}<button class="btn" data-official="${esc(op.id)}">Ficha oficial</button></div></div></div>`}
 
-  const p=personRecord(key);
-  if(!p)return;
-
-  history.replaceState(null,'','#persona-empresa='+encodeURIComponent(p.key));
-  openDrawer(p.name,'Apariciones documentadas del mismo nombre');
-
-  const entries=[...p.orgs.values()];
-  const external=entries.filter(x=>x.org.category!=='grupo_tragsa');
-  const group=entries.filter(x=>GROUP_IDS.has(x.org.id));
-
-  $('dc').innerHTML=`
-    <dl class="kv">
-      <dt>Nombre</dt><dd>${esc(p.name)}</dd>
-      <dt>Organizaciones</dt><dd>${NUM.format(entries.length)}</dd>
-      <dt>Adjudicatarias</dt><dd>${NUM.format(external.length)}</dd>
-      <dt>TRAGSA</dt><dd>${group.some(x=>x.org.id===TRAGSA_ID)?'Sí':'No'}</dd>
-      <dt>TRAGSATEC</dt><dd>${group.some(x=>x.org.id===TRAGSATEC_ID)?'Sí':'No'}</dd>
-      <dt>Comparación</dt><dd>Nombre normalizado exacto</dd>
-    </dl>
-
-    <div class="note" style="margin-top:12px">
-      <strong>Importante:</strong> que el mismo nombre aparezca en varias organizaciones
-      no demuestra por sí solo que sea la misma persona. Las fuentes, cargos y fechas
-      deben revisarse individualmente.
-    </div>
-
-    <h3>Apariciones por organización</h3>
-
-    ${entries.map(entry=>{
-      const best=bestRow(entry.rows);
-      const d=best?.detail||{};
-      return `<div class="personCard ${entry.org.category==='grupo_tragsa'?'groupCard':''}">
-        <div class="personTop">
-          <div>
-            <div class="personName">${esc(entry.org.name||entry.org.legal_name||'Organización')}</div>
-            <div class="personMeta">
-              ${esc(entry.org.nif||'NIF no disponible')} · ${esc(d.role||'Cargo no determinado')} · ${fdate(d.date)}
-            </div>
-          </div>
-          <div class="personBadges">
-            ${entry.org.category==='grupo_tragsa'
-              ?'<span class="pill group">Grupo Tragsa</span>'
-              :'<span class="pill external">Adjudicataria</span>'}
-            <span class="quality ${norm(d.confidence)==='high'?'high':'medium'}">${esc(confidenceLabel(d.confidence))}</span>
-          </div>
-        </div>
-
-        ${d.evidence
-          ?`<details>
-              <summary class="mini" style="cursor:pointer;margin-top:8px">Ver evidencia principal</summary>
-              <div class="evidence">${esc(d.evidence)}</div>
-            </details>`
-          :''}
-
-        <div class="tools" style="margin-top:9px">
-          <button class="btn" data-profile-org="${esc(entry.org.id)}">Abrir empresa</button>
-          ${d.source_url
-            ?`<a class="btn" href="${esc(d.source_url)}" target="_blank" rel="noopener" style="text-decoration:none">Fuente principal</a>`
-            :''}
-        </div>
-
-        ${entry.rows.length>1
-          ?`<details style="margin-top:8px">
-              <summary class="mini" style="cursor:pointer">Ver las ${entry.rows.length} evidencias de esta organización</summary>
-              ${entry.rows.map(r=>
-                `<div class="event">
-                  <b>${esc(r.detail.role||'Cargo')}</b> ·
-                  <span class="quality ${norm(r.detail.confidence)==='high'?'high':'medium'}">${esc(confidenceLabel(r.detail.confidence))}</span><br>
-                  <small>${fdate(r.detail.date)} · ${esc(sourceLabel(r.detail.source_type))}</small>
-                  ${r.detail.source_url?`<br><a href="${esc(r.detail.source_url)}" target="_blank" rel="noopener">Abrir fuente</a>`:''}
-                </div>`
-              ).join('')}
-            </details>`
-          :''}
-      </div>`;
-    }).join('')}
-  `;
-
-  $('dc').querySelectorAll('[data-profile-org]').forEach(
-    b=>b.onclick=()=>openOrg(b.dataset.profileOrg,'personas')
-  );
+async function openOfficialPerson(id){
+  await ensureVerified();await loadOfficialPeople();const op=S.official.people.get(id);if(!op)return;openDrawer(op.name,'Conjunto oficial ampliado del Grupo Tragsa');const ms=externalMatchesForOfficial(op);$('dc').innerHTML=`<dl class="kv"><dt>Nombre</dt><dd>${esc(op.name)}</dd><dt>Afiliaciones oficiales</dt><dd>${arr(op.affiliations).length}</dd><dt>Coincidencias en adjudicatarias</dt><dd>${ms.length}</dd></dl><div class="note">GRUPO_TRAGSA significa que la fuente acredita pertenencia al Grupo pero no permite asignar con seguridad la sociedad empleadora concreta.</div><h3>Fuentes oficiales</h3>${arr(op.affiliations).map(a=>`<div class="event"><b>${esc(a.company||'GRUPO_TRAGSA')}</b> · ${esc(a.role||'Vínculo oficial')}<br><small>${fdate(a.observed_at)} · ${esc(a.relation_type||'')}</small>${a.notes?`<br><small>${esc(a.notes)}</small>`:''}${a.source_url?`<br><a href="${esc(a.source_url)}" target="_blank" rel="noopener">Fuente oficial</a>`:''}</div>`).join('')}${ms.length?`<h3>Apariciones en adjudicatarias</h3>${ms.map(m=>{const ext=externalEntitiesForPerson(m.person);return`<div class="personCard sharedCard"><div class="personTop"><div><div class="personName">${esc(m.person.name)}</div><div class="personMeta">${ext.map(e=>esc(e.org.name||e.org.legal_name||'')).join(' · ')}</div></div><div>${matchBadge(m.level)}<button class="btn" data-person="${esc(m.person.key)}">Ver</button></div></div></div>`}).join('')}`:''}`;$('dc').querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openVerifiedPerson(b.dataset.person));
 }
 
-function openBasicPerson(id){
-  const p=S.i.p.get(id);
-  if(!p)return;
+function openBasicPerson(id){const p=S.i.p.get(id);if(!p)return;openDrawer(p.name||'Persona','Registro auxiliar BORME');const q=personNameQuality(p.name);$('dc').innerHTML=`<dl class="kv"><dt>Nombre</dt><dd>${esc(p.name||'')}</dd><dt>Normalizado</dt><dd>${esc(p.normalized_name||'')}</dd><dt>Calidad automática</dt><dd>${q.ok?'Nombre plausible':'Revisar: '+esc(q.reasons.join(', '))}</dd></dl><div class="tools" style="margin-top:12px"><button id="findBasic" class="btn primary">Buscar este nombre en empresas</button></div><div id="basicResult"></div>`;$('findBasic').onclick=()=>runUI(async()=>{await ensureVerified();const x=verifiedPerson(p.name);if(x)openVerifiedPerson(x.key);else $('basicResult').innerHTML='<div class="status">No aparece en organizations_verified.</div>'})}
 
-  openDrawer(p.name||'Persona','Registro de la colección people');
-  const q=personNameQuality(p.name);
+async function openContract(id){if(!S.loaded.has('contracts'))await loadCollection('contracts');const c=S.i.c.get(id);if(!c)return;openDrawer(c.object||c.expediente||'Contrato',c.expediente||'');$('dc').innerHTML=`<dl class="kv"><dt>Contratante</dt><dd>${esc(c.contracting_entity||'')}</dd><dt>Adjudicatario</dt><dd>${esc(c.awardee_name||'')}</dd><dt>NIF</dt><dd>${esc(c.awardee_nif||'No consta')}</dd><dt>Fecha</dt><dd>${fdate(c.award_date)}</dd><dt>Importe sin IVA</dt><dd>${money(c.amount_ex_vat)}</dd><dt>Importe con IVA</dt><dd>${money(c.amount_inc_vat)}</dd><dt>Expediente</dt><dd>${esc(c.expediente||'')}</dd></dl><div class="tools" style="margin-top:12px">${c.awardee_organization_id?'<button id="contractCompany" class="btn primary">Ver empresa y personas</button>':''}${c.url?`<a class="btn" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration:none">Fuente oficial</a>`:''}</div>`;if(c.awardee_organization_id&&$('contractCompany'))$('contractCompany').onclick=()=>openOrg(c.awardee_organization_id,'personas')}
+function filteredContracts(){if(!S.loaded.has('contracts'))return[];const q=norm($('cq')?.value||''),who=$('cwho')?.value||'all',y1=Number($('cy1')?.value)||null,y2=Number($('cy2')?.value)||null,min=Number($('cmin')?.value)||null;return S.d.contracts.filter(c=>{if(q&&!q.split(' ').every(t=>norm([c.object,c.expediente,c.awardee_name,c.awardee_nif].join(' ')).includes(t)))return false;if(who!=='all'&&c.contracting_entity!==who)return false;const y=yearOf(c.award_date),a=Number(c.amount_ex_vat);if(y1&&(!y||y<y1))return false;if(y2&&(!y||y>y2))return false;if(min&&(!Number.isFinite(a)||a<min))return false;return true})}
+function renderContracts(){const rows=filteredContracts().sort((a,b)=>String(b.award_date||'').localeCompare(String(a.award_date||''))),a=rows.slice(0,500);$('ctb').innerHTML=a.map(c=>`<tr data-contract="${esc(c.id)}"><td>${fdate(c.award_date)}</td><td>${esc(c.contracting_entity||'')}</td><td>${esc(c.awardee_name||'')}</td><td>${esc(c.object||'')}</td><td>${money(c.amount_ex_vat)}</td></tr>`).join('');$('cmob').innerHTML=a.map(c=>`<div class="vcard" data-contract="${esc(c.id)}"><b>${esc(c.object||c.expediente||'Contrato')}</b><div class="mini">${esc(c.awardee_name||'')} · ${money(c.amount_ex_vat)} · ${fdate(c.award_date)}</div></div>`).join('');$('contractInfo').textContent=`${NUM.format(rows.length)} contratos cumplen los filtros. Se muestran como máximo 500.`;document.querySelectorAll('[data-contract]').forEach(x=>x.onclick=()=>openContract(x.dataset.contract))}
+function renderContractBars(){if(!S.loaded.has('contracts'))return;const by=new Map;for(const c of filteredContracts()){const y=yearOf(c.award_date);if(y)by.set(y,(by.get(y)||0)+1)}const ys=[...by.keys()].sort((a,b)=>a-b),max=Math.max(1,...ys.map(y=>by.get(y)));$('chartPlaceholder').classList.add('hide');$('chartWrap').classList.remove('hide');$('chartWrap').innerHTML=`<div class="barList">${ys.map(y=>`<div class="barRow"><span>${y}</span><div class="barTrack"><div class="barFill" style="width:${(by.get(y)/max*100).toFixed(2)}%"></div></div><b>${NUM.format(by.get(y))}</b></div>`).join('')}</div>`}
 
-  $('dc').innerHTML=`<dl class="kv">
-    <dt>Nombre</dt><dd>${esc(p.name||'')}</dd>
-    <dt>Nombre normalizado</dt><dd>${esc(p.normalized_name||'')}</dd>
-    <dt>ID</dt><dd><code>${esc(p.id||'')}</code></dd>
-    <dt>Calidad automática</dt>
-    <dd>${q.ok?'Nombre plausible':'Revisar: '+esc(q.reasons.join(', '))}</dd>
-  </dl>
-  <div class="tools" style="margin-top:12px">
-    <button id="findBasicInCompanies" class="btn primary">Buscar este nombre en las empresas</button>
-  </div>
-  <div id="basicResult"></div>`;
-
-  $('findBasicInCompanies').onclick=async()=>{
-    await ensureVerified();
-    const rec=personRecord(p.name);
-    if(rec){
-      openVerifiedPerson(rec.key);
-    }else{
-      $('basicResult').innerHTML='<div class="status">Este nombre no aparece en la capa verificada de organizaciones.</div>';
-    }
-  };
-}
-
-async function openContract(id){
-  if(!S.loaded.has('contracts'))await loadCollection('contracts');
-  const c=S.i.c.get(id);
-  if(!c)return;
-
-  openDrawer(c.object||c.expediente||'Contrato',c.expediente||'');
-
-  $('dc').innerHTML=`<dl class="kv">
-    <dt>Contratante</dt><dd>${esc(c.contracting_entity||'No consta')}</dd>
-    <dt>Adjudicatario</dt><dd>${esc(c.awardee_name||'No consta')}</dd>
-    <dt>NIF</dt><dd>${esc(c.awardee_nif||'No consta')}</dd>
-    <dt>Fecha</dt><dd>${fdate(c.award_date)}</dd>
-    <dt>Importe sin IVA</dt><dd>${money(c.amount_ex_vat)}</dd>
-    <dt>Importe con IVA</dt><dd>${money(c.amount_inc_vat)}</dd>
-    <dt>Expediente</dt><dd>${esc(c.expediente||'No consta')}</dd>
-    <dt>ID</dt><dd><code>${esc(c.id||'')}</code></dd>
-  </dl>
-
-  <div class="tools" style="margin-top:12px">
-    ${c.awardee_organization_id
-      ?`<button id="contractCompany" class="btn primary">Ver empresa y sus personas</button>`
-      :''}
-    ${c.url
-      ?`<a class="btn" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir fuente oficial</a>`
-      :''}
-  </div>`;
-
-  if(c.awardee_organization_id&&$('contractCompany')){
-    $('contractCompany').onclick=()=>openOrg(c.awardee_organization_id,'personas');
-  }
-}
-
-function filteredContracts(){
-  if(!S.loaded.has('contracts'))return[];
-
-  const q=norm($('cq')?.value||'');
-  const who=$('cwho')?.value||'all';
-  const y1=Number($('cy1')?.value)||null;
-  const y2=Number($('cy2')?.value)||null;
-  const min=Number($('cmin')?.value)||null;
-
-  return S.d.contracts.filter(c=>{
-    if(q&&!q.split(' ').every(t=>
-      norm([c.object,c.expediente,c.awardee_name,c.awardee_nif].join(' ')).includes(t)
-    ))return false;
-
-    if(who!=='all'&&c.contracting_entity!==who)return false;
-
-    const y=yearOf(c.award_date);
-    const a=Number(c.amount_ex_vat);
-
-    if(y1&&(!y||y<y1))return false;
-    if(y2&&(!y||y>y2))return false;
-    if(min&&(!Number.isFinite(a)||a<min))return false;
-
-    return true;
-  });
-}
-
-function renderContracts(){
-  const rows=filteredContracts()
-    .sort((a,b)=>String(b.award_date||'').localeCompare(String(a.award_date||'')));
-
-  const a=rows.slice(0,500);
-
-  $('ctb').innerHTML=a.map(c=>
-    `<tr data-contract="${esc(c.id)}">
-      <td>${fdate(c.award_date)}</td>
-      <td>${esc(c.contracting_entity||'')}</td>
-      <td>${esc(c.awardee_name||'')}</td>
-      <td>${esc(c.object||'')}</td>
-      <td>${money(c.amount_ex_vat)}</td>
-    </tr>`
-  ).join('');
-
-  $('cmob').innerHTML=a.map(c=>
-    `<div class="vcard" data-contract="${esc(c.id)}">
-      <b>${esc(c.object||c.expediente||'Contrato')}</b>
-      <div class="mini">${esc(c.awardee_name||'')} · ${money(c.amount_ex_vat)} · ${fdate(c.award_date)}</div>
-    </div>`
-  ).join('');
-
-  $('contractInfo').textContent=
-    `${NUM.format(rows.length)} contratos cumplen los filtros. Se muestran como máximo 500.`;
-
-  document.querySelectorAll('[data-contract]').forEach(
-    x=>x.onclick=()=>openContract(x.dataset.contract)
-  );
-}
-
-async function renderChart(){
-  if(S.chart)S.chart.destroy();
-
-  if(!window.Chart){
-    await new Promise((resolve,reject)=>{
-      const s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
-      s.onload=resolve;
-      s.onerror=reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  const by=new Map;
-
-  for(const c of S.d.contracts){
-    const y=yearOf(c.award_date);
-    if(!y)continue;
-    by.set(y,(by.get(y)||0)+1);
-  }
-
-  const ys=[...by.keys()].sort((a,b)=>a-b);
-
-  $('chartPlaceholder').classList.add('hide');
-  $('chartWrap').classList.remove('hide');
-
-  S.chart=new Chart($('yearChart'),{
-    type:'bar',
-    data:{
-      labels:ys,
-      datasets:[{data:ys.map(y=>by.get(y))}]
-    },
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{legend:{display:false}}
-    }
-  });
-}
-
-function renderEvents(){
-  const q=norm($('eq')?.value||'');
-  const type=$('etype')?.value||'all';
-  const d1=$('ed1')?.value||'';
-  const d2=$('ed2')?.value||'';
-
-  const rows=S.d.societary_events.filter(e=>{
-    if(q&&!norm([e.company_name,e.raw_text,e.event_type].join(' ')).includes(q))return false;
-    if(type!=='all'&&!norm(e.event_type).includes(type))return false;
-
-    const d=strictDate(e.publication_date);
-    if(d1&&(!d||d<d1))return false;
-    if(d2&&(!d||d>d2))return false;
-
-    return true;
-  })
-  .sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||'')))
-  .slice(0,150);
-
-  $('events').innerHTML=rows.length
-    ?rows.map(e=>
-      `<div class="event">
-        <b>${esc(e.company_name||'Empresa')}</b>
-        <span class="badge">${esc(e.event_type||'BORME')}</span>
-        <span class="badge">${fdate(e.publication_date)}</span>
-        <p>${esc(e.raw_text||'')}</p>
-        ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank" rel="noopener">Abrir fuente</a>`:''}
-      </div>`
-    ).join('')
-    :'<div class="status">Sin resultados.</div>';
-}
-
-function method(){
-  const m=obj(S.manifest?.metadata);
-  const src=obj(m.official_sources);
-  const met=obj(m.methodology);
-
-  $('method').innerHTML=`
-    <dl class="kv">
-      <dt>Formato</dt><dd>${esc(S.manifest?.format||'')}</dd>
-      <dt>Fuente</dt><dd>${esc(S.manifest?.source||'')}</dd>
-      <dt>Periodo PLACSP</dt><dd>${esc(arr(m.placsp_period).join(' – '))}</dd>
-      <dt>Periodo BORME</dt><dd>${esc(arr(m.borme_period).join(' – '))}</dd>
-      <dt>Generado</dt><dd>${fdate(String(m.generated_at||'').slice(0,10))}</dd>
-    </dl>
-
-    <h3>Metodología</h3>
-    ${Object.entries(met).map(([k,v])=>
-      `<div class="event"><b>${esc(k)}</b><div>${esc(v)}</div></div>`
-    ).join('')}
-
-    <h3>Cruce de personas utilizado por esta interfaz</h3>
-    <div class="note">
-      La interfaz agrupa <code>linked_people_details</code> por nombre normalizado.
-      Para indicar que un nombre aparece en más de una empresa utiliza una comparación
-      exacta después de normalizar mayúsculas/minúsculas, tildes, puntuación y espacios.
-      No se usa una coincidencia difusa para afirmar que dos personas son la misma.
-    </div>
-
-    <h3>Fuentes oficiales</h3>
-    ${Object.entries(src).map(([k,v])=>
-      `<a class="src" href="${esc(v)}" target="_blank" rel="noopener">
-        <b>${esc(k)}</b><br><small>${esc(v)}</small>
-      </a>`
-    ).join('')}
-
-    <h3>Capa verificada</h3>
-    <div class="note">
-      <code>organizations_verified</code> se mantiene como colección independiente
-      para no penalizar la carga inicial. HIGH y MEDIUM se muestran separadamente
-      y la evidencia WEB no se presenta como equivalente a una fuente oficial.
-    </div>
-  `;
-}
-
-function downloadContractsCsv(rows){
-  const h=[
-    'fecha','contratante','adjudicatario','nif','objeto',
-    'expediente','importe_sin_iva','fuente'
-  ];
-
-  const data=rows.map(c=>[
-    c.award_date,c.contracting_entity,c.awardee_name,c.awardee_nif,
-    c.object,c.expediente,c.amount_ex_vat,c.url
-  ]);
-
-  const cell=v=>'"'+String(v??'').replaceAll('"','""')+'"';
-
-  const txt=[
-    h.map(cell).join(';'),
-    ...data.map(r=>r.map(cell).join(';'))
-  ].join('\n');
-
-  const blob=new Blob(['\ufeff'+txt],{type:'text/csv;charset=utf-8'});
-  const u=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-
-  a.href=u;
-  a.download='tragsascope_contratos.csv';
-  a.click();
-
-  URL.revokeObjectURL(u);
-}
-
-async function hash(){
-  if(!S.manifest)return;
-
-  const [k,v]=location.hash.slice(1).split('=');
-
-  if(k==='empresa'&&v){
-    openOrg(decodeURIComponent(v),'personas');
-  }else if(k==='persona-empresa'&&v){
-    await ensureVerified();
-    openVerifiedPerson(decodeURIComponent(v));
-  }
-}
+function renderEvents(){const q=norm($('eq')?.value||''),type=$('etype')?.value||'all',d1=$('ed1')?.value||'',d2=$('ed2')?.value||'';const rows=S.d.societary_events.filter(e=>{if(q&&!norm([e.company_name,e.raw_text,e.event_type].join(' ')).includes(q))return false;if(type!=='all'&&!norm(e.event_type).includes(type))return false;const d=strictDate(e.publication_date);if(d1&&(!d||d<d1))return false;if(d2&&(!d||d>d2))return false;return true}).sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||''))).slice(0,150);$('events').innerHTML=rows.length?rows.map(e=>`<div class="event"><b>${esc(e.company_name||'Empresa')}</b> <span class="badge">${esc(e.event_type||'BORME')}</span> <span class="badge">${fdate(e.publication_date)}</span><p>${esc(e.raw_text||'')}</p>${e.source_url?`<a href="${esc(e.source_url)}" target="_blank" rel="noopener">Abrir fuente</a>`:''}</div>`).join(''):'<div class="status">Sin resultados.</div>'}
+function method(){const m=obj(S.manifest?.metadata),src=obj(m.official_sources),met=obj(m.methodology);$('method').innerHTML=`<dl class="kv"><dt>Formato</dt><dd>${esc(S.manifest?.format||'')}</dd><dt>Fuente</dt><dd>${esc(S.manifest?.source||'')}</dd><dt>Periodo PLACSP</dt><dd>${esc(arr(m.placsp_period).join(' – '))}</dd><dt>Periodo BORME</dt><dd>${esc(arr(m.borme_period).join(' – '))}</dd><dt>Generado</dt><dd>${fdate(String(m.generated_at||'').slice(0,10))}</dd></dl><h3>Metodología</h3>${Object.entries(met).map(([k,v])=>`<div class="event"><b>${esc(k)}</b><div>${esc(v)}</div></div>`).join('')}<h3>Fuentes oficiales</h3>${Object.entries(src).map(([k,v])=>`<a class="src" href="${esc(v)}" target="_blank" rel="noopener"><b>${esc(k)}</b><br><small>${esc(v)}</small></a>`).join('')}<h3>Cómo cruza personas esta versión</h3><div class="note">Empresas: <code>organizations_verified → linked_people_details</code>. Grupo Tragsa: <code>tragsa_people_extended.json</code>. Las coincidencias exactas y las coincidencias por los mismos componentes en distinto orden se muestran por separado. Las empresas duplicadas se agrupan por NIF o razón social normalizada.</div>`}
+function downloadContractsCsv(rows){const h=['fecha','contratante','adjudicatario','nif','objeto','expediente','importe_sin_iva','fuente'],data=rows.map(c=>[c.award_date,c.contracting_entity,c.awardee_name,c.awardee_nif,c.object,c.expediente,c.amount_ex_vat,c.url]),cell=v=>'"'+String(v??'').replaceAll('"','""')+'"',txt=[h.map(cell).join(';'),...data.map(r=>r.map(cell).join(';'))].join('\n'),blob=new Blob(['\ufeff'+txt],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='tragsascope_contratos.csv';a.click();URL.revokeObjectURL(u)}
+async function hash(){if(!S.manifest)return;const[k,v]=location.hash.slice(1).split('=');if(k==='empresa'&&v)openOrg(decodeURIComponent(v),'personas');else if(k==='persona-empresa'&&v){await ensureVerified();openVerifiedPerson(decodeURIComponent(v))}}
 
 document.addEventListener('DOMContentLoaded',load);
+
 </script>
 
 </body>
 </html>
-
-
-
 
 
 
@@ -2270,13 +1122,7 @@ document.addEventListener('DOMContentLoaded',load);
       <p>El que me ha aconsejado que añada estas advertencias bien claras en esta página 👇</p>
     </div>
 
-    <!-- Bloque de Apoyo (Buy Me a Coffee) -->
-    <div class="footer-support">
-      <p><strong>¿Te ha resultado útil este proyecto?</strong> Si quieres apoyar el mantenimiento y el desarrollo, puedes invitarme a un café:</p>
-      <a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer" class="btn-coffee">
-        ☕ Invitar a un café (Buy Me a Coffee)
-      </a>
-    </div>
+
 
     <!-- Grid de Secciones Legales -->
     <div class="footer-grid">
