@@ -1,13 +1,12 @@
-
 <!doctype html>
 <html lang="es">
-<script defer src="../goat.js"></script>
 <head>
+<script defer src="../../goat.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark light">
 <title>Cómo funciona TragsaScope</title>
-<meta name="description" content="Explicación sencilla de cómo se construye TragsaScope, qué datos utiliza, qué cruces realiza y qué scripts forman el proceso.">
+<meta name="description" content="Explicación actualizada de cómo funciona TragsaScope, qué datos utiliza, cómo carga los JSON y cómo interpreta relaciones verificadas.">
 <style>
 :root{
   --bg:#08111d;--panel:#0f1b2b;--panel2:#132238;--tx:#f5f7fb;--mu:#aebbcf;
@@ -19,19 +18,21 @@ html{scroll-behavior:smooth}
 body{
   margin:0;background:
   radial-gradient(circle at 14% 0%,#173356 0,transparent 26rem),
-  radial-gradient(circle at 90% 7%,#27204a 0,transparent 24rem),
-  var(--bg);
+  radial-gradient(circle at 90% 7%,#27204a 0,transparent 24rem),var(--bg);
   color:var(--tx);font:15px/1.62 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 }
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
-button,input{font:inherit}
+button{font:inherit}
 .wrap{width:min(var(--max),calc(100% - 28px));margin:auto}
 .hero{padding:58px 0 30px}
-.eyebrow{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#ffffff08;
-  padding:7px 11px;border-radius:999px;color:var(--mu);font-size:12px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+.eyebrow{
+  display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#ffffff08;
+  padding:7px 11px;border-radius:999px;color:var(--mu);font-size:12px;font-weight:750;
+  letter-spacing:.04em;text-transform:uppercase
+}
 h1{font-size:clamp(2.3rem,7vw,5rem);line-height:.98;letter-spacing:-.055em;margin:18px 0 16px;max-width:900px}
-.lead{font-size:clamp(1rem,2vw,1.25rem);color:#cfdaea;max-width:850px;margin:0}
+.lead{font-size:clamp(1rem,2vw,1.25rem);color:#cfdaea;max-width:900px;margin:0}
 .hero-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:18px;margin-top:30px}
 .card{background:linear-gradient(180deg,#ffffff09,#ffffff04);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 .hero-card{padding:22px}
@@ -43,7 +44,7 @@ h1{font-size:clamp(2.3rem,7vw,5rem);line-height:.98;letter-spacing:-.055em;margi
 .nav a:hover{background:#ffffff0b;color:var(--tx);text-decoration:none}
 section{padding:42px 0}
 .section-title{font-size:clamp(1.7rem,4vw,2.6rem);letter-spacing:-.035em;margin:0 0 8px}
-.section-intro{color:var(--mu);max-width:820px;margin:0 0 24px}
+.section-intro{color:var(--mu);max-width:860px;margin:0 0 24px}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .info{padding:20px}
@@ -52,62 +53,48 @@ section{padding:42px 0}
 .number{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:#62aaff1a;border:1px solid #62aaff55;color:var(--blue);font-weight:900;margin-bottom:13px}
 .flow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:stretch}
 .flow-step{min-width:0;padding:15px 12px;border:1px solid var(--line);border-radius:14px;background:#ffffff06;text-align:center;position:relative}
-.flow-step b{display:block;font-size:.91rem}
-.flow-step small{display:block;color:var(--mu);margin-top:5px}
+.flow-step b{display:block;font-size:.91rem}.flow-step small{display:block;color:var(--mu);margin-top:5px}
 .flow-step:not(:last-child)::after{content:"→";position:absolute;right:-12px;top:50%;transform:translateY(-50%);z-index:3;color:var(--blue);font-weight:900}
 .file-tree{padding:18px 20px;background:#050b13;border:1px solid var(--line);border-radius:15px;overflow:auto;color:#dce7f6;font:13px/1.62 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid var(--line);background:#ffffff08}
 .badge.green{color:var(--green);border-color:#63d6a455;background:#63d6a412}
 .badge.amber{color:var(--amber);border-color:#ffc85755;background:#ffc85712}
 .badge.violet{color:var(--violet);border-color:#b89cff55;background:#b89cff12}
-.cross{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;padding:22px}
-.cross-side{padding:18px;border:1px solid var(--line);border-radius:14px;background:#ffffff05}
-.cross-side h3{margin:0 0 10px}
-.cross-arrow{font-size:2rem;color:var(--blue);font-weight:900}
-.list{margin:8px 0 0;padding-left:19px;color:var(--mu)}
-.list li{margin:7px 0}
-.script-card{overflow:hidden}
-.script-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:20px;border-bottom:1px solid var(--line);background:#ffffff05}
-.script-head h3{margin:0 0 5px;font-size:1.15rem}
-.script-head p{margin:0;color:var(--mu);max-width:760px}
-.script-actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:1px solid var(--line);background:#ffffff0a;color:var(--tx);padding:8px 11px;border-radius:10px;cursor:pointer;font-weight:750}
-.btn:hover{background:#ffffff12}
-details.code-details>summary{cursor:pointer;list-style:none;padding:14px 20px;color:#dce8f9;font-weight:800}
-details.code-details>summary::-webkit-details-marker{display:none}
-details.code-details>summary::before{content:"▸";display:inline-block;margin-right:8px;color:var(--blue);transition:.18s transform}
-details[open].code-details>summary::before{transform:rotate(90deg)}
-.code-wrap{position:relative;border-top:1px solid var(--line)}
-.code-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#070e18;border-bottom:1px solid #1b2a40;position:sticky;top:58px;z-index:3}
-.code-toolbar span{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--mu)}
-pre{margin:0;max-height:620px;overflow:auto;background:#03070d;color:#d8e5f5;padding:18px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4}
-code .comment{color:#8998aa}
+.badge.blue{color:var(--blue);border-color:#62aaff55;background:#62aaff12}
 .note{padding:18px 20px;border-left:3px solid var(--amber);background:#ffc8570d;border-radius:0 14px 14px 0;color:#dce4ef}
 .note strong{color:var(--amber)}
 .warning{padding:18px 20px;border:1px solid #ff7b7b48;background:#ff7b7b0c;border-radius:15px}
-.warning h3{margin:0 0 6px;color:#ffb0b0}
-.warning p{margin:0;color:#c9d3e2}
+.warning h3{margin:0 0 6px;color:#ffb0b0}.warning p{margin:0;color:#c9d3e2}
 .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.kpi{padding:17px}
-.kpi b{font-size:1.4rem;display:block}
-.kpi span{color:var(--mu);font-size:12px}
-footer{border-top:1px solid var(--line);margin-top:35px;padding:32px 0 45px;color:var(--mu)}
+.kpi{padding:17px}.kpi b{font-size:1.4rem;display:block}.kpi span{color:var(--mu);font-size:12px}
+.compare{overflow:hidden}
+.compare table{width:100%;border-collapse:collapse}
+.compare th,.compare td{padding:12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.compare th{color:var(--mu);font-size:12px;text-transform:uppercase}
+.code{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;background:#050b13;border:1px solid var(--line);border-radius:10px;padding:2px 6px}
+.action{
+  display:inline-flex;align-items:center;justify-content:center;border:1px solid #62aaff55;background:#62aaff15;
+  color:var(--tx);font-weight:800;padding:10px 14px;border-radius:11px;margin-top:18px
+}
+.legal{background:linear-gradient(180deg,#ffffff05,#ffffff02);border-block:1px solid var(--line)}
+.legal-intro{margin-bottom:28px}
+.legal-intro h2:first-child{margin:0;font-size:clamp(2rem,5vw,4rem);line-height:1}
+.legal-intro .tiny{margin:8px 0 0;color:var(--mu);font-size:.78rem}
+.legal-intro h2:last-child{margin:8px 0 0;font-size:clamp(1.5rem,3.7vw,2.8rem);line-height:1.08}
+.legal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.legal-card{padding:18px}
+.legal-card h3{margin:0 0 9px;font-size:1rem}
+.legal-card p{color:var(--mu);margin:8px 0}
+footer{border-top:1px solid var(--line);padding:32px 0 45px;color:var(--mu)}
 .footer-box{display:flex;justify-content:space-between;gap:18px;align-items:end;flex-wrap:wrap}
 .footer-box h2{margin:0;font-size:14px;color:#ff9900}
-.home{margin:0}
-.muted{color:var(--mu)}
 @media(max-width:900px){
   .hero-grid,.grid3,.kpi-row{grid-template-columns:1fr 1fr}
   .flow{grid-template-columns:1fr}
   .flow-step:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-19px;transform:translateX(-50%)}
 }
 @media(max-width:680px){
-  .hero{padding-top:38px}
-  .hero-grid,.grid2,.grid3,.kpi-row,.cross{grid-template-columns:1fr}
-  .cross-arrow{transform:rotate(90deg);text-align:center}
-  .script-head{display:block}
-  .script-actions{margin-top:12px}
-  pre{max-height:520px}
+  .hero{padding-top:38px}.hero-grid,.grid2,.grid3,.kpi-row,.legal-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -115,26 +102,29 @@ footer{border-top:1px solid var(--line);margin-top:35px;padding:32px 0 45px;colo
 
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow">🧭 Guía rápida · TragsaScope</span>
-    <h1>Qué hace la web y cómo está construida</h1>
+    <span class="eyebrow">🧭 Guía actualizada · TragsaScope</span>
+    <h1>Qué hace la web y cómo funciona ahora</h1>
     <p class="lead">
-      TragsaScope organiza contratos públicos de TRAGSA y TRAGSATEC, relaciona cada adjudicatario
-      con las personas documentadas en sus sociedades y busca coincidencias con otras empresas
-      y con personas vinculadas oficialmente al Grupo TRAGSA. Todo se presenta como <strong>pistas documentales para revisar</strong>, no como conclusiones automáticas.
+      TragsaScope organiza contratación pública de TRAGSA y TRAGSATEC y permite recorrer
+      adjudicatarios, personas documentadas, relaciones societarias, actos BORME y una capa
+      adicional de evidencia verificada. La web prioriza la velocidad: los archivos pesados
+      solo se descargan cuando una función concreta los necesita.
     </p>
 
     <div class="hero-grid">
       <div class="card hero-card">
-        <span class="badge green">Funcionamiento principal</span>
-        <h2 style="margin:14px 0 8px">Contratos → empresas → personas → coincidencias → fuentes</h2>
-        <p class="muted" style="margin:0">
-          La web carga archivos JSON, crea índices en el navegador y permite recorrer cada relación
-          hasta su contrato, empresa, persona, cargo, fecha y fuente documental.
+        <span class="badge green">Arquitectura actual</span>
+        <h2 style="margin:14px 0 8px">Índice ligero → empresa/persona → verificación → contratos/BORME → fuente</h2>
+        <p style="color:var(--mu);margin:0">
+          El navegador no reconstruye toda la base al abrir la página. Primero carga el manifiesto
+          y las colecciones ligeras; después incorpora contratos, BORME, relaciones o evidencias verificadas
+          únicamente bajo demanda.
         </p>
+        <a class="action" href="../index.html">← Volver a TragsaScope</a>
       </div>
       <div class="card hero-card">
-        <strong>1 archivo</strong>
-        <span>La interfaz es un único <code>index.html</code> con HTML, CSS y JavaScript.</span>
+        <strong>1 HTML</strong>
+        <span>La interfaz pública sigue siendo un único <code>index.html</code> con HTML, CSS y JavaScript.</span>
       </div>
     </div>
   </div>
@@ -144,72 +134,74 @@ footer{border-top:1px solid var(--line);margin-top:35px;padding:32px 0 45px;colo
   <div class="wrap nav-inner">
     <a href="#que-hace">Qué hace</a>
     <a href="#flujo">Flujo</a>
-    <a href="#como">Cómo está hecha</a>
+    <a href="#arquitectura">Arquitectura</a>
     <a href="#datos">JSON</a>
-    <a href="#cruces">Cruces</a>
-    <a href="#scripts">Scripts</a>
-    <a href="#limites">Qué significa una coincidencia</a>
+    <a href="#verificacion">Verificación</a>
+    <a href="#carga">Carga diferida</a>
+    <a href="#limites">Límites</a>
+    <a href="#legal">Advertencias legales</a>
   </div>
 </nav>
 
 <main>
+
 <section id="que-hace">
   <div class="wrap">
     <h2 class="section-title">1. ¿Qué hace TragsaScope?</h2>
-    <p class="section-intro">En términos sencillos, la web responde cuatro preguntas.</p>
+    <p class="section-intro">La versión actual separa claramente los datos básicos de la capa de verificación documental.</p>
     <div class="grid2">
-      <article class="card info"><div class="number">1</div><h3>¿A quién contratan?</h3><p>Lee los contratos de TRAGSA y TRAGSATEC y agrupa las adjudicaciones por empresa, NIF, expediente, fecha e importe.</p></article>
-      <article class="card info"><div class="number">2</div><h3>¿Quién aparece vinculado a esas empresas?</h3><p>Usa el campo <code>linked_people</code> de cada organización, obtenido principalmente de información societaria y otras fuentes documentales.</p></article>
-      <article class="card info"><div class="number">3</div><h3>¿Una persona aparece en varias adjudicatarias?</h3><p>Normaliza nombres y detecta cuándo el mismo nombre aparece relacionado con dos o más empresas adjudicatarias.</p></article>
-      <article class="card info"><div class="number">4</div><h3>¿También aparece en TRAGSA/TRAGSATEC?</h3><p>Compara las personas de las adjudicatarias con una lista separada de personas documentadas oficialmente en el Grupo TRAGSA.</p></article>
+      <article class="card info"><div class="number">1</div><h3>Consulta contratación</h3><p>Permite localizar contratos de TRAGSA y TRAGSATEC por empresa, NIF, objeto, expediente, fecha e importe.</p></article>
+      <article class="card info"><div class="number">2</div><h3>Explora organizaciones</h3><p>Utiliza un JSON ligero de organizaciones para listar y buscar adjudicatarios sin cargar los contratos completos.</p></article>
+      <article class="card info"><div class="number">3</div><h3>Consulta relaciones documentadas</h3><p>Puede cargar personas, relaciones, intervalos de cargos y eventos BORME cuando el usuario abre esas funciones.</p></article>
+      <article class="card info"><div class="number">4</div><h3>Abre una capa verificada</h3><p><code>organizations_verified</code> añade nombre, cargo, fuente, confianza y evidencia sin penalizar el arranque inicial.</p></article>
     </div>
   </div>
 </section>
 
 <section id="flujo">
   <div class="wrap">
-    <h2 class="section-title">2. Flujo completo</h2>
-    <p class="section-intro">Estos son todos los pasos, resumidos de principio a fin.</p>
+    <h2 class="section-title">2. Flujo actual de la web</h2>
+    <p class="section-intro">La diferencia esencial respecto a versiones anteriores es que ya no se descargan todos los fragmentos al inicio.</p>
     <div class="flow">
-      <div class="flow-step"><b>1 · Contratos</b><small>PLACSP</small></div>
-      <div class="flow-step"><b>2 · Empresas</b><small>NIF + adjudicatario</small></div>
-      <div class="flow-step"><b>3 · Personas</b><small>BORME / fuentes públicas</small></div>
-      <div class="flow-step"><b>4 · TRAGSA</b><small>personal y cargos documentados</small></div>
-      <div class="flow-step"><b>5 · Cruces</b><small>nombre normalizado</small></div>
-      <div class="flow-step"><b>6 · Fechas</b><small>contrato vs. cargo BORME</small></div>
-      <div class="flow-step"><b>7 · Revisión</b><small>fuente original</small></div>
+      <div class="flow-step"><b>1 · index.json</b><small>manifiesto y estadísticas</small></div>
+      <div class="flow-step"><b>2 · Organizaciones</b><small>JSON ligero</small></div>
+      <div class="flow-step"><b>3 · People</b><small>índice de personas</small></div>
+      <div class="flow-step"><b>4 · Verificación</b><small>solo si se solicita</small></div>
+      <div class="flow-step"><b>5 · Contratos</b><small>solo si se solicita</small></div>
+      <div class="flow-step"><b>6 · BORME / relaciones</b><small>bajo demanda</small></div>
+      <div class="flow-step"><b>7 · Fuente original</b><small>comprobación humana</small></div>
     </div>
   </div>
 </section>
 
-<section id="como">
+<section id="arquitectura">
   <div class="wrap">
     <h2 class="section-title">3. ¿Cómo está hecha?</h2>
-    <p class="section-intro">No necesita una base de datos en el servidor. La mayor parte del trabajo se prepara antes y la web hace los cruces finales en el navegador.</p>
+    <p class="section-intro">Es una web estática: no necesita una base de datos activa ni un servidor de aplicaciones para consultar los datos publicados.</p>
     <div class="grid3">
-      <article class="card info"><span class="badge violet">Preparación</span><h3 style="margin-top:12px">Python</h3><p>Los scripts recopilan, limpian, deduplican y transforman la información en archivos JSON manejables.</p></article>
-      <article class="card info"><span class="badge green">Datos</span><h3 style="margin-top:12px">JSON fragmentados</h3><p>Los contratos y relaciones grandes se dividen en varios archivos para no obligar al navegador a descargar todo al abrir la página.</p></article>
-      <article class="card info"><span class="badge amber">Interfaz</span><h3 style="margin-top:12px">HTML + CSS + JavaScript</h3><p>El <code>index.html</code> carga solo lo necesario, crea índices locales y muestra tablas, fichas, filtros, gráficas y cruces.</p></article>
+      <article class="card info"><span class="badge violet">Preparación</span><h3 style="margin-top:12px">Scripts Python</h3><p>Recopilan, transforman, limpian, normalizan, fragmentan y enriquecen los datos antes de publicarlos.</p></article>
+      <article class="card info"><span class="badge green">Datos</span><h3 style="margin-top:12px">JSON fragmentados</h3><p>Las colecciones grandes se dividen en fragmentos y se describen en <code>index.json</code>.</p></article>
+      <article class="card info"><span class="badge amber">Interfaz</span><h3 style="margin-top:12px">JavaScript en el navegador</h3><p>Construye índices locales y muestra únicamente las colecciones solicitadas por el usuario.</p></article>
     </div>
-
     <div class="note" style="margin-top:18px">
-      <strong>Privacidad de publicación:</strong> en esta página no se muestran rutas absolutas del ordenador usado para generar los datos.
-      Los ejemplos utilizan nombres de archivo y rutas relativas como <code>./json_tragsascope/...</code>.
+      <strong>Importante:</strong> el troceado por sí solo no acelera una web si todos los fragmentos se descargan igualmente al arrancar.
+      Por eso la versión actual utiliza <strong>carga diferida</strong>.
     </div>
   </div>
 </section>
 
 <section id="datos">
   <div class="wrap">
-    <h2 class="section-title">4. Archivos que utiliza</h2>
-    <p class="section-intro">La estructura publicada puede ser tan simple como esta:</p>
+    <h2 class="section-title">4. Archivos actuales</h2>
+    <p class="section-intro">El manifiesto <code>index.json</code> indica qué fragmentos forman cada colección.</p>
+
     <div class="file-tree">tragsascope/
 ├── index.html
 └── json_tragsascope/
     ├── index.json
     ├── organizations_0001.json
+    ├── organizations_0001_verificado_v3.json
     ├── people_0001.json
-    ├── tragsa_people_extended.json
     ├── contracts_0001.json
     ├── contracts_0002.json
     ├── contracts_0003.json
@@ -221,1673 +213,195 @@ footer{border-top:1px solid var(--line);margin-top:35px;padding:32px 0 45px;colo
     ├── role_intervals_0001.json
     └── societary_events_0001.json</div>
 
-    <div class="grid2" style="margin-top:16px">
-      <article class="card info"><h3><code>organizations_0001.json</code></h3><p>Empresas y organizaciones. El campo <code>linked_people</code> guarda los nombres documentados como vinculados a cada entidad.</p></article>
-      <article class="card info"><h3><code>contracts_*.json</code></h3><p>Contratos: expediente, entidad contratante, adjudicatario, NIF, fecha, objeto, importe y URL de la fuente.</p></article>
-      <article class="card info"><h3><code>tragsa_people_extended.json</code></h3><p>Lista separada de personas documentadas en fuentes oficiales del Grupo TRAGSA, con empresa, tipo de vínculo, cargo, fecha y fuente.</p></article>
-      <article class="card info"><h3><code>role_intervals_0001.json</code></h3><p>Periodos aproximados de cargos societarios construidos con fechas de publicación BORME.</p></article>
-      <article class="card info"><h3><code>societary_events_0001.json</code></h3><p>Actos BORME: nombramientos, ceses, revocaciones, reelecciones, socios únicos publicados y otros eventos.</p></article>
-      <article class="card info"><h3><code>relationships_*.json</code></h3><p>Relaciones documentales: adjudicaciones y otras conexiones entre contratos, organizaciones y personas.</p></article>
+    <div class="kpi-row" style="margin-top:18px">
+      <div class="card kpi"><b>48.217</b><span>contratos</span></div>
+      <div class="card kpi"><b>7.601</b><span>organizaciones</span></div>
+      <div class="card kpi"><b>9.263</b><span>registros en people</span></div>
+      <div class="card kpi"><b>65.792</b><span>relaciones</span></div>
+      <div class="card kpi"><b>12.238</b><span>eventos BORME</span></div>
+      <div class="card kpi"><b>8.300</b><span>intervalos de cargos</span></div>
+      <div class="card kpi"><b>7.601</b><span>organizaciones en capa verificada</span></div>
+      <div class="card kpi"><b>0</b><span>coincidencias precomputadas declaradas</span></div>
+    </div>
+
+    <div class="grid2" style="margin-top:18px">
+      <article class="card info"><h3><code>organizations_0001.json</code></h3><p>Colección ligera para búsqueda y navegación inicial. No se sustituye por el fichero verificado porque este último es bastante más pesado.</p></article>
+      <article class="card info"><h3><code>organizations_0001_verificado_v3.json</code></h3><p>Capa enriquecida con <code>linked_people_details</code>, cargo, tipo de fuente, URL, confianza y evidencia.</p></article>
+      <article class="card info"><h3><code>contracts_*.json</code></h3><p>Contratos completos. Se cargan cuando el usuario entra en contratos, abre el historial contractual de una empresa o amplía una búsqueda.</p></article>
+      <article class="card info"><h3><code>societary_events_0001.json</code></h3><p>Actos BORME. Se descarga únicamente al abrir la sección BORME o solicitar los actos de una empresa.</p></article>
+      <article class="card info"><h3><code>role_intervals_0001.json</code></h3><p>Intervalos aproximados de cargos construidos a partir de fechas de publicación BORME.</p></article>
+      <article class="card info"><h3><code>relationships_*.json</code></h3><p>Relaciones documentales completas. Al ser una colección grande, permanece fuera del arranque inicial.</p></article>
     </div>
   </div>
 </section>
 
-<section id="cruces">
+<section id="verificacion">
   <div class="wrap">
-    <h2 class="section-title">5. ¿Qué cruza exactamente la web?</h2>
-    <p class="section-intro">Hay dos cruces principales y un tercer control temporal.</p>
-
-    <div class="card cross">
-      <div class="cross-side">
-        <span class="badge green">Adjudicatarias</span>
-        <h3>Personas de las empresas</h3>
-        <p class="muted"><code>organizations_0001.json → linked_people</code></p>
-      </div>
-      <div class="cross-arrow">↔</div>
-      <div class="cross-side">
-        <span class="badge violet">Grupo TRAGSA</span>
-        <h3>Personas documentadas oficialmente</h3>
-        <p class="muted"><code>tragsa_people_extended.json</code></p>
-      </div>
-    </div>
-
-    <div class="grid3" style="margin-top:16px">
-      <article class="card info"><h3>A · Empresa ↔ empresa</h3><p>Si un mismo nombre aparece en <code>linked_people</code> de varias adjudicatarias, la web lo agrupa para revisión.</p></article>
-      <article class="card info"><h3>B · Empresa ↔ TRAGSA</h3><p>Compara los nombres de adjudicatarias con la lista oficial ampliada de TRAGSA/TRAGSATEC.</p></article>
-      <article class="card info"><h3>C · Contrato ↔ cargo ↔ fecha</h3><p>Cuando existe información suficiente, compara la fecha de adjudicación con los periodos societarios BORME.</p></article>
-    </div>
-
-    <div class="note" style="margin-top:18px">
-      La normalización elimina diferencias de mayúsculas, tildes y signos. También puede detectar nombres con los mismos componentes en distinto orden.
-      Las coincidencias menos seguras se muestran como <strong>posibles coincidencias textuales</strong>, no como identidades confirmadas.
-    </div>
-  </div>
-</section>
-
-<section id="scripts">
-  <div class="wrap">
-    <h2 class="section-title">6. Scripts utilizados</h2>
+    <h2 class="section-title">5. Qué significa ahora «verificación»</h2>
     <p class="section-intro">
-      Los dos scripts principales de preparación se muestran completos a continuación.
-      Las versiones visibles aquí están <strong>preparadas para publicación</strong>: cualquier ruta absoluta del entorno de trabajo se ha sustituido por una ruta relativa.
+      La versión actual no trata todas las asociaciones de la misma forma. Cada relación enriquecida conserva información sobre
+      cómo se obtuvo y con qué nivel de confianza se presenta.
     </p>
 
-    <article class="card script-card">
-      <div class="script-head">
-        <div>
-          <h3>① <code>tragsa_enriquecer_empresas.py</code></h3>
-          <p>
-            Enriquece cada organización con <code>linked_people</code>. Puede reutilizar los JSON locales,
-            buscar información adicional, priorizar BOE/BORME, guardar evidencia aparte en JSONL,
-            usar caché y reanudar el proceso.
-          </p>
-        </div>
-        <div class="script-actions"><span class="badge amber">Genera linked_people</span></div>
-      </div>
-      <details class="code-details">
-        <summary>Ver contenido completo del script</summary>
-        <div class="code-wrap">
-          <div class="code-toolbar"><span>tragsa_enriquecer_empresas.py · versión pública sin rutas locales</span><button class="btn" onclick="copyCode('code1',this)">Copiar</button></div>
-          <pre id="code1"><code>#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-&quot;&quot;&quot;
-Enriquece organizations_0001.json añadiendo SOLO el campo `linked_people`.
-
-Objetivo
---------
-- Mantener intactos todos los campos existentes de cada organización.
-- Añadir un único campo:
-      &quot;linked_people&quot;: [&quot;NOMBRE 1&quot;, &quot;NOMBRE 2&quot;, ...]
-- Obtener nombres desde:
-  1) JSON locales de TragsaScope/BORME si se facilitan.
-  2) Búsqueda web por nombre/NIF (DDGS) y páginas encontradas.
-  3) Prioridad especial a páginas oficiales del BOE/BORME.
-- Guardar evidencia separada en JSONL, sin contaminar el JSON final.
-- Permitir reanudación y cachear búsquedas.
-
-IMPORTANTE
-----------
-`linked_people` significa &quot;persona cuyo nombre aparece públicamente vinculado a la
-entidad en una fuente localizada&quot;. No implica que el vínculo siga vigente, ni que
-la persona sea propietaria, ni que exista conflicto de interés.
-
-Uso básico
-----------
-    python3 tragsa_enriquecer_empresas.py \
-      organizations_0001.json \
-      -o organizations_0001_enriquecido.json \
-      --web
-
-Uso recomendado con los JSON definitivos de TragsaScope
---------------------------------------------------------
-    python3 tragsa_enriquecer_empresas.py \
-      organizations_0001.json \
-      -o organizations_0001_enriquecido.json \
-      --people people_0001.json \
-      --relationships relationships_0001.json relationships_0002.json relationships_0003.json \
-      --role-intervals role_intervals_0001.json \
-      --societary-events societary_events_0001.json \
-      --web \
-      --only-empty
-
-Para probar primero 20 empresas:
-    python3 tragsa_enriquecer_empresas.py organizations_0001.json --web --max-companies 20
-
-Dependencias:
-    pip install -U requests beautifulsoup4 ddgs
-&quot;&quot;&quot;
-
-from __future__ import annotations
-
-import argparse
-import copy
-import hashlib
-import html
-import json
-import logging
-import os
-import random
-import re
-import sys
-import time
-import unicodedata
-from collections import defaultdict
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
-from urllib.parse import urlparse
-
-try:
-    import requests
-    from bs4 import BeautifulSoup
-except ImportError as exc:  # pragma: no cover
-    raise SystemExit(&quot;Faltan dependencias. Ejecuta: pip install -U requests beautifulsoup4 ddgs&quot;) from exc
-
-DDGS = None
-
-
-ROLE_WORDS = (
-    &quot;administrador&quot;, &quot;administradora&quot;, &quot;adm. unico&quot;, &quot;adm. único&quot;, &quot;adm. solid&quot;,
-    &quot;adm. mancom&quot;, &quot;consejero&quot;, &quot;consejera&quot;, &quot;presidente&quot;, &quot;presidenta&quot;,
-    &quot;vicepresidente&quot;, &quot;vicepresidenta&quot;, &quot;secretario&quot;, &quot;secretaria&quot;,
-    &quot;apoderado&quot;, &quot;apoderada&quot;, &quot;apo.sol&quot;, &quot;apo.man&quot;, &quot;director&quot;, &quot;directora&quot;,
-    &quot;director general&quot;, &quot;directora general&quot;, &quot;ceo&quot;, &quot;gerente&quot;, &quot;socio unico&quot;,
-    &quot;socio único&quot;, &quot;socia unica&quot;, &quot;socia única&quot;, &quot;representante&quot;, &quot;representan&quot;,
-    &quot;liquidador&quot;, &quot;liquidadora&quot;, &quot;fundador&quot;, &quot;fundadora&quot;, &quot;propietario&quot;,
-    &quot;propietaria&quot;, &quot;titular real&quot;, &quot;accionista&quot;
-)
-
-# Prefijos típicos del BORME y de páginas corporativas.
-ROLE_PREFIX_RE = re.compile(
-    r&quot;(?P&lt;role&gt;&quot;
-    r&quot;Adm\.?\s*(?:Unico|Único|Solid(?:ar(?:io|ia|ios|ias)?)?|Mancom(?:unado|unada|unados|unadas)?)|&quot;
-    r&quot;Administrador(?:a|es|as)?(?:\s+(?:únic[oa]s?|solidari[oa]s?|mancomunad[oa]s?))?|&quot;
-    r&quot;Consejer[oa]s?|Presidente|Presidenta|Vicepresidente|Vicepresidenta|&quot;
-    r&quot;Secretari[oa]|SecreNoConsj|VsecrNoConsj|Con\.Delegado|Cons\.Del\.Sol|&quot;
-    r&quot;Apoderad[oa]s?|Apo\.(?:Sol|Man\.Soli|Man)|Director(?:a)?(?:\s+General)?|&quot;
-    r&quot;CEO|Gerente|Socio\s+[úu]nico|Socia\s+[úu]nica|Representante|Representan|&quot;
-    r&quot;Liquidador(?:a)?|Fundador(?:a)?|Propietari[oa]|Titular\s+real|Accionista&quot;
-    r&quot;)\s*[:\-–—]\s*(?P&lt;names&gt;[^\n\r]{3,450})&quot;,
-    re.IGNORECASE,
-)
-
-# En BORME es frecuente &quot;CARGO: NOMBRES. Otro cargo:&quot;. Cortamos antes del siguiente bloque.
-NEXT_ROLE_RE = re.compile(
-    r&quot;\.\s*(?:Adm\.|Administrador|Consejer|Presidente|Vicepresidente|Secretari|&quot;
-    r&quot;Apoderad|Apo\.|Director|Gerente|Socio\s+[úu]nico|Representante|Liquidador|&quot;
-    r&quot;Auditor|Modificaciones estatutarias|Cambio de domicilio|Cambio de objeto|&quot;
-    r&quot;Datos registrales)&quot;,
-    re.IGNORECASE,
-)
-
-LEGAL_ENTITY_RE = re.compile(
-    r&quot;\b(?:S\.?\s*L\.?\s*U?\.?|S\.?\s*A\.?\s*U?\.?|SLP|S\.COOP|SOCIEDAD|&quot;
-    r&quot;LIMITED|LTD|GMBH|B\.?V\.?|PLC|INC\.?|CORPORATION|CORP\.?|FUNDACI[ÓO]N|&quot;
-    r&quot;ASOCIACI[ÓO]N|UNIVERSIDAD|INSTITUTO|AUDITORES?|CONSULTORES?|BANK|BANCO)\b&quot;,
-    re.IGNORECASE,
-)
-
-NOISE_RE = re.compile(
-    r&quot;\b(?:EUROS?|CAPITAL|ESTATUT|DOMICILIO|OBJETO SOCIAL|ACTIVIDAD|CNAE|&quot;
-    r&quot;REGISTRALES?|AMPLIACI[ÓO]N|REDUCCI[ÓO]N|DISOLUCI[ÓO]N|EXTINCI[ÓO]N|&quot;
-    r&quot;CONSEJO DE ADMINISTRACI[ÓO]N A|ADMINISTRADORES? (?:SOLIDARIOS|MANCOMUNADOS)|&quot;
-    r&quot;COMIENZO DE OPERACIONES|FECHA DE CIERRE|ARTICULOS?|LEY \d|RESULTANTE)\b&quot;,
-    re.IGNORECASE,
-)
-
-DNI_RE = re.compile(r&quot;^\d{8}[A-Z]$&quot;, re.IGNORECASE)
-NIE_RE = re.compile(r&quot;^[XYZ]\d{7}[A-Z]$&quot;, re.IGNORECASE)
-
-TRAGSA_IDS = {&quot;org:A28476208&quot;, &quot;org:A79365821&quot;}
-
-
-@dataclass(frozen=True)
-class Evidence:
-    organization_id: str
-    organization_name: str
-    person: str
-    role: str
-    source_url: str
-    source_kind: str
-    query: str = &quot;&quot;
-    confidence: int = 0
-
-
-class RateLimiter:
-    def __init__(self, delay: float, jitter: float = 0.35):
-        self.delay = max(0.0, delay)
-        self.jitter = max(0.0, jitter)
-        self.last = 0.0
-
-    def wait(self) -&gt; None:
-        elapsed = time.monotonic() - self.last
-        target = self.delay + random.uniform(0, self.jitter)
-        if elapsed &lt; target:
-            time.sleep(target - elapsed)
-        self.last = time.monotonic()
-
-
-def norm_text(value: Any) -&gt; str:
-    s = str(value or &quot;&quot;)
-    s = unicodedata.normalize(&quot;NFKD&quot;, s)
-    s = &quot;&quot;.join(ch for ch in s if not unicodedata.combining(ch))
-    s = s.upper()
-    s = re.sub(r&quot;[^A-Z0-9]+&quot;, &quot; &quot;, s)
-    return re.sub(r&quot;\s+&quot;, &quot; &quot;, s).strip()
-
-
-def compact_company_name(name: str) -&gt; str:
-    s = re.sub(r&quot;\([^)]{0,140}\)&quot;, &quot; &quot;, name or &quot;&quot;)
-    s = re.sub(r&quot;\b(?:S\.?L\.?U?\.?|S\.?A\.?U?\.?|SLP|SCOOP|S\.COOP\.?)\b&quot;, &quot; &quot;, s, flags=re.I)
-    s = re.sub(r&quot;\s+&quot;, &quot; &quot;, s).strip(&quot; ,.;-&quot;)
-    return s
-
-
-def load_json(path: Path) -&gt; Any:
-    with path.open(&quot;r&quot;, encoding=&quot;utf-8&quot;) as f:
-        return json.load(f)
-
-
-def unwrap_items(data: Any) -&gt; List[Dict[str, Any]]:
-    if isinstance(data, list):
-        return [x for x in data if isinstance(x, dict)]
-    if isinstance(data, dict) and isinstance(data.get(&quot;items&quot;), list):
-        return [x for x in data[&quot;items&quot;] if isinstance(x, dict)]
-    return []
-
-
-def atomic_dump_json(path: Path, data: Any) -&gt; None:
-    tmp = path.with_suffix(path.suffix + &quot;.tmp&quot;)
-    with tmp.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
-        json.dump(data, f, ensure_ascii=False, separators=(&quot;,&quot;, &quot;:&quot;))
-    os.replace(tmp, path)
-
-
-def cache_key(prefix: str, text: str) -&gt; str:
-    h = hashlib.sha256(text.encode(&quot;utf-8&quot;, errors=&quot;ignore&quot;)).hexdigest()[:24]
-    return f&quot;{prefix}_{h}.json&quot;
-
-
-def canonical_person_name(raw: str) -&gt; Optional[str]:
-    &quot;&quot;&quot;Filtra candidatos obvios que no parecen personas.
-
-    No intenta reordenar apellidos/nombre: conserva la forma publicada.
-    &quot;&quot;&quot;
-    if not raw:
-        return None
-    s = html.unescape(raw)
-    s = re.sub(r&quot;\s+&quot;, &quot; &quot;, s).strip(&quot; \t\n\r,;:.()-&quot;)
-    s = re.sub(r&quot;\s+\b(?:DNI|NIF)\b\s*[:\-]?\s*[A-Z0-9-]+$&quot;, &quot;&quot;, s, flags=re.I).strip()
-    if len(s) &lt; 5 or len(s) &gt; 120:
-        return None
-    if re.search(r&quot;\d{2,}&quot;, s):
-        return None
-    if NOISE_RE.search(s):
-        return None
-    if LEGAL_ENTITY_RE.search(s):
-        return None
-    # Evita frases completas o textos de navegación.
-    words = re.findall(r&quot;[A-Za-zÁÉÍÓÚÜÑáéíóúüñÀ-ÿ&#x27;’-]+&quot;, s)
-    if not (2 &lt;= len(words) &lt;= 8):
-        return None
-    if any(len(w) &gt; 28 for w in words):
-        return None
-    stop = {&quot;DE&quot;, &quot;DEL&quot;, &quot;LA&quot;, &quot;LAS&quot;, &quot;LOS&quot;, &quot;Y&quot;, &quot;DA&quot;, &quot;DO&quot;, &quot;DOS&quot;, &quot;DAS&quot;, &quot;VAN&quot;, &quot;VON&quot;}
-    informative = [w for w in words if norm_text(w) not in stop]
-    if len(informative) &lt; 2:
-        return None
-    # Si está todo en minúscula y parece una frase, rechazo conservador.
-    alpha = &quot;&quot;.join(words)
-    if alpha.islower():
-        return None
-    return s
-
-
-def split_people_block(block: str) -&gt; List[str]:
-    block = block.strip()
-    m = NEXT_ROLE_RE.search(block)
-    if m:
-        block = block[:m.start()]
-    # Cortes adicionales frecuentes en snippets.
-    block = re.split(r&quot;\s+Datos registrales\b|\s+Otros conceptos\b|\s+Modificaciones estatutarias\b&quot;, block, maxsplit=1, flags=re.I)[0]
-    pieces = re.split(r&quot;\s*;\s*|\s+\|\s+|\s+·\s+&quot;, block)
-    out: List[str] = []
-    for piece in pieces:
-        # Si el buscador pega dos cargos separados por punto, quedarse con el primero.
-        piece = re.split(r&quot;\.\s+(?=[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ])&quot;, piece, maxsplit=1)[0]
-        p = canonical_person_name(piece)
-        if p:
-            out.append(p)
-    return out
-
-
-def extract_people_from_text(text: str, source_url: str, org: Dict[str, Any], source_kind: str, query: str = &quot;&quot;) -&gt; List[Evidence]:
-    if not text:
-        return []
-    text = BeautifulSoup(text, &quot;html.parser&quot;).get_text(&quot; &quot;) if &quot;&lt;&quot; in text and &quot;&gt;&quot; in text else text
-    text = re.sub(r&quot;\s+&quot;, &quot; &quot;, html.unescape(text))
-    found: List[Evidence] = []
-    for m in ROLE_PREFIX_RE.finditer(text):
-        role = re.sub(r&quot;\s+&quot;, &quot; &quot;, m.group(&quot;role&quot;)).strip()
-        names_block = m.group(&quot;names&quot;)
-        # Limita el bloque en caso de snippets largos sin puntuación limpia.
-        names_block = names_block[:350]
-        for name in split_people_block(names_block):
-            conf = 98 if &quot;boe.es&quot; in urlparse(source_url).netloc.lower() else 80
-            found.append(Evidence(
-                organization_id=str(org.get(&quot;id&quot;, &quot;&quot;)),
-                organization_name=str(org.get(&quot;name&quot;) or org.get(&quot;legal_name&quot;) or &quot;&quot;),
-                person=name,
-                role=role,
-                source_url=source_url,
-                source_kind=source_kind,
-                query=query,
-                confidence=conf,
-            ))
-    return found
-
-
-def is_natural_person_org(org: Dict[str, Any]) -&gt; bool:
-    nif = str(org.get(&quot;nif&quot;) or &quot;&quot;).upper().strip()
-    return bool(DNI_RE.match(nif) or NIE_RE.match(nif))
-
-
-def build_local_evidence(
-    organizations: List[Dict[str, Any]],
-    people_files: Sequence[Path],
-    relationship_files: Sequence[Path],
-    role_interval_files: Sequence[Path],
-    event_files: Sequence[Path],
-) -&gt; Tuple[Dict[str, Set[str]], List[Evidence]]:
-    &quot;&quot;&quot;Aprovecha los JSON ya existentes, sin tocar el fichero final salvo linked_people.&quot;&quot;&quot;
-    org_by_id = {str(o.get(&quot;id&quot;)): o for o in organizations if o.get(&quot;id&quot;)}
-    people_by_id: Dict[str, str] = {}
-    for pth in people_files:
-        for p in unwrap_items(load_json(pth)):
-            pid = str(p.get(&quot;id&quot;) or &quot;&quot;)
-            name = canonical_person_name(str(p.get(&quot;name&quot;) or &quot;&quot;))
-            if pid and name:
-                people_by_id[pid] = name
-
-    names_by_org: Dict[str, Set[str]] = defaultdict(set)
-    evidence: List[Evidence] = []
-
-    # Relaciones: person -&gt; org. Incluye SOCIAL_ROLE_EVENT, socio único y snapshots oficiales.
-    for pth in relationship_files:
-        for r in unwrap_items(load_json(pth)):
-            source = str(r.get(&quot;source&quot;) or &quot;&quot;)
-            target = str(r.get(&quot;target&quot;) or &quot;&quot;)
-            holder_type = str(r.get(&quot;holder_type&quot;) or &quot;&quot;)
-            if target not in org_by_id:
-                continue
-            if not source.startswith(&quot;person:&quot;) and holder_type != &quot;person&quot;:
-                continue
-            name = people_by_id.get(source)
-            if not name:
-                name = canonical_person_name(str(r.get(&quot;raw_holder&quot;) or &quot;&quot;))
-            if not name:
-                continue
-            # raw_holder puede contener varias personas juntas. Solo lo usamos si es una persona limpia.
-            names_by_org[target].add(name)
-            evidence.append(Evidence(
-                organization_id=target,
-                organization_name=str(org_by_id[target].get(&quot;name&quot;) or &quot;&quot;),
-                person=name,
-                role=str(r.get(&quot;role&quot;) or r.get(&quot;type&quot;) or &quot;relación documentada&quot;),
-                source_url=str(r.get(&quot;evidence_url&quot;) or &quot;&quot;),
-                source_kind=&quot;local_relationship&quot;,
-                confidence=100 if r.get(&quot;evidence_url&quot;) else 90,
-            ))
-
-    # Intervalos de cargos.
-    for pth in role_interval_files:
-        for it in unwrap_items(load_json(pth)):
-            oid = str(it.get(&quot;organization_id&quot;) or &quot;&quot;)
-            pid = str(it.get(&quot;person_id&quot;) or &quot;&quot;)
-            if oid not in org_by_id:
-                continue
-            name = people_by_id.get(pid)
-            if not name:
-                continue
-            names_by_org[oid].add(name)
-            evidence.append(Evidence(
-                organization_id=oid,
-                organization_name=str(org_by_id[oid].get(&quot;name&quot;) or &quot;&quot;),
-                person=name,
-                role=str(it.get(&quot;role&quot;) or &quot;cargo BORME&quot;),
-                source_url=str(it.get(&quot;start_evidence_url&quot;) or it.get(&quot;end_evidence_url&quot;) or &quot;&quot;),
-                source_kind=&quot;local_role_interval&quot;,
-                confidence=100 if (it.get(&quot;start_evidence_url&quot;) or it.get(&quot;end_evidence_url&quot;)) else 90,
-            ))
-
-    # Eventos societarios: extrae por patrón del raw_text. Útil cuando el parser de people fue imperfecto.
-    for pth in event_files:
-        for ev in unwrap_items(load_json(pth)):
-            oid = str(ev.get(&quot;organization_id&quot;) or &quot;&quot;)
-            if oid not in org_by_id:
-                continue
-            url = str(ev.get(&quot;source_url&quot;) or &quot;&quot;)
-            for e in extract_people_from_text(str(ev.get(&quot;raw_text&quot;) or &quot;&quot;), url, org_by_id[oid], &quot;local_borme_event&quot;):
-                names_by_org[oid].add(e.person)
-                evidence.append(e)
-
-    return names_by_org, evidence
-
-
-class WebEnricher:
-    def __init__(self, cache_dir: Path, delay: float, max_results: int, timeout: float, user_agent: str, search_depth: str = &#x27;normal&#x27;):
-        self.cache_dir = cache_dir
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.search_cache = cache_dir / &quot;search&quot;
-        self.page_cache = cache_dir / &quot;pages&quot;
-        self.search_cache.mkdir(exist_ok=True)
-        self.page_cache.mkdir(exist_ok=True)
-        self.max_results = max(1, max_results)
-        self.search_depth = search_depth
-        self.timeout = timeout
-        self.rate = RateLimiter(delay)
-        self.session = requests.Session()
-        self.session.headers.update({
-            &quot;User-Agent&quot;: user_agent,
-            &quot;Accept-Language&quot;: &quot;es-ES,es;q=0.9,en;q=0.6&quot;,
-        })
-
-    def queries_for_org(self, org: Dict[str, Any]) -&gt; List[str]:
-        name = str(org.get(&quot;legal_name&quot;) or org.get(&quot;name&quot;) or &quot;&quot;).strip()
-        nif = str(org.get(&quot;nif&quot;) or &quot;&quot;).strip()
-        compact = compact_company_name(name)
-        queries: List[str] = []
-        # Orden: primero señales fuertes y fuentes oficiales.
-        if nif:
-            queries.append(f&#x27;&quot;{nif}&quot; administrador consejero apoderado&#x27;)
-        if name:
-            queries.append(f&#x27;site:boe.es/diario_borme &quot;{name}&quot;&#x27;)
-        if self.search_depth in {&quot;normal&quot;, &quot;deep&quot;} and name:
-            queries.append(f&#x27;&quot;{name}&quot; administrador consejero apoderado presidente director gerente&#x27;)
-        if self.search_depth == &quot;deep&quot;:
-            if nif:
-                queries.append(f&#x27;&quot;{nif}&quot; presidente director gerente socio unico titular real&#x27;)
-            if name:
-                queries.append(f&#x27;&quot;{name}&quot; CEO gerente propietario accionista&#x27;)
-            if compact and compact != name and len(compact) &gt;= 6:
-                queries.append(f&#x27;site:boe.es/diario_borme &quot;{compact}&quot;&#x27;)
-        # Deduplicación conservando orden.
-        return list(dict.fromkeys(queries))
-
-    def search(self, query: str) -&gt; List[Dict[str, str]]:
-        path = self.search_cache / cache_key(&quot;search&quot;, query)
-        if path.exists():
-            try:
-                return list(load_json(path))
-            except Exception:
-                pass
-        self.rate.wait()
-        try:
-            global DDGS
-            if DDGS is None:
-                try:
-                    from ddgs import DDGS as _DDGS
-                except ImportError as exc:
-                    raise RuntimeError(&quot;Falta ddgs. Ejecuta: pip install -U ddgs&quot;) from exc
-                DDGS = _DDGS
-            raw = DDGS().text(query, region=&quot;es-es&quot;, safesearch=&quot;moderate&quot;, max_results=self.max_results)
-            results = []
-            for r in raw or []:
-                if not isinstance(r, dict):
-                    continue
-                results.append({
-                    &quot;title&quot;: str(r.get(&quot;title&quot;) or &quot;&quot;),
-                    &quot;body&quot;: str(r.get(&quot;body&quot;) or r.get(&quot;snippet&quot;) or &quot;&quot;),
-                    &quot;href&quot;: str(r.get(&quot;href&quot;) or r.get(&quot;url&quot;) or &quot;&quot;),
-                })
-            atomic_dump_json(path, results)
-            return results
-        except Exception as e:
-            logging.warning(&quot;Búsqueda fallida %r: %s&quot;, query, e)
-            return []
-
-    def fetch_page(self, url: str) -&gt; str:
-        if not url.startswith((&quot;http://&quot;, &quot;https://&quot;)):
-            return &quot;&quot;
-        path = self.page_cache / cache_key(&quot;page&quot;, url)
-        if path.exists():
-            try:
-                data = load_json(path)
-                return str(data.get(&quot;text&quot;) or &quot;&quot;)
-            except Exception:
-                pass
-        self.rate.wait()
-        try:
-            r = self.session.get(url, timeout=self.timeout, allow_redirects=True)
-            ctype = r.headers.get(&quot;content-type&quot;, &quot;&quot;).lower()
-            if r.status_code != 200 or not any(x in ctype for x in (&quot;text/html&quot;, &quot;application/xhtml&quot;, &quot;text/plain&quot;)):
-                return &quot;&quot;
-            if len(r.content) &gt; 4_000_000:
-                return &quot;&quot;
-            soup = BeautifulSoup(r.text, &quot;html.parser&quot;)
-            for tag in soup([&quot;script&quot;, &quot;style&quot;, &quot;noscript&quot;, &quot;svg&quot;]):
-                tag.decompose()
-            text = re.sub(r&quot;\s+&quot;, &quot; &quot;, soup.get_text(&quot; &quot;, strip=True))
-            atomic_dump_json(path, {&quot;url&quot;: url, &quot;text&quot;: text[:1_500_000]})
-            return text
-        except Exception as e:
-            logging.debug(&quot;No se pudo descargar %s: %s&quot;, url, e)
-            return &quot;&quot;
-
-    def result_relevant(self, org: Dict[str, Any], result: Dict[str, str]) -&gt; bool:
-        hay = norm_text(&quot; &quot;.join([result.get(&quot;title&quot;, &quot;&quot;), result.get(&quot;body&quot;, &quot;&quot;), result.get(&quot;href&quot;, &quot;&quot;)]))
-        nif = norm_text(org.get(&quot;nif&quot;))
-        name = norm_text(compact_company_name(str(org.get(&quot;legal_name&quot;) or org.get(&quot;name&quot;) or &quot;&quot;)))
-        # NIF es la señal más fuerte.
-        if nif and nif in hay:
-            return True
-        tokens = [t for t in name.split() if len(t) &gt;= 4 and t not in {&quot;SOCIEDAD&quot;, &quot;LIMITADA&quot;, &quot;ANONIMA&quot;, &quot;UNIPERSONAL&quot;}]
-        if not tokens:
-            return False
-        # Exige al menos 2 tokens del nombre o el 60% si es corto.
-        hits = sum(t in hay for t in tokens[:8])
-        need = 1 if len(tokens) == 1 else max(2, round(min(len(tokens), 6) * 0.6))
-        return hits &gt;= need
-
-    def enrich_org(self, org: Dict[str, Any]) -&gt; Tuple[Set[str], List[Evidence]]:
-        names: Set[str] = set()
-        evidences: List[Evidence] = []
-        seen_urls: Set[str] = set()
-
-        for query in self.queries_for_org(org):
-            for result in self.search(query):
-                url = result.get(&quot;href&quot;, &quot;&quot;)
-                snippet = &quot; &quot;.join([result.get(&quot;title&quot;, &quot;&quot;), result.get(&quot;body&quot;, &quot;&quot;)])
-                if not self.result_relevant(org, result):
-                    continue
-
-                # 1) Extraer del propio resultado del buscador.
-                for e in extract_people_from_text(snippet, url, org, &quot;search_snippet&quot;, query):
-                    names.add(e.person)
-                    evidences.append(e)
-
-                # 2) Descargar páginas prioritarias o que contienen palabras de cargo.
-                host = urlparse(url).netloc.lower()
-                roleish = any(w in norm_text(snippet) for w in [norm_text(x) for x in ROLE_WORDS])
-                priority = host.endswith(&quot;boe.es&quot;) or roleish
-                if not url or url in seen_urls or not priority:
-                    continue
-                seen_urls.add(url)
-                page = self.fetch_page(url)
-                if not page:
-                    continue
-                # Comprobación de identidad de empresa antes de extraer nombres de una página completa.
-                page_norm = norm_text(page[:250_000])
-                nif = norm_text(org.get(&quot;nif&quot;))
-                cname = norm_text(compact_company_name(str(org.get(&quot;legal_name&quot;) or org.get(&quot;name&quot;) or &quot;&quot;)))
-                company_ok = bool(nif and nif in page_norm)
-                if not company_ok and cname:
-                    toks = [t for t in cname.split() if len(t) &gt;= 4][:6]
-                    company_ok = sum(t in page_norm for t in toks) &gt;= max(1, min(2, len(toks)))
-                if not company_ok:
-                    continue
-                for e in extract_people_from_text(page, url, org, &quot;boe_borme&quot; if host.endswith(&quot;boe.es&quot;) else &quot;web_page&quot;, query):
-                    names.add(e.person)
-                    evidences.append(e)
-
-        return names, evidences
-
-
-def evidence_key(e: Evidence) -&gt; Tuple[str, str, str, str]:
-    return (e.organization_id, norm_text(e.person), e.role, e.source_url)
-
-
-def write_evidence_jsonl(path: Path, evidence: Iterable[Evidence]) -&gt; None:
-    seen: Set[Tuple[str, str, str, str]] = set()
-    with path.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
-        for e in evidence:
-            k = evidence_key(e)
-            if k in seen:
-                continue
-            seen.add(k)
-            f.write(json.dumps(asdict(e), ensure_ascii=False) + &quot;\n&quot;)
-
-
-def merge_person_names(existing: Iterable[str], new: Iterable[str]) -&gt; List[str]:
-    # Deduplicación por nombre normalizado, conservando la primera grafía.
-    out: Dict[str, str] = {}
-    for name in list(existing) + list(new):
-        p = canonical_person_name(str(name))
-        if p:
-            out.setdefault(norm_text(p), p)
-    return sorted(out.values(), key=lambda x: norm_text(x))
-
-
-def validate_unchanged(original: List[Dict[str, Any]], enriched: List[Dict[str, Any]]) -&gt; None:
-    if len(original) != len(enriched):
-        raise RuntimeError(&quot;Ha cambiado el número de organizaciones&quot;)
-    for i, (a, b) in enumerate(zip(original, enriched)):
-        aa = copy.deepcopy(a)
-        bb = copy.deepcopy(b)
-        bb.pop(&quot;linked_people&quot;, None)
-        aa.pop(&quot;linked_people&quot;, None)
-        if aa != bb:
-            raise RuntimeError(f&quot;Se ha modificado un campo original en el registro {i} ({a.get(&#x27;id&#x27;)})&quot;)
-
-
-def parse_args() -&gt; argparse.Namespace:
-    p = argparse.ArgumentParser(description=&quot;Añade linked_people a organizations_0001.json sin modificar ningún otro campo&quot;)
-    p.add_argument(&quot;input&quot;, type=Path, help=&quot;organizations_0001.json&quot;)
-    p.add_argument(&quot;-o&quot;, &quot;--output&quot;, type=Path, default=Path(&quot;organizations_0001_enriquecido.json&quot;))
-    p.add_argument(&quot;--people&quot;, nargs=&quot;*&quot;, type=Path, default=[], help=&quot;people_*.json&quot;)
-    p.add_argument(&quot;--relationships&quot;, nargs=&quot;*&quot;, type=Path, default=[], help=&quot;relationships_*.json&quot;)
-    p.add_argument(&quot;--role-intervals&quot;, nargs=&quot;*&quot;, type=Path, default=[], help=&quot;role_intervals_*.json&quot;)
-    p.add_argument(&quot;--societary-events&quot;, nargs=&quot;*&quot;, type=Path, default=[], help=&quot;societary_events_*.json&quot;)
-    p.add_argument(&quot;--web&quot;, action=&quot;store_true&quot;, help=&quot;Activa búsqueda web con DDGS&quot;)
-    p.add_argument(&quot;--only-empty&quot;, action=&quot;store_true&quot;, help=&quot;En web, investiga solo organizaciones sin linked_people tras fuentes locales&quot;)
-    p.add_argument(&quot;--max-companies&quot;, type=int, default=0, help=&quot;0 = todas; útil para pruebas&quot;)
-    p.add_argument(&quot;--max-results&quot;, type=int, default=6, help=&quot;Resultados por consulta web&quot;)
-    p.add_argument(&quot;--search-depth&quot;, choices=[&quot;quick&quot;, &quot;normal&quot;, &quot;deep&quot;], default=&quot;normal&quot;, help=&quot;quick=2 consultas/empresa; normal≈3; deep≈5-6&quot;)
-    p.add_argument(&quot;--delay&quot;, type=float, default=1.2, help=&quot;Pausa mínima aproximada entre solicitudes&quot;)
-    p.add_argument(&quot;--timeout&quot;, type=float, default=15.0)
-    p.add_argument(&quot;--checkpoint-every&quot;, type=int, default=20)
-    p.add_argument(&quot;--cache-dir&quot;, type=Path, default=Path(&quot;.tragsa_people_cache&quot;))
-    p.add_argument(&quot;--evidence&quot;, type=Path, default=Path(&quot;linked_people_evidence.jsonl&quot;))
-    p.add_argument(&quot;--resume&quot;, action=&quot;store_true&quot;, help=&quot;Si existe el output, reutiliza sus linked_people como punto de partida&quot;)
-    p.add_argument(&quot;--include-natural-person-self&quot;, action=&quot;store_true&quot;, help=&quot;Para adjudicatarios persona física, añade su propio nombre&quot;)
-    p.add_argument(&quot;-v&quot;, &quot;--verbose&quot;, action=&quot;count&quot;, default=0)
-    return p.parse_args()
-
-
-def main() -&gt; int:
-    args = parse_args()
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose &gt;= 2 else logging.INFO if args.verbose else logging.WARNING,
-        format=&quot;%(asctime)s %(levelname)s %(message)s&quot;,
-    )
-
-    source_data = load_json(args.input)
-    source_items = unwrap_items(source_data)
-    if not source_items:
-        raise SystemExit(&quot;No se encontraron organizaciones en el JSON de entrada&quot;)
-
-    # Copia profunda para garantizar que no se cambie nada salvo linked_people.
-    enriched_data = copy.deepcopy(source_data)
-    enriched_items = unwrap_items(enriched_data)
-
-    # Reanudar desde un output previo, solo recuperando linked_people por id.
-    resume_by_id: Dict[str, List[str]] = {}
-    if args.resume and args.output.exists():
-        try:
-            for o in unwrap_items(load_json(args.output)):
-                if o.get(&quot;id&quot;) and isinstance(o.get(&quot;linked_people&quot;), list):
-                    resume_by_id[str(o[&quot;id&quot;])] = [str(x) for x in o[&quot;linked_people&quot;]]
-        except Exception as e:
-            logging.warning(&quot;No se pudo reutilizar el output anterior: %s&quot;, e)
-
-    for o in enriched_items:
-        existing = o.get(&quot;linked_people&quot;) if isinstance(o.get(&quot;linked_people&quot;), list) else []
-        existing = list(existing) + resume_by_id.get(str(o.get(&quot;id&quot;) or &quot;&quot;), [])
-        o[&quot;linked_people&quot;] = merge_person_names(existing, [])
-
-    local_names, all_evidence = build_local_evidence(
-        enriched_items,
-        args.people,
-        args.relationships,
-        args.role_intervals,
-        args.societary_events,
-    )
-    for o in enriched_items:
-        oid = str(o.get(&quot;id&quot;) or &quot;&quot;)
-        o[&quot;linked_people&quot;] = merge_person_names(o.get(&quot;linked_people&quot;, []), local_names.get(oid, set()))
-        if args.include_natural_person_self and is_natural_person_org(o):
-            o[&quot;linked_people&quot;] = merge_person_names(o[&quot;linked_people&quot;], [str(o.get(&quot;name&quot;) or &quot;&quot;)])
-
-    # Escribe un primer checkpoint aunque no haya web.
-    validate_unchanged(source_items, enriched_items)
-    atomic_dump_json(args.output, enriched_data)
-    write_evidence_jsonl(args.evidence, all_evidence)
-
-    if not args.web:
-        with_people = sum(bool(o.get(&quot;linked_people&quot;)) for o in enriched_items)
-        print(f&quot;OK: {len(enriched_items)} organizaciones; {with_people} con linked_people. Salida: {args.output}&quot;)
-        print(f&quot;Evidencia: {args.evidence}&quot;)
-        return 0
-
-    web = WebEnricher(
-        cache_dir=args.cache_dir,
-        delay=args.delay,
-        max_results=args.max_results,
-        timeout=args.timeout,
-        user_agent=&quot;Mozilla/5.0 (compatible; TragsaScopeResearch/1.0; +public-data-research)&quot;,
-        search_depth=args.search_depth,
-    )
-
-    candidates = []
-    for idx, o in enumerate(enriched_items):
-        if o.get(&quot;category&quot;) == &quot;grupo_tragsa&quot;:
-            continue
-        # Persona física adjudicataria: una búsqueda societaria no tiene el mismo sentido.
-        if is_natural_person_org(o):
-            continue
-        if args.only_empty and o.get(&quot;linked_people&quot;):
-            continue
-        candidates.append((idx, o))
-    if args.max_companies &gt; 0:
-        candidates = candidates[:args.max_companies]
-
-    print(f&quot;Web: se investigarán {len(candidates)} organizaciones. Ctrl+C es seguro: se guarda checkpoint.&quot;)
-    processed = 0
-    try:
-        for idx, org in candidates:
-            processed += 1
-            name = str(org.get(&quot;name&quot;) or org.get(&quot;legal_name&quot;) or org.get(&quot;id&quot;) or &quot;&quot;)
-            print(f&quot;[{processed}/{len(candidates)}] {name}&quot;)
-            try:
-                names, ev = web.enrich_org(org)
-                if names:
-                    org[&quot;linked_people&quot;] = merge_person_names(org.get(&quot;linked_people&quot;, []), names)
-                    print(f&quot;  + {len(names)} nombres candidatos documentados&quot;)
-                all_evidence.extend(ev)
-            except Exception as e:
-                logging.warning(&quot;Error investigando %s: %s&quot;, name, e)
-
-            if processed % max(1, args.checkpoint_every) == 0:
-                validate_unchanged(source_items, enriched_items)
-                atomic_dump_json(args.output, enriched_data)
-                write_evidence_jsonl(args.evidence, all_evidence)
-                print(&quot;  checkpoint guardado&quot;)
-    except KeyboardInterrupt:
-        print(&quot;\nInterrumpido por el usuario. Guardando progreso…&quot;)
-    finally:
-        validate_unchanged(source_items, enriched_items)
-        atomic_dump_json(args.output, enriched_data)
-        write_evidence_jsonl(args.evidence, all_evidence)
-
-    with_people = sum(bool(o.get(&quot;linked_people&quot;)) for o in enriched_items)
-    total_links = sum(len(o.get(&quot;linked_people&quot;) or []) for o in enriched_items)
-    print(f&quot;FIN: {len(enriched_items)} organizaciones; {with_people} con personas; {total_links} vínculos únicos.&quot;)
-    print(f&quot;JSON: {args.output}&quot;)
-    print(f&quot;Evidencia: {args.evidence}&quot;)
-    print(f&quot;Cache: {args.cache_dir}&quot;)
-    return 0
-
-
-if __name__ == &quot;__main__&quot;:
-    raise SystemExit(main())
-</code></pre>
-        </div>
-      </details>
-    </article>
-
-    <article class="card script-card" style="margin-top:18px">
-      <div class="script-head">
-        <div>
-          <h3>② <code>build_tragsa_people_extended.py</code></h3>
-          <p>
-            Construye una lista separada de personas vinculadas documentalmente a TRAGSA/TRAGSATEC.
-            Conserva el tipo de relación, cargo, fecha y URL de la fuente, y deduplica por nombre normalizado.
-          </p>
-        </div>
-        <div class="script-actions"><span class="badge green">Genera tragsa_people_extended.json</span></div>
-      </div>
-      <details class="code-details">
-        <summary>Ver contenido completo del script</summary>
-        <div class="code-wrap">
-          <div class="code-toolbar"><span>build_tragsa_people_extended.py · versión pública sin rutas locales</span><button class="btn" onclick="copyCode('code2',this)">Copiar</button></div>
-          <pre id="code2"><code>import json, glob, hashlib, re, unicodedata
-from collections import OrderedDict
-from datetime import datetime, timezone
-
-BASE=&#x27;.&#x27;  # carpeta actual / ruta relativa pública
-OUT=BASE+&#x27;/tragsa_people_extended.json&#x27;
-ORG_ENR=BASE+&#x27;/organizations_0001_enriquecido.json&#x27;
-
-SRC_BOARD=&#x27;https://www.tragsa.es/es/grupo-tragsa/regimen-juridico/Paginas/consejeros.aspx&#x27;
-SRC_ORG_2025=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/organigrama-2025/20250303-organigrama-web.pdf&#x27;
-SRC_STAFF_20260526=&#x27;https://www.tragsa.es/es/equipo-humano/unete-a-nuestro-equipo/ofertas-empleo-indefinido/tasas-reposicion-especifica-2025-2026/Documents/relacion-de-personas-colab-organo-selec-entrev-tecn-prof-tre.adicional-tragsatec.pdf&#x27;
-SRC_PRE_20260624=&#x27;https://www.tragsa.es/es/equipo-humano/unete-a-nuestro-equipo/ofertas-empleo-indefinido/tasa-reposicion-2025-2026-puestos-pre-tragsatec/Documents/24%20de%20junio/relacion-personas-colab-organo-de-seleccion.pdf&#x27;
-SRC_TRAGSA_SEL_20260702=&#x27;https://www.tragsa.es/es/comunicacion/noticias/Paginas/260702-tro-25-26-modif-organo-seleccion.aspx&#x27;
-SRC_TRAGSATEC_SEL_20260722=&#x27;https://www.tragsa.es/es/comunicacion/noticias/Paginas/260722-tro-25-26.aspx&#x27;
-SRC_TRAGSATEC_SEL_20260204=&#x27;https://www.tragsa.es/es/comunicacion/noticias/Paginas/260204-trea-modif-orga-selec-tragsatec.aspx&#x27;
-SRC_PROFILE_PRES=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-presidencia.pdf&#x27;
-SRC_PROFILE_DCAI=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-direccion-coordinacion-acciones-institucionales.pdf&#x27;
-SRC_PROFILE_DEF=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-direccion-economico-financiera.pdf&#x27;
-SRC_PROFILE_RRHH=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-direccion-recursos-humanos-organizacion.pdf&#x27;
-SRC_PROFILE_LEGAL=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-asesoria-juridica.pdf&#x27;
-SRC_PROFILE_TTEC=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-direccion-tragsatec.pdf&#x27;
-SRC_PROFILE_GAB=&#x27;https://www.tragsa.es/es/grupo-tragsa/quienes-somos/Documents/perfiles-profesionales-funciones/perfil-profesional-funciones-gabinete-presidencia.pdf&#x27;
-
-
-def canon(s):
-    s=str(s or &#x27;&#x27;).strip()
-    s=unicodedata.normalize(&#x27;NFD&#x27;, s)
-    s=&#x27;&#x27;.join(c for c in s if unicodedata.category(c)!=&#x27;Mn&#x27;)
-    s=s.upper().replace(&#x27;ª&#x27;,&#x27;A&#x27;).replace(&#x27;º&#x27;,&#x27;O&#x27;)
-    s=re.sub(r&#x27;[^A-Z0-9Ñ]+&#x27;,&#x27; &#x27;,s)
-    return re.sub(r&#x27;\s+&#x27;,&#x27; &#x27;,s).strip()
-
-def title_name(s):
-    # Keep source capitalization if mixed; otherwise readable title case with common particles lowered.
-    s=&#x27; &#x27;.join(str(s).split())
-    if any(ch.islower() for ch in s): return s
-    out=s.title()
-    particles={&#x27;De&#x27;,&#x27;Del&#x27;,&#x27;La&#x27;,&#x27;Las&#x27;,&#x27;Los&#x27;,&#x27;Y&#x27;,&#x27;Da&#x27;,&#x27;Do&#x27;}
-    words=[]
-    for i,w in enumerate(out.split()):
-        words.append(w.lower() if i and w in particles else w)
-    return &#x27; &#x27;.join(words)
-
-people=OrderedDict()
-
-def add(name, *, company, company_id=None, relation_type, role, observed_at, source_url, source_type, status, relation_detail=None, notes=None):
-    name=&#x27; &#x27;.join(str(name).replace(&#x27;\x02&#x27;,&#x27;-&#x27;).split())
-    c=canon(name)
-    if not c or len(c)&lt;5: return
-    if c not in people:
-        people[c]={
-            &#x27;id&#x27;:&#x27;tragsa_person_ext:&#x27;+hashlib.sha256(c.encode()).hexdigest()[:16],
-            &#x27;name&#x27;:title_name(name),
-            &#x27;normalized_name&#x27;:c,
-            &#x27;affiliations&#x27;:[]
-        }
-    aff={
-        &#x27;company&#x27;:company,
-        &#x27;company_id&#x27;:company_id,
-        &#x27;relation_type&#x27;:relation_type,
-        &#x27;role&#x27;:role,
-        &#x27;observed_at&#x27;:observed_at,
-        &#x27;source_type&#x27;:source_type,
-        &#x27;source_url&#x27;:source_url,
-        &#x27;status&#x27;:status
-    }
-    if relation_detail: aff[&#x27;relation_detail&#x27;]=relation_detail
-    if notes: aff[&#x27;notes&#x27;]=notes
-    key=(aff[&#x27;company&#x27;],aff[&#x27;company_id&#x27;],aff[&#x27;relation_type&#x27;],aff[&#x27;role&#x27;],aff[&#x27;observed_at&#x27;],aff[&#x27;source_url&#x27;],aff.get(&#x27;relation_detail&#x27;))
-    if not any((a[&#x27;company&#x27;],a.get(&#x27;company_id&#x27;),a[&#x27;relation_type&#x27;],a[&#x27;role&#x27;],a[&#x27;observed_at&#x27;],a[&#x27;source_url&#x27;],a.get(&#x27;relation_detail&#x27;))==key for a in people[c][&#x27;affiliations&#x27;]):
-        people[c][&#x27;affiliations&#x27;].append(aff)
-
-# 1) Existing official board/orgchart snapshots already present in the definitive JSONs.
-with open(BASE+&#x27;/people_0001.json&#x27;,encoding=&#x27;utf-8&#x27;) as f:
-    pmap={p[&#x27;id&#x27;]:p for p in json.load(f)[&#x27;items&#x27;]}
-rels=[]
-for path in glob.glob(BASE+&#x27;/relationships_*.json&#x27;):
-    with open(path,encoding=&#x27;utf-8&#x27;) as f: rels.extend(json.load(f).get(&#x27;items&#x27;,[]))
-for r in rels:
-    if r.get(&#x27;type&#x27;) not in (&#x27;OFFICIAL_BOARD_SNAPSHOT&#x27;,&#x27;OFFICIAL_ORGCHART_SNAPSHOT&#x27;): continue
-    if r.get(&#x27;target&#x27;) not in (&#x27;org:A28476208&#x27;,&#x27;org:A79365821&#x27;): continue
-    p=pmap.get(r.get(&#x27;source&#x27;))
-    if not p: continue
-    company=&#x27;TRAGSA&#x27; if r[&#x27;target&#x27;]==&#x27;org:A28476208&#x27; else &#x27;TRAGSATEC&#x27;
-    reltype=&#x27;BOARD_AFFILIATION&#x27; if r[&#x27;type&#x27;]==&#x27;OFFICIAL_BOARD_SNAPSHOT&#x27; else &#x27;ORGCHART_EXECUTIVE&#x27;
-    status=&#x27;VINCULO_OFICIAL_CONSEJO_NO_EQUIVALE_A_EMPLEO&#x27; if reltype==&#x27;BOARD_AFFILIATION&#x27; else &#x27;CARGO_ORGANIGRAMA_OFICIAL&#x27;
-    add(p[&#x27;name&#x27;],company=company,company_id=r[&#x27;target&#x27;],relation_type=reltype,role=r.get(&#x27;role&#x27;) or &#x27;Cargo oficial&#x27;,observed_at=r.get(&#x27;observed_at&#x27;) or &#x27;2026-08-09&#x27;,source_url=r.get(&#x27;evidence_url&#x27;) or (SRC_BOARD if reltype==&#x27;BOARD_AFFILIATION&#x27; else SRC_ORG_2025),source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27; if reltype==&#x27;BOARD_AFFILIATION&#x27; else &#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=status,notes=r.get(&#x27;temporal_note&#x27;))
-
-# 2) Official 26/05/2026 Tragsatec selection-interview collaborators.
-# The PDF explicitly describes the named people as &quot;profesionales de plantilla del Grupo Tragsa&quot;.
-STAFF = r&#x27;&#x27;&#x27;
-ABEL AUPY PRIMO|JAP PESCA Y ASUNTOS MARÍTIMOS
-ADELA TORRICO HERRUZO|TSUP PROY AGSA-MAPI SEVILLA
-ADRIAN ROBLEDO BERGAMO|JAP SANID, SEG ALIM Y SAL PUB
-AGATHA VERONICA DE MARTINO BONILLA|TSUP PROY AGSA-MAPI ALMERÍA
-AIDA SANZ BRAVO|RAP DSLL RURAL Y POL FORESTAL
-ALBERTO ALONSO ALONSO|JGAP SI AGRARIOS Y PESQUEROS
-ALBERTO ARANZUEQUE GONZALEZ|JDEP SI GEST DOCUM Y CONSULTOR
-ALBERTO CAMPANERO RHODES|JDEP PLANIFICAC Y GEST HÍDRICA
-ALBERTO SANCHEZ GONZALEZ|TSUP SISTEMAS GESTIÓN AAPP
-ALEJANDRO BOSCH BERMUDEZ DE CASTRO|RAP PLANIFI Y GESTIÓN HÍDRICA
-ALEJANDRO OLAZABAL BOURDET|JGAP SISTEMAS GESTIÓN AAPP
-ALFONSO FERNANDEZ SANCHEZ|JGAP SI GESTIÓN DE AYUDAS
-ALFONSO GAMEZ ESCRIBANO|JDEP AGSA-MAPI ZARAGOZA
-ALFONSO MONGE GARCIA|TSUP PROY AGSA-MAPI ZARAGOZA
-ALFONSO TELLEZ RINCON|JAP PROY AGSA-MAPI CÓRDOBA
-ALFREDO LARRAONA LOPEZ DE DICASTILLO|JDEP PROY AGSA-MAPI NAVARRA
-ALONSO MIGUEL FERNANDEZ BUSTOS|TSUP SISTEMAS GESTIÓN AAPP
-ALONSO RUIZ ARIAS|TSUP PROY AGSA-MAPI MÁLAGA
-ALVARO CAMPAYO MANZANERO|ANALISTA PROY INFORMÁTICA TOLEDO
-ALVARO MIGUEL PEÑA|RAP PLANIFI Y GESTIÓN HÍDRICA
-ALVARO ZAPARDIEL FERRERO|JDEP SIST AGRAR Y DE PROPIEDAD
-AMAYA CONTRERAS MIRA|JDEP AGSA-MAPI BALEARES
-ANA APARICIO BUENO|JAP PROD, MERC E IND AGRAR
-ANA ARECHAVALETA ESPINOSA|TSUP PROY AGSA-MAPI SEVILLA
-ANA BELEN ALVAREZ ARENAL|RAP PROY AGSA-MAPI CANTABRIA
-ANA BELEN RUIZ GALERA|ANALISTA SR PROY INFORM MURCIA
-ANA BELEN YUSTE ORTEGA|JDEP PLANIFICAC Y GEST HÍDRICA
-ANA ISABEL CARBONELL DIAZ|CAP PROY AGSA-MAPI VALENCIA
-ANA JOSE JIMENEZ MONTALVO|JGAP DSLL RURAL Y POL FORESTAL
-ANA MARIA GONZALEZ CAMPOS|JAP PLANIFICAC Y GEST HÍDRICA
-ANA NEGREDO MESEGAR|JGAP PROY AGSA-MAPI VALENCIA
-ANA ORTIZ LASECA|JAP CAL EV AMB Y MED NATURAL
-ANA SAINZ DE LA TORRE VILALTA|JGAP PROY AGSA-MAPI LA CORUÑA
-ANA SALGADO CAMARA|TSUP CAL EV AMB Y MED NATURAL
-ANGEL BLANCO GUTIERREZ|JGAP SIST AGRAR Y DE PROPIEDAD
-ANGEL COCERA GONZALEZ|TSUP PESCA Y ASUNTOS MARÍTIMOS
-ANGEL DIEZ FERRERO|JAP PROY AGSA-MAPI LEÓN
-ANGEL MANUEL PATIÑO CARDALDA|JGAP SANID, SEG ALIM Y SAL PUB
-ANGEL MARIA SARACIBAR TUDANCA|JDEP SI AGRARIOS Y PESQUEROS
-ANGEL MORENO CONEJERO|JAP PROY AGSA-MAPI SEVILLA
-ANGEL MORENO GRACIA|TCAL SISTEMAS GESTIÓN AAPP
-ANGELES JUAREZ ESTEBAN|RAP PROY AGSA-MAPI VALENCIA
-ANGELICA GARCIA DEL ARCO|JGAP POLÍTICAS AGRARIAS
-ANIBAL FORTEZA DEL REY SAN FRANCISCO|JDEP GESTIÓN Y COORDINACIÓN
-ANNA MARIA PADILLA MARTINEZ|TSUP PLANIFI Y GESTIÓN HÍDRICA
-ANTONIO CARLOS CARABALLO ORDOÑEZ|JAP PROY AGSA-MAPI SEVILLA
-ANTONIO DE LUCAS SEPULVEDA|TSUP PLANIFI Y GESTIÓN HÍDRICA
-ANTONIO FERNANDEZ VELASCO|JGAP PROY AGSA-MAPI SEVILLA
-ANTONIO JOSE CANO CALLE|TSUP PROY AGSA-MAPI SEVILLA
-ANTONIO LABIAN MOYA|JAP PROY AGSA-MAPI ALBACETE
-ANTONIO LUQUE PALMA|JGAP PROY AGSA-MAPI SEVILLA
-ANTONIO MANUEL EXPOSITO MENDOZA|TSUP SANIDAD, SEGURIDAD ALIMENTARIA Y SALUD PUBLICA
-ANTONIO MANUEL GONZALEZ ARMAS|JDEP SIST AGRAR Y DE PROPIEDAD
-ANTONIO RIVAS SALVADOR|TSUP PROY AGSA-MAPI HUELVA
-ANTONIO RODRIGUEZ ALBARES|JAP SIST INFORM GEOGRÁFICA
-ANTONIO VICENTE ALONSO CABALLERO|JGAP SI AGRARIOS Y PESQUEROS
-ARACELI MARTINEZ RUIZ|JGAP DSLL RURAL Y POL FORESTAL
-ARIANNE GONZALEZ PARRA|TSUP SISTEMAS GESTIÓN AAPP
-BARBARA MARTIN HERNANZ|TSUP SANID, SEG ALIM Y SAL PUB
-BEATRIZ INMACULADA GARCIA LOPEZ|JAP PROY AGSA-MAPI TOLEDO
-BEATRIZ LEDESMA BENITO|TSUP DSLL RURAL Y POL FORESTAL
-BEATRIZ LORES CALERO|TSUP PROY AGSA-MAPI BALEARES
-BEATRIZ MADRID NAVARRO|JGAP SANID, SEG ALIM Y SAL PUB
-BEATRIZ MESA LEON|JGAP CAL EV AMB Y MED NATURAL
-BEATRIZ PORCUNA FERNANDEZ-MONASTERIO|JGAP POLÍTICAS AGRARIAS
-BEATRIZ SANCHEZ GODOY|JAP DSLL RURAL Y POL FORESTAL
-BEGOÑA DOMINGO GONZALEZ|ANALISTA SR PROY INFORM MURCIA
-BEGOÑA HERNANDEZ DE LOS RIOS|JGAP SANID, SEG ALIM Y SAL PUB
-BEGOÑA NAVA DE OLANO|TSUP CAL EV AMB Y MED NATURAL
-BEGOÑA PEREZ MOSCOSO|TSUP PROY AGSA-MAPI MÁLAGA
-BELEN MARTIN PEÑA|JAP INGENIERÍA Y EDIFICACIÓN
-BIANCA MARIA CHIRITA MANESCU|TSUP DSLL RURAL Y POL FORESTAL
-BLANCA MARIA SEVILLA CORDOBA|TSUP PROY AGSA-MAPI SEVILLA
-BLANCA MARTINEZ LOPEZ DE ASIAIN|JAP PLANIFICAC Y GEST HÍDRICA
-CARLOS DE MIGUEL RIVERA|JDEP PROY AGSA-MAPI MÁLAGA
-CARLOS DIEZ DE LA VARGA|RAP PROY AGSA-MAPI CANTABRIA
-CARLOS EMILIO FERNANDEZ CUENCA|ANALISTA SI AGRARIOS Y PESQUER
-CARLOS GARCIA RODRIGUEZ|JGAP PROD, MERC E IND AGRAR
-CARLOS GOMEZ RODRIGUEZ|ANALISTA SR SI GEST DOCUM Y CONSULTOR
-CARLOS LOPEZ ABASOLO|JGAP PROD, MERC E IND AGRAR
-CARMEN IZQUIERDO SAIZ|JGAP PROY AGSA-MAPI VALLADOLID
-CARMEN MACIAS ANTEQUERA|JDEP PLANIFICAC Y GEST HÍDRICA
-CARMEN MELENDEZ DIEZ|TSUP PROY AGSA-MAPI EL HIERRO
-CARMEN TARRAGO ALESANCO|TSUP PROY INFORMÁTICA VALENCIA
-CAROLINA QUESADA CORTES|TSUP DSLL RURAL Y POL FORESTAL
-CATALINA INMACULADA MOLINERO POZUELO|TSUP PESCA Y ASUNTOS MARÍTIMOS
-CESAR MARTIN DE LA TORRE MARTINEZ|JGAP INGENIERÍA Y EDIFICACIÓN
-CESAREO REVELLES LIROLA|TSUP PROY AGSA-MAPI SEVILLA
-CLAUDIA SANCHEZ SIERRA CAMPILLO|TSUP PESCA Y ASUNTOS MARÍTIMOS
-CLAUDIA MARTINEZ PEREZ|CAP SELECCIÓN RRHH TGSA
-CONCEPCION FERNANDEZ CEBRIAN|JGAP PROY AGSA-MAPI CANTABRIA
-COVADONGA FLOREZ ABAD|JAP SISTEMAS GESTIÓN AAPP
-CRISTINA DEL CASTILLO MOLINA|JDEP SANID, SEG ALIM Y SAL PUB
-CRISTINA DOMINGUEZ BONILLA|JGAP SI GESTIÓN DE AYUDAS
-CRISTINA FISAC SANZ|JAP SISTEMAS GESTIÓN AAPP
-CRISTINA GONZALEZ ALVAREZ|TSUP PESCA Y ASUNTOS MARÍTIMOS
-CRISTINA LOPEZ GUERRA|JAP DSLL RURAL Y POL FORESTAL
-CRISTINA PEREZ REIZABAL|TSUP SISTEMAS GESTIÓN AAPP
-CRISTINA SIERRA REUS|JGAP SANID, SEG ALIM Y SAL PUB
-DACIL CARABALLO DELGADO|TSUP PROY AGSA-MAPI LANZAROTE
-DANIEL OTERO CABEZA DE VACA|JGAP INGENIERÍA Y EDIFICACIÓN
-DANIEL PEREZ GONZALEZ|JGAP PROY AGSA-MAPI BADAJOZ
-DANIEL SANCHEZ GARCIA|TSUP PROY AGSA-MAPI ASTURIAS
-DAVID FERNANDO GUTIERREZ GOMEZ|TSUP CAL EV AMB Y MED NATURAL
-DAVID GONZALEZ HERNANDEZ|TSUP SIST AGRAR Y DE PROPIEDAD
-DAVID HERRANZ TORRUBIA|CAP PROY INFORMÁTICA ZARAGOZA
-DAVID LOPEZ SANCHEZ|RAP DSLL RURAL Y POL FORESTAL
-DAVID VEROZ IPARRAGUIRRE|JDEP PROY AGSA-MAPI CANTABRIA
-DIANA UNZURRUNZAGA ALTABAS|TSUP DSLL RURAL Y POL FORESTAL
-DIEGO BARBERAN MOLINA|JAP CAL EV AMB Y MED NATURAL
-DIEGO CONDE GOMEZ|JGAP PROY AGSA-MAPI LA CORUÑA
-DIEGO GOMEZ QUINTERO|JAP PROD, MERC E IND AGRAR
-DIEGO MARTIN CORRALES|CAP PROY INFORMÁTIC VALLADOLID
-DUNIA MARIA FUENTES PALACIOS|JGAP PROY AGSA-MAPI BADAJOZ
-EDGAR FRANCISCO ENCARNACION BRAVO|TSUP DSLL RURAL Y POL FORESTAL
-EDUARDO ARNAIZ CAMPO|JAP PROY AGSA-MAPI ASTURIAS
-EDUARDO CAMPOS GOMEZ|JAP CAL EV AMB Y MED NATURAL
-EDUARDO GOMEZ-URIBARRI SERRANO|JAP PROY AGSA-MAPI SEVILLA
-EDUARDO GONZALEZ DE ZULUETA|JGAP SISTEMAS GESTIÓN AAPP
-EDUARDO GRIMA HERMOSO|JDEP PROY AGSA-MAPI LA RIOJA
-EDURNE HURTADO DE MENDOZA ARINA|JAP DSLL RURAL Y POL FORESTAL
-ELENA BERMEJO BERMEJO|JDEP CAL EV AMB Y MED NAT
-ELENA BERMEJO MARTINEZ|JDEP SISTEMAS GESTIÓN AAPP
-ELENA ELVIRA GALIANA SAEZ|JAP PROD, MERC E IND AGRAR
-ELENA ESCRIVA BAHILO|CAP PROY AGSA-MAPI VALENCIA
-ELENA GARCIA GARCIA|JAP POLÍTICAS AGRARIAS
-ELENA HERNANDEZ CASTRO|TSUP PROY AGSA-MAPI VALENCIA
-ELENA LOPEZ ERADES|TSUP PROY AGSA-MAPI TOLEDO
-ELENA MARIA LOPEZ MARTIN|JDEP CAL EV AMB Y MED NAT
-ELENA PATRICIA ESTRADA WILKE|JAP DSLL RURAL Y POL FORESTAL
-ELISA MARIA RODRIGUEZ SOLA|JAP PROY AGSA-MAPI SEVILLA
-ELOY ORTEGA BARCENILLA|JAP PROY AGSA-MAPI VALLADOLID
-ELVIRA CASTRO REJON|TSUP PROY AGSA-MAPI GRANADA
-ELVIRA LOPEZ MARTIN|JGAP PROD, MERC E IND AGRAR
-EMILIO RIVAS RODRIGUEZ|JGAP SANID, SEG ALIM Y SAL PUB
-EMILIO SERRA ARANDA|TMED PROY AGSA-MAPI VALENCIA
-ENRIQUE ARDUAN GALDAMES|TSUP PROY AGSA-MAPI CÁDIZ
-ENRIQUE GALINDO MERCHAN|CAP PROY AGSA-MAPI VALLADOLID
-ENRIQUE SALAMANCA SALAMANCA|JDEP INGENIERÍA Y EDIFICACIÓN
-ERNESTO GARCIA PALOMINO|JAP POLÍTICAS AGRARIAS
-ERNESTO VALLS ARNAL|JGAP PROY AGSA-MAPI VALENCIA
-ESTEFANIA NUÑEZ RESCH|JAP PROY AGSA-MAPI TOLEDO
-ESTELA SANCHEZ HUSILLOS|JAP PROY AGSA-MAPI VALLADOLID
-ESTHER AMELIA LOPEZ SUAREZ DE CEPEDA|TSUP SISTEMAS GESTIÓN AAPP
-ESTHER GARCIA DEL BARRIO|ANALISTA PROY INFORMÁTICA VALENCIA
-FELIX SORIANO RUSTARAZO|TSUP PROY AGSA-MAPI VALENCIA
-FERNANDO ANTONIO DEL CAMPO GARCIA|RAP SIST INFORM GEOGRÁFICA
-FERNANDO ARTERO VERDU|JDEP AGSA-MAPI MURCIA
-FERNANDO JUAREZ CAÑAMERO|JAP PROY AGSA-MAPI TOLEDO
-FERNANDO NODRID DOMENECH|TSUP PESCA Y ASUNTOS MARÍTIMOS
-FERNANDO RON CURRAS|GERENTE TERRITOR TRAGSATEC UT1
-FERNANDO DE SAN EUSTAQUIO SANCHEZ|JAP SANID, SEG ALIM Y SAL PUB
-FERNANDO SANZ ZAZO|TSUP DSLL RURAL Y POL FORESTAL
-FRANCISCO ANTELO NIETO|JDEP PROY AGSA-MAPI LA CORUÑA
-FRANCISCO DE BORJA HUMADA GOMEZ|JAP PROY AGSA-MAPI JAÉN
-FRANCISCO JAVIER CARDENETE FERNANDEZ|CAP PROY INFORMÁTICA SEVILLA
-FRANCISCO JAVIER FERNANDEZ IRIZAR|JDEP COORD PROD Y ACT COM MAPI
-FRANCISCO JAVIER HERRERO GARCIA|CAP PROY AGSA-MAPI TOLEDO
-FRANCISCO JAVIER MARTIN POLAINA|JGAP PESCA Y ASUNTOS MARÍTIMOS
-FRANCISCO JAVIER ROMERO SANCHEZ|CAP PROY AGSA-MAPI SEVILLA
-FRANCISCO JAVIER RUZ CORRIPIO|JGAP PROY AGSA-MAPI SEVILLA
-FRANCISCO JOSE BERROCAL RINCON|ANALISTA SR PROY INFOR MÁLAGA
-FRANCISCO JOSE GARCIA GONZALEZ|JDEP INGENIERÍA Y EDIFICACIÓN
-FRANCISCO JOSE MORA NAVARRETE|JAP SI GEST DOCUM Y CONSULTORI
-FRANCISCO LOBO DE LUCAS|ANALISTA SISTEMAS TGTEC
-FRANCISCO PEREÑA RAMIREZ|TSUP PROY AGSA-MAPI MÁLAGA
-GABRIEL BARRIO MARTINEZ|TMED INGENIERÍA Y EDIFICACIÓN
-GABRIEL CABALLERO VILLANUEVA|TMED INGENIERÍA Y EDIFICACIÓN
-GABRIEL PEREZ SANCHEZ|JDEP SISTEMAS GESTIÓN AAPP
-GEMA DEL CARMEN LAGOA SERRANO|JDEP PROY AGSA-MAPI BADAJOZ
-GEMA SANCHEZ PALACIOS|JDEP AGSA-MAPI TOLEDO
-GINES EXPOSITO FERNANDEZ|JAP PROY AGSA-MAPI ASTURIAS
-GLORIA MARTIN GARCIA|JAP PROY AGSA-MAPI VALLADOLID
-GONZALO JESUS DE LUIS MARTINEZ|JGAP SI AGRARIOS Y PESQUEROS
-GONZALO MAURA OROPEZA|TSUP SANID, SEG ALIM Y SAL PUB
-GUILLERMO RUIZ SECO|JGAP PROY AGSA-MAPI CANTABRIA
-GUIOMAR RUIZ PEREZ|JGAP PLANIFICAC Y GEST HÍDRICA
-HELENA FERNANDEZ REVILLA|JDEP INGENIERÍA Y EDIFICACIÓN
-HUGO CAMARA SAGREDO|JAP PROY AGSA-MAPI CIUDAD REAL
-HUMBERTO GARCIA AEL|JAP SIST AGRAR Y DE PROPIEDAD
-INES RODRIGUEZ CRUZ|JAP PROY AGSA-MAPI SEVILLA
-INES RODRIGUEZ GARCIA|RAP PROY AGSA-MAPI ASTURIAS
-INMACULADA CONCEPCION SALMON BOLIVAR|JAP SISTEMAS GESTIÓN AAPP
-IRENE ACEME CARO|TSUP PROY AGSA-MAPI SEVILLA
-IRENE VALDES MORA|JAP INGENIERÍA Y EDIFICACIÓN
-ISABEL ALONSO CASTAÑO|JAP DSLL RURAL Y POL FORESTAL
-ISABEL LORENTE ALVAREZ|JAP DSLL RURAL Y POL FORESTAL
-ISABEL SANDAMIL BARGADOS|JGAP SANID, SEG ALIM Y SAL PUB
-ISABEL TAMIA BRITO IZQUIERDO|JDEP AGSA-MAPI TENERIFE
-ISABELA ALMANSA DE LARA|JGAP PROD, MERC E IND AGRAR
-IVAN CILLEROS FUENTETAJA|JGAP INGENIERÍA Y EDIFICACIÓN
-IVAN NIETO GIL|TSUP PROY AGSA-MAPI SEVILLA
-JAIME SAN JOSE GONZALEZ|JAP PROY AGSA-MAPI VALLADOLID
-JAIRO DANIEL RODRIGUEZ BASALO|JGAP PROY AGSA-MAPI ASTURIAS
-JAIRO MARQUES VEGA|JAP PROY AGSA-MAPI ASTURIAS
-JAVIER BARCA ORTEGA|TSUP PROY AGSA-MAPI ZARAGOZA
-JAVIER GOMEZ MONTERRUBIO|ANALISTA SR SI AGRARIOS Y PESQ
-JAVIER LOPEZ ESTEBAN|TSUP DSLL RURAL Y POL FORESTAL
-JAVIER REVUELTA CUEVAS|JGAP PROD, MERC E IND AGRAR
-JAVIER VEGAS RODRIGUEZ|JDEP DSLL RURAL Y POL FORESTAL
-JAVIER YUN SATO BERZOSA|TSUP INGENIERÍA Y EDIFICACIÓN
-JERONIMO GONZALEZ ANERA|JGAP PROY AGSA-MAPI GRANADA
-JESUS CANDELAS SEGOVIA GOMEZ|JGAP SIST INFORM GEOGRÁFICA
-JESUS CEREZO GUZMAN|TSUP PROY AGSA-MAPI JAÉN
-JESUS DIAZ LOPEZ|JGAP PROY AGSA-MAPI BADAJOZ
-JESUS FERNANDO MARTINEZ VILASANCHEZ|JDEP SISTEMAS GESTIÓN AAPP
-JESUS FRANCISCO DEL MONTE HUERTAS|JDEP POLÍTICAS AGRARIAS
-JESUS GALAN ALVAREZ DE LARA|TMED PROY AGSA-MAPI CIUDAD REAL
-JESUS LLORENTE GIL|JDEP PROD, MERCAD E IND AGRAR
-JESUS MANUEL MONTERO GULLON|ESPECIALISTA SI AGRARI Y PESQU
-JESUS MARIA MORENO GARCIA-ARISCO|JGAP SISTEMAS GESTIÓN AAPP
-JESUS NOVO CALLES|JAP PROY AGSA-MAPI LA CORUÑA
-JESUS PABLO SACO VIDAL|JAP PROY AGSA-MAPI ORENSE
-JESUS SANTOS BORRALLO|ANALISTA SI AGRARIOS Y PESQUER
-JOAN ALBERT FERRANDO|TSUP PROY AGSA-MAPI VALENCIA
-JOAN DEVAL CASTILLO|TSUP PROY AGSA-MAPI ASTURIAS
-JOAN MAXIM LLOPIS RAIMUNDO|RAP PROY AGSA-MAPI VALENCIA
-JOAQUIN AGUIRRE MEDEL|TSUP PROY AGSA-MAPI ZARAGOZA
-JOAQUIN CALOMARDE RODRIGUEZ|TSUP PROY AGSA-MAPI VALENCIA
-JOAQUIN GONZALEZ CORTES|JDEP SIST INFORM GEOGRÁFICA
-JORGE CASADO ALVAREZ|RAP DSLL RURAL Y POL FORESTAL
-JORGE FRANCISCO IBAÑEZ GONZALEZ|JAP PROY AGSA-MAPI SEVILLA
-JORGE GONZALEZ CASTRO|JAP DSLL RURAL Y POL FORESTAL
-JORGE MARTIN SOLER|JGAP SISTEMAS GESTIÓN AAPP
-JORGE MARTINEZ CUEVAS|RAP PLANIFI Y GESTIÓN HÍDRICA
-JOSE ALBERTO HERRERUELA MARTIN|TSUP SISTEMAS GESTIÓN AAPP
-JOSE ANGEL GIL GUTIERREZ|JGAP CAL EV AMB Y MED NATURAL
-JOSE ANTONIO CASAS ARAUJO|JAP PROY INFORM LA CORUÑA
-JOSE ANTONIO FERNANDEZ ABAD|ANALISTA PR SIST INFORM GEOGRÁ
-JOSE CARLOS MATESANZ PINTOS|TSUP POLÍTICAS AGRARIAS
-JOSE FERNANDEZ DEL PINO|JGAP PLANIFICAC Y GEST HÍDRICA
-JOSE GARCIA CARRASCO|JGAP PROY AGSA-MAPI ASTURIAS
-JOSE IGNACIO MUÑOZ PARDO|JGAP CAL EV AMB Y MED NATURAL
-JOSE IGNACIO NICOLAS CANTON|TSUP PROY AGSA-MAPI MADRID
-JOSE IGNACIO PAÑOS FERNANDEZ|JDEP SI GEST DOCUM Y CONSULTOR
-JOSE LUIS GOLLONET SERRANO|TSUP PROY AGSA-MAPI SEVILLA
-JOSE LUIS NIETO MARTIN|RAP PLANIFI Y GESTIÓN HÍDRICA
-JOSE LUIS QUINTERO MENDEZ|JGAP SI AGRARIOS Y PESQUEROS
-JOSE LUIS SANZ NUÑO|JGAP SIST AGRAR Y DE PROPIEDAD
-JOSE LUIS TORREBLANCA SOJO|RAP PLANIFI Y GESTIÓN HÍDRICA
-JOSE MANUEL AMIGO GONZALEZ|JAP PROY AGSA-MAPI MADRID
-JOSE MANUEL MONTES INFANTE|JAP SIST AGRAR Y DE PROPIEDAD
-JOSE MANUEL PERTUSA IBAÑEZ|CAP PROY AGSA-MAPI MURCIA
-JOSE MARIA CALLEJO ALONSO|JDEP SI GESTIÓN DE AYUDAS
-JOSE MARIA GUITIAN CASTRILLON|JDEP SANID, SEG ALIM Y SAL PUB
-JOSE MARIA REVUELTA ABAD|JGAP PROD, MERC E IND AGRAR
-JOSE MARIA ROIG HERNANDEZ|RAP PROY AGSA-MAPI BALEARES
-JOSE MARIA ROMAN CHACON|JGAP PROY AGSA-MAPI SEVILLA
-JOSE MOLINA SAEZ|ANALISTA PROY INFORMÁT MURCIA
-JOSEFA ARIAS MONTES|TSUP PROY AGSA-MAPI ASTURIAS
-JOVINO GARCIA CARAZO|TMED PROY AGSA-MAPI ASTURIAS
-JUAN ANTONIO GUTIERREZ SANCHEZ|JDEP SIST AGRAR Y DE PROPIEDAD
-JUAN CARLOS DE MINGO DE LA ORDEN|JDEP PROD, MERCAD E IND AGRAR
-JUAN CARLOS LOPEZ FERNANDEZ|CAP PROY AGSA-MAPI MURCIA
-JUAN ESCOBAR MORENO|CAP PROY AGSA-MAPI GRAN CANARIA
-JUAN FRANCISCO PESTANO GABINO|JGAP PROY AGSA-MAPI TENERIFE
-JUAN FRANCISCO RAMIREZ VILLARES|JDEP SANID, SEG ALIM Y SAL PUB
-JUAN IGNACIO ANTOLIN MARTIN|JGAP PROY AGSA-MAPI TOLEDO
-JUAN LUIS GARCIA GONZALEZ|JGAP PROY AGSA-MAPI HUELVA
-JUAN MANUEL GOMEZ ESCOBAR|JGAP PROY AGSA-MAPI BADAJOZ
-JUAN PEDRO FRAGA CONTRERAS|CAP PROY AGSA-MAPI LA RIOJA
-JUAN RAMON RODRIGUEZ LADO|JGAP PROY INFORMÁTICA LA CORUÑA
-JULIO VAZQUEZ LOPEZ|CAP PROY AGSA-MAPI TOLEDO
-KEPA GONZALEZ MARTINEZ|JDEP PROY AGSA-MAPI ÁLAVA
-LAURA MARTIN VALLEDOR|TSUP DSLL RURAL Y POL FORESTAL
-LAURA PASCUAL PARIENTE|CAP PESCA Y ASUNTOS MARÍTIMOS
-LAURA RAMOS SOLER|JAP PROY AGSA-MAPI VALENCIA
-LAURA REGIDOR ROBLEDA|JAP SANID, SEG ALIM Y SAL PUB
-LAURA SEDEÑO TORRON|JDEP SELECCIÓN RRHH TGSA
-LAURA ZAMORA NAVAS|TSUP CAL EV AMB Y MED NATURAL
-LEONOR AZAÑA LABRADOR|TSUP POLÍTICAS AGRARIAS
-LEONOR MATEO YEBENES|TSUP DSLL RURAL Y POL FORESTAL
-LIVIA RAMOS GONZALO|JAP CAL EV AMB Y MED NATURAL
-LOURDES ROLLON DOMINGUEZ|TSUP SISTEMAS GESTIÓN AAPP
-LUCIA LOZANO ARAGONESES|TSUP PLANIFI Y GESTIÓN HÍDRICA
-LUIS DANIEL MATEOS GARCIA|TSUP CAL EV AMB Y MED NATURAL
-LUIS FRANCISCO CRISTOBAL CAÑAS|JDEP SANID, SEG ALIM Y SAL PUB
-LUIS GONZALEZ GONZALEZ|TSUP SISTEMAS GESTIÓN AAPP
-LUIS PEDRO ZAMORA BERNA|JAP INGENIERÍA Y EDIFICACIÓN
-LUIS RICARDO VELAZQUEZ CHENA|JGAP CAL EV AMB Y MED NATURAL
-LUIS RUBIALES SANCHEZ|TSUP PROY AGSA-MAPI SEVILLA
-MAFALDA DIAZ ROMERO|JGAP DSLL RURAL Y POL FORESTAL
-MAITE BERAIZ ORTIZ DE LAZCANO|JAP PROY AGSA-MAPI NAVARRA
-MANENA FAYOS MARTINEZ|TSUP PROY AGSA-MAPI CANTABRIA
-MANUEL ANGEL PAZOS LAMOSO|JAP PROY AGSA-MAPI LA CORUÑA
-MANUEL FRANCISCO CUADRA GARCIA|JGAP SI AGRARIOS Y PESQUEROS
-MANUEL HIDALGO GARCIA|JGAP INGENIERÍA Y EDIFICACIÓN
-MANUEL IGNACIO CERRILLO LOPEZ|JAP PROY AGSA-MAPI SEVILLA
-MANUEL JOSE HERNANDEZ GAJATE|JGAP SI GEST DOCUM Y CONSULTOR
-MANUEL JOSE PEREZ SANCHEZ|JDEP SI AGRARIOS Y PESQUEROS
-MANUEL MARECA LOPEZ|JDEP SISTEMAS GESTIÓN AAPP
-MANUEL MARGELI AGUILAR|JAP PROY AGSA-MAPI ZARAGOZA
-MANUEL MENENDEZ DIAZ|JDEP PROY AGSA-MAPI ASTURIAS
-MANUEL PEREZ VALERO|TMED PROY AGSA-MAPI SEVILLA
-MARCO ANTONIO CLIMENT MERINO|ADM PROY AGSA-MAPI MADRID
-MARCO ANTONIO MARTINEZ ESCUDERO|JGAP INGENIERÍA Y EDIFICACIÓN
-MARCOS FELIPE MAGANTO GONZALEZ|TSUP INGENIERÍA Y EDIFICACIÓN
-MARCOS LOPEZ BONO|JDEP PROY AGSA-MAPI SEVILLA
-MARCOS POZO MANRIQUE|JDEP CAL EV AMB Y MED NAT
-MARCOS ROSALES GUERRERO|CAP PROY AGSA-MAPI SEVILLA
-MARIA ANGELA HARO MAESTRO|JAP CAL EV AMB Y MED NATURAL
-MARIA ANGELES GONZALEZ GOMEZ|TSUP SISTEMAS GESTIÓN AAPP
-MARIA ASUNCION ANDRES ALVAREZ|RAP PROY AGSA-MAPI CANTABRIA
-MARIA BELEN GONZALEZ ESCALONA|CAP PROY AGSA-MAPI ZARAGOZA
-MARIA BELEN LOPEZ OLIVA|JAP PLANIFICAC Y GEST HÍDRICA
-MARIA BELEN VAZQUEZ LOPEZ|JGAP PROY AGSA-MAPI LA CORUÑA
-MARIA CARMEN REBANAL SILIO|RAP PROY AGSA-MAPI CANTABRIA
-MARIA CARMEN SANCHEZ MOLINA|JAP CAL EV AMB Y MED NATURAL
-MARIA DE LAS MERCEDES OLIVA NACARINO|JAP PROY AGSA-MAPI MURCIA
-MARIA DE LOS LLANOS BENITEZ TERUEL|TSUP PROY AGSA-MAPI SEVILLA
-MARIA DEL CARMEN ACUÑA ALTABLE|TSUP CAL EV AMB Y MED NATURAL
-MARIA DEL CARMEN FERNANDEZ TORNELL|ADM PROY AGSA-MAPI MURCIA
-MARIA DEL CARMEN MARTIN GUTIERREZ|JAP SIST AGRAR Y DE PROPIEDAD
-MARIA DEL CARMEN MOLINA MOYA|TSUP PROY AGSA-MAPI BADAJOZ
-MARIA DEL CARMEN RODRIGO PEREZ|TSUP PESCA Y ASUNTOS MARÍTIMOS
-MARIA DEL PILAR PATO GARRUDO|JGAP PROD, MERC E IND AGRAR
-MARIA DEL PILAR SANCHEZ LLORENS|TSUP SISTEMAS GESTIÓN AAPP
-MARIA DEL PUERTO FERNANDEZ GALLARDO|JGAP PROY AGSA-MAPI TENERIFE
-MARIA DEL ROSARIO SENDIN GARCIA|JGAP CAL EV AMB Y MED NATURAL
-MARIA DOLORES ORTI MUÑOZ|TSUP PROY AGSA-MAPI MURCIA
-MARIA DOLORES SALGADO FERNANDEZ|JGAP SANID, SEG ALIM Y SAL PUB
-MARIA DUEÑAS PEREZ|RAP PLANIFI Y GESTIÓN HÍDRICA
-MARIA ELENA DE CASTRO LIEBANA|JAP PROY AGSA-MAPI MADRID
-MARIA ELENA SANCHEZ ARRIBAS|JDEP SANID, SEG ALIM Y SAL PUB
-MARIA ELVIRA GARRIDO-LESTACHE ZABALA|JGAP PROY AGSA-MAPI SEVILLA
-MARIA GLORIA SAN LORENZO VILANA|TSUP PROY AGSA-MAPI VALENCIA
-MARIA GUADALUPE REDONDO GALLARDO|TSUP PESCA Y ASUNTOS MARÍTIMOS
-MARIA HENAR ERCILLA VENTURA|JAP PLANIFICAC Y GEST HÍDRICA
-MARIA INMACULADA LLAMAS CORDOBA|CAP PROY AGSA-MAPI SEVILLA
-MARIA INMACULADA PRIETO PLAZA|JGAP CAL EV AMB Y MED NATURAL
-MARIA ISABEL CAMPOS LEON|TSUP PROY AGSA-MAPI SEVILLA
-MARIA ISABEL URIOS DE LAS HERAS|JGAP POLÍTICAS AGRARIAS
-MARIA JESUS BEJARANO MESA|CAP PROY AGSA-MAPI VALLADOLID
-MARIA JESUS GONZALEZ DE LA ROSA|JDEP CAL EV AMB Y MED NAT
-MARIA JESUS MINAYA OVEJERO|TSUP PLANIFI Y GESTIÓN HÍDRICA
-MARIA JESUS MOZO JUAN|JAP PROY AGSA-MAPI VALLADOLID
-MARIA JESUS ROY CARUANA|JGAP PESCA Y ASUNTOS MARÍTIMOS
-MARIA JESUS SANCHEZ QUIROGA|TSUP PESCA Y ASUNTOS MARÍTIMOS
-MARIA JOSE PRESAS PRESAS|JGAP POLÍTICAS AGRARIAS
-MARIA JOSE ZAMARREÑO BUENO|JGAP SISTEMAS GESTIÓN AAPP
-MARIA JOSE ZAPATA CARPINTERO|JAP PROY AGSA-MAPI VALLADOLID
-MARIA JOSEFA MEGIAS BORRERO|JGAP PROY AGSA-MAPI CÁDIZ
-MARIA LIS XANDRI IBAÑEZ|JGAP PROY AGSA-MAPI VALENCIA
-MARIA LORENA CRESPO ALLEGUE|JAP PROY AGSA-MAPI PONTEVEDRA
-MARIA LUISA ESPARZA DEL VALLE|RAP PROY AGSA-MAPI ASTURIAS
-MARIA LUISA TELLO SANCHEZ|JDEP PROY AGSA-MAPI BADAJOZ
-MARIA MAGDALENA RINCON POZO|JGAP PROY AGSA-MAPI MADRID
-MARIA MARCOLINA CARRASCO GONZALEZ|JAP SIST AGRAR Y DE PROPIEDAD
-MARIA MAXIMINA MEDIAVILLA GARCIA|JDEP PESCA Y ASUNTOS MARÍTIMOS
-MARIA MERCEDES GARCIA BARREIRO|JAP PROY AGSA-MAPI LA CORUÑA
-MARIA MILAGROS GARCIA ROLDAN|CAP PROY AGSA-MAPI MADRID
-MARIA MONTSERRAT MOYANO PEREZ|TSUP PROY AGSA-MAPI SEVILLA
-MARIA PAZ LOZANO PORTILLO|JAP PROY AGSA-MAPI TOLEDO
-MARIA PAZ MAROTO CASTAÑO|RAP PESCA Y ASUNTOS MARÍTIMOS
-MARIA PILAR BONE PINA|RAP PROY AGSA-MAPI ZARAGOZA
-MARIA SANCHEZ GARCIA|TSUP PROY AGSA-MAPI TOLEDO
-MARIA SOLEDAD MARTINEZ CEREZO|JDEP SIST AGRAR Y DE PROPIEDAD
-MARIA TAMARA NARBONA FLORES|JAP PROY AGSA-MAPI TENERIFE
-MARIA TERESA MARTINEZ MARTINEZ|RAP PROY AGSA-MAPI LA CORUÑA
-MARIA TERESA PEREZ GARCIA|TSUP SISTEMAS GESTIÓN AAPP
-MARIA TERESA PINTADO SANCHEZ|TSUP DSLL RURAL Y POL FORESTAL
-MARIA TOURNE WHYTE|CAP CAL EV AMB Y MED NATURAL
-MARIANO VELEZ HERRANZ|JGAP SI AGRARIOS Y PESQUEROS
-MARINA CARMEN VAZQUEZ PAZ|RAP PROY AGSA-MAPI LA CORUÑA
-MARINA LOPEZ RODRIGUEZ|JDEP SI GESTIÓN ADMINISTRATIVA
-MARIOLA BREVA FALOMIR|JGAP PROY AGSA-MAPI VALENCIA
-MARTA BAYONA MARQUES|TSUP PROY AGSA-MAPI GERONA
-MARTA BELEN DE CAMPOAMOR ALLER|JAP PROY AGSA-MAPI LEÓN
-MARTA GOMEZ DE LOS RISCOS|JAP CAL EV AMB Y MED NATURAL
-MARTA LOPEZ DE ZUAZO SANCHEZ|JGAP PROD, MERC E IND AGRAR
-MARTA LUISA MARRERO NEGRIN|TSUP PROY AGSA-MAPI GRAN CANARIA
-MARTA ROBLEDO JIMENEZ|JDEP PLANIFICAC Y GEST HÍDRICA
-MARTA VARELA GORGOJO|JDEP PLANIFICAC Y GEST HÍDRICA
-MIGUEL ALVARO AGUIRRE ROYUELA|JAP CAL EV AMB Y MED NATURAL
-MIGUEL ANGEL ASENJO FERNANDEZ|JDEP SI GESTIÓN DE AYUDAS
-MIGUEL ANGEL GONZALEZ HURTADO|TSUP PROY AGSA-MAPI MADRID
-MIGUEL ANGEL MONEO VARA|JAP SI GEST DOCUM Y CONSULTORI
-MIGUEL ARCE URDA|TSUP PROY AGSA-MAPI SEVILLA
-MIGUEL GALLEGO REQUEREY|JAP DSLL RURAL Y POL FORESTAL
-MIGUEL GONZALEZ GALLEGO|JAP PESCA Y ASUNTOS MARÍTIMOS
-MIGUEL HERNANDEZ DEL CAMPO|JDEP PROY AGSA-MAPI SEVILLA
-MIGUEL RODRIGUEZ ZURITA|CAP PROY AGSA-MAPI VALENCIA
-MIGUEL SALCEDO MENENDEZ|JDEP SI GESTIÓN ADMINISTRATIVA
-MIREN KARMELE FERRER JAVARES|JGAP CAL EV AMB Y MED NATURAL
-MONICA ALONSO GUIRADO|TSUP DSLL RURAL Y POL FORESTAL
-MONICA BLANCO MARTIN|JGAP PROY AGSA-MAPI LA RIOJA
-MONICA MARIA FERNANDEZ RAMIRO|JDEP DSLL RURAL Y POL FORESTAL
-MONICA PUEBLA ESTRADA|JGAP SIST INFORM GEOGRÁFICA
-MYRIAM TRUJILLANO MARTIN|JAP PROY AGSA-MAPI VALLADOLID
-NATALIA GUTIERREZ FERNANDEZ|RAP PROY AGSA-MAPI ASTURIAS
-NAZARETH GARCIA GARCIA DE VIEDMA|JAP PESCA Y ASUNTOS MARÍTIMOS
-NOEMI ARANDA MIGUEL|TSUP DSLL RURAL Y POL FORESTAL
-NURIA AVENDAÑO GARCIA|JGAP SANID, SEG ALIM Y SAL PUB
-NURIA ORTEGA VILLANUEVA|TSUP PESCA Y ASUNTOS MARÍTIMOS
-OLGA MARIA LAMAS MURUA|JAP CAL EV AMB Y MED NATURAL
-OLGA PARRAS MONTOYA|JGAP SISTEMAS GESTIÓN AAPP
-OLGA SEOANE PURRIÑOS|JDEP PROY AGSA-MAPI BARCELONA
-OSCAR BLANCO NIETO|JDEP PROD, MERCAD E IND AGRAR
-OSCAR HERNANDEZ REDONDO|JDEP UT2 MUNICIPIOS MENRRED
-OSCAR HERRANZ BAQUERO|JGAP CAL EV AMB Y MED NATURAL
-OSCAR VELASCO GOYANES|JAP SIST AGRAR Y DE PROPIEDAD
-PABLO ALMARCHA BETHENCOURT|TSUP CAL EV AMB Y MED NATURAL
-PABLO BADA PARDO|CAP PROY AGSA-MAPI CIUDAD REAL
-PABLO GONZALO BERRA DE UNAMUNO|JDEP SANID, SEG ALIM Y SAL PUB
-PABLO LLORENTE DE LAS HERAS|RAP SIST AGRAR Y DE PROPIEDAD
-PABLO RUIZ ANTON|GERENTE SISTEMAS
-PABLO SAN JUAN DE SANTIAGO|CAP PROY AGSA-MAPI VALLADOLID
-PAOLA GUADALUPE MENDEZ SICAJAU|ADM CAL EV AMB Y MED NATURAL
-PATRICIA JIMENEZ GARCIA|JAP PROY AGSA-MAPI BALEARES
-PATRICIA JUNQUERA MARTIN|JAP PROY AGSA-MAPI VALLADOLID
-PATRICIA MARTINEZ DONCEL|RAP PROY AGSA-MAPI BARCELONA
-PATRICIA SAN SEGUNDO BARAHONA|JAP DSLL RURAL Y POL FORESTAL
-PATRICIA SUAREZ MACIAS|TSUP PROY AGSA-MAPI BALEARES
-PEDRO BRIONES GARCIA|JGAP SIST INFORM GEOGRÁFICA
-PEDRO CANDIDO EGEA GARCIA|JGAP PROY AGSA-MAPI ALMERÍA
-PEDRO GARCIA DIAZ|JAP PROY AGSA-MAPI LA CORUÑA
-PEDRO JOSE ORTEGA BARRADO|ANALISTA SI AGRARIOS Y PESQUER
-PEDRO LUIS VELASCO NAVARRO|JDEP SI GESTIÓN ADMINISTRATIVA
-PEDRO PABLO MENCHERO SANCHEZ|JDEP SI GESTIÓN DE AYUDAS
-PEDRO RUANO MAGAN|JDEP PLANIFICAC Y GEST HÍDRICA
-PELAYO LUIS REY RODRIGUEZ|JGAP SI AGRARIOS Y PESQUEROS
-PILAR MARIA GALAN SANTIAGO|JGAP PROY AGSA-MAPI TOLEDO
-PILAR MUCIENTES HERRERO|JAP PROY AGSA-MAPI VALLADOLID
-PILAR SANSANO JAVALOYES|JAP PROY AGSA-MAPI ALICANTE
-RAFAEL ZAMORA SALIDO|JGAP PROD, MERC E IND AGRAR
-RAMON BAIGET LLOMPART|JDEP SIST INFORM GEOGRÁFICA
-RAMON BARRERA VAZQUEZ|JGAP PROY AGSA-MAPI LA CORUÑA
-RAMON MARTINEZ TORRES|EXPERTO CAL EV AMB Y MED NAT
-RAQUEL ALJARILLA TRIGUERO|TSUP PROY AGSA-MAPI SEVILLA
-RAQUEL ANGUITA CODESEDA|TSUP PROY AGSA-MAPI SEVILLA
-RAQUEL CONSUELO GONZALEZ TORRECILLAS|TSUP SISTEMAS GESTIÓN AAPP
-RAQUEL DIAZ LOPEZ|JGAP SI GEST DOCUM Y CONSULTOR
-RAQUEL SANCHEZ GALAN|RAP PLANIFI Y GESTIÓN HÍDRICA
-RAUL CARRAL FERNANDEZ|TSUP CAL EV AMB Y MED NATURAL
-RAUL HERNANDEZ MATAMOROS|TSUP CAL EV AMB Y MED NATURAL
-RAUL MARTINEZ CABRIADA|JAP PROY AGSA-MAPI BARCELONA
-RAUL NOVILLO DE LA GUIA|TSUP SISTEMAS GESTIÓN AAPP
-RAUL SANCHEZ-SIERRA PARAMIO|JGAP INGENIERÍA Y EDIFICACIÓN
-REBECA FUENTES LOPEZ|JAP POLÍTICAS AGRARIAS
-REBECA ORTIZ DE LA TORRE LOPEZ|JAP SANID, SEG ALIM Y SAL PUB
-REBECA PENA PEREZ|RAP PROY AGSA-MAPI LA CORUÑA
-REGINA GOMEZ FERNANDEZ|JGAP PROY AGSA-MAPI ORENSE
-REGINA MUÑOZ UBEDA|TSUP PLANIFI Y GESTIÓN HÍDRICA
-RICARDO ESCOBAR CASAS|JDEP SISTEMAS TGTEC
-ROBERTO BODES ZAMORANO|JGAP PROY AGSA-MAPI VALLADOLID
-ROBERTO CUELLAR BENITO|TSUP DSLL RURAL Y POL FORESTAL
-ROBERTO GONZALEZ GOMEZ|JGAP PROY AGSA-MAPI BALEARES
-ROCIO BAGUENA MONTESINOS|CAP PROY AGSA-MAPI VALENCIA
-ROCIO DE CABO RAMIREZ DE VERGER|RAP POLÍTICAS AGRARIAS
-ROCIO FERNANDEZ JIMENEZ|TSUP PROY AGSA-MAPI MÁLAGA
-ROCIO VILLAFRANCA GAYO|JGAP SIST INFORM GEOGRÁFICA
-ROMAN CARNICERO LADRON DE GUEVARA|CAP PROY AGSA-MAPI SEVILLA
-ROSA MARIA DELGADO FERNANDEZ|RAP SISTEMAS GESTIÓN AAPP
-RUBEN NICASIO DIEZ CAPEANS|RAP PROY AGSA-MAPI LA CORUÑA
-RUTH BERMEJO CRIADO|JGAP SIST AGRAR Y DE PROPIEDAD
-RUTH TRANCON BLAZQUEZ|RAP SANID, SEG ALIM Y SAL PUB
-SALVADOR FEO GARCIA|JGAP SANID, SEG ALIM Y SAL PUB
-SALVADOR MANUEL RONDA GOMEZ|ANALISTA SR SI AGRARIOS Y PESQ
-SALVADOR MARIA BELTRAN MARTINEZ|TSUP PROY AGSA-MAPI VALENCIA
-SANDRA BAÑULS LOPEZ|TSUP PROY AGSA-MAPI HUELVA
-SANTIAGO DIAZ VIDAL|JGAP PROY AGSA-MAPI LA CORUÑA
-SANTIAGO JUAN MATEOS BERENGUER|JAP INGENIERÍA Y EDIFICACIÓN
-SANTIAGO RUBIO PIÑEIRO|JDEP SANID, SEG ALIM Y SAL PUB
-SARA CANDELA RODRIGUEZ|TSUP CAL EV AMB Y MED NATURAL
-SARA RAMOS AGAMA|TSUP CAL EV AMB Y MED NATURAL
-SARA RECIO GARCIA|JGAP SI GEST DOCUM Y CONSULTOR
-SARA TORRE SALES|JAP CAL EV AMB Y MED NATURAL
-SEBASTIAN MARTIN MORAN|JGAP DSLL RURAL Y POL FORESTAL
-SERGIO BARQUERO GODOY|JAP PROY AGSA-MAPI BADAJOZ
-SERGIO MOLINA BLAZQUEZ|JDEP SIST INFORM GEOGRÁFICA
-SERGIO TURIENZO FERNANDEZ|JGAP SANID, SEG ALIM Y SAL PUB
-SOLEDAD CODES ORTEGA|JDEP INGENIERÍA Y EDIFICACIÓN
-SOLEDAD GARCIA GONZALEZ|TSUP SISTEMAS GESTIÓN AAPP
-SONIA ANDRES JORGE|JGAP SI GESTIÓN DE AYUDAS
-SONSOLES SAEZ-ILLOBRE MARTIN|JDEP PESCA Y ASUNTOS MARÍTIMOS
-SONSOLES SANCHEZ CASADO|JGAP SI AGRARIOS Y PESQUEROS
-SUSANA SANZ DIAZ|TSUP POLÍTICAS AGRARIAS
-TERESA IBAÑEZ ARANDA|JGAP SIST INFORM GEOGRÁFICA
-TERESA PEREYRA DE LA IGLESIA|TSUP CAL EV AMB Y MED NATURAL
-TOMAS JAVIER GONZALEZ GARCIA|JAP PROY INFORM ASTURIAS
-VALERIANO CARDENAS CRUZ|JGAP PROY AGSA-MAPI SEVILLA
-VANESA COLAO ALVAREZ|JAP PROD, MERC E IND AGRAR
-VICENTE CARDENAS FRANCO|CAP DSLL RURAL Y POL FORESTAL
-VICTOR BELLO MARCOS|JGAP SIST INFORM GEOGRÁFICA
-VICTOR GOMEZ GALVEZ|JGAP SANID, SEG ALIM Y SAL PUB
-VICTOR MANUEL CARRASCO SOSA|JGAP PROY INFORMÁTICA SEVILLA
-VIOLETA MORENO OTIN|TSUP CAL EV AMB Y MED NATURAL
-VIRGINIA GOMEZ RENDA|JAP PROD, MERC E IND AGRAR
-XOSE LUIS FRAGA VEGA|JGAP PROY AGSA-MAPI PONTEVEDRA
-YOLANDA ALBALATE MORENO|GERENTE FORMACIÓN Y DESARROLLO
-ZAIDA ANA CASERO MONTES|TSUP PROY AGSA-MAPI SEVILLA
-ZAYDA RODRIGUEZ GONZALEZ|TSUP PROY AGSA-MAPI LA PALMA
-&#x27;&#x27;&#x27;
-for line in STAFF.strip().splitlines():
-    name,role=[x.strip() for x in line.split(&#x27;|&#x27;,1)]
-    # Explicit TGSA/TGTEC in role can suggest unit, but source still only guarantees Grupo Tragsa staff.
-    company=&#x27;GRUPO_TRAGSA&#x27;
-    cid=None
-    if re.search(r&#x27;\bTGTEC\b|\bTRAGSATEC\b&#x27;,role,re.I):
-        company=&#x27;TRAGSATEC&#x27;; cid=&#x27;org:A79365821&#x27;
-    elif re.search(r&#x27;\bTGSA\b&#x27;,role,re.I):
-        company=&#x27;TRAGSA&#x27;; cid=&#x27;org:A28476208&#x27;
-    add(name,company=company,company_id=cid,relation_type=&#x27;EMPLOYEE_DOCUMENTED&#x27;,role=role,observed_at=&#x27;2026-05-26&#x27;,source_url=SRC_STAFF_20260526,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;PROFESIONAL_DE_PLANTILLA_DOCUMENTADO&#x27;,relation_detail=&#x27;COLABORADOR_ENTREVISTA_TREA_TRAGSATEC&#x27;,notes=&#x27;La fuente oficial los describe expresamente como profesionales de plantilla del Grupo Tragsa; salvo indicación explícita del cargo, no se infiere la sociedad empleadora concreta.&#x27;)
-
-# Secretary who signs that same official list; do not infer employee status from signature alone.
-add(&#x27;Blanca Fernández Escavias de Carvajal&#x27;,company=&#x27;TRAGSATEC&#x27;,company_id=&#x27;org:A79365821&#x27;,relation_type=&#x27;SELECTION_BODY_OFFICER&#x27;,role=&#x27;Secretaria del Órgano de Selección&#x27;,observed_at=&#x27;2026-05-26&#x27;,source_url=SRC_STAFF_20260526,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;VINCULO_ORGANO_SELECCION_DOCUMENTADO&#x27;)
-
-# 3) PRE selection collaborators, 24/06/2026. This PDF also expressly calls them Grupo Tragsa staff.
-PRE = r&#x27;&#x27;&#x27;
-AMAYA CONTRERAS MIRA|JEFE/A DE DEPARTAMENTO
-ANA BELEN YUSTE ORTEGA|JEFE/A DE DEPARTAMENTO
-ANA ISABEL FERNANDEZ FERNANDEZ|JEFE/A DE DEPARTAMENTO
-BEATRIZ MESA LEON|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-BLANCA CRIADO CLEMENTE|GERENTE DE AREA
-CARLOS DE MIGUEL RIVERA|JEFE/A DE DEPARTAMENTO
-CARMEN MACIAS ANTEQUERA|JEFE/A DE DEPARTAMENTO
-CRISTINA DEL CASTILLO MOLINA|JEFE/A DE DEPARTAMENTO
-DAVID VEROZ IPARRAGUIRRE|JEFE/A DE DEPARTAMENTO
-DIEGO MARTIN CORRALES|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-ELENA BERMEJO MARTINEZ|JEFE/A DE DEPARTAMENTO
-ELENA MARIA LOPEZ MARTIN|JEFE/A DE DEPARTAMENTO
-ENRIQUE GALINDO MERCHAN|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-ENRIQUE SALAMANCA SALAMANCA|JEFE/A DE DEPARTAMENTO
-FERNANDO ARTERO VERDU|JEFE/A DE DEPARTAMENTO
-FERNANDO GRAGERA IBAÑEZ|JEFE/A DE DEPARTAMENTO
-FERNANDO LOPEZ RUIZ|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-FRANCISCO ANTELO NIETO|JEFE/A DE DEPARTAMENTO
-FRANCISCO GABRIEL CARA GOMEZ|JEFE/A DE DEPARTAMENTO
-FRANCISCO JAVIER FERNANDEZ IRIZAR|JEFE/A DE DEPARTAMENTO
-FRANCISCO JAVIER HERRERO GARCIA|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-FRANCISCO JOSE GONZALEZ REDONDO|JEFE/A DE DEPARTAMENTO
-GABRIEL PEREZ SANCHEZ|JEFE/A DE DEPARTAMENTO
-GEMA DEL CARMEN LAGOA SERRANO|JEFE/A DE DEPARTAMENTO
-HELENA FERNANDEZ REVILLA|JEFE/A DE DEPARTAMENTO
-IÑIGO PEREZ DE LOS COBOS CASSINELLO|SUBDIRECTOR/A DE AREA
-ISABEL TAMIA BRITO IZQUIERDO|JEFE/A DE DEPARTAMENTO
-JESUS FERNANDO MARTINEZ VILASANCHEZ|JEFE/A DE DEPARTAMENTO
-JESUS FRANCISCO DEL MONTE HUERTAS|JEFE/A DE DEPARTAMENTO
-JOSE ENRIQUE RODRIGUEZ MOHEDANO|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-JOSE MARIA CALLEJO ALONSO|JEFE/A DE DEPARTAMENTO
-JOSE MARIA GUITIAN CASTRILLON|JEFE/A DE DEPARTAMENTO
-JOSE MIGUEL SUAREZ RAMOS|PERSONAL ASISTENCIA TÉCNICA DE LA UNIDAD
-JUAN ANTONIO GUTIERREZ SANCHEZ|JEFE/A DE DEPARTAMENTO
-KEPA GONZALEZ MARTINEZ|JEFE/A DE DEPARTAMENTO
-MANUEL MARECA LOPEZ|JEFE/A DE DEPARTAMENTO
-MANUEL MENENDEZ DIAZ|JEFE/A DE DEPARTAMENTO
-MARCOS LOPEZ BONO|JEFE/A DE DEPARTAMENTO
-MARCOS POZO MANRIQUE|JEFE/A DE DEPARTAMENTO
-MARIA ISABEL PICAZO GALVEZ|JEFE/A DE DEPARTAMENTO
-MARIA ISABEL URIOS DE LAS HERAS|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-MARIA JESUS GONZALEZ DE LA ROSA|JEFE/A DE DEPARTAMENTO
-MARIA LUISA GOMEZ JOVER TORREGROSA|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-MARIA LUISA TELLO SANCHEZ|JEFE/A DE DEPARTAMENTO
-MARIA MAXIMINA MEDIAVILLA GARCIA|JEFE/A DE DEPARTAMENTO
-MARIA MILAGROS GARCIA ROLDAN|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-MARIA PILAR ISLA RODRIGUEZ|JEFE/A DE DEPARTAMENTO
-MARIA TOURNE WHYTE|COORDINADOR/A DE ACTUACIONES Y PROYECTOS
-MIGUEL HERNANDEZ DEL CAMPO|JEFE/A DE DEPARTAMENTO
-MONTSERRAT DIAZ MOLINA|GERENTE DE AREA
-NURIA AVENDAÑO GARCIA|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-OSCAR BLANCO NIETO|JEFE/A DE DEPARTAMENTO
-PABLO BOTICARIO GALAVIS|JEFE/A DE DEPARTAMENTO
-PABLO GONZALO BERRA DE UNAMUNO|JEFE/A DE DEPARTAMENTO
-PABLO RUIZ ANTON|GERENTE DE AREA
-PEDRO LUIS VELASCO NAVARRO|JEFE/A DE DEPARTAMENTO
-RAMON BAIGET LLOMPART|JEFE/A DE DEPARTAMENTO
-RAQUEL DIAZ LOPEZ|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-SANTIAGO RUBIO PIÑEIRO|JEFE/A DE DEPARTAMENTO
-SANTIAGO VECIANA GALINDO|JEFE/A DE DEPARTAMENTO
-SERGIO TURIENZO FERNANDEZ|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-SOLEDAD ALVAREZ RODRIGUEZ|SUBDIRECTOR/A DE AREA
-SONSOLES SAEZ-ILLOBRE MARTIN|JEFE/A DE DEPARTAMENTO
-TOMAS AGUSTIN TROYANO RIVAS|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-VALERIANO CARDENAS CRUZ|JEFE/A DE GRUPO ACTUACIONES Y PROYECTOS
-ANA PEREZ LEAL|TÉCNICO/A DE LA GERENCIA SELECCIÓN
-JOFRE IGNACIO ENCARNACION BRAVO|TÉCNICO/A DE LA GERENCIA SELECCIÓN
-LIDIA MUÑOZ CASTILLEJO|TÉCNICO/A DE LA GERENCIA SELECCIÓN
-SILVIA OLMOS AGUILAR|TÉCNICO/A DE LA GERENCIA SELECCIÓN
-TERESA BLANCO DORADO|TÉCNICO/A DE LA GERENCIA SELECCIÓN
-LAURA SEDEÑO TORRON|Secretaria del Órgano de Selección
-&#x27;&#x27;&#x27;
-for line in PRE.strip().splitlines():
-    name,role=[x.strip() for x in line.split(&#x27;|&#x27;,1)]
-    add(name,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;EMPLOYEE_DOCUMENTED&#x27;,role=role,observed_at=&#x27;2026-06-24&#x27;,source_url=SRC_PRE_20260624,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;PROFESIONAL_DE_PLANTILLA_DOCUMENTADO&#x27;,relation_detail=&#x27;COLABORADOR_PRE_TRAGSATEC&#x27;,notes=&#x27;La fuente oficial los describe expresamente como profesionales de plantilla del Grupo Tragsa; no se infiere la sociedad empleadora concreta.&#x27;)
-
-# 4) Selection-body modifications found in official 2026 news/resolutions.
-add(&#x27;Esther Martín Alonso&#x27;,company=&#x27;TRAGSA&#x27;,company_id=&#x27;org:A28476208&#x27;,relation_type=&#x27;SELECTION_BODY_MEMBER&#x27;,role=&#x27;Vocal suplente del Órgano de Selección&#x27;,observed_at=&#x27;2026-07-02&#x27;,source_url=SRC_TRAGSA_SEL_20260702,source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27;,status=&#x27;VINCULO_ORGANO_SELECCION_DOCUMENTADO&#x27;)
-add(&#x27;Francisco Soler Maroto&#x27;,company=&#x27;TRAGSA&#x27;,company_id=&#x27;org:A28476208&#x27;,relation_type=&#x27;SELECTION_BODY_MEMBER_HISTORICAL&#x27;,role=&#x27;Vocal suplente sustituido del Órgano de Selección&#x27;,observed_at=&#x27;2026-07-02&#x27;,source_url=SRC_TRAGSA_SEL_20260702,source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27;,status=&#x27;VINCULO_HISTORICO_DOCUMENTADO&#x27;)
-add(&#x27;Javier Alejandro Gómez Feijoo&#x27;,company=&#x27;TRAGSATEC&#x27;,company_id=&#x27;org:A79365821&#x27;,relation_type=&#x27;SELECTION_BODY_MEMBER&#x27;,role=&#x27;Vocal titular del Órgano de Selección&#x27;,observed_at=&#x27;2026-07-22&#x27;,source_url=SRC_TRAGSATEC_SEL_20260722,source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27;,status=&#x27;VINCULO_ORGANO_SELECCION_DOCUMENTADO&#x27;)
-add(&#x27;Javier Carballo Díaz&#x27;,company=&#x27;TRAGSATEC&#x27;,company_id=&#x27;org:A79365821&#x27;,relation_type=&#x27;SELECTION_BODY_MEMBER&#x27;,role=&#x27;Vocal suplente del Órgano de Selección&#x27;,observed_at=&#x27;2026-07-22&#x27;,source_url=SRC_TRAGSATEC_SEL_20260722,source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27;,status=&#x27;VINCULO_ORGANO_SELECCION_DOCUMENTADO&#x27;)
-add(&#x27;Rafael Fernando Vega Pozuelo&#x27;,company=&#x27;TRAGSATEC&#x27;,company_id=&#x27;org:A79365821&#x27;,relation_type=&#x27;SELECTION_BODY_MEMBER_HISTORICAL&#x27;,role=&#x27;Vocal suplente sustituido del Órgano de Selección&#x27;,observed_at=&#x27;2026-02-04&#x27;,source_url=SRC_TRAGSATEC_SEL_20260204,source_type=&#x27;TRAGSA_OFFICIAL_WEB&#x27;,status=&#x27;VINCULO_HISTORICO_DOCUMENTADO&#x27;)
-
-# 5) Current professional-profile PDFs linked from the official organigram page (checked 2026-08-10).
-# These are group-level directorships unless the profile is explicitly the Dirección de Tragsatec.
-add(&#x27;Jesús Casas Grande&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Presidencia del Grupo Tragsa&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_PRES,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Paloma López-Izquierdo Botín&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Directora de Coordinación y Acciones Institucionales&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_DCAI,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Juan González Blasco&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Director Económico Financiero&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_DEF,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Álvaro Aznar Fornies&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Director de Recursos Humanos y Organización&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_RRHH,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Sara Izquierdo Pérez&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Directora de Asesoría Jurídica&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_LEGAL,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Juan Pablo González Mata&#x27;,company=&#x27;TRAGSATEC&#x27;,company_id=&#x27;org:A79365821&#x27;,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Director de Tragsatec&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_TTEC,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-add(&#x27;Patricia Tresgallo Fernández&#x27;,company=&#x27;GRUPO_TRAGSA&#x27;,company_id=None,relation_type=&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,role=&#x27;Directora de Gabinete de Presidencia&#x27;,observed_at=&#x27;2026-08-10&#x27;,source_url=SRC_PROFILE_GAB,source_type=&#x27;TRAGSA_OFFICIAL_PDF&#x27;,status=&#x27;CARGO_DIRECTIVO_ACTUAL_DOCUMENTADO&#x27;)
-
-# Sort affiliations and people.
-for p in people.values():
-    p[&#x27;affiliations&#x27;].sort(key=lambda a:(a.get(&#x27;observed_at&#x27;) or &#x27;&#x27;,a.get(&#x27;company&#x27;) or &#x27;&#x27;,a.get(&#x27;relation_type&#x27;) or &#x27;&#x27;,a.get(&#x27;role&#x27;) or &#x27;&#x27;), reverse=True)
-
-# Cross statistics against linked_people in enriched organizations.
-linked_by_canon={}
-orgs=[]
-try:
-    with open(ORG_ENR,encoding=&#x27;utf-8&#x27;) as f: orgs=json.load(f)[&#x27;items&#x27;]
-except FileNotFoundError:
-    pass
-for o in orgs:
-    if o.get(&#x27;category&#x27;)==&#x27;grupo_tragsa&#x27;: continue
-    for n in o.get(&#x27;linked_people&#x27;) or []:
-        c=canon(n)
-        if c: linked_by_canon.setdefault(c,set()).add(o[&#x27;id&#x27;])
-extended_canons=set(people)
-match_canons=extended_canons &amp; set(linked_by_canon)
-match_orgs=set()
-for c in match_canons: match_orgs |= linked_by_canon[c]
-
-def token_key_from_canon(c):
-    toks=[t for t in c.split() if len(t)&gt;1]
-    return &#x27; &#x27;.join(sorted(toks)) if len(toks)&gt;=3 else &#x27;&#x27;
-
-ext_by_tokens={}
-for c in extended_canons:
-    k=token_key_from_canon(c)
-    if k: ext_by_tokens.setdefault(k,set()).add(c)
-linked_by_tokens={}
-for c,oids in linked_by_canon.items():
-    k=token_key_from_canon(c)
-    if k: linked_by_tokens.setdefault(k,set()).update(oids)
-match_token_keys=set(ext_by_tokens)&amp;set(linked_by_tokens)
-# Exclude keys already represented by an exact canonical sequence match.
-exact_keys={token_key_from_canon(c) for c in match_canons}
-reordered_token_keys={k for k in match_token_keys if k not in exact_keys}
-reordered_match_orgs=set()
-for k in reordered_token_keys: reordered_match_orgs |= linked_by_tokens[k]
-
-relation_counts={}
-source_counts={}
-staff_count=0
-for p in people.values():
-    is_staff=False
-    for a in p[&#x27;affiliations&#x27;]:
-        relation_counts[a[&#x27;relation_type&#x27;]]=relation_counts.get(a[&#x27;relation_type&#x27;],0)+1
-        source_counts[a[&#x27;source_url&#x27;]]=source_counts.get(a[&#x27;source_url&#x27;],0)+1
-        if a[&#x27;status&#x27;]==&#x27;PROFESIONAL_DE_PLANTILLA_DOCUMENTADO&#x27; or a[&#x27;relation_type&#x27;]==&#x27;ORGCHART_EXECUTIVE&#x27;: is_staff=True
-    if is_staff: staff_count+=1
-
-payload={
-  &#x27;format&#x27;:&#x27;tragsascope-tragsa-people-v1&#x27;,
-  &#x27;generated_at&#x27;:&#x27;2026-08-10T19:00:00+02:00&#x27;,
-  &#x27;title&#x27;:&#x27;Personas vinculadas oficialmente al Grupo TRAGSA — conjunto ampliado&#x27;,
-  &#x27;methodology&#x27;:{
-    &#x27;scope&#x27;:&#x27;Personas localizadas en fuentes oficiales del Grupo Tragsa: consejos, organigramas, perfiles/cargos directivos y documentos oficiales de procesos de selección.&#x27;,
-    &#x27;deduplication&#x27;:&#x27;Deduplicación por nombre normalizado (mayúsculas, sin diacríticos y con puntuación/espacios normalizados). Las evidencias se conservan como afiliaciones separadas.&#x27;,
-    &#x27;staff_rule&#x27;:&#x27;Solo se etiqueta como profesional de plantilla cuando la fuente oficial lo afirma expresamente o cuando figura en un organigrama ejecutivo. La pertenencia a un consejo no se interpreta como relación laboral.&#x27;,
-    &#x27;company_rule&#x27;:&#x27;Cuando una fuente afirma pertenencia a la plantilla del Grupo Tragsa pero no individualiza TRAGSA o TRAGSATEC, se usa company=GRUPO_TRAGSA y no se infiere la sociedad empleadora.&#x27;,
-    &#x27;matching&#x27;:&#x27;Los cruces con linked_people deben considerarse coincidencias documentales de nombre. La coincidencia de nombre no demuestra identidad, incompatibilidad, conflicto de interés ni irregularidad.&#x27;
-  },
-  &#x27;sources&#x27;:[
-    {&#x27;type&#x27;:&#x27;BOARD&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-09&#x27;,&#x27;url&#x27;:SRC_BOARD,&#x27;description&#x27;:&#x27;Consejos de administración de TRAGSA y TRAGSATEC.&#x27;},
-    {&#x27;type&#x27;:&#x27;ORGCHART&#x27;,&#x27;observed_at&#x27;:&#x27;2025-03-03&#x27;,&#x27;url&#x27;:SRC_ORG_2025,&#x27;description&#x27;:&#x27;Organigrama oficial utilizado en los JSON definitivos.&#x27;},
-    {&#x27;type&#x27;:&#x27;STAFF_SELECTION_COLLABORATORS&#x27;,&#x27;observed_at&#x27;:&#x27;2026-05-26&#x27;,&#x27;url&#x27;:SRC_STAFF_20260526,&#x27;description&#x27;:&#x27;Colaboradores de entrevistas; el documento afirma que son profesionales de plantilla del Grupo Tragsa.&#x27;},
-    {&#x27;type&#x27;:&#x27;PRE_SELECTION_COLLABORATORS&#x27;,&#x27;observed_at&#x27;:&#x27;2026-06-24&#x27;,&#x27;url&#x27;:SRC_PRE_20260624,&#x27;description&#x27;:&#x27;Colaboradores PRE; el documento afirma que son profesionales de plantilla del Grupo Tragsa.&#x27;},
-    {&#x27;type&#x27;:&#x27;SELECTION_BODY&#x27;,&#x27;observed_at&#x27;:&#x27;2026-07-02&#x27;,&#x27;url&#x27;:SRC_TRAGSA_SEL_20260702,&#x27;description&#x27;:&#x27;Modificación del órgano de selección de TRAGSA.&#x27;},
-    {&#x27;type&#x27;:&#x27;SELECTION_BODY&#x27;,&#x27;observed_at&#x27;:&#x27;2026-07-22&#x27;,&#x27;url&#x27;:SRC_TRAGSATEC_SEL_20260722,&#x27;description&#x27;:&#x27;Modificación del órgano de selección de TRAGSATEC.&#x27;},
-    {&#x27;type&#x27;:&#x27;SELECTION_BODY&#x27;,&#x27;observed_at&#x27;:&#x27;2026-02-04&#x27;,&#x27;url&#x27;:SRC_TRAGSATEC_SEL_20260204,&#x27;description&#x27;:&#x27;Modificación del órgano de selección de TRAGSATEC.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_PRES,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Presidencia.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_DCAI,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Coordinación y Acciones Institucionales.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_DEF,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Dirección Económico Financiera.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_RRHH,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Recursos Humanos y Organización.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_LEGAL,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Asesoría Jurídica.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_TTEC,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Dirección de Tragsatec.&#x27;},
-    {&#x27;type&#x27;:&#x27;CURRENT_EXECUTIVE_PROFILE&#x27;,&#x27;observed_at&#x27;:&#x27;2026-08-10&#x27;,&#x27;url&#x27;:SRC_PROFILE_GAB,&#x27;description&#x27;:&#x27;Perfil oficial vigente enlazado desde el organigrama: Gabinete de Presidencia.&#x27;}
-  ],
-  &#x27;statistics&#x27;:{
-    &#x27;unique_people&#x27;:len(people),
-    &#x27;people_with_staff_evidence&#x27;:staff_count,
-    &#x27;affiliations&#x27;:sum(len(p[&#x27;affiliations&#x27;]) for p in people.values()),
-    &#x27;relation_type_counts&#x27;:relation_counts,
-    &#x27;exact_name_matches_with_linked_people&#x27;:len(match_canons),
-    &#x27;awardee_organizations_with_exact_match&#x27;:len(match_orgs),
-    &#x27;same_name_tokens_reordered_matches_with_linked_people&#x27;:len(reordered_token_keys),
-    &#x27;awardee_organizations_with_same_name_tokens_reordered_match&#x27;:len(reordered_match_orgs)
-  },
-  &#x27;people&#x27;:sorted(people.values(), key=lambda p:p[&#x27;normalized_name&#x27;])
-}
-
-with open(OUT,&#x27;w&#x27;,encoding=&#x27;utf-8&#x27;) as f:
-    json.dump(payload,f,ensure_ascii=False,indent=2)
-print(&#x27;WROTE&#x27;,OUT)
-print(json.dumps(payload[&#x27;statistics&#x27;],ensure_ascii=False,indent=2))
-print(&#x27;First exact matches:&#x27;, [people[c][&#x27;name&#x27;] for c in sorted(match_canons)[:30]])
-print(&#x27;Reordered-token match keys:&#x27;, sorted(reordered_token_keys)[:30])
-</code></pre>
-        </div>
-      </details>
-    </article>
+    <div class="card compare">
+      <table>
+        <thead><tr><th>Campo</th><th>Para qué sirve</th><th>Cómo lo usa la web</th></tr></thead>
+        <tbody>
+          <tr><td><code>name</code></td><td>Nombre de la persona localizada.</td><td>Se somete a controles automáticos para detectar texto contaminado o nombres sospechosos.</td></tr>
+          <tr><td><code>role</code></td><td>Cargo o relación documental.</td><td>Se muestra junto al nombre, pero no se interpreta automáticamente como cargo vigente.</td></tr>
+          <tr><td><code>source_type</code></td><td>Origen de la evidencia.</td><td>Distingue fuentes oficiales/primarias de páginas web secundarias.</td></tr>
+          <tr><td><code>source_url</code></td><td>URL de la evidencia.</td><td>Permite abrir directamente la fuente original.</td></tr>
+          <tr><td><code>confidence</code></td><td>Nivel de confianza asignado.</td><td><span class="badge green">HIGH</span> y <span class="badge amber">MEDIUM</span> se muestran de forma distinta.</td></tr>
+          <tr><td><code>evidence</code></td><td>Fragmento o contexto que justificó la asociación.</td><td>Se puede desplegar para revisar de dónde salió el dato.</td></tr>
+          <tr><td><code>date</code></td><td>Fecha asociada cuando existe.</td><td>Solo se interpreta como fecha si cumple realmente el formato calendario válido.</td></tr>
+        </tbody>
+      </table>
+    </div>
 
     <div class="grid2" style="margin-top:18px">
       <article class="card info">
-        <h3>③ El propio <code>index.html</code></h3>
-        <p>
-          No genera los datos. Los consume. Su JavaScript carga los JSON, crea índices, busca,
-          agrupa contratos y ejecuta los cruces entre empresas, personas, TRAGSA y fechas.
-        </p>
+        <span class="badge green">HIGH</span>
+        <h3 style="margin-top:12px">Mayor confianza documental</h3>
+        <p>Se utiliza para relaciones respaldadas por fuentes de mayor confianza, especialmente BORME/BOE o documentación institucional oficial.</p>
       </article>
       <article class="card info">
-        <h3>④ <code>linked_people_evidence.jsonl</code></h3>
-        <p>
-          Es un archivo auxiliar de trazabilidad. Guarda una evidencia por línea para poder revisar
-          de dónde salió una asociación. No es necesario para que la web pública funcione.
-        </p>
+        <span class="badge amber">MEDIUM</span>
+        <h3 style="margin-top:12px">Evidencia secundaria</h3>
+        <p>Puede proceder de fuentes web útiles para localizar información, pero requiere una comprobación más cuidadosa y no se equipara automáticamente a una fuente primaria.</p>
       </article>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      La palabra <strong>verificado</strong> en el nombre del fichero no significa que cada registro sea infalible.
+      Significa que el fichero conserva una capa adicional de trazabilidad, fuente, evidencia y nivel de confianza.
     </div>
   </div>
 </section>
 
-<section id="pasos">
+<section id="carga">
   <div class="wrap">
-    <h2 class="section-title">7. Proceso de generación</h2>
-    <p class="section-intro">El proceso práctico queda así:</p>
+    <h2 class="section-title">6. Por qué ahora carga más rápido</h2>
+    <p class="section-intro">La mejora principal es arquitectónica: separar «lo necesario para empezar» de «lo necesario para investigar».</p>
+
     <div class="grid2">
-      <article class="card info"><div class="number">1</div><h3>Preparar la base</h3><p>Partir de contratos, organizaciones, personas, relaciones y actos societarios extraídos y estructurados.</p></article>
-      <article class="card info"><div class="number">2</div><h3>Enriquecer empresas</h3><p>Ejecutar <code>tragsa_enriquecer_empresas.py</code> para añadir <code>linked_people</code> sin modificar los demás campos de las organizaciones.</p></article>
-      <article class="card info"><div class="number">3</div><h3>Conservar evidencia</h3><p>Guardar las evidencias detalladas en un JSONL independiente. El JSON de organizaciones queda más limpio.</p></article>
-      <article class="card info"><div class="number">4</div><h3>Crear la lista TRAGSA</h3><p>Ejecutar <code>build_tragsa_people_extended.py</code> para producir el conjunto separado de personas oficiales/documentadas.</p></article>
-      <article class="card info"><div class="number">5</div><h3>Publicar JSON</h3><p>Colocar los archivos JSON junto al sitio usando únicamente rutas relativas y nombres públicos.</p></article>
-      <article class="card info"><div class="number">6</div><h3>Cargar la web</h3><p>El <code>index.html</code> descarga primero los ficheros ligeros y carga contratos/relaciones pesadas solo cuando una función los necesita.</p></article>
-      <article class="card info"><div class="number">7</div><h3>Calcular cruces</h3><p>El navegador normaliza nombres, encuentra personas compartidas, cruza con TRAGSA/TRAGSATEC y, cuando procede, compara fechas.</p></article>
-      <article class="card info"><div class="number">8</div><h3>Verificar</h3><p>Cualquier coincidencia relevante debe revisarse en la fuente documental original antes de sacar conclusiones.</p></article>
+      <article class="card info">
+        <span class="badge green">Al abrir la web</span>
+        <h3 style="margin-top:12px">Carga ligera</h3>
+        <p>Se descargan <code>index.json</code>, organizaciones y people. Con eso ya pueden mostrarse resumen, buscador básico y empresas.</p>
+      </article>
+      <article class="card info">
+        <span class="badge violet">Al investigar</span>
+        <h3 style="margin-top:12px">Carga bajo demanda</h3>
+        <p>Contratos, relaciones, BORME y <code>organizations_verified</code> solo se descargan cuando una acción concreta los necesita.</p>
+      </article>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      Los archivos descargados se conservan en memoria durante la sesión y las peticiones usan la caché del navegador cuando es posible.
+      Así se evita repetir descargas innecesarias.
     </div>
   </div>
 </section>
 
 <section id="limites">
   <div class="wrap">
-    <h2 class="section-title">8. Qué significa —y qué no significa— una coincidencia</h2>
+    <h2 class="section-title">7. Qué significa —y qué no significa— una relación</h2>
     <div class="warning">
-      <h3>⚠️ Una coincidencia no demuestra un conflicto de interés</h3>
+      <h3>⚠️ Una coincidencia o relación documental no demuestra por sí sola un conflicto de interés</h3>
       <p>
-        Un mismo nombre en una adjudicataria y en documentación de TRAGSA/TRAGSATEC puede ser una pista útil,
-        pero por sí solo no demuestra que se trate de la misma persona, que el vínculo estuviera vigente en la fecha
-        del contrato ni que exista incompatibilidad, trato de favor o irregularidad.
+        Un nombre puede corresponder a un homónimo, un cargo puede ser histórico, una fecha puede haberse extraído mal
+        y una fuente secundaria puede contener errores. El resultado de TragsaScope debe entenderse como una pista documental
+        que facilita llegar a la fuente, no como una conclusión jurídica.
       </p>
     </div>
+
     <div class="grid3" style="margin-top:16px">
-      <article class="card info"><h3>Coincidencia de nombre</h3><p>Primer nivel. Sirve para localizar casos que merece la pena comprobar.</p></article>
-      <article class="card info"><h3>Coincidencia + cargo + fechas</h3><p>Más informativa porque incorpora contexto societario y temporal, pero sigue requiriendo verificación.</p></article>
-      <article class="card info"><h3>Fuente original</h3><p>Es el nivel decisivo: BORME, PLACSP, BOE o documento oficial enlazado.</p></article>
+      <article class="card info"><h3>Coincidencia de nombre</h3><p>Sirve para localizar registros potencialmente relacionados. No confirma identidad.</p></article>
+      <article class="card info"><h3>Cargo + fecha + empresa</h3><p>Aporta contexto adicional, pero puede seguir siendo histórico, aproximado o incompleto.</p></article>
+      <article class="card info"><h3>Fuente original</h3><p>Es el elemento que debe revisarse antes de formular cualquier conclusión sobre una persona u organización.</p></article>
     </div>
   </div>
 </section>
+
+<section id="legal" class="legal">
+  <div class="wrap">
+    <div class="legal-intro">
+      <h2>Mi abogado me pide que añada esto 👇</h2>
+      <p class="tiny">¿Qué abogado?</p>
+      <h2>El que me ha aconsejado que deje estas advertencias bien claras en esta página.</h2>
+    </div>
+
+    <div class="legal-grid">
+      <article class="card legal-card">
+        <h3>⚠️ Advertencia importante sobre los datos</h3>
+        <p>TragsaScope recopila, transforma, normaliza y relaciona grandes cantidades de información mediante scripts y procesos automatizados. <strong>Puede haber nombres, fechas, cargos, empresas, importes, relaciones o cualquier otro dato equivocado.</strong></p>
+        <p>Los scripts pueden interpretar mal un documento, mezclar nombres, generar duplicidades, asociar registros que no corresponden a la misma persona o no detectar correctamente relaciones históricas.</p>
+        <p>Y sí: muchos de esos scripts han sido programados por <strong>Ángel Soto</strong>, así que tampoco conviene atribuirles infalibilidad matemática, jurídica ni divina.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Protección de datos personales</h3>
+        <p>La información mostrada procede de fuentes públicas y documentación de acceso público. La herramienta no solicita al visitante nombre, correo, teléfono u otros datos personales para utilizarla.</p>
+        <p>La aparición de una persona debe interpretarse exclusivamente en el contexto de la fuente documental. Una coincidencia de nombre no demuestra que dos registros correspondan a la misma persona.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Origen de los datos</h3>
+        <p>Los datos proceden principalmente de PLACSP, BORME, BOE y documentación institucional pública de TRAGSA y TRAGSATEC, además de fuentes web secundarias claramente diferenciadas cuando se utilizan.</p>
+        <p>TragsaScope es un proyecto independiente y no es una página oficial de TRAGSA, TRAGSATEC, SEPI ni de la Administración.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Personas vinculadas</h3>
+        <p>«Persona vinculada» significa únicamente que un nombre aparece documentalmente relacionado con una organización. Puede tratarse de administradores, consejeros, apoderados, representantes, socios, directivos o cargos históricos.</p>
+        <p>No implica necesariamente relación laboral vigente, propiedad, incompatibilidad, conflicto de interés, trato de favor, conducta irregular o ilegalidad.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Calidad, automatización y actualización</h3>
+        <p>El procesamiento automatizado puede producir homónimos, fechas imposibles, nombres contaminados por texto documental, omisiones, duplicidades o asociaciones incorrectas.</p>
+        <p>Los niveles HIGH/MEDIUM son ayudas de clasificación, no sustituyen la comprobación humana de la fuente original.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Fuentes primarias y secundarias</h3>
+        <p>Una fuente secundaria puede contener errores de transcripción, interpretación o actualización y no debe considerarse equivalente a una publicación oficial.</p>
+        <p>Siempre que es posible, la web diferencia BOE/BORME/documentación oficial de evidencia obtenida a través de otras páginas web.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Cookies</h3>
+        <p>TragsaScope no utiliza cookies propias para identificar al usuario, crear perfiles personales ni almacenar información de inicio de sesión.</p>
+        <p>Nada de banners absurdos de cookies ¯\_(ツ)_/¯.</p>
+      </article>
+
+      <article class="card legal-card">
+        <h3>Responsabilidad y correcciones</h3>
+        <p>TragsaScope es una herramienta de consulta y análisis documental. No formula acusaciones ni determina irregularidades, incompatibilidades, conflictos de interés o responsabilidades.</p>
+        <p>Si detectas un nombre, asociación, fecha o cargo incorrectos, puedes comunicarlo aportando, si es posible, la fuente documental que permita comprobar la corrección.</p>
+      </article>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      <strong>Regla práctica:</strong> antes de utilizar un resultado para elaborar una publicación, investigación o conclusión,
+      abre y comprueba la fuente original enlazada.
+    </div>
+  </div>
+</section>
+
 </main>
 
 <footer>
   <div class="wrap footer-box">
     <div>
-      <h2>Desarrollado por: Ángel Soto</h2>
-      <p class="home"><a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">🏠 <span>volver a página de inicio</span></a></p>
+      <h2>Desarrollado por: Ángel Soto, DVM PhD</h2>
+      <p><a href="../index.html">← Volver a TragsaScope</a> · <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">🏠 Página de inicio</a></p>
     </div>
-    <div style="max-width:600px">
-      Página explicativa del funcionamiento de TragsaScope. No contiene rutas absolutas del equipo utilizado para generar los datos.
+    <div style="max-width:580px">
+      Página explicativa del funcionamiento actual de TragsaScope. Las cifras y nombres de archivos corresponden al manifiesto y a la capa de datos actualmente utilizada por la web.
     </div>
   </div>
 </footer>
 
-<script>
-async function copyCode(id, btn){
-  const el=document.getElementById(id);
-  const text=el.innerText;
-  try{
-    await navigator.clipboard.writeText(text);
-    const old=btn.textContent;
-    btn.textContent="Copiado ✓";
-    setTimeout(()=>btn.textContent=old,1400);
-  }catch(e){
-    const ta=document.createElement("textarea");
-    ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
-    const old=btn.textContent;btn.textContent="Copiado ✓";setTimeout(()=>btn.textContent=old,1400);
-  }
-}
-</script>
 </body>
 </html>
