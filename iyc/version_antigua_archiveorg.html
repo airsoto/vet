@@ -124,7 +124,12 @@ body.reader-open{overflow:hidden}.reader{position:fixed;inset:0;z-index:100;back
 <script>
 const DATA_URL='IYC_vol_final_clasificado.json';
 const AVIF_BASE='https://pub-1ac55f8f53fe4ae4979d11f848135cae.r2.dev';
-const AVIF_PAGE_OFFSET=2; // página impresa 20 -> 022.avif
+const AVIF_OFFSETS={
+  2022:0
+};
+// Por defecto, 1990–2021 usan +2.
+// Si descubres otro año con distinto desfase, añádelo arriba.
+// Ejemplo: 2021:1
 const PAGE_SIZE=24;
 const fixedTopics=['astronomía','medicina','física','biología','neurociencia','informática / inteligencia artificial'];
 let data=[],filtered=[],visible=PAGE_SIZE;
@@ -140,10 +145,16 @@ let favorites=getSet('iyc_favorites'), seen=getSet('iyc_seen');
 let currentReaderArticle=null,readerScrollY=0;
 function firstArticlePage(pages){const m=(pages??'').toString().match(/\d+/);return m?Math.max(1,+m[0]):null}
 function archiveParts(url){try{const u=new URL(url,location.href);if(!/(^|\.)archive\.org$/i.test(u.hostname))return null;const parts=decodeURIComponent(u.pathname).split('/').filter(Boolean),i=parts.indexOf('details');if(i<0||!parts[i+1])return null;const identifier=parts[i+1];let file=parts[i+2]||'';if(file==='page')file='';if(file&&!/\.pdf$/i.test(file))file+='.pdf';const pi=parts.indexOf('page');let page=null;if(pi>=0&&parts[pi+1]){const m=parts[pi+1].match(/\d+/);if(m)page=+m[0]}return{identifier,file,page}}catch{return null}}
-function archiveIssueFolder(a){
+function archiveIssueFolders(a){
   const p=archiveParts(a.url);
-  if(!p||!p.file)return null;
-  return p.file.replace(/\.pdf$/i,'');
+  if(!p||!p.file)return [];
+
+  const file=p.file;
+  const withoutPdf=file.replace(/\.pdf$/i,'');
+
+  // Compatibilidad con ambas tandas:
+  // IYC545-2022-02-feb/  y  IYC545-2022-02-feb.pdf/
+  return [...new Set([withoutPdf,file])];
 }
 function articlePageRange(pages){
   const nums=((pages??'').toString().match(/\d+/g)||[]).map(Number);
@@ -152,50 +163,73 @@ function articlePageRange(pages){
   const end=Math.max(start,nums[1]||start);
   return {start,end};
 }
-function printedPageToAvif(page){
-  return page + AVIF_PAGE_OFFSET;
+function getAvifPageOffset(a){
+  return AVIF_OFFSETS[a.año] ?? 2;
 }
-function avifUrl(a,printedPage){
-  const folder=archiveIssueFolder(a);
-  if(!folder)return null;
-  const avifPage=printedPageToAvif(printedPage);
+function printedPageToAvif(a,page){
+  return page + getAvifPageOffset(a);
+}
+function avifUrls(a,printedPage){
+  const folders=archiveIssueFolders(a);
+  if(!folders.length)return [];
+
+  const avifPage=printedPageToAvif(a,printedPage);
   const filename=String(avifPage).padStart(3,'0')+'.avif';
-  return `${AVIF_BASE}/${encodeURIComponent(String(a.año))}/${encodeURIComponent(folder)}/${filename}`;
+
+  return folders.map(folder =>
+    `${AVIF_BASE}/${encodeURIComponent(String(a.año))}/${encodeURIComponent(folder)}/${filename}`
+  );
 }
 function renderReaderPages(a){
   const box=$('#readerPages');
   box.innerHTML='<div class="reader-loading">Cargando páginas del artículo…</div>';
 
   const range=articlePageRange(a.páginas);
-  const folder=archiveIssueFolder(a);
+  const folders=archiveIssueFolders(a);
 
-  if(!range||!folder){
+  if(!range||!folders.length){
     box.innerHTML=`<div class="reader-error">No se pudo determinar el intervalo de páginas. <a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir en Archive.org ↗</a></div>`;
     return;
   }
 
   box.innerHTML='';
+
   for(let printed=range.start; printed<=range.end; printed++){
-    const src=avifUrl(a,printed);
+    const urls=avifUrls(a,printed);
+
     const fig=document.createElement('figure');
     fig.className='reader-page';
 
     const img=document.createElement('img');
-    img.src=src;
     img.alt=`${a.título||'Artículo'} — página ${printed}`;
     img.loading=printed===range.start?'eager':'lazy';
     img.decoding='async';
 
-    img.onerror=()=>{
-      fig.innerHTML=`<div class="reader-error">No se pudo cargar la página ${printed} desde Cloudflare.<br><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir este artículo en Archive.org ↗</a></div>`;
-    };
+    let intento=0;
+
+    function cargarSiguiente(){
+      if(intento>=urls.length){
+        fig.innerHTML=`<div class="reader-error">
+          No se pudo cargar la página ${printed} desde Cloudflare.<br>
+          <small>Se probaron las carpetas con y sin <code>.pdf</code>.</small><br><br>
+          <a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir este artículo en Archive.org ↗</a>
+        </div>`;
+        return;
+      }
+      img.src=urls[intento];
+      intento++;
+    }
+
+    img.onerror=()=>cargarSiguiente();
 
     const cap=document.createElement('figcaption');
-    cap.textContent=`Página ${printed} · archivo ${String(printedPageToAvif(printed)).padStart(3,'0')}.avif`;
+    cap.textContent=`Página ${printed} · archivo ${String(printedPageToAvif(a,printed)).padStart(3,'0')}.avif`;
 
     fig.appendChild(img);
     fig.appendChild(cap);
     box.appendChild(fig);
+
+    cargarSiguiente();
   }
 
   const scroll=$('#readerScroll');
