@@ -16,13 +16,24 @@ body.reader-open{overflow:hidden}.reader{position:fixed;inset:0;z-index:100;back
 @media(max-width:760px){.reader-bar{align-items:flex-start;flex-wrap:wrap}.reader-info{order:2;flex:1 1 calc(100% - 54px)}.reader-actions{margin-left:auto}.reader-actions .btn{padding:8px 9px;font-size:.8rem}.reader-note{bottom:8px}.reader-frame-wrap{min-height:65vh}}
 @media(max-width:760px){.wrap{padding:12px}.top{padding-top:10px}.brand h1{font-size:2.45rem}.sub{font-size:.92rem}.filter-grid{grid-template-columns:1fr 1fr}.filter-grid .wide{grid-column:1/-1}.stat-grid{grid-template-columns:1fr 1fr}.search-shell{top:0}.results{grid-template-columns:1fr}.toolbar .btn{flex:1 1 auto}.topic-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:430px){.filter-grid{grid-template-columns:1fr}.stat-grid{grid-template-columns:1fr 1fr}.topic-grid{grid-template-columns:1fr}.brand h1{font-size:2.1rem}}
+
+/* LECTOR AVIF CLOUDFLARE */
+.reader-frame-wrap{overflow:auto;background:var(--bg);padding:16px}
+.reader-pages{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.reader-page{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px #0003}
+.reader-page img{width:100%;height:auto;display:block;background:#fff}
+.reader-page figcaption{padding:7px 10px;color:var(--muted);font-size:.75rem;text-align:center}
+.reader-loading,.reader-error{max-width:760px;margin:40px auto;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--muted);text-align:center}
+.reader-error a{color:var(--accent2)}
+@media(max-width:760px){.reader-frame-wrap{padding:8px}.reader-pages{gap:8px}.reader-page{border-radius:8px}}
+
 </style>
 </head>
 <body>
 <div class="wrap">
 <header class="top">
   <div class="brand">
-    <div class="eyebrow">Revista IyC · 1990–2022</div>
+    <div class="eyebrow">Revista Investigación y Ciencia · Volúmenes 1990–2022</div>
     <h1>Investigación <span>&amp;</span> Ciencia</h1>
     <div class="sub">Buscador avanzado de artículos por título, autor, tema y fecha.</div>
 
@@ -100,19 +111,20 @@ body.reader-open{overflow:hidden}.reader{position:fixed;inset:0;z-index:100;back
       <div class="reader-meta" id="readerMeta"></div>
     </div>
     <div class="reader-actions">
-      <button class="btn" id="readerReload" title="Recargar el PDF">Recargar</button>
+      <button class="btn" id="readerReload" title="Recargar las páginas">Recargar</button>
       <a class="btn" id="readerExternal" href="#" target="_blank" rel="noopener noreferrer">Archive.org ↗</a>
     </div>
   </div>
-  <div class="reader-frame-wrap">
-    <iframe id="readerFrame" class="reader-frame" title="Lector del artículo" loading="eager" referrerpolicy="no-referrer-when-downgrade"></iframe>
-    <div class="reader-note" id="readerNote"><strong>Lector integrado.</strong> El PDF se sirve directamente desde Internet Archive. Si algún número no se visualiza correctamente, usa «Archive.org ↗».</div>
+  <div class="reader-frame-wrap" id="readerScroll">
+    <div id="readerPages" class="reader-pages" aria-live="polite"></div>
   </div>
 </section>
 
 
 <script>
 const DATA_URL='IYC_vol_final_clasificado.json';
+const AVIF_BASE='https://pub-1ac55f8f53fe4ae4979d11f848135cae.r2.dev';
+const AVIF_PAGE_OFFSET=2; // página impresa 20 -> 022.avif
 const PAGE_SIZE=24;
 const fixedTopics=['astronomía','medicina','física','biología','neurociencia','informática / inteligencia artificial'];
 let data=[],filtered=[],visible=PAGE_SIZE;
@@ -128,9 +140,92 @@ let favorites=getSet('iyc_favorites'), seen=getSet('iyc_seen');
 let currentReaderArticle=null,readerScrollY=0;
 function firstArticlePage(pages){const m=(pages??'').toString().match(/\d+/);return m?Math.max(1,+m[0]):null}
 function archiveParts(url){try{const u=new URL(url,location.href);if(!/(^|\.)archive\.org$/i.test(u.hostname))return null;const parts=decodeURIComponent(u.pathname).split('/').filter(Boolean),i=parts.indexOf('details');if(i<0||!parts[i+1])return null;const identifier=parts[i+1];let file=parts[i+2]||'';if(file==='page')file='';if(file&&!/\.pdf$/i.test(file))file+='.pdf';const pi=parts.indexOf('page');let page=null;if(pi>=0&&parts[pi+1]){const m=parts[pi+1].match(/\d+/);if(m)page=+m[0]}return{identifier,file,page}}catch{return null}}
-function pdfUrlForArticle(a){const p=archiveParts(a.url);if(!p||!p.file)return a.url;const file=p.file.split('/').map(encodeURIComponent).join('/');let url=`https://archive.org/download/${encodeURIComponent(p.identifier)}/${file}`;const page=firstArticlePage(a.páginas)||p.page;if(page)url+=`#page=${page}&zoom=page-width`;return url}
-function openReader(a){if(!a||!a.url)return;currentReaderArticle=a;const id=articleId(a);seen.add(id);putSet('iyc_seen',seen);readerScrollY=window.scrollY;$('#readerTitle').textContent=a.título||'Artículo';$('#readerMeta').textContent=`${a.autores||'Autor no indicado'} · ${a.año} · Vol. ${a.volumen} · págs. ${a.páginas||'—'}`;$('#readerExternal').href=a.url;$('#readerFrame').src=pdfUrlForArticle(a);$('#reader').classList.add('open');$('#reader').setAttribute('aria-hidden','false');document.body.classList.add('reader-open');renderResults()}
-function closeReader(){if(!$('#reader').classList.contains('open'))return;$('#reader').classList.remove('open');$('#reader').setAttribute('aria-hidden','true');document.body.classList.remove('reader-open');$('#readerFrame').src='about:blank';currentReaderArticle=null;requestAnimationFrame(()=>window.scrollTo(0,readerScrollY))}
+function archiveIssueFolder(a){
+  const p=archiveParts(a.url);
+  if(!p||!p.file)return null;
+  return p.file.replace(/\.pdf$/i,'');
+}
+function articlePageRange(pages){
+  const nums=((pages??'').toString().match(/\d+/g)||[]).map(Number);
+  if(!nums.length)return null;
+  const start=Math.max(1,nums[0]);
+  const end=Math.max(start,nums[1]||start);
+  return {start,end};
+}
+function printedPageToAvif(page){
+  return page + AVIF_PAGE_OFFSET;
+}
+function avifUrl(a,printedPage){
+  const folder=archiveIssueFolder(a);
+  if(!folder)return null;
+  const avifPage=printedPageToAvif(printedPage);
+  const filename=String(avifPage).padStart(3,'0')+'.avif';
+  return `${AVIF_BASE}/${encodeURIComponent(String(a.año))}/${encodeURIComponent(folder)}/${filename}`;
+}
+function renderReaderPages(a){
+  const box=$('#readerPages');
+  box.innerHTML='<div class="reader-loading">Cargando páginas del artículo…</div>';
+
+  const range=articlePageRange(a.páginas);
+  const folder=archiveIssueFolder(a);
+
+  if(!range||!folder){
+    box.innerHTML=`<div class="reader-error">No se pudo determinar el intervalo de páginas. <a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir en Archive.org ↗</a></div>`;
+    return;
+  }
+
+  box.innerHTML='';
+  for(let printed=range.start; printed<=range.end; printed++){
+    const src=avifUrl(a,printed);
+    const fig=document.createElement('figure');
+    fig.className='reader-page';
+
+    const img=document.createElement('img');
+    img.src=src;
+    img.alt=`${a.título||'Artículo'} — página ${printed}`;
+    img.loading=printed===range.start?'eager':'lazy';
+    img.decoding='async';
+
+    img.onerror=()=>{
+      fig.innerHTML=`<div class="reader-error">No se pudo cargar la página ${printed} desde Cloudflare.<br><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir este artículo en Archive.org ↗</a></div>`;
+    };
+
+    const cap=document.createElement('figcaption');
+    cap.textContent=`Página ${printed} · archivo ${String(printedPageToAvif(printed)).padStart(3,'0')}.avif`;
+
+    fig.appendChild(img);
+    fig.appendChild(cap);
+    box.appendChild(fig);
+  }
+
+  const scroll=$('#readerScroll');
+  if(scroll)scroll.scrollTop=0;
+}
+function openReader(a){
+  if(!a||!a.url)return;
+  currentReaderArticle=a;
+  const id=articleId(a);
+  seen.add(id);
+  putSet('iyc_seen',seen);
+  readerScrollY=window.scrollY;
+  $('#readerTitle').textContent=a.título||'Artículo';
+  $('#readerMeta').textContent=`${a.autores||'Autor no indicado'} · ${a.año} · Vol. ${a.volumen} · págs. ${a.páginas||'—'}`;
+  $('#readerExternal').href=a.url;
+  renderReaderPages(a);
+  $('#reader').classList.add('open');
+  $('#reader').setAttribute('aria-hidden','false');
+  document.body.classList.add('reader-open');
+  renderResults();
+}
+function closeReader(){
+  if(!$('#reader').classList.contains('open'))return;
+  $('#reader').classList.remove('open');
+  $('#reader').setAttribute('aria-hidden','true');
+  document.body.classList.remove('reader-open');
+  $('#readerPages').innerHTML='';
+  currentReaderArticle=null;
+  requestAnimationFrame(()=>window.scrollTo(0,readerScrollY));
+}
 
 
 function articleId(a){return [a.año,a.volumen,a.título].join('|')}
@@ -140,10 +235,12 @@ function scoreArticle(a,q){if(!q)return 1;const tokens=norm(q).split(' ').filter
 function matchesFilters(a){const y=+a.año;if(state.themes.length&&!state.themes.some(t=>(a.temas||[]).includes(t)))return false;if(state.yearExact&&a.año!==state.yearExact)return false;if(state.yearFrom&&y<+state.yearFrom)return false;if(state.yearTo&&y>+state.yearTo)return false;if(state.decade&&!(y>=+state.decade&&y<+state.decade+10))return false;if(state.favOnly&&!favorites.has(articleId(a)))return false;return true}
 function runSearch(){const active=state.q||state.themes.length||state.yearExact||state.yearFrom||state.yearTo||state.decade||state.favOnly;if(!active){$('#resultsSection').classList.add('hidden');$('#explore').classList.remove('collapsed');renderChips();saveState();syncUrl();return}visible=PAGE_SIZE;const base=data.filter(matchesFilters);if(state.exactTitle){const exact=norm(state.exactTitle);filtered=base.filter(a=>norm(a.título)===exact)}else{filtered=base.map(a=>({a,s:scoreArticle(a,state.q)})).filter(x=>!state.q||x.s>0).sort((x,y)=>y.s-x.s||(+y.a.año)-(+x.a.año)).map(x=>x.a)}$('#resultsSection').classList.remove('hidden');$('#explore').classList.add('collapsed');renderResults();renderChips();saveState();syncUrl()}
 function highlight(text,q){let out=esc(text??'');const toks=[...new Set(norm(q).split(' ').filter(x=>x.length>1))];for(const tok of toks){const re=new RegExp(`(${tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'ig');out=out.replace(re,'<mark>$1</mark>')}return out}
-function renderResults(){const box=$('#results');box.classList.toggle('list',state.view==='list');box.innerHTML='';$('#count').textContent=`${filtered.length.toLocaleString('es-ES')} artículo${filtered.length===1?'':'s'} encontrado${filtered.length===1?'':'s'}`;const slice=filtered.slice(0,visible);if(!slice.length){box.innerHTML='<div class="empty">No se encontraron artículos con estos criterios.</div>'}for(const a of slice){const id=articleId(a),card=document.createElement('article');card.className='card';card.innerHTML=`<button class="fav ${favorites.has(id)?'on':''}" title="Favorito">${favorites.has(id)?'★':'☆'}</button><h3>${highlight(a.título,state.q)}${seen.has(id)?'<span class="seen">Visto</span>':''}</h3><div class="meta">${highlight(a.autores||'Autor no indicado',state.q)}</div><div class="meta">${a.año} · Vol. ${esc(a.volumen)} · págs. ${esc(a.páginas||'—')}</div><div class="tags">${(a.temas||[]).map(t=>`<button class="tag" data-theme-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div><div class="actions"><button class="mini copy">Copiar referencia</button><button class="mini share">Compartir</button></div>`;
+function renderResults(){const box=$('#results');box.classList.toggle('list',state.view==='list');box.innerHTML='';$('#count').textContent=`${filtered.length.toLocaleString('es-ES')} artículo${filtered.length===1?'':'s'} encontrado${filtered.length===1?'':'s'}`;const slice=filtered.slice(0,visible);if(!slice.length){box.innerHTML='<div class="empty">No se encontraron artículos con estos criterios.</div>'}for(const a of slice){const id=articleId(a),card=document.createElement('article');card.className='card';card.innerHTML=`<button class="fav ${favorites.has(id)?'on':''}" title="Favorito">${favorites.has(id)?'★':'☆'}</button><h3>${highlight(a.título,state.q)}${seen.has(id)?'<span class="seen">Visto</span>':''}</h3><div class="meta">${highlight(a.autores||'Autor no indicado',state.q)}</div><div class="meta">${a.año} · Vol. ${esc(a.volumen)} · págs. ${esc(a.páginas||'—')}</div><div class="tags">${(a.temas||[]).map(t=>`<button class="tag" data-theme-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div><div class="actions"><button class="mini read-local">Leer artículo</button><button class="mini archive-link">Archive.org ↗</button><button class="mini copy">Copiar referencia</button><button class="mini share">Compartir</button></div>`;
 card.addEventListener('click',e=>{if(e.target.closest('button'))return;openReader(a)});
 card.querySelector('.fav').onclick=e=>{e.stopPropagation();favorites.has(id)?favorites.delete(id):favorites.add(id);putSet('iyc_favorites',favorites);renderResults()};
 card.querySelectorAll('[data-theme-tag]').forEach(b=>b.onclick=e=>{e.stopPropagation();const t=b.dataset.themeTag;if(!state.themes.includes(t))state.themes.push(t);runSearch()});
+card.querySelector('.read-local').onclick=e=>{e.stopPropagation();openReader(a)};
+card.querySelector('.archive-link').onclick=e=>{e.stopPropagation();window.open(a.url,'_blank','noopener,noreferrer')};
 const ref=`${a.título} — ${a.autores||'Autor no indicado'} (${a.año}). ${a.url}`;
 card.querySelector('.copy').onclick=async e=>{e.stopPropagation();await navigator.clipboard.writeText(ref);toast('Referencia copiada')};
 card.querySelector('.share').onclick=async e=>{e.stopPropagation();if(navigator.share){try{await navigator.share({title:a.título,text:`${a.título} — ${a.autores||''} (${a.año})`,url:a.url})}catch{}}else{await navigator.clipboard.writeText(ref);toast('Referencia copiada')}};
@@ -176,7 +273,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.search-shell'))$('#
 
 
 $('#readerBack').onclick=closeReader;
-$('#readerReload').onclick=()=>{if(currentReaderArticle){const f=$('#readerFrame'),src=pdfUrlForArticle(currentReaderArticle);f.src='about:blank';setTimeout(()=>f.src=src,40)}};
+$('#readerReload').onclick=()=>{if(currentReaderArticle)renderReaderPages(currentReaderArticle)};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#reader').classList.contains('open'))closeReader()});
 
 
