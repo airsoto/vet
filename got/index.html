@@ -38,7 +38,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .tab{border:1px solid var(--line);background:var(--panel3);color:var(--muted);border-radius:999px;padding:9px 14px;white-space:nowrap}
 .tab.active{background:var(--gold2);border-color:var(--gold2);color:#17130b;font-weight:700}
 .toolbar{padding:16px 0 4px}
-.controls{display:grid;grid-template-columns:minmax(240px,1fr) 180px 180px auto auto;gap:9px;padding:11px;border:1px solid var(--line);border-radius:16px;background:rgba(16,20,25,.9)}
+.controls{display:grid;grid-template-columns:minmax(240px,1fr) 180px 180px auto auto auto;gap:9px;padding:11px;border:1px solid var(--line);border-radius:16px;background:rgba(16,20,25,.9)}
 .searchwrap{position:relative}.searchwrap span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted)}
 input,select,.btn{width:100%;border:1px solid var(--line);background:#0b0f13;color:var(--text);border-radius:11px;padding:10px 12px}
 .searchwrap input{padding-left:38px}.btn{width:auto;white-space:nowrap}.btn:hover{border-color:#586572}.btn.active{background:var(--gold2);border-color:var(--gold2);color:#17130b}
@@ -160,6 +160,7 @@ footer{border-top:1px solid var(--line);padding:23px 0 35px;color:var(--muted);f
         </select>
         <button class="btn" id="randomBtn" type="button">⚄ Aleatorio</button>
         <button class="btn" id="favOnlyBtn" type="button">★ Favoritos</button>
+        <button class="btn" id="spoilerBtn" type="button" aria-pressed="false">⚠ Spoiler: OFF</button>
       </div>
       <div class="housebar" id="housebar" aria-label="Filtrar por casa"></div>
     </div>
@@ -224,6 +225,7 @@ let CHARACTERS = [];
 let activeHouse = 'Todas';
 let favOnly = false;
 let currentFocus = null;
+let spoilersOn = false;
 let favorites = new Set(JSON.parse(localStorage.getItem('gotRelFavorites') || '[]'));
 
 const relationDefs = [
@@ -383,7 +385,7 @@ function makeCard(c){
   const badges=document.createElement('div');badges.className='badges';
   if(c.royal) badges.insertAdjacentHTML('beforeend','<span class="badge gold">♛ Realeza</span>');
   if(c.kingsguard) badges.insertAdjacentHTML('beforeend','<span class="badge blue">⚔ Guardia Real</span>');
-  if(deathCount(c)) badges.insertAdjacentHTML('beforeend','<span class="badge red">† muerte registrada</span>');
+  if(spoilersOn && deathCount(c)) badges.insertAdjacentHTML('beforeend','<span class="badge red">† muerte registrada</span>');
   media.appendChild(badges);
   const fav=document.createElement('button');fav.type='button';fav.className='fav'+(favorites.has(stableKey(c))?' on':'');fav.textContent=favorites.has(stableKey(c))?'★':'☆';
   fav.setAttribute('aria-label','Favorito '+c.characterName);fav.onclick=e=>{e.stopPropagation();toggleFavorite(c);renderCharacters();};
@@ -563,6 +565,7 @@ function init(){
   document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
   $('search').oninput=renderCharacters;$('sort').onchange=renderCharacters;$('roleFilter').onchange=renderCharacters;
   $('favOnlyBtn').onclick=()=>{favOnly=!favOnly;$('favOnlyBtn').classList.toggle('active',favOnly);renderCharacters();};
+  $('spoilerBtn').onclick=()=>{spoilersOn=!spoilersOn;$('spoilerBtn').textContent=spoilersOn?'⚠ Spoiler: ON':'⚠ Spoiler: OFF';$('spoilerBtn').classList.toggle('active',spoilersOn);$('spoilerBtn').setAttribute('aria-pressed',String(spoilersOn));renderCharacters();};
   $('randomBtn').onclick=()=>{const list=filtered();openDetail((list.length?list:CHARACTERS)[Math.floor(Math.random()*(list.length?list.length:CHARACTERS.length))]);};
   $('closeDialog').onclick=()=>$('detailDialog').close();
   $('detailDialog').onclick=e=>{if(e.target===$('detailDialog'))$('detailDialog').close();};
