@@ -104,12 +104,13 @@
       <div class="heroMain">
         <div class="eyebrow">Análisis exploratorio · UCM</div>
         <h1>Similitud entre tesis</h1>
-        <p class="lead">Explorador de coincidencias textuales detectadas en los resúmenes de tesis. Permite revisar los resultados de la fase 1 y el análisis forense de la fase 2, comparar tesis A ↔ B y acceder a los PDF originales cuando están disponibles.</p>
+        <p class="lead">Explorador de coincidencias textuales detectadas en los resúmenes de tesis. Permite revisar el cribado de la fase 1, el análisis forense de la fase 2 y la cola/estado de comparación PDF↔PDF de la fase 3, comparar tesis A ↔ B y acceder a los PDF originales cuando están disponibles.</p>
         <div class="warning"><strong>Importante:</strong> una puntuación alta indica similitud textual y necesidad de revisión; no demuestra por sí misma plagio. Versiones de una misma obra, publicaciones derivadas, metodología compartida o errores de metadatos pueden producir coincidencias elevadas.</div>
       </div>
       <div class="heroSide">
         <div class="bigStat"><span>Resultados fase 1</span><b id="statP1">—</b></div>
         <div class="bigStat"><span>Resultados fase 2</span><b id="statP2">—</b></div>
+        <div class="bigStat"><span>Resultados fase 3</span><b id="statP3">—</b></div>
         <div class="bigStat"><span>Mostrados ahora</span><b id="statShown">—</b></div>
       </div>
     </section>
@@ -117,7 +118,8 @@
     <div class="toolbar">
       <section class="panel">
         <div class="tabs">
-          <button class="tab active" data-phase="2">Fase 2 · análisis forense</button>
+          <button class="tab active" data-phase="3">Fase 3 · PDF vs PDF</button>
+          <button class="tab" data-phase="2">Fase 2 · análisis forense</button>
           <button class="tab" data-phase="1">Fase 1 · cribado completo</button>
         </div>
         <div class="filters">
@@ -184,8 +186,9 @@
 (() => {
   const FILE_PHASE1 = './tesis_ucm_similitud_resumenes_v1.json';
   const FILE_PHASE2 = './tesis_ucm_similitud_fase2_forense.json';
+  const FILE_PHASE3 = './tesis_ucm_pdf_vs_pdf_fase3.json';
 
-  let phase1 = [], phase2 = [], activePhase = 2, filtered = [];
+  let phase1 = [], phase2 = [], phase3 = [], activePhase = 3, filtered = [];
   const $ = s => document.querySelector(s);
   const cards = $('#cards');
 
@@ -213,7 +216,10 @@
     'strong_textual_overlap':'Solapamiento textual fuerte',
     'moderate_textual_overlap':'Solapamiento moderado',
     'weak_to_moderate_overlap':'Solapamiento débil-moderado',
-    'low_overlap_after_forensic_check':'Solapamiento bajo tras revisión'
+    'low_overlap_after_forensic_check':'Solapamiento bajo tras revisión',
+    'PDF_BLOCKED_DOCTA_403':'PDF bloqueado por DOCTA (403)',
+    'PDF_URL_MISSING':'Falta URL de PDF',
+    'PDF_VERIFIED':'PDF comparado'
   }[x] || x || 'Sin clasificar');
 
   const badgeClass = x => {
@@ -241,29 +247,75 @@
     };
   }
 
+  function normalizeP3(p){
+    const pc = p.pdf_comparison || {};
+    const pr = p.pdf_retrieval || {};
+    return {
+      phase:3,
+      rank:p.phase3_rank,
+      score:Number(p.phase2_forensic_score)||0,
+      classification:p.pdf_vs_pdf_status || '',
+      phase2classification:p.phase2_classification || '',
+      metrics:{
+        ...(p.summary_level_evidence?.phase2_metrics || {}),
+        pages_compared_A: pc.pages_compared_A,
+        pages_compared_B: pc.pages_compared_B,
+        total_matching_words: pc.total_matching_words,
+        longest_matching_block_words: pc.longest_matching_block_words,
+        estimated_shared_text_percent_A: pc.estimated_shared_text_percent_A,
+        estimated_shared_text_percent_B: pc.estimated_shared_text_percent_B,
+        verbatim_overlap_percent: pc.verbatim_overlap_percent,
+        near_verbatim_overlap_percent: pc.near_verbatim_overlap_percent,
+        semantic_overlap_percent: pc.semantic_overlap_percent
+      },
+      chronology:p.chronology,
+      fragment:p.summary_level_evidence?.longest_common_word_run || '',
+      sentenceMatches:p.summary_level_evidence?.top_sentence_matches || [],
+      pdfAnalysis:{
+        status:p.pdf_vs_pdf_status || '',
+        reason:pr.retrieval_result || pc.note || '',
+        both_pdf_urls_present:pr.both_pdf_urls_present,
+        retrieval_attempted:pr.retrieval_attempted,
+        comparison_executed:pc.executed,
+        matching_blocks:pc.matching_blocks || [],
+        external_context:p.external_context || null
+      },
+      A:p.tesis_A || {},
+      B:p.tesis_B || {},
+      raw:p
+    };
+  }
+
   async function load(){
     const errors = [];
-    const [r1,r2] = await Promise.allSettled([
+    const [r1,r2,r3] = await Promise.allSettled([
       fetch(FILE_PHASE1).then(r => { if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); }),
-      fetch(FILE_PHASE2).then(r => { if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); })
+      fetch(FILE_PHASE2).then(r => { if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); }),
+      fetch(FILE_PHASE3).then(r => { if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); })
     ]);
     if(r1.status==='fulfilled') phase1 = (r1.value.pairs || []).map(normalizeP1);
     else errors.push(`No se pudo cargar ${FILE_PHASE1}: ${r1.reason.message}`);
     if(r2.status==='fulfilled') phase2 = (r2.value.results || []).map(normalizeP2);
     else errors.push(`No se pudo cargar ${FILE_PHASE2}: ${r2.reason.message}`);
+    if(r3.status==='fulfilled') phase3 = (r3.value.results || []).map(normalizeP3);
+    else errors.push(`No se pudo cargar ${FILE_PHASE3}: ${r3.reason.message}`);
 
     $('#statP1').textContent = phase1.length.toLocaleString('es-ES');
     $('#statP2').textContent = phase2.length.toLocaleString('es-ES');
+    $('#statP3').textContent = phase3.length.toLocaleString('es-ES');
 
     if(errors.length){
-      $('#loadError').innerHTML = `<div class="loadError"><strong>Error de carga.</strong><br>${errors.map(esc).join('<br>')}<br><br>Comprueba que el HTML y ambos JSON están en la misma carpeta y que abres la página mediante GitHub Pages o un servidor HTTP, no directamente con <code>file://</code>.</div>`;
+      $('#loadError').innerHTML = `<div class="loadError"><strong>Error de carga.</strong><br>${errors.map(esc).join('<br>')}<br><br>Comprueba que el HTML y los tres JSON están en la misma carpeta y que abres la página mediante GitHub Pages o un servidor HTTP, no directamente con <code>file://</code>.</div>`;
     }
-    if(!phase2.length && phase1.length) activePhase = 1;
+    if(!phase3.length){
+      if(phase2.length) activePhase = 2;
+      else if(phase1.length) activePhase = 1;
+    }
     setTab();
     render();
   }
 
-  function current(){ return activePhase===2 ? phase2 : phase1; }
+  function current(){ return activePhase===3 ? phase3 : (activePhase===2 ? phase2 : phase1); }
 
   function updateClassOptions(){
     const select = $('#classification');
@@ -276,7 +328,9 @@
   function setTab(){
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', Number(b.dataset.phase)===activePhase));
     updateClassOptions();
-    $('#phaseNote').textContent = activePhase===2 ? '· análisis forense de los candidatos prioritarios' : '· cribado inicial de resúmenes';
+    $('#phaseNote').textContent = activePhase===3
+      ? '· estado y resultados preparados para comparación PDF↔PDF'
+      : (activePhase===2 ? '· análisis forense de los candidatos prioritarios' : '· cribado inicial de resúmenes');
   }
 
   function haystack(x){
@@ -335,6 +389,8 @@
   }
 
   function metricValue(x,key){
+    if(key==='both_pdf_urls_present') return x.pdfAnalysis?.both_pdf_urls_present ? 'Sí' : 'No';
+    if(key==='comparison_executed') return x.pdfAnalysis?.comparison_executed ? 'Sí' : 'No';
     const v=x.metrics?.[key];
     if(v===undefined || v===null) return '—';
     if(typeof v==='number' && v<=1 && /similarity|jaccard|containment|cosine/.test(key)) return pct(v);
@@ -342,7 +398,13 @@
   }
 
   function cardHTML(x,i){
-    const metrics = x.phase===2 ? [
+    const metrics = x.phase===3 ? [
+      ['PDF A/B', x.pdfAnalysis?.both_pdf_urls_present ? 'both_pdf_urls_present' : 'both_pdf_urls_present'],
+      ['Comparación', 'comparison_executed'],
+      ['Palabras coinc.', 'total_matching_words'],
+      ['Bloque máximo', 'longest_matching_block_words'],
+      ['Solap. literal', 'verbatim_overlap_percent']
+    ] : (x.phase===2 ? [
       ['Secuencia','summary_sequence_similarity'],
       ['Shingles 12','twelve_word_shingle_containment'],
       ['Racha idéntica','longest_common_word_run_words'],
@@ -354,7 +416,7 @@
       ['Secuencia','sequence_similarity'],
       ['Bloque común','longest_common_character_block'],
       ['Título','title_similarity']
-    ];
+    ]);
     return `<article class="match">
       <div class="matchTop">
         <div class="rankScore">
@@ -404,9 +466,19 @@
           </div>`).join('')}
       </div>` : '';
 
-    const pdfStatus = x.phase===2 && x.pdfAnalysis?.status ? `
+    const pdfStatus = (x.phase===2 || x.phase===3) && x.pdfAnalysis?.status ? `
       <div class="sectionTitle">Estado del análisis PDF</div>
-      <div class="common"><strong>${esc(x.pdfAnalysis.status)}</strong><br>${esc(x.pdfAnalysis.reason || '')}</div>` : '';
+      <div class="common">
+        <strong>${esc(classLabel(x.pdfAnalysis.status))}</strong><br>
+        ${esc(x.pdfAnalysis.reason || '')}
+        ${x.phase===3 ? `<br><br><strong>Ambas URLs PDF:</strong> ${x.pdfAnalysis.both_pdf_urls_present ? 'Sí' : 'No'}
+        · <strong>Comparación ejecutada:</strong> ${x.pdfAnalysis.comparison_executed ? 'Sí' : 'No'}` : ''}
+      </div>
+      ${x.phase===3 && x.pdfAnalysis.external_context ? `
+        <div class="sectionTitle">Contexto externo</div>
+        <div class="common"><strong>${esc(x.pdfAnalysis.external_context.status || '')}</strong><br>${esc(x.pdfAnalysis.external_context.note || '')}</div>
+      ` : ''}
+    ` : '';
 
     $('#dialogBody').innerHTML = `
       <div class="compare">
@@ -426,6 +498,17 @@
 
       <div class="sectionTitle">Fragmento común más relevante</div>
       <div class="common">${esc(x.fragment || 'No almacenado en este resultado.')}</div>
+
+      ${x.phase===3 ? `
+        <div class="sectionTitle">Métricas PDF↔PDF</div>
+        <div class="metrics">
+          <div class="metric"><small>Páginas A</small><b>${metricValue(x,'pages_compared_A')}</b></div>
+          <div class="metric"><small>Páginas B</small><b>${metricValue(x,'pages_compared_B')}</b></div>
+          <div class="metric"><small>Palabras coincidentes</small><b>${metricValue(x,'total_matching_words')}</b></div>
+          <div class="metric"><small>Bloque máximo</small><b>${metricValue(x,'longest_matching_block_words')}</b></div>
+          <div class="metric"><small>Solapamiento literal</small><b>${metricValue(x,'verbatim_overlap_percent')}</b></div>
+        </div>
+      ` : ''}
 
       ${sentenceHTML}
       ${pdfStatus}
