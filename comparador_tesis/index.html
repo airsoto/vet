@@ -1,5 +1,7 @@
 <!doctype html>
 <html lang="es">
+  <script defer src=" ../goat .js"></script>
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -178,9 +180,86 @@
       .infoGrid{grid-template-columns:1fr}
     }
 
+  
+    .accessGate{
+      position:fixed;
+      inset:0;
+      z-index:99999;
+      display:grid;
+      place-items:center;
+      background:rgba(5,8,14,.96);
+      backdrop-filter:blur(12px);
+      padding:20px;
+    }
+    .accessGate.hidden{display:none}
+    .accessBox{
+      width:min(420px,100%);
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:0 30px 100px rgba(0,0,0,.45);
+      padding:24px;
+    }
+    .accessBox h2{
+      margin:6px 0 8px;
+      font-size:26px;
+      letter-spacing:-.03em;
+    }
+    .accessBox p{
+      color:var(--muted);
+      line-height:1.55;
+      font-size:13px;
+    }
+    .accessBox input{
+      width:100%;
+      margin-top:10px;
+      padding:13px 14px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      outline:none;
+      font-size:18px;
+      letter-spacing:.18em;
+      text-align:center;
+    }
+    .accessBox input:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent);
+    }
+    .accessActions{
+      display:flex;
+      gap:8px;
+      margin-top:12px;
+    }
+    .accessActions button{
+      flex:1;
+    }
+    .accessError{
+      min-height:20px;
+      margin-top:8px;
+      color:var(--danger);
+      font-size:12px;
+      text-align:center;
+    }
+
   </style>
 </head>
 <body>
+
+  <div class="accessGate" id="accessGate">
+    <div class="accessBox">
+      <div class="eyebrow">Acceso restringido</div>
+      <h2>Introducir contraseña</h2>
+      <p>Esta página está protegida mediante una clave de acceso local.</p>
+      <input id="accessPassword" type="password" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="••••" aria-label="Contraseña">
+      <div class="accessActions">
+        <button class="primary" id="accessSubmit" type="button">Entrar</button>
+      </div>
+      <div class="accessError" id="accessError"></div>
+    </div>
+  </div>
+
   <main class="shell">
     <section class="hero">
       <div class="heroMain">
@@ -190,6 +269,17 @@
         <div class="warnBox"><strong>Importante:</strong> una coincidencia textual o una puntuación alta <strong>no demuestran plagio</strong>. Muchos casos se explican por errores de catálogo, versiones de la misma obra, continuidad académica, introducciones compartidas o fuentes comunes.</div>
         <div class="chipRow" id="quickStats"></div>
       </div>
+      <!-- BLOQUE DESARROLLADO POR + HOME -->
+<div style="margin:10px 0 0 0;">
+<h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+<span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+</h2>
+<p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+<a href="https://airsoto.github.io/vet/"; target="_blank" rel="noopener">
+🏠 <span>volver a página de inicio</span>
+</a>
+</p>
+</div>
       <div class="heroSide">
         <div class="statBig"><span>Pares consolidados</span><b id="statResults">—</b></div>
         <div class="statBig"><span>Duplicados excluidos</span><b id="statExcluded">—</b></div>
@@ -469,6 +559,41 @@
 
 <script>
 (() => {
+  const ACCESS_PASSWORD = '0007';
+  const ACCESS_SESSION_KEY = 'tesis_ucm_access_granted';
+
+  const gate = document.getElementById('accessGate');
+  const passInput = document.getElementById('accessPassword');
+  const passSubmit = document.getElementById('accessSubmit');
+  const passError = document.getElementById('accessError');
+
+  function unlockPage(){
+    gate.classList.add('hidden');
+    sessionStorage.setItem(ACCESS_SESSION_KEY, '1');
+  }
+
+  function tryAccess(){
+    if(passInput.value === ACCESS_PASSWORD){
+      passError.textContent = '';
+      unlockPage();
+    }else{
+      passError.textContent = 'Contraseña incorrecta';
+      passInput.value = '';
+      passInput.focus();
+    }
+  }
+
+  if(sessionStorage.getItem(ACCESS_SESSION_KEY) === '1'){
+    gate.classList.add('hidden');
+  }else{
+    setTimeout(() => passInput.focus(), 50);
+  }
+
+  passSubmit.addEventListener('click', tryAccess);
+  passInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') tryAccess();
+  });
+
   const FILE = './tesis_ucm_consolidado_filtrado.json';
   let data = null, filtered = [], currentMode = 'results';
 
