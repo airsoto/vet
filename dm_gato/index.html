@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Diabetes felina · Control local</title>
+  <style>
+    :root{
+      --bg:#08101d;
+      --panel:#101b2d;
+      --panel2:#152238;
+      --line:#243650;
+      --text:#eef5ff;
+      --muted:#93a4bb;
+      --accent:#4ea1ff;
+      --accent2:#7bc1ff;
+      --good:#42c98f;
+      --warn:#f6bd60;
+      --bad:#ff6b6b;
+      --purple:#b38cff;
+      --shadow:0 10px 30px rgba(0,0,0,.25);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif}
+    body{min-height:100vh;padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 14px 18px}
+    .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+    .title{font-size:25px;font-weight:800;letter-spacing:-.03em}
+    .subtitle{font-size:13px;color:var(--muted);margin-top:4px}
+    .iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:10px 12px;min-width:44px;min-height:44px}
+    .hero{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:26px;padding:18px;box-shadow:var(--shadow)}
+    .hero-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .glucose-now{font-size:52px;line-height:.95;font-weight:850;letter-spacing:-.05em}
+    .unit{font-size:14px;color:var(--muted);margin-top:7px}
+    .trend{font-size:14px;margin-top:6px}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:700;background:#18324d;color:#b8ddff}
+    .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+    .metric{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;padding:12px}
+    .metric .label{font-size:12px;color:var(--muted)}
+    .metric .value{font-size:21px;font-weight:780;margin-top:4px}
+    .quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+    .btn{border:0;border-radius:17px;min-height:54px;padding:12px 14px;font-weight:800;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+    .btn.primary{background:var(--accent);color:#06111e;border-color:transparent}
+    .btn.full{grid-column:1/-1}
+    .section{margin-top:18px}
+    .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .section-title{font-size:17px;font-weight:800}
+    .section-note{font-size:12px;color:var(--muted)}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+    .range-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+    .range-tabs button{border:1px solid var(--line);background:#0b1627;color:var(--muted);border-radius:999px;padding:7px 10px;font-size:12px}
+    .range-tabs button.active{background:var(--accent);border-color:var(--accent);color:#06111e;font-weight:800}
+    canvas{display:block;width:100%;height:220px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .stat{text-align:center;background:#0b1627;border:1px solid var(--line);border-radius:14px;padding:9px 4px}
+    .stat b{display:block;font-size:17px}
+    .stat span{font-size:11px;color:var(--muted)}
+    .history{display:flex;flex-direction:column;gap:8px}
+    .row{display:flex;gap:10px;align-items:center;background:#0b1627;border:1px solid var(--line);border-radius:15px;padding:10px}
+    .row-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#152840;font-size:18px;flex:0 0 38px}
+    .row-main{min-width:0;flex:1}
+    .row-title{font-weight:760}
+    .row-sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .row-actions{display:flex;gap:5px}
+    .mini{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;padding:7px 8px}
+    .weight-progress{margin-top:10px}
+    .track{height:10px;background:#0b1627;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+    .fill{height:100%;background:var(--good);width:0}
+    .weight-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+    .bottomnav{position:fixed;left:0;right:0;bottom:0;background:rgba(7,14,25,.93);backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:20}
+    .bottomnav-inner{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .navbtn{border:0;background:transparent;color:var(--muted);padding:8px 4px;border-radius:13px;font-size:12px}
+    .navbtn.active{background:#12233a;color:var(--text)}
+    .view{display:none}.view.active{display:block}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:flex-end;justify-content:center;z-index:40}
+    .modal.open{display:flex}
+    .sheet{width:100%;max-width:760px;background:#0d1829;border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+    .grab{width:42px;height:5px;border-radius:99px;background:#34445b;margin:0 auto 14px}
+    .sheet h2{margin:0 0 14px;font-size:21px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field{margin-bottom:12px}
+    input,select,textarea{width:100%;border:1px solid var(--line);background:#091423;color:var(--text);border-radius:15px;padding:13px 14px;font-size:18px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    .big-input{text-align:center;font-size:42px;font-weight:800;letter-spacing:-.04em}
+    .stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}
+    .stepper button{border:1px solid var(--line);background:#13233a;color:var(--text);border-radius:12px;padding:10px 4px}
+    .form-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    .danger{color:#ff8c8c}
+    .settings-grid{display:grid;gap:12px}
+    .settings-grid .card h3{margin:0 0 10px;font-size:16px}
+    .smallbtn{border:1px solid var(--line);background:#0b1627;color:var(--text);border-radius:13px;padding:10px 12px;font-weight:700}
+    .smallbtn.danger{border-color:#5b2c34;background:#25131a}
+    .empty{color:var(--muted);text-align:center;padding:26px 8px;font-size:14px}
+    .pill-good{color:var(--good)} .pill-bad{color:var(--bad)} .pill-warn{color:var(--warn)}
+    @media (max-width:430px){
+      .glucose-now{font-size:46px}
+      .stats{grid-template-columns:repeat(2,1fr)}
+      canvas{height:205px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="title" id="patientTitle">🐱 Control diabetes</div>
+      <div class="subtitle" id="todayText"></div>
+    </div>
+    <button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙️</button>
+  </div>
+
+  <section class="view active" id="view-home">
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="glucose-now" id="lastGlucose">—</div>
+          <div class="unit">mg/dL · última glucosa</div>
+          <div class="trend" id="lastGlucoseTime">Sin registros</div>
+        </div>
+        <span class="badge" id="glucoseStatus">Sin datos</span>
+      </div>
+      <div class="hero-grid">
+        <div class="metric">
+          <div class="label">💉 Última insulina</div>
+          <div class="value" id="lastInsulin">—</div>
+          <div class="label" id="lastInsulinTime">Sin registros</div>
+        </div>
+        <div class="metric">
+          <div class="label">⚖️ Peso actual</div>
+          <div class="value" id="lastWeight">—</div>
+          <div class="label" id="weightGoalText">Objetivo no definido</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quick">
+      <button class="btn primary" data-open="glucose">+ GLUCOSA</button>
+      <button class="btn" data-open="insulin">+ INSULINA</button>
+      <button class="btn full" data-open="combined">GLUCOSA + INSULINA</button>
+      <button class="btn full" data-open="weight">+ PESO</button>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Glucosa</div>
+        <div class="section-note">Valores guardados localmente</div>
+      </div>
+      <div class="card">
+        <div class="range-tabs" id="rangeTabs">
+          <button data-hours="24" class="active">24 h</button>
+          <button data-hours="72">3 días</button>
+          <button data-hours="168">7 días</button>
+          <button data-hours="336">14 días</button>
+        </div>
+        <canvas id="glucoseChart"></canvas>
+        <div class="stats">
+          <div class="stat"><b id="statMin">—</b><span>Mín</span></div>
+          <div class="stat"><b id="statAvg">—</b><span>Media</span></div>
+          <div class="stat"><b id="statMax">—</b><span>Máx</span></div>
+          <div class="stat"><b id="statN">0</b><span>Lecturas</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><div class="section-title">Últimos registros</div></div>
+      <div class="history" id="recentHistory"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-history">
+    <div class="section-head">
+      <div class="section-title">Historial completo</div>
+      <button class="smallbtn" id="clearFilters">Todo</button>
+    </div>
+    <div class="range-tabs" id="historyFilters">
+      <button data-filter="all" class="active">Todo</button>
+      <button data-filter="glucose">Glucosa</button>
+      <button data-filter="insulin">Insulina</button>
+      <button data-filter="weight">Peso</button>
+    </div>
+    <div class="history" id="fullHistory"></div>
+  </section>
+
+  <section class="view" id="view-weight">
+    <div class="section-head">
+      <div class="section-title">Control de peso</div>
+      <button class="smallbtn" data-open="weight">+ Peso</button>
+    </div>
+    <div class="card">
+      <div class="hero-grid" style="margin-top:0">
+        <div class="metric"><div class="label">Inicial</div><div class="value" id="weightInitial">—</div></div>
+        <div class="metric"><div class="label">Actual</div><div class="value" id="weightCurrent">—</div></div>
+        <div class="metric"><div class="label">Objetivo</div><div class="value" id="weightGoal">—</div></div>
+        <div class="metric"><div class="label">Cambio</div><div class="value" id="weightChange">—</div></div>
+      </div>
+      <div class="weight-progress">
+        <div class="track"><div class="fill" id="weightFill"></div></div>
+        <div class="weight-meta"><span>Inicio</span><span>Objetivo</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="card"><canvas id="weightChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="history" id="weightHistory"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="settings-grid">
+      <div class="card">
+        <h3>Paciente</h3>
+        <div class="field"><label for="patientName">Nombre</label><input id="patientName" type="text" placeholder="Nombre del gato"></div>
+        <div class="field"><label for="insulinName">Insulina habitual</label><input id="insulinName" type="text" placeholder="Glargina"></div>
+        <div class="field"><label for="targetWeight">Peso objetivo (kg)</label><input id="targetWeight" type="number" inputmode="decimal" step="0.1" placeholder="7.0"></div>
+        <div class="field"><label for="lowLimit">Límite bajo de glucosa (mg/dL)</label><input id="lowLimit" type="number" inputmode="numeric" value="70"></div>
+        <div class="field"><label for="highLimit">Límite alto de glucosa (mg/dL)</label><input id="highLimit" type="number" inputmode="numeric" value="250"></div>
+        <button class="smallbtn" id="saveSettings">Guardar ajustes</button>
+      </div>
+
+      <div class="card">
+        <h3>Copia de seguridad</h3>
+        <p class="section-note">Los datos permanecen en este dispositivo. Puedes exportarlos a JSON y volver a importarlos.</p>
+        <div style="display:grid;gap:9px">
+          <button class="smallbtn" id="exportJson">Exportar JSON</button>
+          <button class="smallbtn" id="importJsonBtn">Importar JSON</button>
+          <input id="importJsonFile" type="file" accept=".json,application/json" hidden>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Datos locales</h3>
+        <p class="section-note">Borrar datos elimina los registros guardados en este navegador.</p>
+        <button class="smallbtn danger" id="deleteAll">Borrar todos los registros</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<nav class="bottomnav">
+  <div class="bottomnav-inner">
+    <button class="navbtn active" data-view="home">🏠<br>Hoy</button>
+    <button class="navbtn" data-view="history">🕘<br>Historial</button>
+    <button class="navbtn" data-view="weight">⚖️<br>Peso</button>
+    <button class="navbtn" data-view="settings">⚙️<br>Ajustes</button>
+  </div>
+</nav>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h2 id="modalTitle">Nuevo registro</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const DB_NAME = 'diabetes_felina_local';
+  const DB_VERSION = 1;
+  const STORE = 'records';
+  const SETTINGS_KEY = 'diabetes_felina_settings_v1';
+
+  let db;
+  let records = [];
+  let chartHours = 24;
+  let historyFilter = 'all';
+
+  const $ = id => document.getElementById(id);
+  const fmtDate = d => new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(d));
+  const fmtOnlyTime = d => new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit'}).format(new Date(d));
+  const nowLocalInput = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0,16);
+  };
+
+  const settings = () => {
+    const defaults = {patientName:'',insulinName:'Glargina',targetWeight:'',lowLimit:70,highLimit:250};
+    try { return {...defaults,...JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}; }
+    catch { return defaults; }
+  };
+
+  function saveSettingsObject(obj){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj)); }
+
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const d = e.target.result;
+        if(!d.objectStoreNames.contains(STORE)){
+          const s = d.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
+          s.createIndex('datetime','datetime');
+          s.createIndex('type','type');
+        }
+      };
+      req.onsuccess = e => { db=e.target.result; resolve(db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function allRecords(){
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,'readonly');
+      const req=tx.objectStore(STORE).getAll();
+      req.onsuccess=()=>resolve(req.result.sort((a,b)=>new Date(a.datetime)-new Date(b.datetime)));
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  function addRecord(rec){
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,'readwrite');
+      const req=tx.objectStore(STORE).add(rec);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  function deleteRecord(id){
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,'readwrite');
+      const req=tx.objectStore(STORE).delete(id);
+      req.onsuccess=()=>resolve();
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  function clearRecords(){
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,'readwrite');
+      const req=tx.objectStore(STORE).clear();
+      req.onsuccess=()=>resolve();
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  async function reload(){
+    records=await allRecords();
+    renderAll();
+  }
+
+  function lastOf(type){
+    return [...records].reverse().find(r=>r.type===type);
+  }
+
+  function getStatus(v){
+    const s=settings();
+    if(v==null) return {text:'Sin datos',cls:''};
+    if(v < Number(s.lowLimit)) return {text:'Baja',cls:'pill-bad'};
+    if(v > Number(s.highLimit)) return {text:'Alta',cls:'pill-warn'};
+    return {text:'En rango',cls:'pill-good'};
+  }
+
+  function timeAgo(date){
+    const diff=Math.max(0,Date.now()-new Date(date).getTime());
+    const mins=Math.floor(diff/60000);
+    if(mins<1) return 'ahora';
+    if(mins<60) return `hace ${mins} min`;
+    const h=Math.floor(mins/60);
+    if(h<24) return `hace ${h} h ${mins%60} min`;
+    return fmtDate(date);
+  }
+
+  function renderHeader(){
+    const s=settings();
+    $('patientTitle').textContent = s.patientName ? `🐱 ${s.patientName}` : '🐱 Control diabetes';
+    $('todayText').textContent = new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+  }
+
+  function renderHero(){
+    const g=lastOf('glucose'), i=lastOf('insulin'), w=lastOf('weight'), s=settings();
+    $('lastGlucose').textContent=g?Math.round(g.value):'—';
+    $('lastGlucoseTime').textContent=g?timeAgo(g.datetime):'Sin registros';
+    const st=getStatus(g?.value);
+    $('glucoseStatus').textContent=st.text;
+    $('glucoseStatus').className='badge '+st.cls;
+
+    $('lastInsulin').textContent=i?`${Number(i.value).toLocaleString('es-ES',{maximumFractionDigits:2})} UI`:'—';
+    $('lastInsulinTime').textContent=i?`${i.insulin||s.insulinName||'Insulina'} · ${timeAgo(i.datetime)}`:'Sin registros';
+
+    $('lastWeight').textContent=w?`${Number(w.value).toLocaleString('es-ES',{maximumFractionDigits:2})} kg`:'—';
+    $('weightGoalText').textContent=s.targetWeight?`Objetivo ${s.targetWeight} kg`:'Objetivo no definido';
+  }
+
+  function rowHTML(r){
+    let icon='📝', title='', sub='';
+    if(r.type==='glucose'){icon='🩸';title=`${r.value} mg/dL`;sub=`Glucosa · ${fmtDate(r.datetime)}`;}
+    if(r.type==='insulin'){icon='💉';title=`${r.value} UI`;sub=`${r.insulin||'Insulina'} · ${fmtDate(r.datetime)}`;}
+    if(r.type==='weight'){icon='⚖️';title=`${r.value} kg`;sub=`Peso · ${fmtDate(r.datetime)}`;}
+    if(r.note) sub += ` · ${r.note}`;
+    return `<div class="row">
+      <div class="row-icon">${icon}</div>
+      <div class="row-main"><div class="row-title">${title}</div><div class="row-sub">${sub}</div></div>
+      <div class="row-actions"><button class="mini delete-record" data-id="${r.id}" aria-label="Borrar">✕</button></div>
+    </div>`;
+  }
+
+  function renderHistory(){
+    const desc=[...records].sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+    $('recentHistory').innerHTML=desc.slice(0,6).map(rowHTML).join('') || '<div class="empty">Todavía no hay registros.</div>';
+    const filtered=historyFilter==='all'?desc:desc.filter(r=>r.type===historyFilter);
+    $('fullHistory').innerHTML=filtered.map(rowHTML).join('') || '<div class="empty">No hay registros de este tipo.</div>';
+    $('weightHistory').innerHTML=desc.filter(r=>r.type==='weight').map(rowHTML).join('') || '<div class="empty">Todavía no hay registros de peso.</div>';
+    document.querySelectorAll('.delete-record').forEach(b=>b.addEventListener('click', async ()=>{
+      if(confirm('¿Borrar este registro?')){ await deleteRecord(Number(b.dataset.id)); await reload(); }
+    }));
+  }
+
+  function setupCanvas(canvas){
+    const dpr=window.devicePixelRatio||1;
+    const rect=canvas.getBoundingClientRect();
+    canvas.width=Math.max(1,Math.round(rect.width*dpr));
+    canvas.height=Math.max(1,Math.round(rect.height*dpr));
+    const ctx=canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx,w:rect.width,h:rect.height};
+  }
+
+  function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function drawGlucose(){
+    const c=$('glucoseChart'), {ctx,w,h}=setupCanvas(c);
+    ctx.clearRect(0,0,w,h);
+    const cutoff=Date.now()-chartHours*3600000;
+    const pts=records.filter(r=>r.type==='glucose' && new Date(r.datetime).getTime()>=cutoff);
+    const s=settings();
+    const pad={l:38,r:10,t:12,b:28};
+    const pw=w-pad.l-pad.r, ph=h-pad.t-pad.b;
+    const ymin=40;
+    const ymax=Math.max(350,...pts.map(p=>Number(p.value)+30),Number(s.highLimit)+50);
+    const x=t=>pad.l+((t-cutoff)/(Date.now()-cutoff))*pw;
+    const y=v=>pad.t+(ymax-v)/(ymax-ymin)*ph;
+
+    ctx.strokeStyle=css('--line'); ctx.lineWidth=1;
+    for(let k=0;k<=4;k++){
+      const yy=pad.t+k*ph/4; ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+      const val=Math.round(ymax-k*(ymax-ymin)/4);
+      ctx.fillStyle=css('--muted');ctx.font='11px -apple-system';ctx.textAlign='right';ctx.fillText(val,pad.l-6,yy+4);
+    }
+    [Number(s.lowLimit),Number(s.highLimit)].forEach((v,idx)=>{
+      ctx.setLineDash([5,5]);ctx.strokeStyle=idx===0?css('--bad'):css('--warn');
+      ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(w-pad.r,y(v));ctx.stroke();ctx.setLineDash([]);
+    });
+
+    if(pts.length){
+      ctx.strokeStyle=css('--accent');ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+      pts.forEach((p,idx)=>{const xx=x(new Date(p.datetime).getTime()),yy=y(Number(p.value)); idx?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});
+      ctx.stroke();
+      ctx.fillStyle=css('--accent2');
+      pts.forEach(p=>{ctx.beginPath();ctx.arc(x(new Date(p.datetime).getTime()),y(Number(p.value)),3.3,0,Math.PI*2);ctx.fill();});
+    } else {
+      ctx.fillStyle=css('--muted');ctx.font='14px -apple-system';ctx.textAlign='center';ctx.fillText('Sin datos en este periodo',w/2,h/2);
+    }
+
+    const ins=records.filter(r=>r.type==='insulin' && new Date(r.datetime).getTime()>=cutoff);
+    ctx.fillStyle=css('--purple');ctx.font='15px -apple-system';ctx.textAlign='center';
+    ins.forEach(r=>ctx.fillText('💉',x(new Date(r.datetime).getTime()),h-8));
+
+    ctx.fillStyle=css('--muted');ctx.font='11px -apple-system';ctx.textAlign='left';ctx.fillText(`${chartHours===24?'24 h':chartHours/24+' d'} atrás`,pad.l,h-8);
+    ctx.textAlign='right';ctx.fillText('Ahora',w-pad.r,h-8);
+
+    if(pts.length){
+      const vals=pts.map(p=>Number(p.value));
+      $('statMin').textContent=Math.round(Math.min(...vals));
+      $('statAvg').textContent=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+      $('statMax').textContent=Math.round(Math.max(...vals));
+      $('statN').textContent=vals.length;
+    } else ['statMin','statAvg','statMax'].forEach(id=>$(id).textContent='—'), $('statN').textContent='0';
+  }
+
+  function drawWeight(){
+    const c=$('weightChart'), {ctx,w,h}=setupCanvas(c);
+    ctx.clearRect(0,0,w,h);
+    const pts=records.filter(r=>r.type==='weight');
+    const pad={l:40,r:10,t:16,b:28};
+    if(!pts.length){ctx.fillStyle=css('--muted');ctx.font='14px -apple-system';ctx.textAlign='center';ctx.fillText('Sin datos de peso',w/2,h/2);return;}
+    const vals=pts.map(p=>Number(p.value));
+    const ymin=Math.min(...vals)-0.5, ymax=Math.max(...vals)+0.5;
+    const t0=new Date(pts[0].datetime).getTime(), t1=Math.max(t0+86400000,new Date(pts[pts.length-1].datetime).getTime());
+    const x=t=>pad.l+((t-t0)/(t1-t0))*(w-pad.l-pad.r);
+    const y=v=>pad.t+(ymax-v)/(ymax-ymin)*(h-pad.t-pad.b);
+    ctx.strokeStyle=css('--line');ctx.lineWidth=1;
+    for(let k=0;k<4;k++){let yy=pad.t+k*(h-pad.t-pad.b)/3;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();}
+    ctx.strokeStyle=css('--good');ctx.lineWidth=2.5;ctx.beginPath();
+    pts.forEach((p,idx)=>{const xx=x(new Date(p.datetime).getTime()), yy=y(Number(p.value));idx?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke();
+    ctx.fillStyle=css('--good');pts.forEach(p=>{ctx.beginPath();ctx.arc(x(new Date(p.datetime).getTime()),y(Number(p.value)),3.5,0,Math.PI*2);ctx.fill()});
+    ctx.fillStyle=css('--muted');ctx.font='11px -apple-system';ctx.textAlign='left';ctx.fillText(vals[0].toFixed(1)+' kg',4,y(vals[0])+4);
+  }
+
+  function renderWeight(){
+    const pts=records.filter(r=>r.type==='weight');
+    const s=settings();
+    const first=pts[0], last=pts[pts.length-1];
+    $('weightInitial').textContent=first?`${first.value} kg`:'—';
+    $('weightCurrent').textContent=last?`${last.value} kg`:'—';
+    $('weightGoal').textContent=s.targetWeight?`${s.targetWeight} kg`:'—';
+    if(first&&last){
+      const ch=Number(last.value)-Number(first.value);
+      $('weightChange').textContent=`${ch>0?'+':''}${ch.toFixed(2)} kg`;
+    } else $('weightChange').textContent='—';
+    let prog=0;
+    if(first&&last&&s.targetWeight){
+      const total=Math.abs(Number(first.value)-Number(s.targetWeight));
+      const done=Math.abs(Number(first.value)-Number(last.value));
+      prog=total?Math.min(100,Math.max(0,done/total*100)):100;
+    }
+    $('weightFill').style.width=prog+'%';
+    drawWeight();
+  }
+
+  function renderSettings(){
+    const s=settings();
+    $('patientName').value=s.patientName||'';
+    $('insulinName').value=s.insulinName||'';
+    $('targetWeight').value=s.targetWeight||'';
+    $('lowLimit').value=s.lowLimit??70;
+    $('highLimit').value=s.highLimit??250;
+  }
+
+  function renderAll(){
+    renderHeader();renderHero();renderHistory();renderWeight();renderSettings();drawGlucose();
+  }
+
+  function closeModal(){ $('modal').classList.remove('open'); }
+  function openModal(type){
+    const s=settings(); const body=$('modalBody'); $('modal').classList.add('open');
+    const commonDate=`<div class="field"><label>Fecha y hora</label><input id="mDate" type="datetime-local" value="${nowLocalInput()}"></div>`;
+    const note=`<div class="field"><label>Nota (opcional)</label><input id="mNote" type="text" placeholder="Comida, síntomas, observaciones…"></div>`;
+    const actions=`<div class="form-actions"><button class="btn" id="cancelModal">Cancelar</button><button class="btn primary" id="saveModal">Guardar</button></div>`;
+    if(type==='glucose'){
+      $('modalTitle').textContent='Nueva glucosa';
+      body.innerHTML=`<div class="field"><label>Glucosa (mg/dL)</label><input id="mGlucose" class="big-input" type="number" inputmode="numeric" placeholder="120"></div>
+      <div class="stepper"><button data-step="-10">−10</button><button data-step="-1">−1</button><button data-step="1">+1</button><button data-step="10">+10</button></div>${commonDate}${note}${actions}`;
+      bindStepper('mGlucose');
+    } else if(type==='insulin'){
+      $('modalTitle').textContent='Nueva insulina';
+      body.innerHTML=`<div class="field"><label>Dosis (UI)</label><input id="mInsulin" class="big-input" type="number" inputmode="decimal" step="0.1" placeholder="5"></div>
+      <div class="stepper"><button data-step="-1">−1</button><button data-step="-0.5">−0,5</button><button data-step="0.5">+0,5</button><button data-step="1">+1</button></div>
+      <div class="field"><label>Insulina</label><input id="mInsulinName" type="text" value="${escapeHtml(s.insulinName||'')}"></div>${commonDate}${note}${actions}`;
+      bindStepper('mInsulin');
+    } else if(type==='weight'){
+      $('modalTitle').textContent='Nuevo peso';
+      body.innerHTML=`<div class="field"><label>Peso (kg)</label><input id="mWeight" class="big-input" type="number" inputmode="decimal" step="0.01" placeholder="8.90"></div>${commonDate}${note}${actions}`;
+    } else {
+      $('modalTitle').textContent='Glucosa + insulina';
+      body.innerHTML=`<div class="field"><label>Glucosa (mg/dL)</label><input id="mGlucose" class="big-input" type="number" inputmode="numeric" placeholder="120"></div>
+      <div class="field"><label>Dosis de insulina (UI)</label><input id="mInsulin" class="big-input" type="number" inputmode="decimal" step="0.1" placeholder="5"></div>
+      <div class="field"><label>Insulina</label><input id="mInsulinName" type="text" value="${escapeHtml(s.insulinName||'')}"></div>${commonDate}${note}${actions}`;
+    }
+    $('cancelModal').addEventListener('click',closeModal);
+    $('saveModal').addEventListener('click',()=>saveFromModal(type));
+    const first=body.querySelector('input[type=number]'); if(first) setTimeout(()=>first.focus(),100);
+  }
+
+  function bindStepper(id){
+    document.querySelectorAll('.stepper button').forEach(b=>b.addEventListener('click',()=>{
+      const inp=$(id), cur=Number(inp.value||0), st=Number(b.dataset.step); inp.value=Math.max(0,cur+st);
+    }));
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+  async function saveFromModal(type){
+    const dt=$('mDate').value; const note=$('mNote').value.trim();
+    if(!dt){alert('Indica fecha y hora.');return;}
+    if(type==='glucose'){
+      const v=Number($('mGlucose').value); if(!v){alert('Introduce una glucosa.');return;}
+      await addRecord({type:'glucose',value:v,datetime:new Date(dt).toISOString(),note});
+    } else if(type==='insulin'){
+      const v=Number($('mInsulin').value); if(!v){alert('Introduce una dosis.');return;}
+      await addRecord({type:'insulin',value:v,insulin:$('mInsulinName').value.trim(),datetime:new Date(dt).toISOString(),note});
+    } else if(type==='weight'){
+      const v=Number($('mWeight').value); if(!v){alert('Introduce el peso.');return;}
+      await addRecord({type:'weight',value:v,datetime:new Date(dt).toISOString(),note});
+    } else {
+      const g=Number($('mGlucose').value), i=Number($('mInsulin').value); if(!g||!i){alert('Introduce glucosa e insulina.');return;}
+      const iso=new Date(dt).toISOString(), name=$('mInsulinName').value.trim();
+      await addRecord({type:'glucose',value:g,datetime:iso,note});
+      await addRecord({type:'insulin',value:i,insulin:name,datetime:iso,note});
+    }
+    closeModal();await reload();
+  }
+
+  async function exportJSON(){
+    const payload={
+      app:'Diabetes felina local',
+      version:1,
+      exportedAt:new Date().toISOString(),
+      settings:settings(),
+      records:records.map(({id,...r})=>r)
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const name=(settings().patientName||'gato').replace(/[^\w\-]+/g,'_');
+    a.href=url;a.download=`diabetes_${name}_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  async function importJSON(file){
+    try{
+      const txt=await file.text(); const data=JSON.parse(txt);
+      if(!data || !Array.isArray(data.records)) throw new Error('Formato no válido');
+      if(!confirm(`Se importarán ${data.records.length} registros. ¿Continuar?`)) return;
+      for(const r of data.records){
+        if(['glucose','insulin','weight'].includes(r.type) && r.datetime && r.value!=null){
+          await addRecord({type:r.type,value:Number(r.value),datetime:r.datetime,note:r.note||'',...(r.insulin?{insulin:r.insulin}:{})});
+        }
+      }
+      if(data.settings) saveSettingsObject({...settings(),...data.settings});
+      await reload(); alert('Importación completada.');
+    }catch(e){alert('No se pudo importar el JSON: '+e.message);}
+  }
+
+  document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.open)));
+  $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
+
+  document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('view-'+b.dataset.view).classList.add('active');
+    if(b.dataset.view==='weight') setTimeout(drawWeight,20);
+    if(b.dataset.view==='home') setTimeout(drawGlucose,20);
+  }));
+  $('openSettings').addEventListener('click',()=>document.querySelector('.navbtn[data-view="settings"]').click());
+
+  $('rangeTabs').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    $('rangeTabs').querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');chartHours=Number(b.dataset.hours);drawGlucose();
+  }));
+  $('historyFilters').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    $('historyFilters').querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');historyFilter=b.dataset.filter;renderHistory();
+  }));
+  $('clearFilters').addEventListener('click',()=>{$('historyFilters').querySelector('[data-filter="all"]').click();});
+
+  $('saveSettings').addEventListener('click',()=>{
+    saveSettingsObject({
+      patientName:$('patientName').value.trim(),
+      insulinName:$('insulinName').value.trim(),
+      targetWeight:$('targetWeight').value,
+      lowLimit:Number($('lowLimit').value||70),
+      highLimit:Number($('highLimit').value||250)
+    });
+    renderAll();alert('Ajustes guardados.');
+  });
+  $('exportJson').addEventListener('click',exportJSON);
+  $('importJsonBtn').addEventListener('click',()=>$('importJsonFile').click());
+  $('importJsonFile').addEventListener('change',e=>{if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value='';});
+  $('deleteAll').addEventListener('click',async()=>{
+    if(confirm('¿Seguro que quieres borrar TODOS los registros locales? Esta acción no se puede deshacer.')){
+      await clearRecords();await reload();
+    }
+  });
+
+  window.addEventListener('resize',()=>{drawGlucose();drawWeight();});
+
+  (async()=>{
+    await openDB();
+    await reload();
+  })();
+})();
+</script>
+</body>
+</html>
