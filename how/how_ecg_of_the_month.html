@@ -568,11 +568,11 @@ python -m pip install requests beautifulsoup4 lxml</div>
           </div>
           <pre><code id="pythonCode">#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-&quot;&quot;&quot;
+"""
 Scraper para AVMA Journals - ECG of the Month.
 
 Recorre las paginas de busqueda:
-  https://avmajournals.avma.org/search?access=all&amp;page=N&amp;pageSize=10&amp;q1=ECG+of+the+Month&amp;sort=relevance
+  https://avmajournals.avma.org/search?access=all&page=N&pageSize=10&q1=ECG+of+the+Month&sort=relevance
 extrae los enlaces de articulos, entra en cada articulo y crea un JSON con:
   autores, descripcion_del_caso, interpretacion_ecg, figuras, discusion, referencias, PDF, DOI, etc.
 
@@ -580,14 +580,14 @@ Instalacion:
   pip install requests beautifulsoup4 lxml
 
 Uso basico:
-  python avma_ecg_scraper.py --output ecg_of_the_month.json
+  python avma_ecg_scraper_actualizado.py --validate-images --output ecg_of_the_month.json
 
 Prueba con un HTML local de ejemplo:
-  python avma_ecg_scraper.py --html-file &quot;html ejemplo.html&quot; --output ejemplo.json
+  python avma_ecg_scraper.py --html-file "html ejemplo.html" --output ejemplo.json
 
 Si AVMA bloquea el acceso por sesion/login institucional, exporta tu cookie del navegador y usa:
-  python avma_ecg_scraper.py --cookies &quot;cookie1=valor; cookie2=valor&quot; --output ecg_of_the_month.json
-&quot;&quot;&quot;
+  python avma_ecg_scraper.py --cookies "cookie1=valor; cookie2=valor" --output ecg_of_the_month.json
+"""
 
 from __future__ import annotations
 
@@ -608,22 +608,22 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-BASE_URL = &quot;https://avmajournals.avma.org&quot;
+BASE_URL = "https://avmajournals.avma.org"
 SEARCH_URL_TEMPLATE = (
     BASE_URL
-    + &quot;/search?access=all&amp;page={page}&amp;pageSize=10&amp;q1=ECG+of+the+Month&amp;sort=relevance&quot;
+    + "/search?access=all&page={page}&pageSize=10&q1=ECG+of+the+Month&sort=relevance"
 )
 
 DEFAULT_HEADERS = {
-    &quot;User-Agent&quot;: (
-        &quot;Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 &quot;
-        &quot;(KHTML, like Gecko) Chrome/143.0 Safari/537.36&quot;
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/143.0 Safari/537.36"
     ),
-    &quot;Accept&quot;: &quot;text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8&quot;,
-    &quot;Accept-Language&quot;: &quot;en-US,en;q=0.9,es;q=0.8&quot;,
-    &quot;Cache-Control&quot;: &quot;no-cache&quot;,
-    &quot;Pragma&quot;: &quot;no-cache&quot;,
-    &quot;Referer&quot;: BASE_URL + &quot;/&quot;,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Referer": BASE_URL + "/",
 }
 
 
@@ -634,84 +634,84 @@ class FetchResult:
     status_code: int
 
 
-def clean_text(text: Optional[str]) -&gt; Optional[str]:
-    &quot;&quot;&quot;Normaliza texto sin destruir unidades ni simbolos.&quot;&quot;&quot;
+def clean_text(text: Optional[str]) -> Optional[str]:
+    """Normaliza texto sin destruir unidades ni simbolos."""
     if text is None:
         return None
     text = html_lib.unescape(text)
-    text = text.replace(&quot;\xa0&quot;, &quot; &quot;)
-    text = text.replace(&quot;\u2009&quot;, &quot; &quot;)
-    text = text.replace(&quot;\u202f&quot;, &quot; &quot;)
-    text = re.sub(r&quot;[\r\t\f\v]+&quot;, &quot; &quot;, text)
-    text = re.sub(r&quot;\n\s*\n+&quot;, &quot;\n\n&quot;, text)
-    text = re.sub(r&quot;[ ]+&quot;, &quot; &quot;, text)
-    text = re.sub(r&quot;\s+([,.;:?!])&quot;, r&quot;\1&quot;, text)
-    text = re.sub(r&quot;([(\[])\s+&quot;, r&quot;\1&quot;, text)
-    text = re.sub(r&quot;\s+([)\]])&quot;, r&quot;\1&quot;, text)
-    # No se eliminan espacios alrededor de guiones de forma global: evita convertir &quot;50- or&quot; en &quot;50-or&quot;.
+    text = text.replace("\xa0", " ")
+    text = text.replace("\u2009", " ")
+    text = text.replace("\u202f", " ")
+    text = re.sub(r"[\r\t\f\v]+", " ", text)
+    text = re.sub(r"\n\s*\n+", "\n\n", text)
+    text = re.sub(r"[ ]+", " ", text)
+    text = re.sub(r"\s+([,.;:?!])", r"\1", text)
+    text = re.sub(r"([(\[])\s+", r"\1", text)
+    text = re.sub(r"\s+([)\]])", r"\1", text)
+    # No se eliminan espacios alrededor de guiones de forma global: evita convertir "50- or" en "50-or".
     text = text.strip()
     return text or None
 
 
-def text_of(node: Optional[Tag], separator: str = &quot;&quot;) -&gt; Optional[str]:
-    &quot;&quot;&quot;Extrae texto de un nodo HTML evitando scripts, botones y bloques debug.&quot;&quot;&quot;
+def text_of(node: Optional[Tag], separator: str = "") -> Optional[str]:
+    """Extrae texto de un nodo HTML evitando scripts, botones y bloques debug."""
     if node is None:
         return None
     # Clonar el nodo evita modificar el arbol original al eliminar subnodos.
-    clone_soup = BeautifulSoup(str(node), &quot;lxml&quot;)
+    clone_soup = BeautifulSoup(str(node), "lxml")
     for bad in clone_soup.select(
-        &quot;script, style, button, .debug, .screen-reader-text, .visibility-hidden .screen-reader-text&quot;
+        "script, style, button, .debug, .screen-reader-text, .visibility-hidden .screen-reader-text"
     ):
         bad.decompose()
     return clean_text(clone_soup.get_text(separator=separator, strip=False))
 
 
-def normalize_for_match(text: Optional[str]) -&gt; str:
-    return re.sub(r&quot;\s+&quot;, &quot; &quot;, (text or &quot;&quot;).strip()).lower()
+def normalize_for_match(text: Optional[str]) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip()).lower()
 
 
-def absolute_url(href: Optional[str], base: str = BASE_URL) -&gt; Optional[str]:
+def absolute_url(href: Optional[str], base: str = BASE_URL) -> Optional[str]:
     if not href:
         return None
     href = href.strip()
     if not href:
         return None
-    if href.startswith(&quot;//&quot;):
-        href = &quot;https:&quot; + href
+    if href.startswith("//"):
+        href = "https:" + href
     return urljoin(base, href)
 
 
-def strip_query_and_fragment(url: str) -&gt; str:
+def strip_query_and_fragment(url: str) -> str:
     parts = urlsplit(url)
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, &quot;&quot;, &quot;&quot;))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
 
 
-def meta_content(soup: BeautifulSoup, name: Optional[str] = None, prop: Optional[str] = None) -&gt; Optional[str]:
+def meta_content(soup: BeautifulSoup, name: Optional[str] = None, prop: Optional[str] = None) -> Optional[str]:
     attrs: dict[str, str] = {}
     if name:
-        attrs[&quot;name&quot;] = name
+        attrs["name"] = name
     if prop:
-        attrs[&quot;property&quot;] = prop
-    tag = soup.find(&quot;meta&quot;, attrs=attrs)
-    if tag and tag.get(&quot;content&quot;):
-        return clean_text(tag.get(&quot;content&quot;))
+        attrs["property"] = prop
+    tag = soup.find("meta", attrs=attrs)
+    if tag and tag.get("content"):
+        return clean_text(tag.get("content"))
     return None
 
 
-def all_meta_contents(soup: BeautifulSoup, name: str) -&gt; list[str]:
+def all_meta_contents(soup: BeautifulSoup, name: str) -> list[str]:
     values: list[str] = []
-    for tag in soup.find_all(&quot;meta&quot;, attrs={&quot;name&quot;: name}):
-        value = clean_text(tag.get(&quot;content&quot;))
+    for tag in soup.find_all("meta", attrs={"name": name}):
+        value = clean_text(tag.get("content"))
         if value:
             values.append(value)
     return values
 
 
-def make_session(cookie_header: Optional[str] = None) -&gt; requests.Session:
+def make_session(cookie_header: Optional[str] = None) -> requests.Session:
     session = requests.Session()
     session.headers.update(DEFAULT_HEADERS)
     if cookie_header:
-        session.headers[&quot;Cookie&quot;] = cookie_header
+        session.headers["Cookie"] = cookie_header
 
     retry = Retry(
         total=4,
@@ -720,64 +720,64 @@ def make_session(cookie_header: Optional[str] = None) -&gt; requests.Session:
         status=4,
         backoff_factor=1.0,
         status_forcelist=(429, 500, 502, 503, 504),
-        allowed_methods=(&quot;GET&quot;, &quot;HEAD&quot;),
+        allowed_methods=("GET", "HEAD"),
         raise_on_status=False,
     )
     adapter = HTTPAdapter(max_retries=retry, pool_connections=8, pool_maxsize=8)
-    session.mount(&quot;https://&quot;, adapter)
-    session.mount(&quot;http://&quot;, adapter)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
     return session
 
 
-def fetch(session: requests.Session, url: str, timeout: int = 30, delay: float = 0.5) -&gt; FetchResult:
+def fetch(session: requests.Session, url: str, timeout: int = 30, delay: float = 0.5) -> FetchResult:
     time.sleep(max(0.0, delay))
     resp = session.get(url, timeout=timeout)
     if resp.status_code in (401, 403):
         raise RuntimeError(
-            f&quot;Acceso bloqueado ({resp.status_code}) para {url}. &quot;
-            &quot;Prueba con --cookies si necesitas una sesion institucional/autenticada.&quot;
+            f"Acceso bloqueado ({resp.status_code}) para {url}. "
+            "Prueba con --cookies si necesitas una sesion institucional/autenticada."
         )
-    if resp.status_code &gt;= 400:
-        raise RuntimeError(f&quot;HTTP {resp.status_code} al descargar {url}&quot;)
-    resp.encoding = resp.encoding or &quot;utf-8&quot;
+    if resp.status_code >= 400:
+        raise RuntimeError(f"HTTP {resp.status_code} al descargar {url}")
+    resp.encoding = resp.encoding or "utf-8"
     return FetchResult(url=url, html=resp.text, status_code=resp.status_code)
 
 
-def collect_article_links_from_search_html(html: str, page_url: str) -&gt; list[str]:
-    &quot;&quot;&quot;Extrae posibles enlaces a articulos desde una pagina de resultados.
+def collect_article_links_from_search_html(html: str, page_url: str) -> list[str]:
+    """Extrae posibles enlaces a articulos desde una pagina de resultados.
 
     El buscador puede repetir enlaces dentro de la tarjeta; se deduplican y luego
     cada articulo se valida por titulo/editorial type antes de extraerlo.
-    &quot;&quot;&quot;
-    soup = BeautifulSoup(html, &quot;lxml&quot;)
+    """
+    soup = BeautifulSoup(html, "lxml")
     candidates_all: list[str] = []
     candidates_ecg: list[str] = []
 
-    for a in soup.select(&#x27;a[href*=&quot;/view/journals/&quot;]&#x27;):
-        href = a.get(&quot;href&quot;)
+    for a in soup.select('a[href*="/view/journals/"]'):
+        href = a.get("href")
         abs_url = absolute_url(href, page_url)
         if not abs_url:
             continue
         clean_url = strip_query_and_fragment(abs_url)
         path = urlsplit(clean_url).path
-        if not path.endswith(&quot;.xml&quot;):
+        if not path.endswith(".xml"):
             continue
-        if any(skip in path for skip in (&quot;.issue-&quot;, &quot;-overview.xml&quot;, &quot;/pdfviewer/&quot;)):
+        if any(skip in path for skip in (".issue-", "-overview.xml", "/pdfviewer/")):
             continue
 
         candidates_all.append(clean_url)
 
-        a_text = text_of(a) or &quot;&quot;
-        parent = a.find_parent([&quot;article&quot;, &quot;li&quot;, &quot;div&quot;])
+        a_text = text_of(a) or ""
+        parent = a.find_parent(["article", "li", "div"])
         context = text_of(parent) if parent else a_text
-        if &quot;ecg of the month&quot; in normalize_for_match(a_text) or &quot;ecg of the month&quot; in normalize_for_match(context):
+        if "ecg of the month" in normalize_for_match(a_text) or "ecg of the month" in normalize_for_match(context):
             candidates_ecg.append(clean_url)
 
     chosen = candidates_ecg or candidates_all
     return dedupe_preserve_order(chosen)
 
 
-def dedupe_preserve_order(items: list[str]) -&gt; list[str]:
+def dedupe_preserve_order(items: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for item in items:
@@ -787,33 +787,33 @@ def dedupe_preserve_order(items: list[str]) -&gt; list[str]:
     return out
 
 
-def extract_definition_value(soup: BeautifulSoup, class_name: str) -&gt; Optional[str]:
-    dd = soup.select_one(f&quot;dl.{class_name} dd&quot;)
+def extract_definition_value(soup: BeautifulSoup, class_name: str) -> Optional[str]:
+    dd = soup.select_one(f"dl.{class_name} dd")
     return text_of(dd) if dd else None
 
 
-def extract_authors(soup: BeautifulSoup) -&gt; list[dict[str, Any]]:
+def extract_authors(soup: BeautifulSoup) -> list[dict[str, Any]]:
     authors: list[dict[str, Any]] = []
 
-    for details in soup.select(&quot;.component-content-contributors .contributor-details&quot;):
+    for details in soup.select(".component-content-contributors .contributor-details"):
         if not isinstance(details, Tag):
             continue
-        name_el = details.select_one(&#x27;[data-testid=&quot;author-name&quot;]&#x27;)
+        name_el = details.select_one('[data-testid="author-name"]')
         name = text_of(name_el)
         if not name:
             continue
 
-        affiliation_el = details.select_one(&quot;.contributor-details-pop-up-affiliation .text&quot;)
+        affiliation_el = details.select_one(".contributor-details-pop-up-affiliation .text")
         affiliation = text_of(affiliation_el)
 
         links: list[dict[str, Optional[str]]] = []
-        popup = details.select_one(&quot;.contributor-details-pop-up-affiliation&quot;)
+        popup = details.select_one(".contributor-details-pop-up-affiliation")
         if popup:
-            for link in popup.select(&quot;a[href]&quot;):
+            for link in popup.select("a[href]"):
                 links.append(
                     {
-                        &quot;label&quot;: text_of(link),
-                        &quot;url&quot;: absolute_url(link.get(&quot;href&quot;)),
+                        "label": text_of(link),
+                        "url": absolute_url(link.get("href")),
                     }
                 )
 
@@ -823,37 +823,37 @@ def extract_authors(soup: BeautifulSoup) -&gt; list[dict[str, Any]]:
             if isinstance(child, NavigableString):
                 credential_parts.append(str(child))
             elif isinstance(child, Tag):
-                classes = child.get(&quot;class&quot;, [])
-                if &quot;contributor-details-block&quot; not in classes:
-                    credential_parts.append(child.get_text(&quot; &quot;, strip=True))
-        credentials = clean_text(&quot; &quot;.join(credential_parts))
+                classes = child.get("class", [])
+                if "contributor-details-block" not in classes:
+                    credential_parts.append(child.get_text(" ", strip=True))
+        credentials = clean_text(" ".join(credential_parts))
         if credentials:
-            credentials = re.sub(r&quot;^(,|and)\s*&quot;, &quot;&quot;, credentials).strip()
+            credentials = re.sub(r"^(,|and)\s*", "", credentials).strip()
             credentials = credentials or None
 
         authors.append(
             {
-                &quot;name&quot;: name,
-                &quot;credentials&quot;: credentials,
-                &quot;affiliation&quot;: affiliation,
-                &quot;links&quot;: links,
+                "name": name,
+                "credentials": credentials,
+                "affiliation": affiliation,
+                "links": links,
             }
         )
 
     # Fallback si no esta visible el bloque de autores.
     if not authors:
-        for name in all_meta_contents(soup, &quot;citation_author&quot;):
-            authors.append({&quot;name&quot;: name, &quot;credentials&quot;: None, &quot;affiliation&quot;: None, &quot;links&quot;: []})
+        for name in all_meta_contents(soup, "citation_author"):
+            authors.append({"name": name, "credentials": None, "affiliation": None, "links": []})
 
     return authors
 
 
-def article_body(soup: BeautifulSoup) -&gt; Optional[Tag]:
-    return soup.select_one(&quot;#articleBody&quot;)
+def article_body(soup: BeautifulSoup) -> Optional[Tag]:
+    return soup.select_one("#articleBody")
 
 
-def extract_case_description(body: Optional[Tag]) -&gt; Optional[str]:
-    &quot;&quot;&quot;Primeros parrafos del cuerpo antes de la primera seccion/h2.&quot;&quot;&quot;
+def extract_case_description(body: Optional[Tag]) -> Optional[str]:
+    """Primeros parrafos del cuerpo antes de la primera seccion/h2."""
     if body is None:
         return None
     parts: list[str] = []
@@ -862,49 +862,49 @@ def extract_case_description(body: Optional[Tag]) -&gt; Optional[str]:
             continue
         if not isinstance(child, Tag):
             continue
-        if child.name in {&quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;section&quot;}:
+        if child.name in {"h1", "h2", "h3", "section"}:
             break
-        if child.name == &quot;div&quot; and (&quot;section&quot; in child.get(&quot;class&quot;, []) or child.find([&quot;h2&quot;, &quot;h3&quot;])):
+        if child.name == "div" and ("section" in child.get("class", []) or child.find(["h2", "h3"])):
             break
-        if child.name == &quot;p&quot;:
+        if child.name == "p":
             t = text_of(child)
             if t:
                 parts.append(t)
-    return &quot;\n\n&quot;.join(parts) if parts else None
+    return "\n\n".join(parts) if parts else None
 
 
-def find_section(body: Optional[Tag], heading_contains: str) -&gt; Optional[Tag]:
+def find_section(body: Optional[Tag], heading_contains: str) -> Optional[Tag]:
     if body is None:
         return None
     target = normalize_for_match(heading_contains)
-    for h in body.find_all([&quot;h2&quot;, &quot;h3&quot;]):
+    for h in body.find_all(["h2", "h3"]):
         h_text = normalize_for_match(text_of(h))
         if target in h_text:
             section = h.find_parent(
                 lambda tag: isinstance(tag, Tag)
-                and tag.name in {&quot;div&quot;, &quot;section&quot;}
-                and (&quot;section&quot; in tag.get(&quot;class&quot;, []) or tag.name == &quot;section&quot;)
+                and tag.name in {"div", "section"}
+                and ("section" in tag.get("class", []) or tag.name == "section")
             )
             return section or h.parent
     return None
 
 
-def extract_section_text(body: Optional[Tag], heading_contains: str, include_heading: bool = False) -&gt; Optional[str]:
+def extract_section_text(body: Optional[Tag], heading_contains: str, include_heading: bool = False) -> Optional[str]:
     section = find_section(body, heading_contains)
     if section is None:
         return None
 
     parts: list[str] = []
-    heading = section.find([&quot;h2&quot;, &quot;h3&quot;])
+    heading = section.find(["h2", "h3"])
     if include_heading and heading:
         h_text = text_of(heading)
         if h_text:
             parts.append(h_text)
 
     # Parrafos directos: evita meter pies de figura que estan dentro de div.figure.
-    direct_paragraphs = section.find_all(&quot;p&quot;, recursive=False)
+    direct_paragraphs = section.find_all("p", recursive=False)
     for p in direct_paragraphs:
-        if &quot;citation&quot; in p.get(&quot;class&quot;, []):
+        if "citation" in p.get("class", []):
             continue
         t = text_of(p)
         if t:
@@ -912,231 +912,367 @@ def extract_section_text(body: Optional[Tag], heading_contains: str, include_hea
 
     # Fallback para estructuras menos limpias.
     if len(parts) == (1 if include_heading else 0):
-        for p in section.select(&quot;:scope &gt; p&quot;):
+        for p in section.select(":scope > p"):
             t = text_of(p)
             if t:
                 parts.append(t)
 
-    return &quot;\n\n&quot;.join(parts) if parts else None
+    return "\n\n".join(parts) if parts else None
 
 
-def extract_figures(body: Optional[Tag], page_url: str) -&gt; list[dict[str, Any]]:
+def _srcset_urls(value: Optional[str]) -> list[str]:
+    """Extrae URLs de srcset/data-srcset."""
+    if not value:
+        return []
+    out: list[str] = []
+    for part in value.split(","):
+        url = part.strip().split()[0] if part.strip() else ""
+        if url:
+            out.append(url)
+    return out
+
+
+def _looks_like_image_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
+    path = urlsplit(url).path.lower()
+    return path.endswith((".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"))
+
+
+def validate_image_candidate(
+    session: Optional[requests.Session],
+    url: Optional[str],
+    referer: str,
+    timeout: int = 20,
+) -> dict[str, Any]:
+    """
+    Comprueba una URL de imagen con GET (no HEAD, porque algunos CDN lo tratan distinto).
+    No descarga el archivo completo: stream=True y se cierra tras recibir cabeceras.
+    """
+    if not url:
+        return {"url": url, "ok": False, "status": None, "content_type": None}
+    if session is None:
+        return {"url": url, "ok": None, "status": None, "content_type": None}
+
+    try:
+        with session.get(
+            url,
+            timeout=timeout,
+            stream=True,
+            allow_redirects=True,
+            headers={
+                "Referer": referer,
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            },
+        ) as resp:
+            content_type = (resp.headers.get("Content-Type") or "").lower()
+            ok = resp.status_code < 400 and (
+                content_type.startswith("image/")
+                or _looks_like_image_url(resp.url)
+            )
+            return {
+                "url": resp.url,
+                "ok": ok,
+                "status": resp.status_code,
+                "content_type": content_type or None,
+            }
+    except Exception as exc:
+        return {
+            "url": url,
+            "ok": False,
+            "status": None,
+            "content_type": None,
+            "error": str(exc),
+        }
+
+
+def extract_figures(
+    body: Optional[Tag],
+    page_url: str,
+    session: Optional[requests.Session] = None,
+    validate_images: bool = False,
+    timeout: int = 20,
+) -> list[dict[str, Any]]:
+    """
+    Extrae las URLs tal como aparecen AHORA en el HTML de AVMA.
+
+    Soporta:
+      - src / data-image-src / data-src / data-lazy-src
+      - srcset / data-srcset
+      - enlaces directos .jpg/.png/.webp/.tif
+      - nombres antiguos *.figure.1.jpg
+      - nombres nuevos *.fig_01.jpg
+
+    Si validate_images=True, prueba los candidatos y guarda image_url_best
+    con la primera URL que responde correctamente.
+    """
     if body is None:
         return []
+
     figures: list[dict[str, Any]] = []
 
-    for fig_div in body.select(&quot;div.figure&quot;):
-        fig_id = fig_div.get(&quot;id&quot;)
-        label = text_of(fig_div.select_one(&quot;figcaption&quot;))
+    for fig_div in body.select("div.figure, figure"):
+        fig_id = fig_div.get("id")
+        label = text_of(fig_div.select_one("figcaption"))
+
         number = None
-        number_source = &quot; &quot;.join(x for x in [fig_id or &quot;&quot;, label or &quot;&quot;] if x)
-        m = re.search(r&quot;figure\s*(\d+)|fig(?:ure)?(\d+)&quot;, number_source, flags=re.I)
+        number_source = " ".join(x for x in [fig_id or "", label or ""] if x)
+        m = re.search(
+            r"figure\s*[_\-\s]*(\d+)|fig(?:ure)?[_\-\s]*(\d+)",
+            number_source,
+            flags=re.I,
+        )
         if m:
             number = int(next(g for g in m.groups() if g))
 
-        inline_url = None
-        full_url = None
-        for img in fig_div.select(&quot;img&quot;):
-            src = img.get(&quot;data-image-src&quot;) or img.get(&quot;src&quot;)
-            abs_src = absolute_url(src, page_url)
-            if not abs_src:
-                continue
-            if &quot;full-&quot; in abs_src and not full_url:
-                full_url = abs_src
-            elif &quot;inline-&quot; in abs_src and not inline_url:
-                inline_url = abs_src
-            elif not inline_url:
-                inline_url = abs_src
+        candidates: list[str] = []
 
-        download_a = fig_div.select_one(&#x27;li.download-figure a[download][href], a[download][href*=&quot;.figure.&quot;]&#x27;)
-        image_download_url = absolute_url(download_a.get(&quot;href&quot;), page_url) if download_a else None
+        # 1) URLs presentes en IMG, incluyendo lazy-loading y srcset.
+        for img in fig_div.select("img"):
+            for attr in ("data-image-src", "data-src", "data-lazy-src", "src"):
+                value = img.get(attr)
+                abs_src = absolute_url(value, page_url)
+                if abs_src and _looks_like_image_url(abs_src):
+                    candidates.append(strip_query_and_fragment(abs_src))
 
-        caption_wrapper = fig_div.select_one(&quot;.figure-text-wrapper&quot;) or fig_div
+            for attr in ("srcset", "data-srcset"):
+                for value in _srcset_urls(img.get(attr)):
+                    abs_src = absolute_url(value, page_url)
+                    if abs_src and _looks_like_image_url(abs_src):
+                        candidates.append(strip_query_and_fragment(abs_src))
+
+        # 2) Enlaces de descarga o enlaces directos de imagen.
+        for a in fig_div.select("a[href]"):
+            href = absolute_url(a.get("href"), page_url)
+            if href and _looks_like_image_url(href):
+                candidates.append(strip_query_and_fragment(href))
+
+        candidates = dedupe_preserve_order(candidates)
+
+        inline_url = next((u for u in candidates if "/inline-" in u or "/inline_" in u), None)
+        full_url = next((u for u in candidates if "/full-" in u or "/full_" in u), None)
+
+        # Descarga: preferir TIF/TIFF; si no, una imagen que no sea inline/full.
+        image_download_url = next(
+            (u for u in candidates if urlsplit(u).path.lower().endswith((".tif", ".tiff"))),
+            None,
+        )
+        if not image_download_url:
+            image_download_url = next(
+                (u for u in candidates if "/inline-" not in u and "/full-" not in u),
+                None,
+            )
+
+        # Si solo hay una imagen actual en el HTML, conservarla igualmente.
+        if not inline_url and candidates:
+            inline_url = candidates[0]
+
+        validation: list[dict[str, Any]] = []
+        image_url_best = None
+
+        if validate_images:
+            ordered = dedupe_preserve_order(
+                [u for u in [inline_url, full_url, image_download_url, *candidates] if u]
+            )
+            for u in ordered:
+                result = validate_image_candidate(session, u, page_url, timeout=timeout)
+                validation.append(result)
+                if result.get("ok") and not image_url_best:
+                    image_url_best = result.get("url") or u
+        else:
+            image_url_best = inline_url or full_url or image_download_url
+
+        caption_wrapper = fig_div.select_one(".figure-text-wrapper") or fig_div
         caption_parts: list[str] = []
         if label:
             caption_parts.append(label)
+
         citation_text = None
-        for p in caption_wrapper.find_all(&quot;p&quot;, recursive=False):
+        for p in caption_wrapper.find_all("p", recursive=False):
             t = text_of(p)
             if not t:
                 continue
-            if &quot;citation&quot; in p.get(&quot;class&quot;, []):
+            if "citation" in p.get("class", []):
                 citation_text = t
             else:
                 caption_parts.append(t)
 
         alt_text = None
-        img_alt = fig_div.select_one(&quot;img[alt]&quot;)
+        img_alt = fig_div.select_one("img[alt]")
         if img_alt:
-            alt_text = clean_text(img_alt.get(&quot;alt&quot;))
-        ppt_a = fig_div.select_one(&quot;a.export-figure-ppt[alt-text]&quot;)
-        if ppt_a and ppt_a.get(&quot;alt-text&quot;):
-            alt_text = clean_text(ppt_a.get(&quot;alt-text&quot;)) or alt_text
+            alt_text = clean_text(img_alt.get("alt"))
+
+        ppt_a = fig_div.select_one("a.export-figure-ppt[alt-text]")
+        if ppt_a and ppt_a.get("alt-text"):
+            alt_text = clean_text(ppt_a.get("alt-text")) or alt_text
 
         figures.append(
             {
-                &quot;figure_number&quot;: number,
-                &quot;figure_id&quot;: fig_id,
-                &quot;label&quot;: label,
-                &quot;image_url_inline&quot;: inline_url,
-                &quot;image_url_full&quot;: full_url,
-                &quot;image_download_url&quot;: image_download_url,
-                &quot;descripcion_figura&quot;: &quot;\n&quot;.join(caption_parts) if caption_parts else None,
-                &quot;citation&quot;: citation_text,
-                &quot;alt_text&quot;: alt_text,
+                "figure_number": number,
+                "figure_id": fig_id,
+                "label": label,
+                "image_url_best": image_url_best,
+                "image_url_inline": inline_url,
+                "image_url_full": full_url,
+                "image_download_url": image_download_url,
+                "image_candidates": candidates,
+                "image_validation": validation if validate_images else None,
+                "descripcion_figura": "\n".join(caption_parts) if caption_parts else None,
+                "citation": citation_text,
+                "alt_text": alt_text,
             }
         )
 
-    figures.sort(key=lambda f: (f[&quot;figure_number&quot;] is None, f[&quot;figure_number&quot;] or 9999))
+    figures.sort(key=lambda f: (f["figure_number"] is None, f["figure_number"] or 9999))
     return figures
 
 
-def extract_footnotes(body: Optional[Tag]) -&gt; list[dict[str, Optional[str]]]:
+def extract_footnotes(body: Optional[Tag]) -> list[dict[str, Optional[str]]]:
     if body is None:
         return []
     footnotes: list[dict[str, Optional[str]]] = []
-    for fn in body.select(&quot;.footnoteGroup .footnote&quot;):
-        label = text_of(fn.select_one(&quot;.label&quot;))
-        text = text_of(fn.select_one(&quot;p&quot;))
-        footnotes.append({&quot;label&quot;: label, &quot;text&quot;: text})
+    for fn in body.select(".footnoteGroup .footnote"):
+        label = text_of(fn.select_one(".label"))
+        text = text_of(fn.select_one("p"))
+        footnotes.append({"label": label, "text": text})
     return footnotes
 
 
-def extract_references(body: Optional[Tag], page_url: str) -&gt; list[dict[str, Any]]:
+def extract_references(body: Optional[Tag], page_url: str) -> list[dict[str, Any]]:
     if body is None:
         return []
-    ref_section = body.select_one(&quot;section.refSection&quot;)
+    ref_section = body.select_one("section.refSection")
     if ref_section is None:
-        ref_section = find_section(body, &quot;References&quot;)
+        ref_section = find_section(body, "References")
     if ref_section is None:
         return []
 
     refs: list[dict[str, Any]] = []
-    for ref in ref_section.select(&quot;div.reference&quot;):
-        number = text_of(ref.select_one(&quot;.label&quot;))
-        citation_p = ref.select_one(&quot;p.citationText&quot;)
+    for ref in ref_section.select("div.reference"):
+        number = text_of(ref.select_one(".label"))
+        citation_p = ref.select_one("p.citationText")
         full_citation = text_of(citation_p)
 
         citation_links: list[dict[str, Optional[str]]] = []
         if citation_p:
-            for a in citation_p.select(&quot;a[href]&quot;):
-                citation_links.append({&quot;label&quot;: text_of(a), &quot;url&quot;: absolute_url(a.get(&quot;href&quot;), page_url)})
+            for a in citation_p.select("a[href]"):
+                citation_links.append({"label": text_of(a), "url": absolute_url(a.get("href"), page_url)})
 
         crossref_url = None
         google_scholar_url = None
         export_citation_url = None
         action_links: list[dict[str, Optional[str]]] = []
-        for a in ref.select(&quot;ul.citationActions a[href]&quot;):
-            label = text_of(a) or &quot;&quot;
-            href = absolute_url(a.get(&quot;href&quot;), page_url)
-            action_links.append({&quot;label&quot;: label, &quot;url&quot;: href})
+        for a in ref.select("ul.citationActions a[href]"):
+            label = text_of(a) or ""
+            href = absolute_url(a.get("href"), page_url)
+            action_links.append({"label": label, "url": href})
             low = normalize_for_match(label)
-            classes = &quot; &quot;.join(a.get(&quot;class&quot;, []))
-            if &quot;crossref&quot; in low or &quot;doi&quot; in classes.lower():
+            classes = " ".join(a.get("class", []))
+            if "crossref" in low or "doi" in classes.lower():
                 crossref_url = href
-            elif &quot;google scholar&quot; in low or &quot;googlescholar&quot; in classes.lower():
+            elif "google scholar" in low or "googlescholar" in classes.lower():
                 google_scholar_url = href
-            elif &quot;export&quot; in low or &quot;exportcitation&quot; in classes.lower():
+            elif "export" in low or "exportcitation" in classes.lower():
                 export_citation_url = href
 
         refs.append(
             {
-                &quot;number&quot;: number,
-                &quot;full_citation&quot;: full_citation,
-                &quot;authors&quot;: text_of(ref.select_one(&quot;.person-group&quot;)),
-                &quot;article_title&quot;: text_of(ref.select_one(&quot;.article-title&quot;)),
-                &quot;journal_or_source&quot;: text_of(ref.select_one(&quot;i&quot;)),
-                &quot;year&quot;: text_of(ref.select_one(&quot;.year&quot;)),
-                &quot;external_urls_in_citation&quot;: citation_links,
-                &quot;crossref_url&quot;: crossref_url,
-                &quot;google_scholar_url&quot;: google_scholar_url,
-                &quot;export_citation_url&quot;: export_citation_url,
-                &quot;action_links&quot;: action_links,
+                "number": number,
+                "full_citation": full_citation,
+                "authors": text_of(ref.select_one(".person-group")),
+                "article_title": text_of(ref.select_one(".article-title")),
+                "journal_or_source": text_of(ref.select_one("i")),
+                "year": text_of(ref.select_one(".year")),
+                "external_urls_in_citation": citation_links,
+                "crossref_url": crossref_url,
+                "google_scholar_url": google_scholar_url,
+                "export_citation_url": export_citation_url,
+                "action_links": action_links,
             }
         )
 
     return refs
 
 
-def extract_pdf_url(soup: BeautifulSoup, page_url: str) -&gt; Optional[str]:
-    pdf = meta_content(soup, name=&quot;citation_pdf_url&quot;)
+def extract_pdf_url(soup: BeautifulSoup, page_url: str) -> Optional[str]:
+    pdf = meta_content(soup, name="citation_pdf_url")
     if pdf:
         return absolute_url(pdf, page_url)
-    a = soup.select_one(&#x27;a.pdf-download[href], a[title=&quot;Download PDF&quot;][href], a[href*=&quot;/downloadpdf/&quot;]&#x27;)
-    return absolute_url(a.get(&quot;href&quot;), page_url) if a else None
+    a = soup.select_one('a.pdf-download[href], a[title="Download PDF"][href], a[href*="/downloadpdf/"]')
+    return absolute_url(a.get("href"), page_url) if a else None
 
 
-def extract_article(html: str, page_url: str) -&gt; dict[str, Any]:
-    soup = BeautifulSoup(html, &quot;lxml&quot;)
+def extract_article(html: str, page_url: str, session: Optional[requests.Session] = None, validate_images: bool = False, timeout: int = 20) -> dict[str, Any]:
+    soup = BeautifulSoup(html, "lxml")
     body = article_body(soup)
 
     canonical = None
-    canonical_link = soup.find(&quot;link&quot;, rel=lambda x: x and &quot;canonical&quot; in x)
-    if canonical_link and canonical_link.get(&quot;href&quot;):
-        canonical = absolute_url(canonical_link.get(&quot;href&quot;), page_url)
-    article_url = strip_query_and_fragment(canonical or meta_content(soup, prop=&quot;og:url&quot;) or page_url)
+    canonical_link = soup.find("link", rel=lambda x: x and "canonical" in x)
+    if canonical_link and canonical_link.get("href"):
+        canonical = absolute_url(canonical_link.get("href"), page_url)
+    article_url = strip_query_and_fragment(canonical or meta_content(soup, prop="og:url") or page_url)
 
-    title = meta_content(soup, name=&quot;citation_title&quot;) or meta_content(soup, prop=&quot;og:title&quot;)
-    editorial_type = extract_definition_value(soup, &quot;editorialType&quot;)
+    title = meta_content(soup, name="citation_title") or meta_content(soup, prop="og:title")
+    editorial_type = extract_definition_value(soup, "editorialType")
 
     article = {
-        &quot;title&quot;: title,
-        &quot;editorial_type&quot;: editorial_type,
-        &quot;article_url&quot;: article_url,
-        &quot;doi&quot;: meta_content(soup, name=&quot;citation_doi&quot;) or meta_content(soup, name=&quot;dc.identifier&quot;),
-        &quot;journal&quot;: meta_content(soup, name=&quot;citation_journal_title&quot;),
-        &quot;publication_date&quot;: meta_content(soup, name=&quot;citation_publication_date&quot;)
-        or meta_content(soup, prop=&quot;article:published_time&quot;)
-        or extract_definition_value(soup, &quot;onlinepubdate&quot;),
-        &quot;volume&quot;: meta_content(soup, name=&quot;citation_volume&quot;),
-        &quot;issue&quot;: meta_content(soup, name=&quot;citation_issue&quot;),
-        &quot;pages&quot;: build_pages(
-            meta_content(soup, name=&quot;citation_firstpage&quot;),
-            meta_content(soup, name=&quot;citation_lastpage&quot;),
-            extract_definition_value(soup, &quot;pagerange&quot;),
+        "title": title,
+        "editorial_type": editorial_type,
+        "article_url": article_url,
+        "doi": meta_content(soup, name="citation_doi") or meta_content(soup, name="dc.identifier"),
+        "journal": meta_content(soup, name="citation_journal_title"),
+        "publication_date": meta_content(soup, name="citation_publication_date")
+        or meta_content(soup, prop="article:published_time")
+        or extract_definition_value(soup, "onlinepubdate"),
+        "volume": meta_content(soup, name="citation_volume"),
+        "issue": meta_content(soup, name="citation_issue"),
+        "pages": build_pages(
+            meta_content(soup, name="citation_firstpage"),
+            meta_content(soup, name="citation_lastpage"),
+            extract_definition_value(soup, "pagerange"),
         ),
-        &quot;pdf_original_url&quot;: extract_pdf_url(soup, page_url),
-        &quot;autores&quot;: extract_authors(soup),
-        &quot;descripcion_del_caso&quot;: extract_case_description(body),
-        &quot;interpretacion_ecg&quot;: extract_section_text(body, &quot;ECG Interpretation&quot;, include_heading=False),
-        &quot;figuras&quot;: extract_figures(body, page_url),
-        &quot;discusion&quot;: extract_section_text(body, &quot;Discussion&quot;, include_heading=True),
-        &quot;notas_pie&quot;: extract_footnotes(body),
-        &quot;referencias&quot;: extract_references(body, page_url),
+        "pdf_original_url": extract_pdf_url(soup, page_url),
+        "autores": extract_authors(soup),
+        "descripcion_del_caso": extract_case_description(body),
+        "interpretacion_ecg": extract_section_text(body, "ECG Interpretation", include_heading=False),
+        "figuras": extract_figures(body, page_url, session=session, validate_images=validate_images, timeout=timeout),
+        "discusion": extract_section_text(body, "Discussion", include_heading=True),
+        "notas_pie": extract_footnotes(body),
+        "referencias": extract_references(body, page_url),
     }
 
-    # Campos planos figura_1, descripcion_figura_1, figura_2... ademas del array &quot;figuras&quot;.
-    for fig in article[&quot;figuras&quot;]:
-        n = fig.get(&quot;figure_number&quot;)
+    # Campos planos figura_1, descripcion_figura_1, figura_2... ademas del array "figuras".
+    for fig in article["figuras"]:
+        n = fig.get("figure_number")
         if n is None:
             continue
-        article[f&quot;figura_{n}&quot;] = fig.get(&quot;image_download_url&quot;) or fig.get(&quot;image_url_full&quot;) or fig.get(&quot;image_url_inline&quot;)
-        article[f&quot;descripcion_figura_{n}&quot;] = fig.get(&quot;descripcion_figura&quot;)
+        article[f"figura_{n}"] = fig.get("image_url_best") or fig.get("image_url_inline") or fig.get("image_url_full") or fig.get("image_download_url")
+        article[f"descripcion_figura_{n}"] = fig.get("descripcion_figura")
 
     return article
 
 
-def build_pages(first: Optional[str], last: Optional[str], visible: Optional[str]) -&gt; Optional[str]:
+def build_pages(first: Optional[str], last: Optional[str], visible: Optional[str]) -> Optional[str]:
     if visible:
         return visible
     if first and last and first != last:
-        return f&quot;{first}-{last}&quot;
+        return f"{first}-{last}"
     return first or last
 
 
-def is_ecg_of_the_month(article: dict[str, Any]) -&gt; bool:
-    haystack = &quot; | &quot;.join(
-        str(article.get(k) or &quot;&quot;) for k in (&quot;title&quot;, &quot;editorial_type&quot;)
+def is_ecg_of_the_month(article: dict[str, Any]) -> bool:
+    haystack = " | ".join(
+        str(article.get(k) or "") for k in ("title", "editorial_type")
     ).lower()
-    return &quot;ecg of the month&quot; in haystack
+    return "ecg of the month" in haystack
 
 
-def save_json(path: Path, data: dict[str, Any]) -&gt; None:
+def save_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding=&quot;utf-8&quot;)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def scrape_all(args: argparse.Namespace) -&gt; dict[str, Any]:
+def scrape_all(args: argparse.Namespace) -> dict[str, Any]:
     session = make_session(args.cookies)
     errors: list[dict[str, str]] = []
     article_links: list[str] = []
@@ -1144,96 +1280,97 @@ def scrape_all(args: argparse.Namespace) -&gt; dict[str, Any]:
     for page in range(args.page_start, args.page_end + 1):
         page_url = SEARCH_URL_TEMPLATE.format(page=page)
         try:
-            print(f&quot;[busqueda] pagina {page}: {page_url}&quot;, file=sys.stderr)
+            print(f"[busqueda] pagina {page}: {page_url}", file=sys.stderr)
             html = fetch(session, page_url, timeout=args.timeout, delay=args.delay).html
             links = collect_article_links_from_search_html(html, page_url)
-            print(f&quot;  enlaces candidatos: {len(links)}&quot;, file=sys.stderr)
+            print(f"  enlaces candidatos: {len(links)}", file=sys.stderr)
             article_links.extend(links)
         except Exception as exc:
             msg = str(exc)
-            print(f&quot;  ERROR: {msg}&quot;, file=sys.stderr)
-            errors.append({&quot;stage&quot;: &quot;search&quot;, &quot;url&quot;: page_url, &quot;error&quot;: msg})
+            print(f"  ERROR: {msg}", file=sys.stderr)
+            errors.append({"stage": "search", "url": page_url, "error": msg})
 
     article_links = dedupe_preserve_order(article_links)
     if args.limit:
         article_links = article_links[: args.limit]
 
     data: dict[str, Any] = {
-        &quot;source_url&quot;: SEARCH_URL_TEMPLATE.format(page=args.page_start),
-        &quot;page_start&quot;: args.page_start,
-        &quot;page_end&quot;: args.page_end,
-        &quot;generated_at&quot;: dt.datetime.now(dt.timezone.utc).isoformat(),
-        &quot;total_candidate_links&quot;: len(article_links),
-        &quot;articles&quot;: [],
-        &quot;errors&quot;: errors,
+        "source_url": SEARCH_URL_TEMPLATE.format(page=args.page_start),
+        "page_start": args.page_start,
+        "page_end": args.page_end,
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "total_candidate_links": len(article_links),
+        "articles": [],
+        "errors": errors,
     }
 
     for idx, url in enumerate(article_links, start=1):
         try:
-            print(f&quot;[articulo {idx}/{len(article_links)}] {url}&quot;, file=sys.stderr)
+            print(f"[articulo {idx}/{len(article_links)}] {url}", file=sys.stderr)
             html = fetch(session, url, timeout=args.timeout, delay=args.delay).html
-            article = extract_article(html, url)
+            article = extract_article(html, url, session=session, validate_images=args.validate_images, timeout=args.timeout)
             if not args.keep_non_ecg and not is_ecg_of_the_month(article):
-                print(&quot;  omitido: no parece ECG of the Month&quot;, file=sys.stderr)
+                print("  omitido: no parece ECG of the Month", file=sys.stderr)
                 continue
-            data[&quot;articles&quot;].append(article)
+            data["articles"].append(article)
             # Guardado incremental por seguridad.
             save_json(Path(args.output), data)
         except Exception as exc:
             msg = str(exc)
-            print(f&quot;  ERROR: {msg}&quot;, file=sys.stderr)
-            data[&quot;errors&quot;].append({&quot;stage&quot;: &quot;article&quot;, &quot;url&quot;: url, &quot;error&quot;: msg})
+            print(f"  ERROR: {msg}", file=sys.stderr)
+            data["errors"].append({"stage": "article", "url": url, "error": msg})
             save_json(Path(args.output), data)
 
-    data[&quot;total_articles_extracted&quot;] = len(data[&quot;articles&quot;])
+    data["total_articles_extracted"] = len(data["articles"])
     save_json(Path(args.output), data)
     return data
 
 
-def parse_local_html(args: argparse.Namespace) -&gt; dict[str, Any]:
+def parse_local_html(args: argparse.Namespace) -> dict[str, Any]:
     html_path = Path(args.html_file)
-    html = html_path.read_text(encoding=args.encoding, errors=&quot;replace&quot;)
-    article = extract_article(html, args.article_url or BASE_URL)
+    html = html_path.read_text(encoding=args.encoding, errors="replace")
+    article = extract_article(html, args.article_url or BASE_URL, session=None, validate_images=False, timeout=args.timeout)
     data = {
-        &quot;source_url&quot;: str(html_path),
-        &quot;generated_at&quot;: dt.datetime.now(dt.timezone.utc).isoformat(),
-        &quot;total_articles_extracted&quot;: 1,
-        &quot;articles&quot;: [article],
-        &quot;errors&quot;: [],
+        "source_url": str(html_path),
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "total_articles_extracted": 1,
+        "articles": [article],
+        "errors": [],
     }
     save_json(Path(args.output), data)
     return data
 
 
-def build_argparser() -&gt; argparse.ArgumentParser:
+def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=&quot;Extrae ECG of the Month de AVMA Journals a JSON.&quot;,
+        description="Extrae ECG of the Month de AVMA Journals a JSON.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(&quot;--output&quot;, default=&quot;ecg_of_the_month.json&quot;, help=&quot;Archivo JSON de salida&quot;)
-    parser.add_argument(&quot;--page-start&quot;, type=int, default=1, help=&quot;Primera pagina de busqueda&quot;)
-    parser.add_argument(&quot;--page-end&quot;, type=int, default=36, help=&quot;Ultima pagina de busqueda&quot;)
-    parser.add_argument(&quot;--timeout&quot;, type=int, default=30, help=&quot;Timeout HTTP en segundos&quot;)
-    parser.add_argument(&quot;--delay&quot;, type=float, default=0.8, help=&quot;Pausa entre peticiones HTTP&quot;)
-    parser.add_argument(&quot;--limit&quot;, type=int, default=0, help=&quot;Limita el numero de articulos, 0 = sin limite&quot;)
-    parser.add_argument(&quot;--cookies&quot;, default=None, help=&quot;Cabecera Cookie copiada del navegador&quot;)
+    parser.add_argument("--output", default="ecg_of_the_month.json", help="Archivo JSON de salida")
+    parser.add_argument("--page-start", type=int, default=1, help="Primera pagina de busqueda")
+    parser.add_argument("--page-end", type=int, default=36, help="Ultima pagina de busqueda")
+    parser.add_argument("--timeout", type=int, default=30, help="Timeout HTTP en segundos")
+    parser.add_argument("--delay", type=float, default=0.8, help="Pausa entre peticiones HTTP")
+    parser.add_argument("--limit", type=int, default=0, help="Limita el numero de articulos, 0 = sin limite")
+    parser.add_argument("--cookies", default=None, help="Cabecera Cookie copiada del navegador")
+    parser.add_argument("--validate-images", action="store_true", help="Comprueba las URLs de figuras y guarda image_url_best con la primera que responde correctamente")
     parser.add_argument(
-        &quot;--keep-non-ecg&quot;,
-        action=&quot;store_true&quot;,
-        help=&quot;No descarta articulos cuyo title/editorial_type no sea ECG of the Month&quot;,
+        "--keep-non-ecg",
+        action="store_true",
+        help="No descarta articulos cuyo title/editorial_type no sea ECG of the Month",
     )
-    parser.add_argument(&quot;--html-file&quot;, default=None, help=&quot;HTML local de un articulo para probar el parser&quot;)
-    parser.add_argument(&quot;--article-url&quot;, default=None, help=&quot;URL base/canonica si se usa --html-file&quot;)
-    parser.add_argument(&quot;--encoding&quot;, default=&quot;utf-8&quot;, help=&quot;Codificacion para --html-file&quot;)
+    parser.add_argument("--html-file", default=None, help="HTML local de un articulo para probar el parser")
+    parser.add_argument("--article-url", default=None, help="URL base/canonica si se usa --html-file")
+    parser.add_argument("--encoding", default="utf-8", help="Codificacion para --html-file")
     return parser
 
 
-def main() -&gt; None:
+def main() -> None:
     parser = build_argparser()
     args = parser.parse_args()
 
-    if args.page_start &lt; 1 or args.page_end &lt; args.page_start:
-        parser.error(&quot;Rango de paginas no valido&quot;)
+    if args.page_start < 1 or args.page_end < args.page_start:
+        parser.error("Rango de paginas no valido")
 
     if args.html_file:
         data = parse_local_html(args)
@@ -1241,12 +1378,12 @@ def main() -&gt; None:
         data = scrape_all(args)
 
     print(
-        f&quot;OK: {data.get(&#x27;total_articles_extracted&#x27;, len(data.get(&#x27;articles&#x27;, [])))} articulos guardados en {args.output}&quot;,
+        f"OK: {data.get('total_articles_extracted', len(data.get('articles', [])))} articulos guardados en {args.output}",
         file=sys.stderr,
     )
 
 
-if __name__ == &quot;__main__&quot;:
+if __name__ == "__main__":
     main()
 </code></pre>
         </div>
