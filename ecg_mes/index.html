@@ -23,6 +23,7 @@
 <div class="detail" id="detail"></div>
 </div>
 <script>
+// Traducción: exclusivamente MyMemory en→es. No se utiliza LanguageModel API de Chrome.
 const JSON_URL='../json/ecg_of_the_month.json'; const PAGE_SIZE=24; let articles=[],filtered=[],visible=PAGE_SIZE,selected=null;
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); const clean=s=>String(s??'').replace(/\r/g,'').replace(/\n{3,}/g,'\n\n').trim(); const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 function authors(a){return (Array.isArray(a.autores)?a.autores:[]).map(x=>x?.name).filter(Boolean)} function figures(a){return Array.isArray(a.figuras)?a.figuras:[]}
@@ -33,11 +34,62 @@ function imageCandidates(fig){const raw=[fig?.image_url_inline,fig?.image_url_fu
 function imgTag(fig,label){const urls=imageCandidates(fig);if(!urls.length)return'<div class="empty">Imagen no disponible</div>';return `<img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="${esc(urls[0])}" data-urls='${esc(JSON.stringify(urls))}' data-i="0" alt="${esc(label||'ECG')}" onerror="nextImage(this)">`}
 function nextImage(img){try{const urls=JSON.parse(img.dataset.urls),i=Number(img.dataset.i||0)+1;if(i<urls.length){img.dataset.i=i;img.src=urls[i];return}}catch(e){}img.onerror=null;img.outerHTML='<div class="empty">Imagen no disponible desde AVMA</div>'}
 function renderList(){const shown=filtered.slice(0,visible);$('results').innerHTML=shown.map(a=>{const idx=articles.indexOf(a);return `<article class="card" data-index="${idx}"><h2>${esc(a.title||'ECG of the Month')}</h2><div class="meta"><span class="tag">${esc(a.publication_date||'s/f')}</span>${a.doi?`<span class="tag">${esc(a.doi)}</span>`:''}${authors(a).slice(0,3).map(x=>`<span class="tag">${esc(x)}</span>`).join('')}<span class="tag">${figures(a).length} figura${figures(a).length===1?'':'s'}</span></div><div class="preview">${esc(clean(a.descripcion_del_caso).slice(0,260))}${clean(a.descripcion_del_caso).length>260?'…':''}</div></article>`}).join('')||'<div class="empty">No se encontraron casos.</div>';$('loadmore').hidden=filtered.length<=visible;document.querySelectorAll('.card').forEach(el=>el.addEventListener('click',()=>{selected=articles[Number(el.dataset.index)];renderDetail(selected);$('detail').scrollIntoView({behavior:'smooth',block:'start'})}));$('status').textContent=`${filtered.length} casos encontrados · ${articles.length} casos totales`}
-async function translateChunk(text){const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair=en|es';const r=await fetch(url,{cache:'force-cache'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json(),t=d?.responseData?.translatedText;if(!t)throw new Error('Sin traducción');return String(t).replaceAll('&#39;',"'").replaceAll('&quot;','"').replaceAll('&amp;','&')}
+async function translateChunk(text){
+  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair=en|es';
+  const r=await fetch(url,{
+    method:'GET',
+    cache:'force-cache',
+    headers:{'Accept':'application/json'}
+  });
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  const t=d?.responseData?.translatedText;
+  if(!t) throw new Error(d?.responseDetails || 'Sin traducción');
+  return String(t)
+    .replaceAll('&#39;',"'")
+    .replaceAll('&quot;','"')
+    .replaceAll('&amp;','&');
+}
 function splitText(text,max=430){const t=clean(text);if(!t)return[];const out=[];for(const p0 of t.split(/\n{2,}/)){let p=p0.trim();while(p.length>max){let cut=p.lastIndexOf('. ',max);if(cut<120)cut=p.lastIndexOf(' ',max);if(cut<80)cut=max;out.push(p.slice(0,cut+1).trim());p=p.slice(cut+1).trim()}if(p)out.push(p)}return out}
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)}
-async function translateText(text){const src=clean(text);if(!src)return'';const key='ecg_es_'+hash(src);try{const c=localStorage.getItem(key);if(c)return c}catch{}const out=[];for(const c of splitText(src))out.push(await translateChunk(c));const result=out.join('\n\n');try{localStorage.setItem(key,result)}catch{}return result}
-async function fillTranslation(id,text){const el=$(id);if(!el)return;if(!clean(text)){el.textContent='—';return}el.innerHTML='<span class="translating">Traduciendo al español…</span>';try{el.textContent=await translateText(text)}catch(e){el.innerHTML=`<span class="translating">No se pudo traducir automáticamente. Se muestra el original:</span><br><br>${esc(text)}`}}
+async function translateText(text){
+  const src=clean(text);
+  if(!src) return '';
+  const key='ecg_es_'+hash(src);
+  try{
+    const c=localStorage.getItem(key);
+    if(c) return c;
+  }catch{}
+  const out=[];
+  for(const c of splitText(src)){
+    try{
+      out.push(await translateChunk(c));
+    }catch(err){
+      console.warn('Fallo de traducción MyMemory:',err);
+      out.push(c);
+    }
+  }
+  const result=out.join('\n\n');
+  try{localStorage.setItem(key,result)}catch{}
+  return result;
+}
+async function fillTranslation(id,text){
+  const el=$(id);
+  if(!el) return;
+  const original=clean(text);
+  if(!original){
+    el.textContent='—';
+    return;
+  }
+  el.innerHTML='<span class="translating">Traduciendo al español…</span>';
+  try{
+    const translated=await translateText(original);
+    el.textContent=translated || original;
+  }catch(err){
+    console.warn('No se pudo traducir:',err);
+    el.textContent=original;
+  }
+}
 function figureHtml(fig,i){const alt=fig.alt_text||'',c=imageCandidates(fig),open=c[0]||fig.image_download_url||'';return `<article class="figure"><div class="imagebox">${imgTag(fig,fig.label||`Figura ${i+1}`)}</div><div class="figbody"><h3>${esc(fig.label||`Figura ${i+1}`)}</h3><div class="text" id="figcap${i}"><span class="translating">Traduciendo descripción…</span></div>${alt?`<div class="alt"><strong>Texto alternativo:</strong><div class="text" id="figalt${i}"><span class="translating">Traduciendo…</span></div></div>`:''}<div class="actions">${open?`<a class="btn secondary" href="${esc(open)}" target="_blank" rel="noopener noreferrer">Abrir imagen</a>`:''}</div></div></article>`}
 function renderDetail(a){const fs=figures(a);$('detail').innerHTML=`<article class="case"><div class="case-head"><div><h2>${esc(a.title||'ECG of the Month')}</h2><div class="meta" style="margin-top:9px"><span class="tag">${esc(a.publication_date||'s/f')}</span>${a.doi?`<span class="tag">${esc(a.doi)}</span>`:''}${authors(a).map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div></div><div class="actions">${a.article_url?`<a class="btn secondary" href="${esc(a.article_url)}" target="_blank" rel="noopener">Artículo AVMA</a>`:''}</div></div><section class="section"><h3>Descripción del caso</h3><div class="text" id="caseEs"><span class="translating">Traduciendo al español…</span></div></section><section class="section"><h3>Interpretación del ECG</h3><div class="text" id="interpEs"><span class="translating">Traduciendo al español…</span></div></section><section class="section"><h3>ECG y figuras</h3><div class="figures">${fs.map(figureHtml).join('')||'<div class="empty">Sin figuras.</div>'}</div></section><section class="section"><h3>Discusión</h3><div class="text" id="discEs"><span class="translating">Traduciendo al español…</span></div></section></article>`;fillTranslation('caseEs',a.descripcion_del_caso||'');fillTranslation('interpEs',a.interpretacion_ecg||'');fillTranslation('discEs',a.discusion||'');fs.forEach((f,i)=>{fillTranslation(`figcap${i}`,f.descripcion_figura||'');if(f.alt_text)fillTranslation(`figalt${i}`,f.alt_text)})}
 function applySearch(){const qs=expandedQueries($('q').value);filtered=!qs.length?[...articles]:articles.filter(a=>qs.some(x=>a.__search.includes(x)));visible=PAGE_SIZE;filtered.sort((a,b)=>String(b.publication_date||'').localeCompare(String(a.publication_date||'')));renderList()}
