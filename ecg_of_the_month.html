@@ -1152,7 +1152,7 @@
 
   <script>
     const JSON_URLS = (() => {
-      const file = 'ecg_of_the_month.json';
+      const file = 'ecg_of_the_month_local.json';
       const origin = /^https?:$/.test(location.protocol) ? location.origin : '';
       const here = location.href;
       const candidates = [
@@ -1160,7 +1160,7 @@
         new URL(`./json/${file}`, here).href,
         origin ? `${origin}/vet/json/${file}` : null,
         origin ? `${origin}/json/${file}` : null,
-        'https://airsoto.github.io/vet/json/ecg_of_the_month.json'
+        'https://airsoto.github.io/vet/json/ecg_of_the_month_local.json'
       ].filter(Boolean);
       return [...new Set(candidates)];
     })();
@@ -1226,8 +1226,48 @@
       if(lower.endsWith('.tif') || lower.endsWith('.tiff')) return '';
       return url;
     }
+    function figureImageCandidates(fig){
+      return [
+        usableImage(fig?.image_local),
+        usableImage(fig?.image_url_inline),
+        usableImage(fig?.image_url_full),
+        usableImage(fig?.image_download_url)
+      ].filter(Boolean);
+    }
+
     function figureImage(fig){
-      return usableImage(fig?.image_url_inline) || usableImage(fig?.image_url_full) || usableImage(fig?.image_download_url) || '';
+      return figureImageCandidates(fig)[0] || '';
+    }
+
+    function imageFallbackAttr(fig){
+      const urls = figureImageCandidates(fig);
+      if(urls.length <= 1) return '';
+      const encoded = escapeHtml(JSON.stringify(urls));
+      return ` data-fallbacks="${encoded.replaceAll('&quot;', '&amp;quot;')}" onerror="tryNextImage(this)"`;
+    }
+
+    function tryNextImage(img){
+      try{
+        let raw = img.dataset.fallbacks || '[]';
+        raw = raw.replaceAll('&quot;', '"').replaceAll('&amp;', '&');
+        const urls = JSON.parse(raw);
+        const current = img.getAttribute('src') || '';
+        const idx = urls.indexOf(current);
+        const next = urls[idx + 1];
+        if(next){
+          img.src = next;
+          return;
+        }
+      }catch(e){}
+      img.onerror = null;
+      img.style.display = 'none';
+      const holder = img.closest('.thumb-wrap, .figure-card, .modal-img-wrap');
+      if(holder && !holder.querySelector('.no-img')){
+        const msg = document.createElement('div');
+        msg.className = 'no-img';
+        msg.textContent = 'Imagen no disponible';
+        holder.appendChild(msg);
+      }
     }
     function firstFigure(article){ return getFigures(article)[0] || null; }
     function yearOf(article){
