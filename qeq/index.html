@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>Quién es Quién · Humano vs CPU</title>
+  <script defer src="goat.js"></script>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#07111f;
+      --panel:#0d192a;
+      --panel2:#122238;
+      --card:#102039;
+      --text:#f5f7fb;
+      --muted:#9aabc2;
+      --line:rgba(255,255,255,.10);
+      --blue:#55b7ff;
+      --blue2:#2587ff;
+      --green:#2bd49c;
+      --red:#ff6470;
+      --amber:#ffbd4a;
+      --violet:#a78bfa;
+      --radius:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100svh;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 10% -10%, rgba(37,135,255,.20), transparent 34rem),
+        radial-gradient(circle at 100% 0%, rgba(167,139,250,.14), transparent 30rem),
+        var(--bg);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    button,select,input{font:inherit}
+    button,select,input{outline:none}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.45}
+    a{color:inherit;text-decoration:none}
+
+    .topbar{
+      position:sticky;top:0;z-index:50;
+      display:flex;align-items:center;gap:12px;
+      min-height:64px;padding:10px max(14px,env(safe-area-inset-left));
+      border-bottom:1px solid var(--line);
+      background:rgba(7,17,31,.82);
+      backdrop-filter:blur(18px) saturate(150%);
+    }
+    .home,.icon-btn{
+      width:42px;height:42px;border:1px solid var(--line);border-radius:13px;
+      display:grid;place-items:center;background:rgba(255,255,255,.045);color:var(--text);
+      flex:0 0 auto;
+    }
+    .brand{min-width:0;flex:1}
+    .brand h1{margin:0;font-size:clamp(18px,3vw,25px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand small{display:block;color:var(--muted);margin-top:3px;font-size:12px}
+    .scorebar{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+    .score-pill{
+      min-width:70px;padding:7px 10px;border:1px solid var(--line);border-radius:13px;
+      background:rgba(255,255,255,.045);text-align:center;font-size:12px;color:var(--muted)
+    }
+    .score-pill b{display:block;font-size:18px;color:var(--text);line-height:1.05}
+
+    .app{width:min(1600px,100%);margin:0 auto;padding:14px;display:grid;grid-template-columns:minmax(280px,340px) minmax(520px,1fr) minmax(245px,300px);gap:14px;align-items:start}
+    .panel{background:rgba(13,25,42,.86);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line)}
+    .panel-head h2,.panel-head h3{margin:0;font-size:15px}
+    .panel-body{padding:14px}
+
+    .status-row{display:flex;align-items:center;gap:11px}
+    .cpu-secret{
+      width:76px;aspect-ratio:3/4;border-radius:14px;border:1px solid var(--line);background:linear-gradient(145deg,#142845,#0b1728);
+      display:grid;place-items:center;font-size:32px;font-weight:900;color:#7e8ea7;overflow:hidden;flex:0 0 auto;
+    }
+    .cpu-secret.revealed{background-size:contain;background-repeat:no-repeat;background-position:center;color:transparent}
+    .turn-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(85,183,255,.12);border:1px solid rgba(85,183,255,.28);font-size:12px;font-weight:800}
+    .turn-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px rgba(85,183,255,.10)}
+    .subtle{color:var(--muted);font-size:12px}
+
+    .question-card{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.035)}
+    .question-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-bottom:7px}
+    .cpu-question{min-height:72px;display:flex;align-items:center;font-size:18px;line-height:1.35;font-weight:750}
+    .yn{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}
+
+    .btn{min-height:44px;border:1px solid var(--line);border-radius:13px;padding:10px 13px;background:rgba(255,255,255,.05);color:var(--text);font-weight:720;transition:.16s ease}
+    .btn:hover:not(:disabled){transform:translateY(-1px);background:rgba(255,255,255,.08)}
+    .btn:active:not(:disabled){transform:translateY(0) scale(.99)}
+    .btn-primary{background:var(--blue2);border-color:transparent}
+    .btn-primary:hover:not(:disabled){background:#1679ef}
+    .btn-green{background:#17875f;border-color:transparent}
+    .btn-red{background:#b93340;border-color:transparent}
+    .btn-amber{background:#925f0c;border-color:transparent}
+    .btn-danger{background:#9f2834;border-color:transparent}
+    .btn-ghost{background:transparent}
+    .btn-small{min-height:36px;padding:7px 10px;font-size:13px}
+
+    .cpu-candidates{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px}
+    .mini-card{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--card);aspect-ratio:3/4}
+    .mini-card img{width:100%;height:100%;object-fit:contain;display:block}
+    .mini-card span{position:absolute;inset:auto 3px 3px 3px;padding:3px 4px;border-radius:6px;background:rgba(0,0,0,.62);font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .composer{padding:14px;border-bottom:1px solid var(--line);background:rgba(8,18,32,.40)}
+    .composer-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+    .composer-top h2{margin:0;font-size:16px}
+    .operator-wrap{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+    select,input[type="search"]{
+      min-height:42px;border:1px solid var(--line);border-radius:12px;background:#0a1627;color:var(--text);padding:8px 10px
+    }
+    .conditions{display:grid;gap:8px}
+    .condition-row{display:grid;grid-template-columns:minmax(160px,1fr) minmax(120px,.72fr) 38px;gap:8px;align-items:center}
+    .condition-row .remove-condition{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}
+    .condition-row .remove-condition:disabled{visibility:hidden}
+    .composer-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .preview{
+      margin-top:11px;padding:10px 12px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.03);display:grid;gap:6px
+    }
+    .preview strong{font-size:13px}
+    .split{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+    .split b{color:var(--text)}
+    .answer-banner{margin-top:10px;padding:10px 12px;border-radius:13px;border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+    .answer-banner.yes{background:rgba(43,212,156,.10);border-color:rgba(43,212,156,.35)}
+    .answer-banner.no{background:rgba(255,100,112,.09);border-color:rgba(255,100,112,.30)}
+
+    .board-tools{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+    .board-tools input{flex:1;min-width:160px}
+    .counter{font-size:12px;color:var(--muted);white-space:nowrap}
+    .counter b{color:var(--text)}
+    .board{padding:12px;display:grid;grid-template-columns:repeat(6,minmax(95px,1fr));gap:9px}
+    .person-card{
+      position:relative;min-width:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);color:var(--text);text-align:left;
+      transition:transform .14s ease,opacity .18s ease,filter .18s ease,border-color .18s ease;box-shadow:none
+    }
+    .person-card:hover{transform:translateY(-2px);border-color:rgba(85,183,255,.35)}
+    .person-card img{display:block;width:100%;aspect-ratio:1/1.12;object-fit:contain;background:#081425}
+    .person-name{padding:8px 8px 9px;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .person-card.manual-off,.person-card.auto-off{opacity:.24;filter:grayscale(1)}
+    .person-card.auto-off::after{content:"DESCARTADO";position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:900;letter-spacing:.08em;background:rgba(3,9,17,.22)}
+    .person-card.manual-off::after{content:"OCULTO";position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:900;letter-spacing:.08em;background:rgba(3,9,17,.18)}
+    .person-card.suggest{outline:2px solid var(--amber);outline-offset:-3px}
+    .person-card.secret-match{box-shadow:0 0 0 2px var(--violet) inset}
+
+    .your-card{padding:12px}
+    .your-photo{width:100%;aspect-ratio:3/4;border:1px solid var(--line);border-radius:15px;background:#081425;display:grid;place-items:center;overflow:hidden;color:var(--muted)}
+    .your-photo img{width:100%;height:100%;object-fit:contain;display:none}
+    .your-name{font-size:21px;font-weight:850;margin-top:10px}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+    .stat{padding:9px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.035)}
+    .stat small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+    .stat b{display:block;margin-top:3px;font-size:18px}
+    .history{max-height:300px;overflow:auto;padding:0 12px 12px}
+    .history-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.35}
+    .history-item:last-child{border-bottom:0}
+    .history-item b{display:block;margin-bottom:3px}
+    .history-empty{color:var(--muted);font-size:12px;padding:12px 0}
+
+    dialog{width:min(920px,calc(100vw - 24px));max-height:min(88svh,780px);padding:0;border:1px solid var(--line);border-radius:20px;background:#0b1829;color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.55)}
+    dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
+    .dialog-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;border-bottom:1px solid var(--line);background:#0b1829}
+    .dialog-head h2{margin:0;font-size:17px}
+    .dialog-body{padding:14px;overflow:auto}
+    .picker{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
+    .picker .person-card.selected{outline:3px solid var(--blue);outline-offset:-3px}
+    .dialog-actions{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:#0b1829}
+    .help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .help-box{padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:13px;line-height:1.5}
+    .help-box b{display:block;margin-bottom:4px}
+
+    .toast-region{position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:200;display:grid;gap:8px;pointer-events:none;width:min(92vw,440px)}
+    .toast{padding:11px 14px;border-radius:13px;background:#111f31;border:1px solid var(--line);box-shadow:var(--shadow);font-size:13px;text-align:center;animation:toastIn .18s ease}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+
+    .mobile-secret{display:none}
+    #footer{width:min(1600px,100%);margin:0 auto;padding:0 14px 14px}
+
+    @media (max-width:1180px){
+      .app{grid-template-columns:300px 1fr}.side-panel{grid-column:1/-1;display:grid;grid-template-columns:260px 1fr}.your-card{border-right:1px solid var(--line)}
+      .board{grid-template-columns:repeat(5,minmax(90px,1fr))}
+    }
+    @media (max-width:820px){
+      .topbar{padding-top:max(9px,env(safe-area-inset-top))}
+      .brand small{display:none}.score-pill{min-width:56px;padding-inline:7px}.score-pill span{display:none}
+      .app{display:block;padding:10px}.app>.panel{margin-bottom:10px}
+      .cpu-panel{order:1}.game-panel{order:2}.side-panel{display:block}
+      .side-panel .your-photo,.side-panel .your-name{display:none}.side-panel .your-card{padding:11px}.side-panel .stats{margin-top:0}
+      .mobile-secret{display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:9px;border:1px solid var(--line);border-radius:14px;background:rgba(13,25,42,.95);position:sticky;top:72px;z-index:30}
+      .mobile-secret img{width:44px;height:55px;object-fit:contain;border-radius:9px;background:#081425;display:none}
+      .mobile-secret b{font-size:13px}.mobile-secret small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+      .board{grid-template-columns:repeat(4,minmax(72px,1fr));gap:7px;padding:8px}
+      .person-name{padding:6px;font-size:11px}
+      .cpu-candidates{grid-template-columns:repeat(6,1fr)}
+      .picker{grid-template-columns:repeat(4,1fr)}
+      .composer{padding:11px}.condition-row{grid-template-columns:1fr 1fr 36px}.composer-actions .btn{flex:1 1 145px}
+    }
+    @media (max-width:520px){
+      .home,.icon-btn{width:38px;height:38px;border-radius:11px}.brand h1{font-size:17px}.scorebar{gap:5px}.score-pill{min-width:45px;padding:6px 5px}.score-pill b{font-size:16px}
+      .app{padding:8px}.panel{border-radius:16px}.panel-head,.panel-body{padding:11px}
+      .cpu-question{font-size:17px;min-height:58px}.cpu-candidates{grid-template-columns:repeat(4,1fr)}
+      .composer-top{align-items:flex-start;flex-direction:column}.operator-wrap{width:100%}.operator-wrap select{flex:1}
+      .condition-row{grid-template-columns:1fr 36px}.condition-row .cond-value{grid-column:1/2}.condition-row .remove-condition{grid-column:2;grid-row:1/3;height:100%}
+      .board{grid-template-columns:repeat(3,minmax(78px,1fr))}
+      .picker{grid-template-columns:repeat(3,1fr)}
+      .help-grid{grid-template-columns:1fr}
+      dialog{width:calc(100vw - 14px);max-height:92svh}
+    }
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="home" href="https://airsoto.github.io/vet/" aria-label="Volver a inicio">⌂</a>
+    <div class="brand">
+      <h1>Quién es Quién</h1>
+      <small>Humano vs CPU · Desarrollado por Angel Soto</small>
+    </div>
+    <div class="scorebar" aria-label="Marcador">
+      <div class="score-pill"><span>Tú</span><b id="humanScore">0</b></div>
+      <div class="score-pill"><span>CPU</span><b id="cpuScore">0</b></div>
+    </div>
+    <button class="icon-btn" id="helpBtn" type="button" aria-label="Ayuda">?</button>
+  </header>
+
+  <main class="app">
+    <section class="panel cpu-panel" aria-labelledby="cpuTitle">
+      <div class="panel-head">
+        <h2 id="cpuTitle">CPU</h2>
+        <span class="turn-badge"><span class="turn-dot"></span><span id="turnText">Preparación</span></span>
+      </div>
+      <div class="panel-body">
+        <div class="status-row">
+          <div id="cpuSecretCard" class="cpu-secret" aria-label="Personaje oculto de la CPU">?</div>
+          <div>
+            <b id="cpuSecretName">Personaje oculto</b>
+            <div class="subtle" id="roundText">Ronda 1</div>
+            <div class="subtle" id="cpuCandidateCount">24 candidatos</div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-label">Pregunta de la CPU</div>
+          <div id="cpuQuestion" class="cpu-question" aria-live="polite">Elige tu personaje para empezar.</div>
+          <div class="yn">
+            <button class="btn btn-green" id="yesBtn" type="button" disabled>Sí</button>
+            <button class="btn btn-red" id="noBtn" type="button" disabled>No</button>
+          </div>
+        </div>
+
+        <div class="cpu-candidates" id="cpuCandidateGrid" aria-label="Personajes que la CPU considera posibles"></div>
+      </div>
+    </section>
+
+    <section class="panel game-panel" aria-labelledby="boardTitle">
+      <div class="mobile-secret" id="mobileSecret">
+        <img id="mobileSecretImg" alt="Tu personaje">
+        <div><b id="mobileSecretName">Elige tu personaje</b><small>Tu carta secreta</small></div>
+      </div>
+
+      <div class="composer">
+        <div class="composer-top">
+          <h2>Tu pregunta</h2>
+          <label class="operator-wrap">Combinar condiciones
+            <select id="logicMode" aria-label="Cómo combinar condiciones">
+              <option value="OR">cualquiera (O)</option>
+              <option value="AND">todas (Y)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="conditions" id="conditions"></div>
+
+        <div class="composer-actions">
+          <button class="btn btn-small" id="addConditionBtn" type="button">＋ Condición</button>
+          <button class="btn btn-small btn-amber" id="suggestQuestionBtn" type="button">✨ Sugerir pregunta</button>
+          <button class="btn btn-primary" id="askBtn" type="button">Preguntar a CPU</button>
+          <button class="btn btn-danger" id="accuseBtn" type="button">Acusar</button>
+        </div>
+
+        <div class="preview" id="questionPreview">
+          <strong>Elige una característica y un valor.</strong>
+          <div class="split" id="splitPreview"></div>
+        </div>
+        <div id="answerBanner" class="answer-banner" hidden></div>
+      </div>
+
+      <div class="panel-head">
+        <h2 id="boardTitle">Tu tablero</h2>
+        <div class="counter"><b id="humanCandidateCount">24</b> posibles</div>
+      </div>
+      <div class="board-tools">
+        <input id="boardSearch" type="search" placeholder="Buscar personaje…" aria-label="Buscar personaje">
+        <button class="btn btn-small" id="showActiveBtn" type="button">Solo posibles</button>
+        <button class="btn btn-small" id="restoreManualBtn" type="button">Restaurar ocultos</button>
+      </div>
+      <div class="board" id="board" aria-label="Tablero de personajes"></div>
+    </section>
+
+    <aside class="panel side-panel">
+      <div class="your-card">
+        <div class="your-photo" id="yourPhoto"><span id="yourPhotoPlaceholder">Tu personaje</span><img id="yourImg" alt="Tu personaje"></div>
+        <div class="your-name" id="yourName">Sin elegir</div>
+        <div class="stats">
+          <div class="stat"><small>Ronda</small><b id="roundStat">1</b></div>
+          <div class="stat"><small>Modo</small><b id="modeStat">1</b></div>
+        </div>
+        <div style="display:grid;gap:8px;margin-top:10px">
+          <label class="subtle" for="gameMode">Modo de partida</label>
+          <select id="gameMode">
+            <option value="single">Partida única</option>
+            <option value="first5">Primero a 5</option>
+          </select>
+          <button class="btn" id="newRoundBtn" type="button">Nueva ronda</button>
+        </div>
+      </div>
+      <div>
+        <div class="panel-head"><h3>Historial</h3><button class="btn btn-small btn-ghost" id="clearHistoryBtn" type="button">Limpiar</button></div>
+        <div class="history" id="history"><div class="history-empty">Aún no hay preguntas.</div></div>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="pickDialog">
+    <div class="dialog-head">
+      <h2>Elige tu personaje</h2>
+      <button class="icon-btn" id="randomPickBtn" type="button" title="Elegir al azar">🎲</button>
+    </div>
+    <div class="dialog-body">
+      <div class="subtle" style="margin-bottom:10px">La CPU no verá esta carta. En móvil quedará visible arriba para que puedas responder sus preguntas.</div>
+      <div class="picker" id="picker"></div>
+    </div>
+  </dialog>
+
+  <dialog id="accuseDialog">
+    <div class="dialog-head">
+      <h2>¿A quién acusas?</h2>
+      <button class="icon-btn" data-close="accuseDialog" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="dialog-body">
+      <input id="accuseSearch" type="search" placeholder="Buscar nombre…" style="width:100%;margin-bottom:10px">
+      <div class="picker" id="accusePicker"></div>
+    </div>
+    <div class="dialog-actions">
+      <span class="subtle" id="accuseSelection" style="margin-right:auto;align-self:center">Selecciona un personaje</span>
+      <button class="btn" data-close="accuseDialog" type="button">Cancelar</button>
+      <button class="btn btn-danger" id="confirmAccuseBtn" type="button" disabled>Confirmar acusación</button>
+    </div>
+  </dialog>
+
+  <dialog id="endDialog">
+    <div class="dialog-head"><h2 id="endTitle">Fin de ronda</h2><button class="icon-btn" data-close="endDialog" type="button">×</button></div>
+    <div class="dialog-body" id="endBody"></div>
+    <div class="dialog-actions"><button class="btn btn-primary" id="endNewRoundBtn" type="button">Nueva ronda</button></div>
+  </dialog>
+
+  <dialog id="helpDialog">
+    <div class="dialog-head"><h2>Cómo jugar</h2><button class="icon-btn" data-close="helpDialog" type="button">×</button></div>
+    <div class="dialog-body">
+      <div class="help-grid">
+        <div class="help-box"><b>1 · Elige tu carta</b>La CPU intentará descubrirla con preguntas de Sí/No.</div>
+        <div class="help-box"><b>2 · Haz preguntas</b>Puedes combinar hasta 3 condiciones con <b>O</b> o <b>Y</b>.</div>
+        <div class="help-box"><b>3 · El tablero se filtra solo</b>Tras cada respuesta de la CPU, los incompatibles quedan descartados automáticamente.</div>
+        <div class="help-box"><b>4 · Acusa cuando quieras</b>La acusación ahora se hace visualmente sobre los candidatos restantes, sin escribir nombres.</div>
+        <div class="help-box"><b>✨ Sugerir pregunta</b>Busca una característica que divida los candidatos actuales lo más cerca posible de 50/50.</div>
+        <div class="help-box"><b>Datos incompletos</b>Los atributos que no existen para todos los personajes no se usan para tomar decisiones, evitando falsas conclusiones.</div>
+      </div>
+      <p style="margin:14px 0 0"><a href="estrategia_guess_who.html" style="color:var(--blue)">Ver información / estrategia completa →</a></p>
+    </div>
+  </dialog>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+  <div id="footer"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const JSON_CANDIDATES = [
+    '../json/guess_who.json',
+    '../json/guess_who.json',
+    '..//vet/json/guess_who.json',
+    '..//json/guess_who.json'
+  ];
+  const MAX_CONDITIONS = 3;
+  const YES = 'Sí';
+
+  const $ = (s, root=document) => root.querySelector(s);
+  const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+  const esc = (value='') => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  let DATA = [];
+  let byName = new Map();
+  let FEATURES = [];
+  let COMPLETE_FEATURES = [];
+
+  const state = {
+    mode:'single',
+    score:{human:0,cpu:0},
+    round:0,
+    nextStarter:'cpu',
+    turn:'setup',
+    ended:false,
+    cpuSecret:null,
+    humanSecret:null,
+    cpuCandidates:new Set(),      // quién cree la CPU que es el humano
+    humanCandidates:new Set(),    // quién puede ser la CPU según sus respuestas
+    manualHidden:new Set(),
+    conditions:[{feature:'',value:''}],
+    logic:'OR',
+    history:[],
+    showOnlyActive:false,
+    accusation:null,
+    pendingCpuQuestion:null
+  };
+
+  async function loadData(){
+    let lastError = null;
+    for(const path of JSON_CANDIDATES){
+      try{
+        const res = await fetch(`${path}${path.includes('?')?'&':'?'}v=${Date.now()}`, {cache:'no-store'});
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if(!Array.isArray(json) || !json.length) throw new Error('JSON vacío');
+        if(!json.every(x => x && typeof x.Nombre === 'string' && typeof x.URL === 'string')) throw new Error('Faltan Nombre o URL');
+
+        DATA = json;
+        byName = new Map(DATA.map(p => [p.Nombre,p]));
+        FEATURES = [...new Set(DATA.flatMap(Object.keys))].filter(k => !['Nombre','URL'].includes(k));
+        COMPLETE_FEATURES = FEATURES.filter(f => DATA.every(p => p[f] !== undefined && p[f] !== null && p[f] !== ''));
+        console.info('[Quién es Quién] datos:', DATA.length, 'desde', path, 'atributos útiles:', COMPLETE_FEATURES.length);
+        return;
+      }catch(err){ lastError = err; }
+    }
+    const hint = location.protocol === 'file:' ? ' Abre la carpeta con un servidor local; fetch no funciona correctamente desde file://.' : '';
+    throw new Error(`No se pudo cargar /json/guess_who.json. ${lastError?.message || ''}${hint}`);
+  }
+
+  function allNames(){ return DATA.map(p => p.Nombre); }
+  function setTurn(turn){
+    state.turn = turn;
+    const labels = {setup:'Preparación',cpu:'Turno CPU',human:'Tu turno',end:'Fin'};
+    $('#turnText').textContent = labels[turn] || turn;
+    const cpuCanAnswer = turn === 'cpu' && !!state.pendingCpuQuestion && !state.ended;
+    $('#yesBtn').disabled = !cpuCanAnswer;
+    $('#noBtn').disabled = !cpuCanAnswer;
+    $('#askBtn').disabled = !(turn === 'human' && state.humanSecret && !state.ended);
+    $('#suggestQuestionBtn').disabled = !(turn === 'human' && !state.ended);
+    $('#accuseBtn').disabled = !(turn === 'human' && state.humanSecret && !state.ended);
+    $('#addConditionBtn').disabled = !(turn === 'human' && !state.ended) || state.conditions.length >= MAX_CONDITIONS;
+    $('#logicMode').disabled = !(turn === 'human' && !state.ended);
+  }
+
+  function toast(message){
+    const el = document.createElement('div');
+    el.className = 'toast'; el.textContent = message;
+    $('#toastRegion').appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+
+  function describePredicate({feature,value}){
+    const f = feature, v = value;
+    const map = {
+      'Gafas':x=>x===YES?'lleva gafas':'no lleva gafas',
+      'Sombrero':x=>x===YES?'lleva sombrero':'no lleva sombrero',
+      'Pendientes':x=>x===YES?'lleva pendientes':'no lleva pendientes',
+      'bigote':x=>x===YES?'tiene bigote':'no tiene bigote',
+      'Barba':x=>x===YES?'tiene barba':'no tiene barba',
+      'Sonrisa':x=>x===YES?'sonríe':'no sonríe',
+      'Mentón con hoyuelo':x=>x===YES?'tiene hoyuelo en el mentón':'no tiene hoyuelo en el mentón',
+      'Mejillas sonrosadas':x=>x===YES?'tiene mejillas sonrosadas':'no tiene mejillas sonrosadas',
+      'Género':x=>x==='Hombre'?'es hombre':'es mujer',
+      'Peinado':x=>x==='Calvo'?'es calvo':`tiene el pelo ${String(x).toLowerCase()}`,
+      'Color de cabello':x=>`tiene el pelo ${String(x).toLowerCase()}`,
+      'Color de los ojos':x=>`tiene los ojos ${String(x).toLowerCase()}`,
+      'Cejas':x=>`tiene las cejas ${String(x).toLowerCase()}`,
+      'Nariz':x=>`tiene la nariz ${String(x).toLowerCase()}`,
+      'Labios':x=>`tiene los labios ${String(x).toLowerCase()}`
+    };
+    return map[f] ? map[f](v) : `${f}: ${v}`;
+  }
+
+  function usefulFeatures(candidatesSet){
+    const names = [...candidatesSet];
+    return COMPLETE_FEATURES.filter(f => {
+      const values = new Set(names.map(n => byName.get(n)?.[f]));
+      return values.size >= 2;
+    });
+  }
+
+  function valuesFor(feature, candidatesSet){
+    return [...new Set([...candidatesSet].map(n => byName.get(n)?.[feature]).filter(v => v !== undefined && v !== null && v !== ''))]
+      .sort((a,b) => String(a).localeCompare(String(b),'es'));
+  }
+
+  function predicateSet(candidatesSet, predicate){
+    return new Set([...candidatesSet].filter(n => byName.get(n)?.[predicate.feature] === predicate.value));
+  }
+
+  function combinePredicates(candidatesSet, predicates, logic){
+    if(!predicates.length) return new Set();
+    return new Set([...candidatesSet].filter(name => {
+      const p = byName.get(name);
+      const checks = predicates.map(x => p?.[x.feature] === x.value);
+      return logic === 'AND' ? checks.every(Boolean) : checks.some(Boolean);
+    }));
+  }
+
+  function bestSingleQuestion(candidatesSet){
+    const names = [...candidatesSet];
+    const n = names.length;
+    if(n < 2) return null;
+    let best = null;
+    for(const feature of usefulFeatures(candidatesSet)){
+      for(const value of valuesFor(feature,candidatesSet)){
+        const set = predicateSet(candidatesSet,{feature,value});
+        const yes = set.size, no = n - yes;
+        if(!yes || !no) continue;
+        const imbalance = Math.abs(yes - no);
+        const score = imbalance + (yes === 1 || no === 1 ? .15 : 0);
+        if(!best || score < best.score) best = {feature,value,set,yes,no,score};
+      }
+    }
+    return best;
+  }
+
+  function bestCpuQuestion(){
+    // Pregunta simple y legible. Evita atributos incompletos y busca el corte más cercano a 50/50.
+    return bestSingleQuestion(state.cpuCandidates);
+  }
+
+  function renderScores(){
+    $('#humanScore').textContent = state.score.human;
+    $('#cpuScore').textContent = state.score.cpu;
+    $('#roundText').textContent = `Ronda ${Math.max(state.round,1)}`;
+    $('#roundStat').textContent = Math.max(state.round,1);
+    $('#modeStat').textContent = state.mode === 'first5' ? 'a 5' : '1';
+  }
+
+  function renderSecret(){
+    const img = $('#yourImg'), mobileImg = $('#mobileSecretImg');
+    if(state.humanSecret){
+      img.src = state.humanSecret.URL; img.style.display = 'block'; $('#yourPhotoPlaceholder').style.display = 'none';
+      mobileImg.src = state.humanSecret.URL; mobileImg.style.display = 'block';
+      $('#yourName').textContent = state.humanSecret.Nombre;
+      $('#mobileSecretName').textContent = state.humanSecret.Nombre;
+    }else{
+      img.removeAttribute('src'); img.style.display = 'none'; $('#yourPhotoPlaceholder').style.display = '';
+      mobileImg.removeAttribute('src'); mobileImg.style.display = 'none';
+      $('#yourName').textContent = 'Sin elegir'; $('#mobileSecretName').textContent = 'Elige tu personaje';
+    }
+  }
+
+  function renderCpuSecret(reveal=false){
+    const card = $('#cpuSecretCard');
+    if(reveal && state.cpuSecret){
+      card.classList.add('revealed'); card.style.backgroundImage = `url("${state.cpuSecret.URL}")`; card.textContent = '';
+      $('#cpuSecretName').textContent = state.cpuSecret.Nombre;
+    }else{
+      card.classList.remove('revealed'); card.style.backgroundImage = ''; card.textContent = '?';
+      $('#cpuSecretName').textContent = 'Personaje oculto';
+    }
+  }
+
+  function renderCpuCandidates(){
+    const grid = $('#cpuCandidateGrid'); grid.innerHTML = '';
+    const names = [...state.cpuCandidates].sort((a,b)=>a.localeCompare(b,'es'));
+    $('#cpuCandidateCount').textContent = `${names.length} candidato${names.length===1?'':'s'}`;
+    for(const name of names){
+      const p = byName.get(name);
+      const div = document.createElement('div'); div.className='mini-card';
+      div.innerHTML = `<img src="${esc(p.URL)}" alt="${esc(name)}" loading="lazy" decoding="async"><span>${esc(name)}</span>`;
+      grid.appendChild(div);
+    }
+  }
+
+  function isAutoOff(name){ return !state.humanCandidates.has(name); }
+
+  function renderBoard(){
+    const board = $('#board');
+    const search = $('#boardSearch').value.trim().toLowerCase();
+    board.innerHTML = '';
+    let shown = 0;
+    for(const p of DATA){
+      const name = p.Nombre;
+      const active = state.humanCandidates.has(name);
+      if(state.showOnlyActive && !active) continue;
+      if(search && !name.toLowerCase().includes(search)) continue;
+      shown++;
+      const button = document.createElement('button');
+      button.type='button'; button.className='person-card'; button.dataset.name=name;
+      if(isAutoOff(name)) button.classList.add('auto-off');
+      else if(state.manualHidden.has(name)) button.classList.add('manual-off');
+      button.innerHTML = `<img src="${esc(p.URL)}" alt="${esc(name)}" loading="lazy" decoding="async"><div class="person-name">${esc(name)}</div>`;
+      button.addEventListener('click', () => {
+        if(isAutoOff(name)){ toast('Ese personaje ya fue descartado por una respuesta de la CPU.'); return; }
+        if(state.manualHidden.has(name)) state.manualHidden.delete(name); else state.manualHidden.add(name);
+        renderBoard();
+      });
+      board.appendChild(button);
+    }
+    $('#humanCandidateCount').textContent = state.humanCandidates.size;
+    $('#showActiveBtn').textContent = state.showOnlyActive ? 'Mostrar todos' : 'Solo posibles';
+    if(!shown){ board.innerHTML = '<div class="subtle" style="grid-column:1/-1;padding:20px;text-align:center">No hay resultados con ese filtro.</div>'; }
+  }
+
+  function renderPicker(){
+    const picker = $('#picker'); picker.innerHTML='';
+    for(const p of DATA){
+      const btn=document.createElement('button'); btn.type='button'; btn.className='person-card';
+      btn.innerHTML=`<img src="${esc(p.URL)}" alt="${esc(p.Nombre)}"><div class="person-name">${esc(p.Nombre)}</div>`;
+      btn.addEventListener('click',()=>chooseHumanSecret(p));
+      picker.appendChild(btn);
+    }
+  }
+
+  function chooseHumanSecret(person){
+    state.humanSecret = person;
+    renderSecret();
+    $('#pickDialog').close();
+    if(state.turn === 'setup'){
+      const starter = state.nextStarter;
+      state.nextStarter = starter === 'cpu' ? 'human' : 'cpu';
+      if(starter === 'cpu'){
+        setTurn('cpu');
+        setTimeout(cpuAsk,260);
+      }else{
+        setTurn('human');
+        $('#cpuQuestion').textContent='Empiezas tú. Formula una pregunta.';
+      }
+    }
+  }
+
+  function normalizedConditions(){
+    return state.conditions.filter(c => c.feature && c.value !== '');
+  }
+
+  function refreshConditionRows(){
+    const host = $('#conditions'); host.innerHTML='';
+    const featurePool = usefulFeatures(state.humanCandidates);
+    if(!featurePool.length){
+      host.innerHTML='<div class="subtle">No quedan atributos útiles para preguntar.</div>';
+      updatePreview(); return;
+    }
+
+    state.conditions.forEach((condition,index)=>{
+      if(!featurePool.includes(condition.feature)) condition.feature = featurePool[0] || '';
+      const vals = valuesFor(condition.feature,state.humanCandidates);
+      if(!vals.includes(condition.value)) condition.value = vals[0] ?? '';
+
+      const row=document.createElement('div'); row.className='condition-row';
+      const feat=document.createElement('select'); feat.className='cond-feature'; feat.setAttribute('aria-label',`Característica ${index+1}`);
+      feat.innerHTML=featurePool.map(f=>`<option value="${esc(f)}" ${f===condition.feature?'selected':''}>${esc(f)}</option>`).join('');
+      const val=document.createElement('select'); val.className='cond-value'; val.setAttribute('aria-label',`Valor ${index+1}`);
+      val.innerHTML=vals.map(v=>`<option value="${esc(v)}" ${v===condition.value?'selected':''}>${esc(v)}</option>`).join('');
+      const remove=document.createElement('button'); remove.type='button'; remove.className='remove-condition'; remove.textContent='×'; remove.title='Eliminar condición'; remove.disabled=state.conditions.length===1;
+
+      feat.addEventListener('change',()=>{
+        state.conditions[index].feature=feat.value;
+        state.conditions[index].value=valuesFor(feat.value,state.humanCandidates)[0] ?? '';
+        refreshConditionRows();
+      });
+      val.addEventListener('change',()=>{state.conditions[index].value=val.value;updatePreview();});
+      remove.addEventListener('click',()=>{state.conditions.splice(index,1);refreshConditionRows();});
+      row.append(feat,val,remove); host.appendChild(row);
+    });
+    $('#addConditionBtn').disabled = state.conditions.length>=MAX_CONDITIONS || state.turn!=='human';
+    updatePreview();
+  }
+
+  function updatePreview(){
+    const predicates=normalizedConditions();
+    const strong=$('#questionPreview strong'); const split=$('#splitPreview');
+    if(!predicates.length){ strong.textContent='Elige una característica y un valor.'; split.innerHTML=''; return; }
+    const connector = state.logic==='AND' ? ' y ' : ' o ';
+    strong.textContent='¿Tu personaje ' + predicates.map(describePredicate).join(connector) + '?';
+    const yesSet=combinePredicates(state.humanCandidates,predicates,state.logic);
+    const yes=yesSet.size, no=state.humanCandidates.size-yes;
+    const quality = Math.min(yes,no) / Math.max(1,state.humanCandidates.size);
+    split.innerHTML=`<span>Si responde <b>Sí</b>: ${yes}</span><span>Si responde <b>No</b>: ${no}</span><span>${quality>=.35?'Buen corte':quality>=.2?'Corte aceptable':'Corte poco eficiente'}</span>`;
+  }
+
+  function humanAsk(){
+    if(state.turn!=='human' || state.ended) return;
+    const predicates=normalizedConditions();
+    if(!predicates.length){toast('Añade una condición.');return;}
+    const matches = state.logic==='AND'
+      ? predicates.every(p=>state.cpuSecret?.[p.feature]===p.value)
+      : predicates.some(p=>state.cpuSecret?.[p.feature]===p.value);
+    const set=combinePredicates(state.humanCandidates,predicates,state.logic);
+    state.humanCandidates = new Set([...state.humanCandidates].filter(n=>matches ? set.has(n) : !set.has(n)));
+    state.manualHidden = new Set([...state.manualHidden].filter(n=>state.humanCandidates.has(n)));
+
+    const connector = state.logic==='AND'?' y ':' o ';
+    const text='¿Tu personaje ' + predicates.map(describePredicate).join(connector) + '?';
+    state.history.unshift({who:'Tú',question:text,answer:matches?'Sí':'No'});
+    renderHistory(); renderBoard();
+
+    const banner=$('#answerBanner'); banner.hidden=false; banner.className='answer-banner '+(matches?'yes':'no');
+    banner.innerHTML=`<span>CPU responde: <b>${matches?'Sí':'No'}</b></span><span>${state.humanCandidates.size} posible${state.humanCandidates.size===1?'':'s'}</span>`;
+
+    if(state.humanCandidates.size===1){
+      toast('Solo queda un candidato. Puedes acusar.');
+    }
+    setTurn('cpu');
+    $('#cpuQuestion').textContent='Pensando la siguiente pregunta…';
+    setTimeout(cpuAsk,420);
+  }
+
+  function cpuAsk(){
+    if(state.ended || !state.humanSecret) return;
+    if(state.cpuCandidates.size<=1){ cpuGuess(); return; }
+    const q=bestCpuQuestion();
+    if(!q){ cpuGuess(); return; }
+    state.pendingCpuQuestion=q;
+    $('#cpuQuestion').textContent='¿Tu personaje ' + describePredicate(q) + '?';
+    setTurn('cpu');
+  }
+
+  function answerCpu(isYes){
+    if(state.turn!=='cpu' || !state.pendingCpuQuestion || state.ended) return;
+    const q=state.pendingCpuQuestion;
+    const set=q.set;
+    state.cpuCandidates = new Set([...state.cpuCandidates].filter(n=>isYes ? set.has(n) : !set.has(n)));
+    const qText='¿Tu personaje ' + describePredicate(q) + '?';
+    state.history.unshift({who:'CPU',question:qText,answer:isYes?'Sí':'No'});
+    state.pendingCpuQuestion=null;
+    renderCpuCandidates(); renderHistory();
+    if(state.cpuCandidates.size<=1){ cpuGuess(); return; }
+    setTurn('human');
+    $('#cpuQuestion').textContent='Tu turno. Formula una pregunta.';
+    refreshConditionRows();
+  }
+
+  function cpuGuess(){
+    if(state.ended) return;
+    let guessName=[...state.cpuCandidates][0];
+    if(!guessName) guessName=DATA[Math.floor(Math.random()*DATA.length)].Nombre;
+    const correct=guessName===state.humanSecret?.Nombre;
+    endRound(correct?'cpu':'human',`La CPU acusa a <b>${esc(guessName)}</b>. ${correct?'Ha acertado.':'Ha fallado.'}`);
+  }
+
+  function suggestQuestion(){
+    const best=bestSingleQuestion(state.humanCandidates);
+    if(!best){toast('No hay una pregunta discriminante disponible.');return;}
+    state.conditions=[{feature:best.feature,value:best.value}]; state.logic='OR'; $('#logicMode').value='OR';
+    refreshConditionRows();
+    toast(`Sugerencia: divide ${best.yes}/${best.no}.`);
+  }
+
+  function renderHistory(){
+    const host=$('#history'); host.innerHTML='';
+    if(!state.history.length){host.innerHTML='<div class="history-empty">Aún no hay preguntas.</div>';return;}
+    state.history.slice(0,16).forEach(item=>{
+      const div=document.createElement('div');div.className='history-item';
+      div.innerHTML=`<b>${esc(item.who)} · ${esc(item.answer)}</b>${esc(item.question)}`;
+      host.appendChild(div);
+    });
+  }
+
+  function openAccusation(){
+    if(state.turn!=='human' || state.ended) return;
+    state.accusation=null; $('#accuseSearch').value=''; $('#confirmAccuseBtn').disabled=true; $('#accuseSelection').textContent='Selecciona un personaje';
+    renderAccusePicker(); $('#accuseDialog').showModal();
+  }
+
+  function renderAccusePicker(){
+    const host=$('#accusePicker');host.innerHTML='';
+    const q=$('#accuseSearch').value.trim().toLowerCase();
+    let names=[...state.humanCandidates];
+    if(!names.length) names=allNames();
+    names=names.filter(n=>!q || n.toLowerCase().includes(q)).sort((a,b)=>a.localeCompare(b,'es'));
+    for(const name of names){
+      const p=byName.get(name);const btn=document.createElement('button');btn.type='button';btn.className='person-card'+(state.accusation===name?' selected':'');
+      btn.innerHTML=`<img src="${esc(p.URL)}" alt="${esc(name)}"><div class="person-name">${esc(name)}</div>`;
+      btn.addEventListener('click',()=>{state.accusation=name;$('#accuseSelection').textContent=`Seleccionado: ${name}`;$('#confirmAccuseBtn').disabled=false;renderAccusePicker();});
+      host.appendChild(btn);
+    }
+  }
+
+  function confirmAccusation(){
+    if(!state.accusation) return;
+    const correct=state.accusation===state.cpuSecret?.Nombre;
+    $('#accuseDialog').close();
+    endRound(correct?'human':'cpu',`Acusas a <b>${esc(state.accusation)}</b>. ${correct?'Has acertado.':'No era ese personaje.'}`);
+  }
+
+  function endRound(winner, detail){
+    if(state.ended) return;
+    state.ended=true; setTurn('end'); renderCpuSecret(true);
+    if(winner==='human') state.score.human++; else state.score.cpu++;
+    renderScores();
+
+    const champion = state.mode==='first5' && (state.score.human>=5 || state.score.cpu>=5);
+    $('#endTitle').textContent = winner==='human' ? 'Ganas la ronda' : 'La CPU gana la ronda';
+    $('#endBody').innerHTML=`
+      <div style="display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center">
+        <img src="${esc(state.cpuSecret.URL)}" alt="${esc(state.cpuSecret.Nombre)}" style="width:110px;height:140px;object-fit:contain;background:#081425;border:1px solid var(--line);border-radius:14px">
+        <div><p style="margin-top:0">${detail}</p><p>El personaje de la CPU era <b>${esc(state.cpuSecret.Nombre)}</b>.</p>${champion?`<p><b>${state.score.human>=5?'Has ganado':'La CPU ha ganado'} el campeonato.</b> 🎉</p>`:''}</div>
+      </div>`;
+    $('#endNewRoundBtn').textContent=champion?'Reiniciar campeonato':'Nueva ronda';
+    $('#endDialog').showModal();
+  }
+
+  function newRound(forceResetChampionship=false){
+    if(!DATA.length) return;
+    if(forceResetChampionship || (state.mode==='first5' && (state.score.human>=5 || state.score.cpu>=5))){state.score={human:0,cpu:0};}
+    state.round++;
+    state.ended=false;
+    state.cpuSecret=DATA[Math.floor(Math.random()*DATA.length)];
+    state.humanSecret=null;
+    state.cpuCandidates=new Set(allNames());
+    state.humanCandidates=new Set(allNames());
+    state.manualHidden.clear();
+    state.conditions=[{feature:COMPLETE_FEATURES[0] || '',value:''}];
+    state.logic='OR'; state.accusation=null; state.pendingCpuQuestion=null;
+    $('#logicMode').value='OR'; $('#answerBanner').hidden=true; $('#boardSearch').value=''; state.showOnlyActive=false;
+    renderScores(); renderSecret(); renderCpuSecret(false); renderCpuCandidates(); renderBoard(); refreshConditionRows();
+    setTurn('setup'); $('#cpuQuestion').textContent='Elige tu personaje para empezar.';
+    $('#pickDialog').showModal();
+  }
+
+  function bindEvents(){
+    $('#yesBtn').addEventListener('click',()=>answerCpu(true));
+    $('#noBtn').addEventListener('click',()=>answerCpu(false));
+    $('#askBtn').addEventListener('click',humanAsk);
+    $('#suggestQuestionBtn').addEventListener('click',suggestQuestion);
+    $('#addConditionBtn').addEventListener('click',()=>{
+      if(state.turn!=='human' || state.ended || state.conditions.length>=MAX_CONDITIONS) return;
+      const features=usefulFeatures(state.humanCandidates); const feature=features[0]||'';
+      state.conditions.push({feature,value:valuesFor(feature,state.humanCandidates)[0]??''}); refreshConditionRows();
+    });
+    $('#logicMode').addEventListener('change',e=>{state.logic=e.target.value;updatePreview();});
+    $('#accuseBtn').addEventListener('click',openAccusation);
+    $('#confirmAccuseBtn').addEventListener('click',confirmAccusation);
+    $('#accuseSearch').addEventListener('input',renderAccusePicker);
+    $('#boardSearch').addEventListener('input',renderBoard);
+    $('#showActiveBtn').addEventListener('click',()=>{state.showOnlyActive=!state.showOnlyActive;renderBoard();});
+    $('#restoreManualBtn').addEventListener('click',()=>{state.manualHidden.clear();renderBoard();toast('Ocultaciones manuales restauradas.');});
+    $('#newRoundBtn').addEventListener('click',()=>newRound(false));
+    $('#endNewRoundBtn').addEventListener('click',()=>{$('#endDialog').close();newRound(false);});
+    $('#randomPickBtn').addEventListener('click',()=>chooseHumanSecret(DATA[Math.floor(Math.random()*DATA.length)]));
+    $('#helpBtn').addEventListener('click',()=>$('#helpDialog').showModal());
+    $('#clearHistoryBtn').addEventListener('click',()=>{state.history=[];renderHistory();});
+    $('#gameMode').addEventListener('change',e=>{state.mode=e.target.value;state.score={human:0,cpu:0};renderScores();toast(state.mode==='first5'?'Modo: primero a 5':'Modo: partida única');});
+    $$('[data-close]').forEach(btn=>btn.addEventListener('click',()=>$('#'+btn.dataset.close).close()));
+  }
+
+  async function loadFooter(){
+    try{
+      const res=await fetch('footer.html',{cache:'no-store'}); if(!res.ok) return;
+      $('#footer').innerHTML=await res.text();
+    }catch(_){/* footer opcional */}
+  }
+
+  async function init(){
+    try{
+      await loadData();
+      renderPicker(); bindEvents(); renderScores(); renderHistory();
+      newRound(); loadFooter();
+    }catch(err){
+      console.error(err);
+      document.body.innerHTML=`<main style="max-width:720px;margin:50px auto;padding:24px;font-family:system-ui;color:white"><h1>No se pudo iniciar el juego</h1><p>${esc(err.message)}</p><p>Comprueba que el HTML esté en el repositorio y que exista <code>/json/guess_who.json</code>.</p></main>`;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>
