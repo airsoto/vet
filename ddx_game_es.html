@@ -1,0 +1,1021 @@
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Juego Diagnósticos diferenciales | Ángel Soto</title>
+
+  <script defer src="goat.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --card:#111826;
+      --text:#e9eef6;
+      --muted:#a7b3c7;
+      --accent:#ff9900;
+      --line:rgba(255,255,255,.10);
+      --good:#27d17f;
+      --bad:#ff5a6a;
+      --miss:#ffb347;
+      --shadow: 0 10px 26px rgba(0,0,0,.38);
+
+      --tap: 48px;
+      --r: 18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1100px 650px at 20% 0%, rgba(255,153,0,.10), transparent 60%),
+        radial-gradient(900px 600px at 90% 10%, rgba(80,170,255,.08), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x:hidden;
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
+    }
+
+    h1{
+      margin:0;
+      font-size: clamp(20px, 4.6vw, 30px);
+      letter-spacing:.2px;
+      line-height:1.15;
+    }
+
+    /* ===== HUD ===== */
+    .hud{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .pill{
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 12px;
+      min-width:110px;
+      box-shadow: var(--shadow);
+    }
+    .pillTitle{font-size:12px; color:var(--muted)}
+    .pillValue{font-size:18px; font-weight:800; margin-top:2px}
+
+    /* ===== Cards ===== */
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius: var(--r);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(4px);
+    }
+    .main{
+      display:grid;
+      gap:14px;
+      margin-top:14px;
+    }
+
+    .muted{color:var(--muted)}
+    .hidden{display:none !important}
+
+    /* ===== Modes ===== */
+    .modes{display:grid; gap:10px; margin-top:6px}
+    .radio{
+      display:flex; gap:10px; align-items:flex-start;
+      padding:10px;
+      background:rgba(0,0,0,.15);
+      border:1px solid var(--line);
+      border-radius:14px;
+    }
+    .radio input{margin-top:3px; min-width:18px; min-height:18px}
+
+    .specPanel{
+      margin-top:10px;
+      padding:12px;
+      background:rgba(0,0,0,.12);
+      border:1px dashed rgba(255,255,255,.18);
+      border-radius:16px;
+    }
+    .specHeader{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    .specButtons{display:flex; gap:8px; flex-wrap:wrap}
+
+    .specList{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap:8px;
+    }
+    .chk{
+      display:flex; gap:10px; align-items:center;
+      padding:10px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      min-height: var(--tap);
+    }
+    .chk input{transform:scale(1.12); min-width:18px; min-height:18px}
+    .chk .label{font-weight:700}
+    .chk .count{margin-left:auto; color:var(--muted); font-size:12px}
+
+    /* ===== Controls / Buttons ===== */
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .btn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding: 12px 14px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:800;
+      min-height: var(--tap);
+      min-width: min(180px, 100%);
+      transition: .15s transform, .15s opacity, .15s background;
+      touch-action: manipulation;
+    }
+    .btn:hover{transform:translateY(-1px); background:rgba(255,255,255,.07)}
+    .btn:active{transform:translateY(0)}
+    .btn:disabled{opacity:.45; cursor:not-allowed; transform:none}
+
+    .btn.primary{
+      border-color: rgba(255,153,0,.45);
+      background: rgba(255,153,0,.14);
+    }
+    .btn.ghost{background:transparent; min-width:auto; padding:10px 12px}
+    .btn.danger{
+      border-color: rgba(255,90,106,.45);
+      background: rgba(255,90,106,.12);
+    }
+
+    /* ===== Quiz header ===== */
+    .quizHeader{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+    }
+    .kicker{font-size:12px; color:var(--muted); margin-bottom:4px}
+    .process{font-size: clamp(20px, 5.2vw, 24px); font-weight:950; letter-spacing:.2px; line-height:1.15}
+    .subrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+    .tag{
+      padding:7px 11px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.18);
+      font-size:13px;
+      line-height:1.1;
+      white-space:nowrap;
+    }
+
+    .legend{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      display:inline-block;
+      border:1px solid rgba(255,255,255,.25);
+    }
+    .dot.correct{background: rgba(39,209,127,.75)}
+    .dot.wrong{background: rgba(255,90,106,.75)}
+    .dot.missed{background: rgba(255,179,71,.75)}
+
+    /* ===== Prompt box (modo C) ===== */
+    .promptBox{
+      margin-top:12px;
+      padding:12px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.18);
+      line-height:1.35;
+    }
+    .promptBox ul{margin:8px 0 0 18px}
+    .promptBox li{margin:4px 0}
+
+    /* ===== Options grid ===== */
+    .grid{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+
+    @media (min-width: 640px){
+      .grid{ grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .btn{ min-width: 180px; }
+    }
+
+    .opt{
+      text-align:left;
+      padding:12px 12px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      cursor:pointer;
+      transition:.12s transform, .12s background, .12s border-color;
+      position:relative;
+      min-height: var(--tap);
+      line-height:1.25;
+      font-weight:650;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      color:#fff;
+    }
+    .opt:hover{transform:translateY(-1px); background:rgba(255,255,255,.06)}
+    .opt:active{transform:translateY(0)}
+    .opt.selected{
+      border-color: rgba(255,153,0,.55);
+      background: rgba(255,153,0,.10);
+      color:#fff;
+    }
+    .opt.locked{cursor:default}
+    .opt.locked:hover{transform:none}
+
+    .opt.good{
+      border-color: rgba(39,209,127,.65);
+      background: rgba(39,209,127,.12);
+      color:#fff;
+    }
+    .opt.bad{
+      border-color: rgba(255,90,106,.7);
+      background: rgba(255,90,106,.12);
+      color:#fff;
+    }
+    .opt.missed{
+      border-color: rgba(255,179,71,.65);
+      background: rgba(255,179,71,.10);
+      color:#fff;
+    }
+
+    .note{margin-top:10px; font-size:13px; line-height:1.35}
+
+    .quizActions{
+      position:sticky;
+      bottom:max(10px, env(safe-area-inset-bottom));
+      z-index:10;
+      display:flex;
+      gap:10px;
+      margin-top:16px;
+      padding:10px;
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:16px;
+      background:rgba(11,15,20,.94);
+      box-shadow:0 10px 30px rgba(0,0,0,.55);
+      backdrop-filter:blur(10px);
+    }
+    .quizActions .btn{flex:1; min-width:0}
+    .status{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+    }
+    .status.error{border-color:rgba(255,90,106,.55); color:#ffd8dc}
+    .opt:focus-visible,.btn:focus-visible,.radio:focus-within,.chk:focus-within{
+      outline:3px solid rgba(255,153,0,.9);
+      outline-offset:3px;
+    }
+    @media (max-width: 520px){
+      .quizActions{margin-left:-4px; margin-right:-4px}
+      .quizActions .btn{padding:12px 8px}
+    }
+
+    /* ===== Final ===== */
+    .finalBox{
+      display:grid;
+      place-items:center;
+      padding:18px 12px;
+      border-radius:18px;
+      background:rgba(0,0,0,.18);
+      border:1px solid var(--line);
+    }
+    .finalScore{
+      font-size: clamp(44px, 11vw, 70px);
+      font-weight:1000;
+      letter-spacing:.6px;
+    }
+    .finalText{color:var(--muted); font-weight:800}
+    .finalImgWrap{margin-top:12px; display:grid; place-items:center;}
+    .finalImgWrap img{
+      width: 100%;
+      max-width: min(520px, 92vw);
+      border-radius:18px;
+      border:1px solid var(--line);
+      box-shadow: var(--shadow);
+      display:block;
+    }
+
+    /* ===== Footer ===== */
+    .footer{
+      margin-top:18px;
+      padding:16px 10px;
+      border-top:1px solid var(--line);
+      color:var(--muted);
+    }
+    .footer a{color:var(--text)}
+    .home a{color:var(--text); text-decoration:none}
+    .home a span{opacity:.9}
+    .home a:hover span{opacity:1; text-decoration:underline}
+
+    @media (prefers-reduced-motion: reduce){
+      *{transition:none !important; scroll-behavior:auto !important}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>Juego: Diagnósticos diferenciales (Perros y Gatos)</h1>
+<!-- BLOQUE DESARROLLADO POR + HOME + BOTÓN DDx -->
+<div class="devRow" style="margin:10px 0 0 0;">
+  <div>
+    <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+      <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+    </h2>
+    <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+      <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+        🏠 <span>volver a página de inicio</span>
+      </a>
+    </p>
+  </div>
+
+  <a class="btn ddxBtn"
+     href="https://airsoto.github.io/vet/mnemovetddx.html"
+     target="_blank"
+     rel="noopener"
+     title="Saber más sobre diagnósticos diferenciales">
+    <span class="ddxIcon" aria-hidden="true">🧠</span>
+    <span>Si quieres saber más sobre diagnósticos diferenciales, entra aquí</span>
+    <span class="ddxArrow" aria-hidden="true">↗</span>
+  </a>
+</div>
+      <div class="hud">
+        <div class="pill">
+          <div class="pillTitle">Pregunta</div>
+          <div class="pillValue" id="qCount">0</div>
+        </div>
+        <div class="pill">
+          <div class="pillTitle">Nota proceso</div>
+          <div class="pillValue" id="scoreLast">—</div>
+        </div>
+        <div class="pill">
+          <div class="pillTitle">Media</div>
+          <div class="pillValue" id="scoreAvg">—</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h3 style="margin:0 0 10px 0;">Modo de juego</h3>
+
+        <div class="modes">
+          <label class="radio">
+            <input type="radio" name="mode" value="random" checked>
+            <span><strong>A)</strong> Adivina los diagnósticos diferenciales (proceso al azar)</span>
+          </label>
+
+          <label class="radio">
+            <input type="radio" name="mode" value="selectSpec">
+            <span><strong>B)</strong> Elegir especialidades (preguntas solo de esas especialidades)</span>
+          </label>
+
+          <label class="radio">
+            <input type="radio" name="mode" value="guessProcess">
+            <span><strong>C)</strong> Se muestran los DDx de un proceso y eliges el proceso correcto (1 verdadero + 3 falsos)</span>
+          </label>
+        </div>
+
+        <div id="specPanel" class="specPanel hidden">
+          <div class="specHeader">
+            <div>
+              <h4 style="margin:0 0 6px 0;">Selecciona especialidades</h4>
+              <p class="muted" style="margin:0;">Si no marcas ninguna, se usarán todas.</p>
+            </div>
+            <div class="specButtons">
+              <button class="btn ghost" id="btnAll" type="button">Marcar todas</button>
+              <button class="btn ghost" id="btnNone" type="button">Ninguna</button>
+            </div>
+          </div>
+
+          <div id="specList" class="specList"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="btnStart" type="button" disabled>Empezar</button>
+          <button class="btn danger" id="btnFinish" type="button" disabled>Terminar examen</button>
+        </div>
+
+        <div class="status muted" id="dataStatus" role="status" aria-live="polite">
+          Cargando preguntas…
+        </div>
+
+        <p class="muted" style="margin:12px 0 0 0; font-size:13px;">
+          Puntuación: <strong>10 / nº DDx correctos</strong> por acierto, y <strong>-0.1</strong> por cada error marcado.
+        </p>
+      </section>
+
+      <section class="card hidden" id="quizCard" aria-live="polite">
+        <div class="quizHeader">
+          <div class="quizTitle">
+            <div class="kicker">Proceso</div>
+            <div class="process" id="processName">—</div>
+            <div class="subrow">
+              <span class="tag" id="specName">—</span>
+              <span class="tag" id="mnemo">—</span>
+            </div>
+          </div>
+
+          <div class="legend" id="legendBox">
+            <span class="dot correct"></span><span class="muted">Correcto</span>
+            <span class="dot wrong"></span><span class="muted">Error marcado</span>
+            <span class="dot missed"></span><span class="muted">Correcto no marcado</span>
+          </div>
+        </div>
+
+        <!-- Prompt dinámico (modo C muestra aquí los DDx) -->
+        <div class="promptBox hidden" id="promptBox"></div>
+
+        <div class="grid" id="optionsGrid"></div>
+
+        <div class="note muted" id="hint">
+          Selecciona las opciones que creas correctas y pulsa <strong>Resolver</strong>.
+        </div>
+
+        <div class="quizActions" id="quizActions">
+          <button class="btn primary" id="btnResolve" type="button" disabled>Resolver respuesta</button>
+          <button class="btn primary hidden" id="btnNext" type="button">Siguiente pregunta</button>
+        </div>
+      </section>
+
+      <section class="card hidden" id="finalCard">
+        <h3 style="margin:0 0 10px 0;">Resultado final</h3>
+        <div class="finalBox">
+          <div class="finalScore" id="finalScore">—</div>
+          <div class="finalText">Media del examen</div>
+        </div>
+        <div class="finalImgWrap">
+          <img id="finalImg" alt="resultado" />
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="btnRestart" type="button">Reiniciar</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+      <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+      <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+      <p><strong>_______________________________________________</strong></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+      <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.</p>
+      <p>_______________________________________________</p>
+    </footer>
+  </div>
+
+  <script>
+    const DATA_URL = "/json/dd_game_es.json";
+    let DDX_DATA = [];
+
+    // =======================
+    // Helpers
+    // =======================
+    const $ = (id) => document.getElementById(id);
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function uniq(arr){
+      return Array.from(new Set((arr || []).map(x => (x ?? "").toString().trim()).filter(Boolean)));
+    }
+
+    function normalizeSpec(s){
+      return (s ?? "").toString().trim();
+    }
+
+    function escapeHtml(str){
+      return (str ?? "").toString()
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function getSelectedMode(){
+      return document.querySelector('input[name="mode"]:checked')?.value || "random";
+    }
+
+    // ✅ DDx: array o string "a | b | c"
+    function parseDDxField(v){
+      if(Array.isArray(v)) return uniq(v);
+      const s = (v ?? "").toString().trim();
+      if(!s) return [];
+      return uniq(s.split("|").map(x => x.trim()).filter(Boolean));
+    }
+
+    function normalizeEntry(item){
+      return {
+        ...item,
+        Proceso: (item?.["Diagnóstico diferencial"] ?? item?.Proceso ?? "").toString().trim(),
+        dd_posibles: parseDDxField(item?.dd_posibles),
+        mnemotecnica: (item?.mnemotecnica ?? "").toString().trim()
+      };
+    }
+
+    async function loadData(){
+      const status = $("dataStatus");
+      try{
+        const response = await fetch(DATA_URL, {cache:"no-cache"});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const raw = await response.json();
+        if(!Array.isArray(raw)) throw new Error("la raíz del JSON no es una lista");
+        DDX_DATA = raw.map(normalizeEntry).filter(p => p.Proceso && p.dd_posibles.length);
+        if(!DDX_DATA.length) throw new Error("no hay entradas utilizables");
+        buildSpecialtiesPanel();
+        $("btnStart").disabled = false;
+        status.textContent = `${DDX_DATA.length} procesos cargados. Elige un modo y pulsa Empezar.`;
+      }catch(error){
+        status.classList.add("error");
+        status.innerHTML = `No se pudieron cargar las preguntas desde <code>${escapeHtml(DATA_URL)}</code>. Comprueba que el archivo existe y abre la web mediante un servidor.`;
+        console.error("Error cargando DDx:", error);
+      }
+    }
+
+    // =======================
+    // State
+    // =======================
+    let exam = {
+      asked: 0,
+      scores: [],
+      locked: false,
+      current: null,
+      allowedSpecs: null
+    };
+
+    // =======================
+    // Specialties panel
+    // =======================
+    function buildSpecialtiesPanel(){
+      const specCounts = new Map();
+      for(const p of DDX_DATA){
+        const s = normalizeSpec(p.especialidades);
+        if(!s) continue;
+        specCounts.set(s, (specCounts.get(s) || 0) + 1);
+      }
+
+      const specs = Array.from(specCounts.keys()).sort((a,b)=>a.localeCompare(b,'es'));
+      const list = $("specList");
+      list.innerHTML = "";
+
+      for(const s of specs){
+        const row = document.createElement("label");
+        row.className = "chk";
+        row.innerHTML = `
+          <input type="checkbox" class="specChk" value="${escapeHtml(s)}" checked>
+          <span class="label">${escapeHtml(s)}</span>
+          <span class="count">${specCounts.get(s)} procesos</span>
+        `;
+        list.appendChild(row);
+      }
+    }
+
+    function getChosenSpecsSet(){
+      const boxes = Array.from(document.querySelectorAll(".specChk"));
+      const chosen = boxes.filter(b=>b.checked).map(b=>b.value);
+      if(chosen.length === 0) return null; // todas
+      return new Set(chosen);
+    }
+
+    // =======================
+    // Question generation
+    // =======================
+    function pickRandomProcess(){
+      const mode = getSelectedMode();
+      let pool = DDX_DATA;
+
+      if(mode === "selectSpec"){
+        const chosen = getChosenSpecsSet();
+        exam.allowedSpecs = chosen; // puede ser null
+        if(chosen){
+          pool = DDX_DATA.filter(p => chosen.has(normalizeSpec(p.especialidades)));
+        }
+      } else {
+        exam.allowedSpecs = null;
+      }
+
+      if(pool.length === 0) return null;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function uniqProcessesByName(arr){
+      const seen = new Set();
+      const out = [];
+      for(const p of arr){
+        const k = (p?.Proceso ?? "").trim();
+        if(!k || seen.has(k)) continue;
+        seen.add(k);
+        out.push(p);
+      }
+      return out;
+    }
+
+    function buildQuestion(){
+      const mode = getSelectedMode();
+      const proc = pickRandomProcess();
+      if(!proc){
+        alert("No hay procesos disponibles con ese filtro de especialidades.");
+        return;
+      }
+
+      if(mode === "guessProcess"){
+        buildQuestion_ModeC(proc);
+        return;
+      }
+
+      // Modos A/B
+      const spec = normalizeSpec(proc.especialidades);
+      const correct = parseDDxField(proc.dd_posibles);
+      const nCorrect = correct.length;
+
+      if(nCorrect === 0){
+        alert(`Este proceso no tiene diagnósticos en "dd_posibles": ${proc.Proceso}`);
+        return;
+      }
+
+      const sameSpecOthers = DDX_DATA.filter(p =>
+        normalizeSpec(p.especialidades) === spec && p.Proceso !== proc.Proceso
+      );
+
+      let distractorPool = [];
+      for(const p of sameSpecOthers){
+        distractorPool.push(...parseDDxField(p.dd_posibles));
+      }
+      distractorPool = uniq(distractorPool).filter(x => !correct.includes(x));
+
+      // Relleno global si falta pool
+      if(distractorPool.length < nCorrect){
+        let globalPool = [];
+        for(const p of DDX_DATA){
+          if(p.Proceso === proc.Proceso) continue;
+          globalPool.push(...parseDDxField(p.dd_posibles));
+        }
+        globalPool = uniq(globalPool).filter(x => !correct.includes(x));
+        distractorPool = uniq([...distractorPool, ...globalPool]);
+      }
+
+      const distractors = shuffle(distractorPool).slice(0, nCorrect);
+      const options = shuffle(uniq([...correct, ...distractors]));
+
+      exam.current = {
+        mode,
+        procesoObj: proc,
+        correctSet: new Set(correct),
+        options,
+        selected: new Set(),
+      };
+
+      exam.locked = false;
+      renderQuestion();
+    }
+
+    function buildQuestion_ModeC(proc){
+      const spec = normalizeSpec(proc.especialidades);
+
+      const sameSpecOthers = DDX_DATA.filter(p =>
+        normalizeSpec(p.especialidades) === spec && p.Proceso !== proc.Proceso
+      );
+
+      let distractorProcs = [];
+
+      if(sameSpecOthers.length >= 3){
+        distractorProcs = shuffle(sameSpecOthers).slice(0, 3);
+      } else {
+        const globalOthers = DDX_DATA.filter(p => p.Proceso !== proc.Proceso);
+        distractorProcs = shuffle(uniqProcessesByName([...sameSpecOthers, ...globalOthers])).slice(0, 3);
+      }
+
+      const options = shuffle([proc, ...distractorProcs]).map(p => p.Proceso ?? "—");
+      const ddxPrompt = parseDDxField(proc.dd_posibles);
+
+      exam.current = {
+        mode: "guessProcess",
+        procesoObj: proc,
+        correctSet: new Set([proc.Proceso]),
+        options,
+        selected: new Set(),
+        ddxPrompt,
+      };
+
+      exam.locked = false;
+      renderQuestion();
+    }
+
+    // =======================
+    // Render
+    // =======================
+    function renderQuestion(){
+      const mode = exam.current?.mode;
+      const proc = exam.current?.procesoObj;
+      if(!proc) return;
+
+      $("finalCard").classList.add("hidden");
+      $("quizCard").classList.remove("hidden");
+
+      const spec = normalizeSpec(proc.especialidades) || "—";
+      $("specName").textContent = spec;
+
+      // Reset prompt UI
+      $("promptBox").classList.add("hidden");
+      $("promptBox").innerHTML = "";
+      $("mnemo").textContent = "—";
+
+      if(mode === "guessProcess"){
+        $("processName").textContent = "¿Qué proceso corresponde?";
+        $("legendBox").classList.add("hidden");
+        $("hint").innerHTML = `Elige el <strong>proceso correcto</strong> entre 4 opciones.`;
+
+        const ddxItems = (exam.current.ddxPrompt || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+        $("promptBox").innerHTML = `
+          <div class="muted" style="font-weight:800;">Diagnósticos diferenciales mostrados:</div>
+          <ul>${ddxItems || "<li>—</li>"}</ul>
+        `;
+        $("promptBox").classList.remove("hidden");
+      } else {
+        $("processName").textContent = proc.Proceso ?? "—";
+        $("legendBox").classList.remove("hidden");
+        $("hint").innerHTML = `Selecciona las opciones que creas correctas y pulsa <strong>Resolver</strong>.`;
+      }
+
+      $("optionsGrid").innerHTML = "";
+      for(const optText of exam.current.options){
+        const btn = document.createElement("button");
+        btn.className = "opt";
+        btn.type = "button";
+        btn.dataset.value = optText;
+        btn.innerHTML = escapeHtml(optText);
+        btn.setAttribute("aria-pressed", "false");
+
+        btn.addEventListener("click", () => {
+          if(exam.locked) return;
+          toggleOption(optText, btn);
+        });
+
+        $("optionsGrid").appendChild(btn);
+      }
+
+      $("btnResolve").disabled = false;
+      $("btnResolve").classList.remove("hidden");
+      $("btnNext").classList.add("hidden");
+      $("btnFinish").disabled = false;
+
+      $("qCount").textContent = String(exam.asked);
+      $("scoreLast").textContent = "—";
+      if(exam.scores.length){
+        const avg = exam.scores.reduce((a,b)=>a+b,0) / exam.scores.length;
+        $("scoreAvg").textContent = avg.toFixed(2);
+      } else {
+        $("scoreAvg").textContent = "—";
+      }
+
+      setTimeout(() => {
+        $("quizCard").scrollIntoView({behavior:"smooth", block:"start"});
+      }, 50);
+    }
+
+    function toggleOption(value, el){
+      const set = exam.current.selected;
+
+      // Modo C: solo 1 selección
+      if(exam.current.mode === "guessProcess"){
+        document.querySelectorAll(".opt").forEach(b=>{
+          b.classList.remove("selected");
+          b.setAttribute("aria-pressed", "false");
+        });
+        set.clear();
+      }
+
+      if(set.has(value)){
+        set.delete(value);
+        el.classList.remove("selected");
+        el.setAttribute("aria-pressed", "false");
+      } else {
+        set.add(value);
+        el.classList.add("selected");
+        el.setAttribute("aria-pressed", "true");
+      }
+    }
+
+    // =======================
+    // Resolve & scoring
+    // =======================
+    function resolve(){
+      if(!exam.current || exam.locked) return;
+
+      const mode = exam.current.mode;
+      const correctSet = exam.current.correctSet;
+      const selectedSet = exam.current.selected;
+      const nCorrect = correctSet.size;
+
+      let hits = 0;
+      let errors = 0;
+
+      const optionButtons = Array.from(document.querySelectorAll(".opt"));
+      for(const btn of optionButtons){
+        const v = btn.dataset.value;
+
+        const isCorrect = correctSet.has(v);
+        const isSelected = selectedSet.has(v);
+
+        btn.classList.add("locked");
+        btn.disabled = true;
+        btn.classList.remove("selected");
+
+        if(isSelected && isCorrect){
+          hits++;
+          btn.classList.add("good");
+        } else if(isSelected && !isCorrect){
+          errors++;
+          btn.classList.add("bad");
+        } else if(!isSelected && isCorrect){
+          btn.classList.add("missed");
+        }
+      }
+
+      const perHit = (nCorrect > 0) ? (10 / nCorrect) : 0;
+      let score = (hits * perHit) - (errors * 0.1);
+      score = clamp(score, 0, 10);
+
+      exam.scores.push(score);
+      exam.locked = true;
+      exam.asked += 1;
+
+      $("qCount").textContent = String(exam.asked);
+      $("scoreLast").textContent = score.toFixed(2);
+
+      const avg = exam.scores.reduce((a,b)=>a+b,0) / exam.scores.length;
+      $("scoreAvg").textContent = avg.toFixed(2);
+
+      $("btnResolve").disabled = true;
+      $("btnResolve").classList.add("hidden");
+      $("btnNext").classList.remove("hidden");
+      $("btnNext").focus({preventScroll:true});
+
+      // Mostrar nemotécnica SOLO en A/B
+      if(mode !== "guessProcess"){
+        const mn = (procSafe(exam.current.procesoObj)?.mnemotecnica ?? "").toString().trim();
+        $("mnemo").textContent = mn ? `mnemotécnica: ${mn}` : "mnemotécnica: —";
+      } else {
+        $("mnemo").textContent = "—";
+      }
+
+      setTimeout(() => {
+        $("hint").scrollIntoView({behavior:"smooth", block:"end"});
+      }, 50);
+    }
+
+    function procSafe(p){ return p || {}; }
+
+    // =======================
+    // Finish
+    // =======================
+    function finishExam(){
+      if(exam.scores.length === 0){
+        alert("Aún no has resuelto ninguna pregunta.");
+        return;
+      }
+
+      const avg = exam.scores.reduce((a,b)=>a+b,0) / exam.scores.length;
+
+      $("quizCard").classList.add("hidden");
+      $("finalCard").classList.remove("hidden");
+
+      $("finalScore").textContent = avg.toFixed(2);
+
+      let img = "imagenes/m5.png";
+      if(avg >= 9) img = "imagenes/9_10.png";
+      else if(avg >= 7) img = "imagenes/7_9.png";
+      else if(avg >= 5) img = "imagenes/5_7.png";
+
+      $("finalImg").src = img;
+
+      $("btnResolve").disabled = true;
+      $("btnResolve").classList.remove("hidden");
+      $("btnNext").classList.add("hidden");
+      $("btnFinish").disabled = true;
+
+      setTimeout(() => {
+        $("finalCard").scrollIntoView({behavior:"smooth", block:"start"});
+      }, 50);
+    }
+
+    // =======================
+    // Reset
+    // =======================
+    function resetAll(){
+      exam = { asked:0, scores:[], locked:false, current:null, allowedSpecs:null };
+
+      $("qCount").textContent = "0";
+      $("scoreLast").textContent = "—";
+      $("scoreAvg").textContent = "—";
+      $("processName").textContent = "—";
+      $("specName").textContent = "—";
+      $("mnemo").textContent = "—";
+      $("optionsGrid").innerHTML = "";
+      $("btnResolve").disabled = true;
+      $("btnFinish").disabled = true;
+
+      $("promptBox").classList.add("hidden");
+      $("promptBox").innerHTML = "";
+
+      $("finalCard").classList.add("hidden");
+      $("quizCard").classList.remove("hidden");
+      $("legendBox").classList.remove("hidden");
+      $("hint").innerHTML = `Selecciona las opciones que creas correctas y pulsa <strong>Resolver</strong>.`;
+    }
+
+    // =======================
+    // Mode UI
+    // =======================
+    function updateModeUI(){
+      const mode = getSelectedMode();
+      const panel = $("specPanel");
+      if(mode === "selectSpec") panel.classList.remove("hidden");
+      else panel.classList.add("hidden");
+    }
+
+    // =======================
+    // Init
+    // =======================
+    document.addEventListener("DOMContentLoaded", () => {
+      updateModeUI();
+      loadData();
+
+      document.querySelectorAll('input[name="mode"]').forEach(r=>{
+        r.addEventListener("change", updateModeUI);
+      });
+
+      $("btnAll").addEventListener("click", () => {
+        document.querySelectorAll(".specChk").forEach(c => c.checked = true);
+      });
+
+      $("btnNone").addEventListener("click", () => {
+        document.querySelectorAll(".specChk").forEach(c => c.checked = false);
+      });
+
+      $("btnStart").addEventListener("click", () => {
+        buildQuestion();
+      });
+
+      $("btnResolve").addEventListener("click", () => {
+        resolve();
+      });
+
+      $("btnNext").addEventListener("click", () => {
+        buildQuestion();
+      });
+
+      $("btnFinish").addEventListener("click", () => {
+        finishExam();
+      });
+
+      $("btnRestart").addEventListener("click", () => {
+        resetAll();
+      });
+    });
+  </script>
+</body>
+</html>
