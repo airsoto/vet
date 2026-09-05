@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vet AI · Clinical Knowledge Assistant</title>
+  <meta name="description" content="Prototipo visual no funcional de una interfaz RAG veterinaria." />
+  <style>
+    :root {
+      --bg: #f4f7f9;
+      --panel: #ffffff;
+      --panel-soft: #f8fafb;
+      --ink: #17323a;
+      --muted: #6d8188;
+      --line: #dce6e9;
+      --accent: #0f6f70;
+      --accent-2: #155a73;
+      --accent-soft: #e8f5f4;
+      --good: #2f7d61;
+      --warn: #b07520;
+      --shadow: 0 18px 48px rgba(22, 62, 72, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(15,111,112,.07), transparent 32%),
+        var(--bg);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      background: #12343d;
+      color: #eff9fa;
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 2px 8px 10px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #2ea29c, #6ec7c0);
+      color: white;
+      font-size: 22px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      letter-spacing: .2px;
+    }
+
+    .brand small {
+      color: #a7c2c7;
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: #c9dde0;
+      padding: 11px 12px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .nav a.active,
+    .nav a:hover {
+      background: rgba(255,255,255,.09);
+      color: white;
+    }
+
+    .sidebar-card {
+      margin-top: auto;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .sidebar-card strong { font-size: 13px; }
+    .sidebar-card p {
+      margin: 7px 0 11px;
+      color: #b8ced2;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .progress {
+      height: 7px;
+      background: rgba(255,255,255,.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #6ed0c5;
+    }
+
+    main { padding: 28px; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .title h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -.6px;
+    }
+
+    .title p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: #3f5b63;
+      font-size: 13px;
+      box-shadow: 0 8px 20px rgba(22,62,72,.05);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: #41a47d;
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(65,164,125,.12);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(320px, .8fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .composer { padding: 20px; }
+
+    .composer-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .composer-head h3,
+    .result h3,
+    .evidence h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      background: #eef4f5;
+      padding: 4px;
+      border-radius: 10px;
+      gap: 3px;
+    }
+
+    .mode-tabs span {
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: #6a7d83;
+      font-size: 12px;
+    }
+
+    .mode-tabs .selected {
+      background: white;
+      color: var(--accent);
+      box-shadow: 0 2px 7px rgba(22,62,72,.08);
+      font-weight: 650;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 13px;
+    }
+
+    .tag {
+      border: 1px solid #cfe1e3;
+      background: #f8fbfb;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: #49656d;
+    }
+
+    .tag.accent {
+      background: var(--accent-soft);
+      border-color: #c7e7e3;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .fake-textarea {
+      min-height: 155px;
+      border-radius: 14px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      padding: 16px;
+      color: #3f5960;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .button {
+      border: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      padding: 11px 17px;
+      border-radius: 11px;
+      font-weight: 700;
+      font-size: 13px;
+      box-shadow: 0 8px 18px rgba(15,111,112,.18);
+    }
+
+    .result {
+      margin-top: 22px;
+      overflow: hidden;
+    }
+
+    .result-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .confidence {
+      color: var(--good);
+      background: #edf8f3;
+      border: 1px solid #d5eee3;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .section {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section:last-child { border-bottom: 0; }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .section p,
+    .section li {
+      color: #425b62;
+      font-size: 13.5px;
+      line-height: 1.62;
+    }
+
+    .section p { margin: 0; }
+    .section ul,
+    .section ol { margin: 0; padding-left: 20px; }
+
+    .evidence {
+      position: sticky;
+      top: 20px;
+      overflow: hidden;
+    }
+
+    .evidence-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .evidence-head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .source {
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source:last-child { border-bottom: 0; }
+
+    .source-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .source-title {
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
+    .page {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .score {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 5px 7px;
+      white-space: nowrap;
+    }
+
+    .meter {
+      height: 5px;
+      background: #e9eff0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 11px 0 9px;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #16787b, #57b9aa);
+      border-radius: inherit;
+    }
+
+    .excerpt {
+      color: #62767c;
+      font-size: 11.5px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .linkish {
+      margin-top: 9px;
+      color: var(--accent-2);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .mini {
+      background: #f7fafb;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 11px;
+    }
+
+    .mini b {
+      display: block;
+      font-size: 18px;
+      color: var(--accent-2);
+    }
+
+    .mini span {
+      color: var(--muted);
+      font-size: 10.5px;
+    }
+
+    footer {
+      color: #819398;
+      font-size: 11px;
+      text-align: center;
+      padding: 22px 0 4px;
+    }
+
+    @media (max-width: 1050px) {
+      .app { grid-template-columns: 86px 1fr; }
+      .brand-copy,
+      .nav .label,
+      .sidebar-card { display: none; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .nav a { justify-content: center; }
+      .grid { grid-template-columns: 1fr; }
+      .evidence { position: static; }
+    }
+
+    @media (max-width: 680px) {
+      .app { display: block; }
+      .sidebar {
+        position: static;
+        height: auto;
+        padding: 10px 12px;
+        flex-direction: row;
+        align-items: center;
+        overflow-x: auto;
+      }
+      .brand { padding: 0; }
+      .brand-mark { width: 38px; height: 38px; }
+      .nav { display: flex; }
+      .nav a { padding: 9px 10px; }
+      main { padding: 18px 13px; }
+      .topbar { align-items: flex-start; }
+      .status { display: none; }
+      .title h2 { font-size: 23px; }
+      .composer-head { align-items: flex-start; flex-direction: column; }
+      .actions { align-items: flex-end; }
+      .mini-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">✚</div>
+        <div class="brand-copy">
+          <h1>Vet AI</h1>
+          <small>Clinical Knowledge Assistant</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="active" href="#"><span>🩺</span><span class="label">Consulta clínica</span></a>
+        <a href="#"><span>📚</span><span class="label">Biblioteca</span></a>
+        <a href="#"><span>📄</span><span class="label">Fuentes</span></a>
+        <a href="#"><span>⭐</span><span class="label">Favoritos</span></a>
+        <a href="#"><span>🕘</span><span class="label">Historial</span></a>
+        <a href="#"><span>⚙️</span><span class="label">Ajustes</span></a>
+      </nav>
+
+      <div class="sidebar-card">
+        <strong>Base de conocimiento</strong>
+        <p>18 libros · 26.934 fragmentos indexados</p>
+        <div class="progress"><span></span></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div class="title">
+          <h2>Consulta clínica</h2>
+          <p>Analiza casos veterinarios utilizando evidencia recuperada de tu biblioteca.</p>
+        </div>
+        <div class="status"><span class="dot"></span> RAG conectado · Qdrant</div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <section class="card composer">
+            <div class="composer-head">
+              <h3>Nueva consulta</h3>
+              <div class="mode-tabs">
+                <span>Pregunta rápida</span>
+                <span class="selected">Caso clínico</span>
+              </div>
+            </div>
+
+            <div class="tags">
+              <span class="tag accent">🐱 Gato</span>
+              <span class="tag accent">❤️ Cardiología</span>
+              <span class="tag">Cardiomiopatías</span>
+              <span class="tag">HCM</span>
+            </div>
+
+            <div class="fake-textarea">
+              Gato europeo, 8 años, 5,2 kg. Hipertrofia ventricular izquierda de 6,5 mm, aurícula izquierda normal, presión arterial 125 mmHg y T4 total dentro de rango. ¿Qué diagnósticos diferenciales deberían considerarse y qué pruebas recomendarías?
+            </div>
+
+            <div class="actions">
+              <div class="hint">La respuesta se basará prioritariamente en fuentes veterinarias recuperadas.</div>
+              <button class="button" type="button">Analizar caso</button>
+            </div>
+          </section>
+
+          <section class="card result">
+            <div class="result-head">
+              <h3>Análisis clínico</h3>
+              <span class="confidence">Evidencia alta</span>
+            </div>
+
+            <div class="section">
+              <div class="section-label">◉ Valoración</div>
+              <p>El hallazgo es compatible con hipertrofia ventricular izquierda felina. La miocardiopatía hipertrófica primaria sería una consideración principal, pero debe diferenciarse de causas secundarias de hipertrofia antes de establecer el diagnóstico definitivo.</p>
+            </div>
+
+            <div class="section">
+              <div class="section-label">⌁ Diagnósticos diferenciales</div>
+              <ol>
+                <li>Miocardiopatía hipertrófica primaria.</li>
+                <li>Hipertrofia secundaria a hipertensión sistémica.</li>
+                <li>Hipertiroidismo u otras causas de aumento de poscarga.</li>
+                <li>Fenotipo transitorio o pseudohipertrofia asociado a alteraciones hemodinámicas.</li>
+              </ol>
+            </div>
+
+            <div class="section">
+              <div class="section-label">✓ Pruebas recomendadas</div>
+              <ul>
+                <li>Repetir medición ecocardiográfica en múltiples segmentos.</li>
+                <li>Confirmar presión arterial sistémica y revisar mediciones seriadas.</li>
+                <li>Correlacionar con T4 total, función renal y estado de hidratación.</li>
+                <li>Valorar tamaño auricular izquierdo, función diastólica y signos de congestión.</li>
+              </ul>
+            </div>
+
+            <div class="section">
+              <div class="section-label">⚠ Interpretación</div>
+              <p>La IA debe diferenciar siempre entre datos aportados por el clínico, evidencia recuperada y razonamiento generado. Cuando la base documental no sea suficiente, la interfaz debería indicarlo expresamente.</p>
+            </div>
+          </section>
+        </div>
+
+        <aside class="card evidence">
+          <div class="evidence-head">
+            <h3>📚 Evidencia consultada</h3>
+            <p>Fragmentos recuperados por similitud semántica.</p>
+            <div class="mini-grid">
+              <div class="mini"><b>8</b><span>fragmentos</span></div>
+              <div class="mini"><b>4</b><span>fuentes</span></div>
+              <div class="mini"><b>0,91</b><span>score máx.</span></div>
+            </div>
+          </div>
+
+          <div class="source">
+            <div class="source-top">
+              <div>
+                <div class="source-title">Manual of Canine and Feline Cardiology</div>
+                <div class="page">Página 237 · Cardiomyopathies</div>
+              </div>
+              <div class="score">91%</div>
+            </div>
+            <div class="meter"><span style="width:91%"></span></div>
+            <p class="excerpt">La interpretación de la hipertrofia felina requiere excluir causas sistémicas capaces de aumentar el grosor miocárdico…</p>
+            <div class="linkish">Ver fragmento →</div>
+          </div>
+
+          <div class="source">
+            <div class="source-top">
+              <div>
+                <div class="source-title">Côté Clinical Veterinary Advisor</div>
+                <div class="page">Página 1884 · Feline cardiac disease</div>
+              </div>
+              <div class="score">88%</div>
+            </div>
+            <div class="meter"><span style="width:88%"></span></div>
+            <p class="excerpt">El diagnóstico debe integrar ecocardiografía, presión arterial, función tiroidea y contexto clínico.</p>
+            <div class="linkish">Ver fragmento →</div>
+          </div>
+
+          <div class="source">
+            <div class="source-top">
+              <div>
+                <div class="source-title">Textbook of Cardiovascular Medicine in Dogs and Cats</div>
+                <div class="page">Página 557 · Hypertrophic phenotype</div>
+              </div>
+              <div class="score">84%</div>
+            </div>
+            <div class="meter"><span style="width:84%"></span></div>
+            <p class="excerpt">La presencia de hipertrofia no implica por sí sola una cardiomiopatía primaria y debe interpretarse con el resto de hallazgos.</p>
+            <div class="linkish">Ver fragmento →</div>
+          </div>
+
+          <div class="source">
+            <div class="source-top">
+              <div>
+                <div class="source-title">Small Animal Internal Medicine</div>
+                <div class="page">Página 755 · Endocrine differentials</div>
+              </div>
+              <div class="score">80%</div>
+            </div>
+            <div class="meter"><span style="width:80%"></span></div>
+            <p class="excerpt">Las causas endocrinas y sistémicas deben considerarse cuando existe un fenotipo de hipertrofia ventricular.</p>
+            <div class="linkish">Ver fragmento →</div>
+          </div>
+        </aside>
+      </div>
+
+      <footer>Vet AI · prototipo visual no funcional · diseñado como interfaz clínica basada en RAG</footer>
+    </main>
+  </div>
+</body>
+</html>
