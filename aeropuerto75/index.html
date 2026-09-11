@@ -70,6 +70,29 @@
     if(bestTrace.incomplete)return{short:best,d:bestTrace.entryDistance,progress:bestTrace.progress,required:bestTrace.required};
     return{runway:best,d:bestTrace.entryDistance,entry:{...bestEntry},exit:{...bestExit},angle:bestAngle,aligned:true}
   }
+  function enforceLandingCapture(){
+    for(const a of aircraft){
+      if(!a||a.remove||a.state!=='landing'||!a.landingPlan)continue;
+      const plan=a.landingPlan,dx=plan.exit.x-plan.entry.x,dy=plan.exit.y-plan.entry.y,len=Math.hypot(dx,dy);
+      if(!Number.isFinite(len)||len<2)continue;
+      const ux=dx/len,uy=dy/len;
+      let progress=(a.x-plan.entry.x)*ux+(a.y-plan.entry.y)*uy;
+      if(!Number.isFinite(progress))progress=0;
+      const previous=Number.isFinite(a._landingProgress)?a._landingProgress:0;
+      progress=Math.max(previous,Math.max(0,Math.min(len,progress)));
+      a._landingProgress=progress;
+      a.x=plan.entry.x+ux*progress;a.y=plan.entry.y+uy*progress;
+      a.heading=Math.atan2(dy,dx);
+      a.route=[{x:plan.entry.x,y:plan.entry.y},{x:plan.exit.x,y:plan.exit.y}];
+      a.routeIndex=1;a.routeMode='landing';a.selected=false;
+      const t=Math.max(0,Math.min(1,progress/len));
+      const initial=a.type==='heavy'?102:a.type==='prop'?88:112;
+      const final=a.type==='heavy'?38:a.type==='prop'?30:42;
+      const target=initial+(final-initial)*Math.pow(t,1.35);
+      if(!Number.isFinite(a.speed)||a.speed>target+7||a.speed<final*.55)a.speed=target;
+      if(progress>=len-2&&!a._landingFinished){const r=airport.runways.find(r=>r.id===a.assigned);if(r)completeLanding(a,r);}
+    }
+  }
   function clearRunwayGuidance(a){if(!a)return;a.routeBlink=false;a.routeConfirmed=false;a.routeConfirmedUntil=0;a.confirmedRunwayLabel='';a.landingCommitted=false;for(const r of airport.runways)if(r.guidanceAircraft===a.id){r.guidanceAircraft=null;r.guidanceColor=null;r.guidanceEntry=null;r.guidanceExit=null;r.confirmFlashUntil=0}}
   function commitApproachToRunway(a,match){
     if(!a||!match?.entry||!Array.isArray(a.route)||!a.route.length)return;
@@ -87,7 +110,7 @@
 
   `;
   html=html.replace(/function findCompatibleTarget\(p,group\)\s*\{[\s\S]*?\n\s*function beginLanding\(a,runway\)\s*\{/,' '+targetPatch+'function beginLanding(a,runway) {');
-  html=html.replace("a.state='landing'; a.x=runway.threshold.x; a.y=runway.threshold.y; a.heading=runway.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [runway.threshold] : [runway.threshold,runway.end];","const plan=a.landingPlan||{entry:runway.threshold,exit:runway.end,angle:runway.angle};\n    a.state='landing';a.landingCommitted=true;a._landingFinished=false;a.routeBlink=false;a.routeConfirmed=false;a.selected=false;\n    a.x=plan.entry.x;a.y=plan.entry.y;a.heading=plan.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad?[{...plan.entry}]:[{...plan.entry},{...plan.exit}];a.routeIndex=runway.helipad?0:1;a.routeMode='landing';");
+  html=html.replace("a.state='landing'; a.x=runway.threshold.x; a.y=runway.threshold.y; a.heading=runway.angle;\n    a.speed=a.type==='heavy'?105:a.type==='prop'?92:118;\n    a.route=runway.helipad ? [runway.threshold] : [runway.threshold,runway.end];","const plan=a.landingPlan||{entry:runway.threshold,exit:runway.end,angle:runway.angle};\n    a.state='landing';a.landingCommitted=true;a._landingFinished=false;a._landingProgress=0;a.routeBlink=false;a.routeConfirmed=false;a.selected=false;\n    a.x=plan.entry.x;a.y=plan.entry.y;a.heading=Math.atan2(plan.exit.y-plan.entry.y,plan.exit.x-plan.entry.x);\n    a.speed=a.type==='heavy'?102:a.type==='prop'?88:112;\n    a.route=runway.helipad?[{...plan.entry}]:[{...plan.entry},{...plan.exit}];a.routeIndex=runway.helipad?0:1;a.routeMode='landing';");
   html=html.replace('const match=findCompatibleTarget(last,a.group);','const match=findCompatibleTarget(last,a.group,a.route);');
   html=html.replace("const r=match.runway;appendRoutePoint(a,{x:r.threshold.x,y:r.threshold.y},7);a.assigned=r.id;a.routeIndex=Math.max(1,a.routeIndex);a.routeMode='drawn';","const r=match.runway;a.assigned=r.id;a.landingPlan={entry:{...match.entry},exit:{...match.exit},angle:match.angle};commitApproachToRunway(a,match);a.routeMode='drawn';r.guidanceAircraft=a.id;r.guidanceColor=a.color;r.guidanceEntry={...match.entry};r.guidanceExit={...match.exit};r.confirmFlashUntil=mapTime+700;a.routeBlink=false;a.routeConfirmed=true;a.routeConfirmedUntil=mapTime+1200;a.confirmedRunwayLabel=r.label||r.id;");
   html=html.replace("} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else {","} else if(match?.closed){\n      a.assigned=null;showToast(`${match.closed.label}: pista cerrada`,'bad');tone('warn');\n    } else if(match?.short){\n      a.assigned=null;showToast(`${a.callsign}: continúe el trazo por el primer cuarto de pista`,'bad');tone('warn');\n    } else if(match?.misaligned){\n      a.assigned=null;showToast(`${a.callsign}: alinee el tramo final con la pista`,'bad');tone('warn');\n    } else {");
@@ -160,7 +183,7 @@
   });`);
   html=html.replace(/  function frame\(now\) \{[\s\S]*?\n  \}\n\n  \/\/ ---------- Inicio ----------/,`  function frame(now) {
     const dt=Math.min(.034,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
-    if(gameState==='playing')update(dt);
+    if(gameState==='playing'){update(dt);enforceLandingCapture();}
     else {mapTime+=dt*1000;updateAmbience(dt);updateEffects(dt);}
     const minRenderGap=coarsePointer?15.5:0;
     if(!minRenderGap||now-lastRenderAt>=minRenderGap){render();lastRenderAt=now;}
