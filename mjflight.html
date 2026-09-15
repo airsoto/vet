@@ -566,6 +566,21 @@
       * { scroll-behavior: auto !important; transition: none !important; }
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    .history-panel{margin:14px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:14px;box-shadow:var(--shadow)}
+    .history-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .history-head h2{margin:0;font-size:clamp(20px,5vw,30px)}
+    .period-tabs{display:flex;gap:7px;flex-wrap:wrap}
+    .period-tab{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);padding:9px 12px;border-radius:999px;font-weight:800;cursor:pointer}
+    .period-tab.active{background:linear-gradient(135deg,#ff9900,#ffbf5e);color:#17110a}
+    #historyMap{height:min(62vh,560px);min-height:340px;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#0b1220}
+    .history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .history-summary>div{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px}
+    .history-summary small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+    .history-summary strong{display:block;margin-top:4px;font-size:16px}
+    @media(max-width:620px){#historyMap{height:52vh;min-height:320px}.history-summary{grid-template-columns:1fr 1fr}}
+  </style>
 </head>
 
 <body>
@@ -631,6 +646,25 @@
       </p>
     </section>
 
+    <section class="history-panel" aria-label="Mapa histórico de vuelos">
+      <div class="history-head">
+        <div><h2>🗺️ Historial de vuelos</h2><div class="source-bar">Rutas aproximadas entre aeropuertos detectados. Selecciona un periodo.</div></div>
+        <div class="period-tabs">
+          <button class="period-tab active" data-days="7">7 días</button>
+          <button class="period-tab" data-days="30">30 días</button>
+          <button class="period-tab" data-days="365">1 año</button>
+          <button class="period-tab" data-days="0">Todo</button>
+        </div>
+      </div>
+      <div id="historyMap"></div>
+      <div class="history-summary">
+        <div><small>Vuelos periodo</small><strong id="mapFlights">—</strong></div>
+        <div><small>Aeropuertos</small><strong id="mapAirports">—</strong></div>
+        <div><small>Horas</small><strong id="mapHours">—</strong></div>
+        <div><small>Periodo</small><strong id="mapPeriod">7 días</strong></div>
+      </div>
+    </section>
+
     <div class="layout">
       <aside class="side">
         <div class="plane-card">
@@ -677,6 +711,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const SOURCE_URL = "https://www.celebplanes.com/celebrity/michael-jordan";
     const KG_CO2_PER_HOUR = 4515;
@@ -1589,6 +1624,58 @@
     if (cacheAge > 60 * 60 * 1000) {
       refreshFromSource();
     }
-  </script>
+  
+
+    // --- Mapa histórico responsive ---
+    const AIRPORT_COORDS = {
+      KPBI:[26.6832,-80.0956], PBI:[26.6832,-80.0956], KATW:[44.2581,-88.5191],
+      LIMJ:[44.4133,8.8375], LGMK:[37.4351,25.3481], LEMD:[40.4722,-3.5608],
+      LEMG:[36.6749,-4.4991], MYNN:[25.039,-77.4662], DFW:[32.8998,-97.0403],
+      KDFW:[32.8998,-97.0403], MCI:[39.2976,-94.7139], KMCI:[39.2976,-94.7139],
+      KCPS:[38.5707,-90.1562], KDJT:[26.6832,-80.0956], KCLT:[35.214,-80.9431],
+      KSUA:[27.1817,-80.2211], KFLL:[26.0726,-80.1527], KDAB:[29.1799,-81.0581],
+      KISM:[28.2898,-81.4371], KAUS:[30.1975,-97.6664], KGYR:[33.4237,-112.374],
+      KSDL:[33.6229,-111.911], KFPR:[27.4951,-80.3683], KTPA:[27.9755,-82.5332],
+      KPDX:[45.5898,-122.595], KLAS:[36.084,-115.154], TIST:[18.3373,-64.9734],
+      TAPA:[17.1367,-61.7927], KSBY:[38.3405,-75.5103]
+    };
+    let historyMap, historyLayer, mapDays = 7;
+
+    function initHistoryMap(){
+      if(!window.L || historyMap) return;
+      historyMap=L.map('historyMap',{worldCopyJump:true,zoomControl:true}).setView([30,-45],3);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(historyMap);
+      historyLayer=L.layerGroup().addTo(historyMap);
+      document.querySelectorAll('.period-tab').forEach(b=>b.addEventListener('click',()=>{
+        document.querySelectorAll('.period-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+        mapDays=Number(b.dataset.days); updateHistoryMap();
+      }));
+      updateHistoryMap();
+    }
+    function mapPeriodFlights(){
+      if(!mapDays) return flights.slice();
+      const newest=Math.max(Date.now(),...flights.map(f=>new Date(f.departedISO||f.departed).getTime()).filter(Number.isFinite));
+      const cut=newest-mapDays*86400000;
+      return flights.filter(f=>{const t=new Date(f.departedISO||f.departed).getTime(); return Number.isFinite(t)&&t>=cut;});
+    }
+    function updateHistoryMap(){
+      if(!historyMap||!historyLayer)return;
+      historyLayer.clearLayers(); const data=mapPeriodFlights(); const bounds=[]; const aps=new Set();
+      data.forEach((f,i)=>{
+        const a=AIRPORT_COORDS[f.departureCode], b=AIRPORT_COORDS[f.arrivalCode];
+        if(!a||!b)return; aps.add(f.departureCode);aps.add(f.arrivalCode);bounds.push(a,b);
+        const line=L.polyline([a,b],{weight:2.5,opacity:.62}).addTo(historyLayer);
+        line.bindPopup(`<b>${escapeHTML(f.departureCode)} → ${escapeHTML(f.arrivalCode)}</b><br>${escapeHTML(formatDateES(f.departedISO,f.departed))}<br>${escapeHTML(minutesToText(f.durationMin||0))}`);
+        L.circleMarker(a,{radius:4,weight:1,fillOpacity:.8}).addTo(historyLayer).bindTooltip(f.departureCode);
+        L.circleMarker(b,{radius:4,weight:1,fillOpacity:.8}).addTo(historyLayer).bindTooltip(f.arrivalCode);
+      });
+      if(bounds.length) historyMap.fitBounds(bounds,{padding:[24,24],maxZoom:6});
+      $('mapFlights').textContent=data.length; $('mapAirports').textContent=aps.size;
+      $('mapHours').textContent=numberES(data.reduce((n,f)=>n+(f.durationMin||0),0)/60,1)+' h';
+      $('mapPeriod').textContent=mapDays===7?'7 días':mapDays===30?'30 días':mapDays===365?'1 año':'Todo';
+      setTimeout(()=>historyMap.invalidateSize(),100);
+    }
+    window.addEventListener('load',initHistoryMap);
+</script>
 </body>
 </html>
