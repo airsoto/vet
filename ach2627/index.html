@@ -1,5 +1,453 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07101d"><title>Alumnos colaboradores · 2026–2027</title><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><link rel="stylesheet" href="./style.css"></head><body>
-<section id="gate" class="gate"><div class="login"><div style="font-size:30px">📊</div><h1>Selección de alumnos colaboradores</h1><p>Dashboard local para el XLSX de Medicina General · HCV · 2026–2027.</p><div id="drop" class="drop"><b>Arrastra aquí el XLSX</b><div class="muted" style="margin:5px 0 12px">o selecciónalo desde tu equipo. El archivo no se sube a ningún servidor.</div><label class="btn pri">Elegir XLSX<input id="file" type="file" accept=".xlsx,.xls" hidden></label></div><div id="er" class="err"></div><small class="muted">Se muestran nombre, foto, CV, calificaciones, respuestas y datos académicos útiles. No se muestran DNI, teléfono ni correo.</small></div></section>
-<div id="app" class="hide"><header><div class="wrap head"><div class="brand">Alumnos colaboradores · Medicina General<small id="fname">HCV · Curso 2026–2027</small></div><div class="acts"><label class="btn">📂 Cambiar XLSX<input id="file2" type="file" accept=".xlsx,.xls" hidden></label><button id="exp" class="btn">⬇ Exportar</button></div></div></header><main class="wrap"><section class="kpis"><div class="k"><small>Solicitudes</small><b id="kt">—</b></div><div class="k"><small>Med. General · 1ª</small><b id="km">—</b></div><div class="k"><small>Nota media</small><b id="kg">—</b></div><div class="k"><small>Investigación</small><b id="kr">—</b></div><div class="k"><small>Seleccionados</small><b id="ks">0</b></div></section><section class="tools"><input id="q" class="f search" type="search" placeholder="Buscar nombre, motivación, interés…"><select id="mg" class="f"><option value="">Med. General: todas</option><option value="1">1ª opción</option><option value="2">2ª opción</option><option value="3">3ª opción</option><option value="4">4ª opción</option><option value="5">5ª opción</option></select><select id="cu" class="f"><option value="">Curso: todos</option></select><select id="re" class="f"><option value="">Investigación: todos</option><option>SÍ</option><option>NO</option></select><select id="co" class="f"><option value="">Contacto: todos</option></select><select id="so" class="f"><option value="gd">Nota ↓</option><option value="ga">Nota ↑</option><option value="na">Nombre A–Z</option><option value="mp">Prioridad Med. General</option></select></section><div id="cnt" class="count"></div><section id="cards" class="cards"></section></main></div>
-<dialog id="dlg"><div class="dh"><div class="dt"><div id="da" class="dav"></div><div><h2 id="dn"></h2><div id="dm" class="muted"></div><div id="dbd" class="badges"></div></div></div><button id="x" class="close">×</button></div><div class="db"><div class="dg"><div><section class="sec"><h3>¿Por qué quieres ser alumno colaborador del Hospital?</h3><div id="mot" class="ans"></div></section><section class="sec"><h3>Interés en el área/servicio elegido como primera opción</h3><div id="int" class="ans"></div></section><section class="sec"><h3>Experiencia y antecedentes</h3><div id="expe" class="facts"></div></section></div><div><section class="sec"><h3>Datos académicos</h3><div id="facts" class="facts"></div></section><section class="sec"><h3>Preferencias</h3><div id="prefs" class="prefs"></div></section><section class="sec"><h3>Documentación</h3><div id="docs" class="docs"></div></section><section class="sec"><h3>Valoración interna</h3><div class="rev"><div><select id="rating" class="f"><option value="">Sin puntuar</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><label class="chk" style="margin-top:10px"><input id="sel" type="checkbox"> Seleccionado</label></div><textarea id="notes" class="f" placeholder="Notas de selección…"></textarea></div></section></div></div></div></dialog><div id="toast" class="toast"></div>
-<script src="./app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <title>Quiz de Fotos · ACH 2026-2027</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --panel: #1a1a1a;
+      --panel-2: #222;
+      --text: #f5f5f5;
+      --muted: #a7a7a7;
+      --border: #3b3b3b;
+      --blue: #1976d2;
+      --green: #2e7d32;
+      --red: #c62828;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      min-height: 100vh;
+      margin: 0;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: min(100%, 560px);
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 6px;
+      font-size: clamp(28px, 7vw, 38px);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin: 0 0 18px;
+      font-size: 14px;
+    }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: #d8d8d8;
+      font-size: 14px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #2b2b2b;
+      margin-bottom: 16px;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0;
+      background: var(--blue);
+      transition: width .25s ease;
+    }
+
+    #quiz-container {
+      background: var(--panel);
+      border: 1px solid #2f2f2f;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 12px 34px rgba(0,0,0,.32);
+    }
+
+    .photo-wrap {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d0d0d;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    #photo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    button {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 12px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      transition: background .18s ease, transform .08s ease, border-color .18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover:not(:disabled) {
+      background: #303030;
+      border-color: #555;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(.985);
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 1;
+    }
+
+    .correct {
+      background: var(--green) !important;
+      border-color: #4caf50 !important;
+    }
+
+    .wrong {
+      background: var(--red) !important;
+      border-color: #ef5350 !important;
+    }
+
+    #feedback {
+      min-height: 24px;
+      margin: 13px 2px 0;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    #next-btn, #restart-btn {
+      margin-top: 12px;
+      background: var(--blue);
+      border-color: #2584df;
+      display: none;
+    }
+
+    #end-screen {
+      display: none;
+      text-align: center;
+      background: var(--panel);
+      border: 1px solid #2f2f2f;
+      border-radius: 18px;
+      padding: 28px 18px;
+    }
+
+    #end-score {
+      font-size: 42px;
+      font-weight: 800;
+      margin: 10px 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    @media (min-width: 520px) {
+      .options {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>¿Quién es?</h1>
+    <p class="subtitle">Alumnos colaboradores · Medicina General 2026-2027</p>
+
+    <div id="game">
+      <div class="status">
+        <span id="counter">Foto 1 de 20</span>
+        <span id="score">Aciertos: 0</span>
+      </div>
+      <div class="progress-track"><div id="progress-bar"></div></div>
+
+      <section id="quiz-container">
+        <div class="photo-wrap">
+          <img id="photo" src="" alt="Foto de alumno/a">
+        </div>
+
+        <div class="options" id="options"></div>
+        <div id="feedback" aria-live="polite"></div>
+        <button id="next-btn">Siguiente</button>
+      </section>
+    </div>
+
+    <section id="end-screen">
+      <h2>Quiz completado</h2>
+      <div id="end-score"></div>
+      <div id="end-message"></div>
+      <button id="restart-btn">Volver a empezar</button>
+    </section>
+
+    <p class="small">Las 20 fotos se muestran una vez por ronda y en orden aleatorio.</p>
+  </main>
+
+  <script>
+    const people = [
+      {
+            "name": "Nerea",
+            "file": "nerea_ruiz_puerta.jpg"
+      },
+      {
+            "name": "Mónica",
+            "file": "monica_labrador_garcia.jpg"
+      },
+      {
+            "name": "Miriam",
+            "file": "miriam_garcia_fernandez.jpg"
+      },
+      {
+            "name": "Isabel",
+            "file": "isabel_fernandez_alcazar.jpg"
+      },
+      {
+            "name": "Claudia de la Fuente",
+            "file": "claudia_de_la_fuente_orejon.jpg"
+      },
+      {
+            "name": "Claudia Largo",
+            "file": "claudia_largo_nadador.jpg"
+      },
+      {
+            "name": "Claudia Huerta",
+            "file": "claudia_huerta_rivas.jpg"
+      },
+      {
+            "name": "Judit",
+            "file": "judit_poza_ramirez.jpg"
+      },
+      {
+            "name": "Ángel Enrique",
+            "file": "angel_enrique_morales_barrera.jpg"
+      },
+      {
+            "name": "Miguel",
+            "file": "miguel_belizon_muntanola.jpg"
+      },
+      {
+            "name": "Maria Cristina Carreño De Miguel",
+            "file": "maria_cristina_carreno_de_miguel.jpg"
+      },
+      {
+            "name": "Nazareth",
+            "file": "nazareth_pulido_alvarez.jpg"
+      },
+      {
+            "name": "Aitana",
+            "file": "aitana_santos_guerra.jpg"
+      },
+      {
+            "name": "Icíar",
+            "file": "iciar_principe_trevino.jpg"
+      },
+      {
+            "name": "Belén",
+            "file": "belen_gutierrez_de_corral.jpg"
+      },
+      {
+            "name": "Yilin",
+            "file": "yilin_fan.jpg"
+      },
+      {
+            "name": "María",
+            "file": "maria_vivas_munez.jpg"
+      },
+      {
+            "name": "Silvia",
+            "file": "silvia_izquierdo_garcia.jpg"
+      },
+      {
+            "name": "Naiara",
+            "file": "naiara_miguel_milan.jpg"
+      },
+      {
+            "name": "Ignacio",
+            "file": "ignacio_loredo_villarrubia.jpg"
+      }
+];
+
+    const photo = document.getElementById("photo");
+    const optionsContainer = document.getElementById("options");
+    const nextBtn = document.getElementById("next-btn");
+    const restartBtn = document.getElementById("restart-btn");
+    const feedback = document.getElementById("feedback");
+    const counter = document.getElementById("counter");
+    const scoreEl = document.getElementById("score");
+    const progressBar = document.getElementById("progress-bar");
+    const game = document.getElementById("game");
+    const endScreen = document.getElementById("end-screen");
+    const endScore = document.getElementById("end-score");
+    const endMessage = document.getElementById("end-message");
+
+    let order = [];
+    let currentIndex = 0;
+    let currentPerson = null;
+    let score = 0;
+    let answered = false;
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startGame() {
+      order = shuffle(people);
+      currentIndex = 0;
+      score = 0;
+      answered = false;
+      game.style.display = "block";
+      endScreen.style.display = "none";
+      scoreEl.textContent = "Aciertos: 0";
+      loadQuiz();
+    }
+
+    function loadQuiz() {
+      answered = false;
+      feedback.textContent = "";
+      nextBtn.style.display = "none";
+      optionsContainer.innerHTML = "";
+
+      currentPerson = order[currentIndex];
+      photo.src = "ach2627/" + currentPerson.file;
+      photo.alt = "Foto " + (currentIndex + 1);
+
+      counter.textContent = `Foto ${currentIndex + 1} de ${order.length}`;
+      scoreEl.textContent = `Aciertos: ${score}`;
+      progressBar.style.width = `${(currentIndex / order.length) * 100}%`;
+
+      const distractors = shuffle(
+        people.filter(p => p.name !== currentPerson.name)
+      ).slice(0, 3);
+
+      const choices = shuffle([currentPerson, ...distractors]);
+
+      choices.forEach((person, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = person.name;
+        btn.dataset.name = person.name;
+        btn.setAttribute("aria-label", `Opción ${index + 1}: ${person.name}`);
+        btn.addEventListener("click", () => checkAnswer(btn, person.name));
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(button, choice) {
+      if (answered) return;
+      answered = true;
+
+      const buttons = [...optionsContainer.querySelectorAll("button")];
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        if (btn.dataset.name === currentPerson.name) {
+          btn.classList.add("correct");
+        }
+      });
+
+      if (choice === currentPerson.name) {
+        score++;
+        feedback.textContent = "✓ Correcto";
+      } else {
+        button.classList.add("wrong");
+        feedback.textContent = `✗ Era ${currentPerson.name}`;
+      }
+
+      scoreEl.textContent = `Aciertos: ${score}`;
+      progressBar.style.width = `${((currentIndex + 1) / order.length) * 100}%`;
+      nextBtn.textContent = currentIndex === order.length - 1 ? "Ver resultado" : "Siguiente";
+      nextBtn.style.display = "block";
+      nextBtn.focus();
+    }
+
+    function nextQuestion() {
+      if (!answered) return;
+      currentIndex++;
+      if (currentIndex >= order.length) {
+        finishGame();
+      } else {
+        loadQuiz();
+      }
+    }
+
+    function finishGame() {
+      game.style.display = "none";
+      endScreen.style.display = "block";
+      const pct = Math.round((score / order.length) * 100);
+      endScore.textContent = `${score} / ${order.length}`;
+      endMessage.textContent = `${pct} % de aciertos`;
+      restartBtn.style.display = "block";
+      restartBtn.focus();
+    }
+
+    nextBtn.addEventListener("click", nextQuestion);
+    restartBtn.addEventListener("click", startGame);
+
+    document.addEventListener("keydown", (event) => {
+      if (!game || game.style.display === "none") return;
+
+      const buttons = [...optionsContainer.querySelectorAll("button")];
+
+      if (!answered && ["1","2","3","4"].includes(event.key)) {
+        const index = Number(event.key) - 1;
+        if (buttons[index]) buttons[index].click();
+      }
+
+      if (answered && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        nextQuestion();
+      }
+    });
+
+    photo.addEventListener("error", () => {
+      feedback.textContent = "No se ha podido cargar esta foto.";
+    });
+
+    startGame();
+  </script>
+</body>
+</html>
