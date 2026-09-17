@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090d14">
+  <meta name="description" content="Europe PMC Explorer — buscador visual de literatura biomédica y ciencias de la vida.">
+  <title>Europe PMC Explorer</title>
+  <style>
+    :root{
+      --bg:#090d14;--panel:#111824;--panel2:#0d141f;--text:#edf3f8;--muted:#93a3b5;
+      --line:#243246;--accent:#ff9900;--blue:#4db3ff;--green:#41d69a;--red:#ff7777;
+      --radius:18px;--shadow:0 16px 44px rgba(0,0,0,.27)
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;color:var(--text);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at 10% -10%,rgba(65,214,154,.10),transparent 28%),
+        radial-gradient(circle at 92% 0%,rgba(77,179,255,.11),transparent 30%),
+        var(--bg);
+      min-height:100vh
+    }
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+    button,input,select{font:inherit}
+    .wrap{width:min(1500px,calc(100% - 28px));margin:auto}
+    header{padding:28px 0 15px}
+    h1{font-size:clamp(30px,5vw,55px);letter-spacing:-.04em;line-height:1;margin:0}
+    .lead{max-width:1000px;color:#a8b6c5;line-height:1.6;margin:16px 0 0}
+    .home a{display:inline-flex;gap:7px;align-items:center;margin-top:4px}
+    .source{
+      margin-top:22px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;
+      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+      line-height:1.6;color:#c8d2dd
+    }
+    .source strong{color:#fff}
+
+    .searchbox{
+      position:sticky;top:0;z-index:20;margin:18px 0 20px;padding:15px;border:1px solid var(--line);
+      border-radius:20px;background:rgba(9,13,20,.90);backdrop-filter:blur(16px);box-shadow:var(--shadow)
+    }
+    .mainsearch{display:grid;grid-template-columns:1fr auto;gap:9px}
+    .input,.select{
+      width:100%;background:#0c131d;color:#fff;border:1px solid var(--line);
+      border-radius:12px;padding:12px 13px;outline:none
+    }
+    .maininput{padding:14px 15px}
+    .input:focus,.select:focus{border-color:#467eab;box-shadow:0 0 0 3px rgba(77,179,255,.08)}
+    .btn{
+      border:0;border-radius:12px;padding:12px 16px;cursor:pointer;font-weight:750;
+      background:var(--accent);color:#17100a;transition:.15s transform,.15s opacity
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn.secondary{background:#182638;color:#eaf2f9;border:1px solid #30455e}
+    .btn.ghost{background:transparent;color:#d5e1ec;border:1px solid var(--line)}
+    .filters{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;margin-top:10px}
+    .filter-label{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px 2px}
+    .checkrow{display:flex;align-items:center;gap:8px;min-height:43px;padding:0 10px;border:1px solid var(--line);border-radius:12px;background:#0c131d;color:#c7d2dc;font-size:13px}
+    .checkrow input{accent-color:var(--accent)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .topics{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+    .topic{
+      padding:7px 10px;border:1px solid #2a3c50;background:#101a26;color:#c4d2df;
+      border-radius:999px;cursor:pointer;font-size:12.5px
+    }
+    .topic:hover{border-color:#4e6d90;color:#fff}
+    .topic.vet{border-color:#365744;background:#102019;color:#bcebd2}
+
+    .statusbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      color:var(--muted);margin:18px 2px 12px
+    }
+    #status strong{color:#fff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(355px,1fr));gap:16px}
+    .card{
+      display:flex;flex-direction:column;padding:18px;border:1px solid var(--line);border-radius:var(--radius);
+      background:linear-gradient(180deg,#121b28,#0e151f);box-shadow:0 8px 22px rgba(0,0,0,.18);
+      transition:.18s transform,.18s border-color,.18s box-shadow
+    }
+    .card:hover{transform:translateY(-3px);border-color:#3a506c;box-shadow:0 16px 32px rgba(0,0,0,.25)}
+    .cardtop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .badges{display:flex;gap:6px;flex-wrap:wrap}
+    .badge{font-size:11px;font-weight:750;padding:4px 7px;border-radius:999px;border:1px solid #32455b;color:#bfd0df;background:#152131}
+    .badge.year{color:#ffbd62;border-color:#68491f;background:#241a0e}
+    .badge.oa{color:#91e7bd;border-color:#275a43;background:#0e251b}
+    .badge.preprint{color:#b9b4ff;border-color:#484477;background:#1b1935}
+    .cites{font-size:12px;color:#9fb0bf;white-space:nowrap}
+    .title{font-size:18px;line-height:1.34;margin:12px 0 8px;color:#fff}
+    .authors{font-size:13px;color:#adbdcb;line-height:1.5}
+    .journal{font-size:12px;color:#7fc3ee;margin-top:6px}
+    .abstract-title{font-size:11px;color:#8192a5;text-transform:uppercase;letter-spacing:.09em;margin-top:16px}
+    .abstract{
+      margin-top:6px;color:#d0d8e0;font-size:13.4px;line-height:1.62;
+      white-space:normal;overflow-wrap:anywhere
+    }
+    .noabstract{color:#748699;font-style:italic}
+    .mesh{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+    .tag{font-size:10.5px;padding:4px 7px;border-radius:999px;background:#152235;color:#9fcae9;border:1px solid #243b54}
+    .cardactions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:17px}
+    .smallbtn{
+      display:inline-flex;align-items:center;justify-content:center;border:1px solid #30465f;
+      border-radius:10px;background:#162335;color:#e0ecf5;padding:8px 10px;cursor:pointer;font-size:12px
+    }
+    .smallbtn:hover{background:#1b2b41;text-decoration:none}
+    .smallbtn.orange{color:#ffd79d;border-color:#6a481d;background:#281c0d}
+    .smallbtn.green{color:#bdeed5;border-color:#2e6048;background:#10271d}
+    .empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px 20px;border:1px dashed var(--line);border-radius:18px}
+    .pager{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:28px 0 18px}
+    .pageinfo{color:var(--muted);min-width:145px;text-align:center}
+    .loader{width:22px;height:22px;border:3px solid #273649;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .footer{margin-top:42px;padding:28px 16px 46px;border-top:1px solid var(--line);color:#9cabb9;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .footer h4 a{color:#ffb24b}
+    .error{color:#ff9090}
+    .notice{padding:10px 12px;border:1px solid #294666;background:#132235;color:#bdd4e6;border-radius:11px;font-size:12px}
+
+    dialog{
+      width:min(930px,calc(100% - 22px));max-height:90vh;padding:0;background:#0e1621;color:var(--text);
+      border:1px solid #334b65;border-radius:19px;box-shadow:0 35px 100px rgba(0,0,0,.65)
+    }
+    dialog::backdrop{background:rgba(0,0,0,.74);backdrop-filter:blur(4px)}
+    .modalhead{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:16px 19px;background:#101a27;border-bottom:1px solid var(--line)}
+    .modalbody{padding:20px;line-height:1.65}
+    .close{border:1px solid #354a62;background:#1c2939;color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer}
+    .metagrid{display:grid;grid-template-columns:130px 1fr;gap:7px 13px;margin:18px 0}
+    .metagrid dt{color:var(--muted)}.metagrid dd{margin:0;overflow-wrap:anywhere}
+
+    @media(max-width:1180px){.filters{grid-template-columns:repeat(4,1fr)}}
+    @media(max-width:760px){
+      .wrap{width:min(100% - 18px,1500px)}
+      .searchbox{position:relative;top:auto;padding:11px;border-radius:16px}
+      .mainsearch{grid-template-columns:1fr}.filters{grid-template-columns:repeat(2,1fr)}
+      .grid{grid-template-columns:1fr}.card{padding:15px}
+      .statusbar{flex-direction:column;align-items:flex-start}
+      .metagrid{grid-template-columns:1fr;gap:2px}.metagrid dd{margin-bottom:8px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Europe PMC Explorer</h1>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠&nbsp;<span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+    <p class="lead">
+      Buscador interactivo de literatura biomédica y ciencias de la vida. Consulta artículos,
+      preprints y otros registros científicos, muestra los resúmenes completos disponibles y permite
+      traducir títulos y abstracts al español.
+    </p>
+
+    <div class="source">
+      <strong>Fuente de los datos:</strong> esta aplicación consulta directamente la
+      <a href="https://europepmc.org/" target="_blank" rel="noopener">base de datos Europe PMC</a>
+      mediante su
+      <a href="https://europepmc.org/RestfulWebService" target="_blank" rel="noopener">API REST pública</a>.
+      Europe PMC es desarrollada por EMBL-EBI en colaboración con la National Library of Medicine y otros socios.
+      Los artículos, abstracts y metadatos pertenecen a sus respectivas fuentes y autores.
+    </div>
+  </header>
+
+  <main>
+    <section class="searchbox">
+      <div class="mainsearch">
+        <input id="q" class="input maininput" type="search" autocomplete="off"
+          placeholder="Buscar: canine cardiomyopathy, CRISPR, Alzheimer's disease, exoplanet biology..." />
+        <button id="searchBtn" class="btn">🔎 Buscar</button>
+      </div>
+
+      <div class="filters">
+        <div>
+          <label class="filter-label" for="author">Autor</label>
+          <input id="author" class="input" placeholder="Ej. Smith J">
+        </div>
+        <div>
+          <label class="filter-label" for="journal">Revista</label>
+          <input id="journal" class="input" placeholder="Ej. Nature">
+        </div>
+        <div>
+          <label class="filter-label" for="yearFrom">Año desde</label>
+          <input id="yearFrom" class="input" type="number" min="1800" max="2100" placeholder="2020">
+        </div>
+        <div>
+          <label class="filter-label" for="yearTo">Año hasta</label>
+          <input id="yearTo" class="input" type="number" min="1800" max="2100" placeholder="2026">
+        </div>
+        <div>
+          <label class="filter-label" for="sort">Orden</label>
+          <select id="sort" class="select">
+            <option value="">Relevancia</option>
+            <option value="date">Más recientes</option>
+            <option value="cited">Más citados</option>
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="pageSize">Resultados</label>
+          <select id="pageSize" class="select">
+            <option>10</option><option selected>20</option><option>40</option><option>60</option>
+          </select>
+        </div>
+        <div>
+          <label class="filter-label">Expansión</label>
+          <label class="checkrow"><input id="synonym" type="checkbox" checked> Sinónimos MeSH/UniProt</label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <label class="checkrow"><input id="openAccess" type="checkbox"> Solo acceso abierto</label>
+        <label class="checkrow"><input id="hasAbstract" type="checkbox"> Solo con resumen</label>
+        <button id="clearBtn" class="btn secondary">Limpiar</button>
+        <button id="downloadBtn" class="btn ghost">⬇️ Descargar página JSON</button>
+      </div>
+
+      <div class="topics">
+        <button class="topic vet" data-q="canine mitral valve disease">🐕 Cardiología canina</button>
+        <button class="topic vet" data-q="feline hyperthyroidism">🐈 Hipertiroidismo felino</button>
+        <button class="topic vet" data-q="veterinary oncology">🐾 Oncología veterinaria</button>
+        <button class="topic vet" data-q="antimicrobial resistance veterinary">🦠 Resistencia antimicrobiana</button>
+        <button class="topic" data-q="cancer immunotherapy">🧬 Inmunoterapia</button>
+        <button class="topic" data-q="CRISPR gene editing">✂️ CRISPR</button>
+        <button class="topic" data-q="Alzheimer disease">🧠 Alzheimer</button>
+        <button class="topic" data-q="cardiovascular disease">❤️ Cardiovascular</button>
+        <button class="topic" data-q="microbiome">🧫 Microbioma</button>
+        <button class="topic" data-q="artificial intelligence medicine">🤖 IA en medicina</button>
+        <button class="topic" data-q="climate change health">🌍 Clima y salud</button>
+        <button class="topic" data-q="emerging infectious disease">🦠 Enfermedades emergentes</button>
+        <button class="topic" data-q="stem cells regenerative medicine">🧪 Células madre</button>
+        <button class="topic" data-q="rare diseases">🔬 Enfermedades raras</button>
+      </div>
+    </section>
+
+    <div class="statusbar">
+      <div id="status">Introduce un término o selecciona un tema.</div>
+      <div id="net"></div>
+    </div>
+
+    <section id="results" class="grid" aria-live="polite"></section>
+
+    <nav class="pager">
+      <button id="prevBtn" class="btn secondary">← Anterior</button>
+      <span id="pageInfo" class="pageinfo">Página 1</span>
+      <button id="nextBtn" class="btn secondary">Siguiente →</button>
+    </nav>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>________________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>________________________________________________</p>
+  </footer>
+</div>
+
+<dialog id="dialog">
+  <div class="modalhead">
+    <strong>Ficha del artículo</strong>
+    <button id="closeDialog" class="close">✕ Cerrar</button>
+  </div>
+  <div id="modalBody" class="modalbody"></div>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  const API = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
+  const $ = id => document.getElementById(id);
+
+  const state = {
+    items: [], raw: null, total: 0, page: 1,
+    cursors: ['*'], nextCursor: null, loading: false,
+    translations: new Map(), lastUrl: ''
+  };
+
+  const esc = (v='') => String(v).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[c]));
+
+  function stripHtml(s=''){
+    const d = document.createElement('div');
+    d.innerHTML = s;
+    return d.textContent || d.innerText || '';
+  }
+
+  function arr(v){ return Array.isArray(v) ? v : (v ? [v] : []); }
+
+  function getAbstract(r){
+    return stripHtml(r.abstractText || r.abstract || '');
+  }
+
+  function getMesh(r){
+    let list = r?.meshHeadingList?.meshHeading || [];
+    return arr(list).map(x => {
+      if (typeof x === 'string') return x;
+      return x?.descriptorName || x?.majorTopic_YN || '';
+    }).filter(Boolean).slice(0,8);
+  }
+
+  function isOA(r){
+    return r.isOpenAccess === 'Y' || r.isOpenAccess === true || !!r.pmcid;
+  }
+
+  function europeUrl(r){
+    const id = r.pmcid || r.pmid || r.id;
+    const src = r.pmcid ? 'PMC' : (r.source || 'MED');
+    if (!id) return 'https://europepmc.org/';
+    return `https://europepmc.org/article/${encodeURIComponent(src)}/${encodeURIComponent(id)}`;
+  }
+
+  function pubType(r){
+    if (Array.isArray(r.pubTypeList?.pubType)) return r.pubTypeList.pubType.join(', ');
+    return r.pubType || '';
+  }
+
+  function buildQuery(){
+    const parts = [];
+    const q = $('q').value.trim();
+    const author = $('author').value.trim();
+    const journal = $('journal').value.trim();
+    const yf = $('yearFrom').value.trim();
+    const yt = $('yearTo').value.trim();
+
+    if (q) parts.push(q);
+    if (author) parts.push(`AUTH:"${author.replaceAll('"','')}"`);
+    if (journal) parts.push(`JOURNAL:"${journal.replaceAll('"','')}"`);
+
+    if (yf && yt) parts.push(`FIRST_PDATE:[${yf}-01-01 TO ${yt}-12-31]`);
+    else if (yf) parts.push(`FIRST_PDATE:[${yf}-01-01 TO 2100-12-31]`);
+    else if (yt) parts.push(`FIRST_PDATE:[1800-01-01 TO ${yt}-12-31]`);
+
+    if ($('openAccess').checked) parts.push('OPEN_ACCESS:Y');
+    if ($('hasAbstract').checked) parts.push('HAS_ABSTRACT:Y');
+
+    let query = parts.join(' AND ') || 'veterinary medicine';
+    if ($('sort').value === 'date') query += ' sort_date:y';
+    if ($('sort').value === 'cited') query += ' sort_cited:y';
+    return query;
+  }
+
+  function buildUrl(cursor='*'){
+    const p = new URLSearchParams({
+      query: buildQuery(),
+      format: 'json',
+      resultType: 'core',
+      pageSize: $('pageSize').value,
+      cursorMark: cursor,
+      synonym: $('synonym').checked ? 'true' : 'false'
+    });
+    return `${API}?${p}`;
+  }
+
+  function setLoading(v){
+    state.loading = v;
+    $('searchBtn').disabled = v;
+    $('prevBtn').disabled = v || state.page <= 1;
+    $('nextBtn').disabled = v || !state.nextCursor;
+    $('net').innerHTML = v ? '<span class="loader"></span>' : (navigator.onLine ? '🟢 En línea' : '🔴 Sin conexión');
+  }
+
+  async function search(reset=true){
+    if (reset){
+      state.page = 1;
+      state.cursors = ['*'];
+      state.nextCursor = null;
+    }
+    const cursor = state.cursors[state.page - 1] || '*';
+    const url = buildUrl(cursor);
+    state.lastUrl = url;
+
+    setLoading(true);
+    $('status').textContent = 'Consultando Europe PMC…';
+    $('results').innerHTML = '';
+
+    try{
+      const res = await fetch(url, {headers:{Accept:'application/json'}});
+      if(!res.ok) throw new Error(`Europe PMC respondió con HTTP ${res.status}`);
+      const data = await res.json();
+      state.raw = data;
+      state.items = data?.resultList?.result || [];
+      state.total = Number(data?.hitCount || 0);
+      state.nextCursor = data?.nextCursorMark || null;
+      render();
+    }catch(err){
+      console.error(err);
+      $('status').innerHTML = `<span class="error">Error: ${esc(err.message)}</span>`;
+      $('results').innerHTML = '<div class="empty">No se pudieron recuperar resultados. Comprueba la conexión e inténtalo de nuevo.</div>';
+    }finally{
+      setLoading(false);
+    }
+  }
+
+  function render(){
+    $('status').innerHTML = `<strong>${state.total.toLocaleString('es-ES')}</strong> resultados encontrados`;
+    $('pageInfo').textContent = `Página ${state.page}`;
+    $('prevBtn').disabled = state.page <= 1;
+    $('nextBtn').disabled = !state.nextCursor;
+
+    if(!state.items.length){
+      $('results').innerHTML = '<div class="empty">No se encontraron publicaciones con esos criterios.</div>';
+      return;
+    }
+
+    $('results').innerHTML = state.items.map((r,i) => {
+      const abs = getAbstract(r);
+      const mesh = getMesh(r);
+      const oa = isOA(r);
+      const type = pubType(r);
+      const isPreprint = /preprint/i.test(type) || r.source === 'PPR';
+
+      return `
+        <article class="card">
+          <div class="cardtop">
+            <div class="badges">
+              <span class="badge year">${esc(r.pubYear || '—')}</span>
+              ${oa ? '<span class="badge oa">Open Access</span>' : ''}
+              ${isPreprint ? '<span class="badge preprint">Preprint</span>' : ''}
+            </div>
+            <span class="cites">📚 ${Number(r.citedByCount || 0).toLocaleString('es-ES')} citas</span>
+          </div>
+
+          <h3 class="title">${esc(r.title || 'Sin título')}</h3>
+          <div class="authors">${esc(r.authorString || 'Autoría no indicada')}</div>
+          ${r.journalTitle ? `<div class="journal">${esc(r.journalTitle)}${r.journalVolume ? ` · ${esc(r.journalVolume)}` : ''}</div>` : ''}
+
+          <div class="abstract-title">Resumen</div>
+          <div class="abstract ${abs ? '' : 'noabstract'}" data-abstract="${i}">
+            ${abs ? esc(abs) : 'Este registro no contiene un resumen disponible en Europe PMC.'}
+          </div>
+
+          ${mesh.length ? `<div class="mesh">${mesh.map(m => `<span class="tag">${esc(m)}</span>`).join('')}</div>` : ''}
+
+          <div class="cardactions">
+            <button class="smallbtn" data-detail="${i}">Ver ficha</button>
+            ${abs ? `<button class="smallbtn orange" data-translate="${i}">🇪🇸 Traducir</button>` : ''}
+            <a class="smallbtn" href="${esc(europeUrl(r))}" target="_blank" rel="noopener">Europe PMC ↗</a>
+            ${r.doi ? `<a class="smallbtn" href="https://doi.org/${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">DOI ↗</a>` : ''}
+            ${oa && r.pmcid ? `<a class="smallbtn green" href="https://europepmc.org/articles/${encodeURIComponent(r.pmcid)}" target="_blank" rel="noopener">Texto completo ↗</a>` : ''}
+          </div>
+        </article>`;
+    }).join('');
+
+    document.querySelectorAll('[data-translate]').forEach(b =>
+      b.addEventListener('click', () => translateCard(Number(b.dataset.translate), b))
+    );
+    document.querySelectorAll('[data-detail]').forEach(b =>
+      b.addEventListener('click', () => openDetail(Number(b.dataset.detail)))
+    );
+  }
+
+  async function translateText(text){
+    if(!text) return '';
+    if(state.translations.has(text)) return state.translations.get(text);
+
+    // Se divide en fragmentos para respetar límites habituales de servicios gratuitos.
+    const chunks = text.match(/.{1,430}(?:\s|$)/gs) || [text];
+    const translated = [];
+
+    try{
+      for(const chunk of chunks){
+        const u = 'https://api.mymemory.translated.net/get?q=' +
+          encodeURIComponent(chunk.trim()) + '&langpair=en|es';
+        const r = await fetch(u);
+        if(!r.ok) throw new Error('translation');
+        const j = await r.json();
+        const t = j?.responseData?.translatedText;
+        if(!t) throw new Error('translation');
+        translated.push(t);
+      }
+      const out = translated.join(' ');
+      state.translations.set(text,out);
+      return out;
+    }catch(e){
+      return '';
+    }
+  }
+
+  async function translateCard(i,btn){
+    const r = state.items[i];
+    const card = btn.closest('.card');
+    const titleEl = card.querySelector('.title');
+    const absEl = card.querySelector('[data-abstract]');
+    const title = r.title || '';
+    const abs = getAbstract(r);
+
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Traduciendo…';
+
+    const [tt,ta] = await Promise.all([translateText(title), translateText(abs)]);
+    if(tt || ta){
+      if(tt) titleEl.textContent = tt;
+      if(ta) absEl.textContent = ta;
+      btn.textContent = '✓ Traducido';
+    }else{
+      btn.textContent = 'No disponible';
+      setTimeout(()=>{btn.textContent=original;btn.disabled=false},2200);
+    }
+  }
+
+  function openDetail(i){
+    const r = state.items[i];
+    const abs = getAbstract(r) || 'No disponible.';
+    const mesh = getMesh(r);
+    const id = r.pmcid || r.pmid || r.id || '—';
+
+    $('modalBody').innerHTML = `
+      <h2 id="modalTitle" style="margin-top:0">${esc(r.title || 'Sin título')}</h2>
+      <p style="color:#adbdcb">${esc(r.authorString || 'Autoría no indicada')}</p>
+      <div class="notice">Metadatos recuperados directamente de Europe PMC.</div>
+
+      <dl class="metagrid">
+        <dt>Año</dt><dd>${esc(r.pubYear || '—')}</dd>
+        <dt>Revista</dt><dd>${esc(r.journalTitle || '—')}</dd>
+        <dt>Tipo</dt><dd>${esc(pubType(r) || '—')}</dd>
+        <dt>Citas</dt><dd>${Number(r.citedByCount || 0).toLocaleString('es-ES')}</dd>
+        <dt>PMID</dt><dd>${r.pmid ? `<a target="_blank" rel="noopener" href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(r.pmid)}/">${esc(r.pmid)}</a>` : '—'}</dd>
+        <dt>PMCID</dt><dd>${esc(r.pmcid || '—')}</dd>
+        <dt>DOI</dt><dd>${r.doi ? `<a target="_blank" rel="noopener" href="https://doi.org/${encodeURIComponent(r.doi)}">${esc(r.doi)}</a>` : '—'}</dd>
+        <dt>Acceso abierto</dt><dd>${isOA(r) ? 'Sí' : 'No / no indicado'}</dd>
+      </dl>
+
+      ${mesh.length ? `<h3>Términos MeSH</h3><div class="mesh">${mesh.map(m=>`<span class="tag">${esc(m)}</span>`).join('')}</div>` : ''}
+
+      <h3>Resumen</h3>
+      <p id="modalAbstract">${esc(abs)}</p>
+
+      <div class="cardactions">
+        ${getAbstract(r) ? '<button id="modalTranslate" class="smallbtn orange">🇪🇸 Traducir título y resumen</button>' : ''}
+        <a class="smallbtn" href="${esc(europeUrl(r))}" target="_blank" rel="noopener">Europe PMC ↗</a>
+        ${r.doi ? `<a class="smallbtn" href="https://doi.org/${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">DOI ↗</a>` : ''}
+      </div>
+      <p style="font-size:11px;color:#7f90a3;margin-top:18px">La traducción automática puede contener errores y no sustituye al texto científico original.</p>
+    `;
+
+    $('dialog').showModal();
+
+    const tr = $('modalTranslate');
+    if(tr) tr.addEventListener('click', async()=>{
+      tr.disabled=true; tr.textContent='Traduciendo…';
+      const [tt,ta] = await Promise.all([translateText(r.title||''),translateText(getAbstract(r))]);
+      if(tt) $('modalTitle').textContent=tt;
+      if(ta) $('modalAbstract').textContent=ta;
+      tr.textContent=(tt||ta)?'✓ Traducido':'No disponible';
+    });
+  }
+
+  $('searchBtn').addEventListener('click',()=>search(true));
+  ['q','author','journal','yearFrom','yearTo'].forEach(id=>{
+    $(id).addEventListener('keydown',e=>{if(e.key==='Enter')search(true)});
+  });
+
+  document.querySelectorAll('.topic').forEach(b=>{
+    b.addEventListener('click',()=>{
+      $('q').value=b.dataset.q;
+      search(true);
+    });
+  });
+
+  $('prevBtn').addEventListener('click',()=>{
+    if(state.page<=1)return;
+    state.page--;
+    search(false);
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  $('nextBtn').addEventListener('click',()=>{
+    if(!state.nextCursor)return;
+    if(!state.cursors[state.page]) state.cursors[state.page]=state.nextCursor;
+    state.page++;
+    search(false);
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  $('clearBtn').addEventListener('click',()=>{
+    ['q','author','journal','yearFrom','yearTo'].forEach(id=>$(id).value='');
+    $('sort').value='';
+    $('pageSize').value='20';
+    $('synonym').checked=true;
+    $('openAccess').checked=false;
+    $('hasAbstract').checked=false;
+    state.items=[];state.total=0;state.page=1;state.cursors=['*'];state.nextCursor=null;
+    $('results').innerHTML='';
+    $('status').textContent='Filtros limpiados. Introduce una nueva búsqueda.';
+    $('pageInfo').textContent='Página 1';
+  });
+
+  $('downloadBtn').addEventListener('click',()=>{
+    if(!state.raw)return;
+    const blob=new Blob([JSON.stringify(state.raw,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`europe-pmc-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  });
+
+  $('closeDialog').addEventListener('click',()=>$('dialog').close());
+  $('dialog').addEventListener('click',e=>{if(e.target===$('dialog'))$('dialog').close()});
+
+  window.addEventListener('online',()=>{$('net').textContent='🟢 En línea'});
+  window.addEventListener('offline',()=>{$('net').textContent='🔴 Sin conexión'});
+  $('net').textContent=navigator.onLine?'🟢 En línea':'🔴 Sin conexión';
+
+  // Búsqueda inicial de interés biomédico/veterinario.
+  $('q').value='veterinary medicine';
+  search(true);
+})();
+</script>
+</body>
+</html>
