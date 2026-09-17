@@ -143,7 +143,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Europe PMC Explorer</h1>
+    <h1>Europe_PMC_Explorer</h1>
 
     <!-- BLOQUE DESARROLLADO POR + HOME -->
     <div style="margin:10px 0 0 0;">
@@ -283,10 +283,9 @@
 (() => {
   'use strict';
 
-  const API = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
-  // GitHub Pages puede sufrir bloqueos CORS con Europe PMC.
-  // Se intenta la API directamente y, si el navegador la bloquea,
-  // se usa automáticamente AllOrigins como proxy CORS de respaldo.
+  const API = 'https://europepmc-proxy.airsoto.workers.dev/';
+  // Las consultas se realizan a través del Cloudflare Worker propio,
+  // que reenvía la petición a Europe PMC y añade las cabeceras CORS necesarias.
   const $ = id => document.getElementById(id);
 
   const state = {
@@ -382,36 +381,17 @@
 
 
   async function fetchEuropePMC(url){
-    // 1) Intento directo.
-    try{
-      const direct = await fetch(url, {
-        method:'GET',
-        headers:{'Accept':'application/json'},
-        cache:'no-store'
-      });
-      if(direct.ok) return await direct.json();
-    }catch(e){
-      console.warn('Consulta directa bloqueada por CORS; se usará proxy.', e);
-    }
-
-    // 2) Respaldo CORS para páginas estáticas como GitHub Pages.
-    const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    const proxied = await fetch(proxy, {
+    const response = await fetch(url, {
       method:'GET',
       headers:{'Accept':'application/json'},
       cache:'no-store'
     });
 
-    if(!proxied.ok){
-      throw new Error(`No se pudo acceder a Europe PMC (proxy HTTP ${proxied.status}).`);
+    if(!response.ok){
+      throw new Error(`El proxy Europe PMC respondió con HTTP ${response.status}`);
     }
 
-    const raw = await proxied.text();
-    try{
-      return JSON.parse(raw);
-    }catch(e){
-      throw new Error('La respuesta recibida de Europe PMC no era JSON válido.');
-    }
+    return await response.json();
   }
 
   async function search(reset=true){
