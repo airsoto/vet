@@ -130,7 +130,7 @@ body.theme-dark .footer{border-color:rgba(211,229,241,.18)}
 @media(orientation:landscape) and (max-height:520px){.game-topbar{height:48px;min-height:48px}.game-toolbar{position:absolute;right:0;top:48px;bottom:0;width:70px;min-height:0;flex-direction:column;padding:6px calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) 6px;border-top:0;border-left:2px solid rgba(36,51,66,.14)}.game-stage{margin-right:70px}.tool-btn{width:54px;min-height:51px;flex-basis:51px}.tool-btn span{display:none}.ink-wrap{top:7px}.context-tip{top:40px}.sandbox-bar{right:80px}.hero{transform:scale(.85)}}
 
 /* CRAYON PHYSICS V2 SOURCE UI */
-.draw-mode-badge{position:absolute;left:12px;top:10px;z-index:3;padding:7px 11px;border:2px dashed var(--blue);border-radius:13px;background:var(--panel);box-shadow:2px 3px 0 var(--shadow);font-size:.72rem;font-weight:900;pointer-events:none}.paper-card,.world-card,.level-card,.footer{border-width:3px}.game-toolbar{background-image:repeating-linear-gradient(-3deg,transparent 0 9px,rgba(45,95,134,.025) 10px 11px)}.tool-btn{border-width:3px}.tool-btn:after{content:"";position:absolute;inset:4px;border:1px dashed currentColor;border-radius:12px;opacity:.2;pointer-events:none}body.theme-dark .draw-mode-badge{background:rgba(25,32,39,.94)}
+.draw-mode-badge{position:absolute;left:12px;top:42px;z-index:3;padding:7px 11px;border:2px dashed var(--blue);border-radius:13px;background:var(--panel);box-shadow:2px 3px 0 var(--shadow);font-size:.72rem;font-weight:900;pointer-events:none}.paper-card,.world-card,.level-card,.footer{border-width:3px}.game-toolbar{background-image:repeating-linear-gradient(-3deg,transparent 0 9px,rgba(45,95,134,.025) 10px 11px)}.tool-btn{border-width:3px}.tool-btn:after{content:"";position:absolute;inset:4px;border:1px dashed currentColor;border-radius:12px;opacity:.2;pointer-events:none}body.theme-dark .draw-mode-badge{background:rgba(25,32,39,.94)}
 
 </style>
 </head>
@@ -162,7 +162,7 @@ body.theme-dark .footer{border-color:rgba(211,229,241,.18)}
       <button class="crayon-btn" data-nav="settingsScreen">⚙ Ajustes</button>
       <button class="crayon-btn wide" data-nav="creditsScreen">★ Créditos</button>
     </div>
-    <div class="version">Versión 2.0 · Física y dibujo inteligente</div>
+    <div class="version">Versión 3.0 · Física estable y dibujo inteligente</div>
   </div>
 </section>
 
@@ -188,8 +188,8 @@ body.theme-dark .footer{border-color:rgba(211,229,241,.18)}
   </div>
   <div class="game-stage" id="gameStage">
     <canvas id="gameCanvas" aria-label="Escenario de juego"></canvas>
-    <div class="ink-wrap hidden" aria-hidden="true"><div class="ink-label">TINTA <span id="inkText"></span></div><div class="ink-bar"><div id="inkFill" class="ink-fill"></div></div></div>
-    <div class="draw-mode-badge" aria-live="polite">✎ Dibujo inteligente · tinta ilimitada</div>
+    <div class="ink-wrap" aria-hidden="true"><div class="ink-label">TINTA <span id="inkText"></span></div><div class="ink-bar"><div id="inkFill" class="ink-fill"></div></div></div>
+    <div class="draw-mode-badge" aria-live="polite">✎ Dibujo inteligente</div>
     <div id="contextTip" class="context-tip hidden"></div>
     <div id="sandboxBar" class="sandbox-bar hidden">
       <button data-sandbox="ball" title="Añadir bola">●</button><button data-sandbox="star" title="Añadir estrella">★</button>
@@ -198,7 +198,7 @@ body.theme-dark .footer{border-color:rgba(211,229,241,.18)}
     </div>
   </div>
   <div class="game-toolbar" role="toolbar" aria-label="Herramientas">
-    <button class="tool-btn active" data-tool="smart" aria-label="Dibujo inteligente">✎<span>Dibujar</span></button>
+    <button class="tool-btn active" data-tool="draw" aria-label="Dibujo inteligente">✎<span>Dibujar</span></button>
     <button class="tool-btn" data-tool="pivot" aria-label="Pivote">⊙<span>Pivote</span></button>
     <button class="tool-btn" data-tool="rope" aria-label="Cuerda">⌁<span>Cuerda</span></button>
     <button class="tool-btn" data-tool="erase" aria-label="Borrador">⌫<span>Borrar</span></button>
@@ -299,12 +299,15 @@ body.theme-dark .footer{border-color:rgba(211,229,241,.18)}
 <div id="modalLayer"><div id="modalBox" class="modal paper-card"></div></div>
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/poly-decomp@0.3.0/build/decomp.min.js'"></script>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/matter-js@0.20.0/build/matter.min.js'"></script>
 <script>
 (() => {
 'use strict';
 const M = Matter;
+if(window.decomp&&M.Common?.setDecomp)M.Common.setDecomp(window.decomp);
 const W=1000,H=650, SAVE_KEY='crayonOrbit_save_v1';
+const PHYSICS_DEBUG=false;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -412,24 +415,28 @@ class PhysicsWorld{
     this.app=app;
     this.engine=M.Engine.create({enableSleeping:true});
     this.world=this.engine.world;
-    // Escala física: 100 px ≈ 1 m. 9,81 m/s² se expresa en px/ms².
     this.pixelsPerMeter=100;
-    this.engine.positionIterations=14;
-    this.engine.velocityIterations=12;
-    this.engine.constraintIterations=10;
+    this.engine.positionIterations=12;
+    this.engine.velocityIterations=10;
+    this.engine.constraintIterations=8;
     this.engine.gravity.scale=9.81*this.pixelsPerMeter/1e6;
-    // 180 Hz reduce el túnel a través de líneas finas y mejora los apilamientos.
-    this.fixedDelta=1000/180;
+    // 120 Hz como base; micro-pasos solo cuando la distancia recorrida lo requiere.
+    this.fixedDelta=1000/120;
     this.accumulator=0;
-    this.maxSubSteps=10;
+    this.maxFrameSteps=5;
+    this.maxMicroSteps=3;
+    this.minimumColliderThickness=14;
+    this.maxUserBodies=20;
+    this.renderAlpha=0;
+    this.restoring=false;
     this.materials={
-      platform:{friction:.82,frictionStatic:1.25,restitution:0,slop:.008},
-      ball:{friction:.32,frictionStatic:.9,frictionAir:.00055,restitution:.075,slop:.008,mass:4.8},
-      block:{friction:.62,frictionStatic:1.05,frictionAir:.00045,restitution:.025,slop:.009},
-      wheel:{friction:.72,frictionStatic:1.35,frictionAir:.00035,restitution:.035,slop:.008},
-      stroke:{friction:.68,frictionStatic:1.18,frictionAir:.0005,restitution:.018,slop:.008,density:.00175},
-      shape:{friction:.64,frictionStatic:1.1,frictionAir:.0005,restitution:.022,slop:.009,density:.0018},
-      rocket:{friction:.5,frictionStatic:.9,frictionAir:.0007,restitution:.02,slop:.009}
+      platform:{friction:.78,frictionStatic:1.18,restitution:.006,slop:.018},
+      ball:{friction:.30,frictionStatic:.76,frictionAir:.00028,restitution:.07,slop:.018,mass:4.8},
+      block:{friction:.58,frictionStatic:.96,frictionAir:.00024,restitution:.025,slop:.02},
+      wheel:{friction:.76,frictionStatic:1.22,frictionAir:.00016,restitution:.025,slop:.018},
+      stroke:{friction:.66,frictionStatic:1.08,frictionAir:.00022,restitution:.015,slop:.02,density:.00155},
+      shape:{friction:.62,frictionStatic:1.0,frictionAir:.00022,restitution:.018,slop:.02,density:.00165},
+      rocket:{friction:.48,frictionStatic:.86,frictionAir:.00055,restitution:.02,slop:.02}
     };
     this.bodies=new Map();
     this.userConstraints=[];
@@ -444,17 +451,8 @@ class PhysicsWorld{
     M.Events.on(this.engine,'collisionStart',e=>this.onCollisions(e.pairs));
   }
   clear(){
-    M.World.clear(this.world,false);
-    M.Engine.clear(this.engine);
-    this.accumulator=0;
-    this.bodies.clear();
-    this.userConstraints=[];
-    this.staticConstraints=[];
-    this.pivots=[];
-    this.anchors=[];
-    this.ball=null;
-    this.stars=[];
-    this.boundBodies=[];
+    M.World.clear(this.world,false);M.Engine.clear(this.engine);this.accumulator=0;this.renderAlpha=0;
+    this.bodies.clear();this.userConstraints=[];this.staticConstraints=[];this.pivots=[];this.anchors=[];this.ball=null;this.stars=[];this.boundBodies=[];
   }
   applyMaterial(body,props={}){
     const all=body.parts?.length>1?body.parts:[body];
@@ -474,326 +472,213 @@ class PhysicsWorld{
     if(props.sleepThreshold!=null)body.sleepThreshold=props.sleepThreshold;
     if(!body.isStatic&&props.density!=null)M.Body.setDensity(body,props.density);
     if(!body.isStatic&&props.mass!=null)M.Body.setMass(body,Math.max(.05,props.mass));
-    if(!body.isStatic&&props.inertiaScale!=null&&Number.isFinite(body.inertia))M.Body.setInertia(body,body.inertia*props.inertiaScale);
-    body.plugin=body.plugin||{};
-    if(props.name)body.plugin.material=props.name;
-    return body;
+    body.plugin=body.plugin||{};if(props.name)body.plugin.material=props.name;return body;
+  }
+  pathLength(points){let total=0;for(let i=1;i<points.length;i++)total+=dist(points[i-1],points[i]);return total}
+  polygonArea(points){let a=0;for(let i=0,j=points.length-1;i<points.length;j=i++)a+=points[j].x*points[i].y-points[i].x*points[j].y;return a/2}
+  polygonCentroid(points){
+    let area2=0,cx=0,cy=0;
+    for(let i=0,j=points.length-1;i<points.length;j=i++){
+      const cross=points[j].x*points[i].y-points[i].x*points[j].y;area2+=cross;cx+=(points[j].x+points[i].x)*cross;cy+=(points[j].y+points[i].y)*cross;
+    }
+    if(Math.abs(area2)<1e-6)return{x:points.reduce((s,p)=>s+p.x,0)/points.length,y:points.reduce((s,p)=>s+p.y,0)/points.length};
+    return{x:cx/(3*area2),y:cy/(3*area2)};
+  }
+  resamplePath(points,spacing=5){
+    if(points.length<2)return points.slice();const out=[{...points[0]}];let carry=0,previous={...points[0]};
+    for(let i=1;i<points.length;i++){
+      const target=points[i];let dx=target.x-previous.x,dy=target.y-previous.y,segment=Math.hypot(dx,dy);if(segment<.001)continue;
+      while(carry+segment>=spacing){const t=(spacing-carry)/segment;previous={x:previous.x+dx*t,y:previous.y+dy*t};out.push({...previous});dx=target.x-previous.x;dy=target.y-previous.y;segment=Math.hypot(dx,dy);carry=0}
+      carry+=segment;previous={...target};
+    }
+    if(dist(out[out.length-1],points[points.length-1])>1)out.push({...points[points.length-1]});return out;
+  }
+  smoothPath(points,closed=false,passes=1){
+    let out=points.map(p=>({...p}));
+    for(let pass=0;pass<passes;pass++){
+      if(out.length<3)break;const next=[];if(!closed)next.push(out[0]);const count=closed?out.length:out.length-1;
+      for(let i=0;i<count;i++){const a=out[i],b=out[(i+1)%out.length];next.push({x:a.x*.75+b.x*.25,y:a.y*.75+b.y*.25},{x:a.x*.25+b.x*.75,y:a.y*.25+b.y*.75})}
+      if(!closed)next.push(out[out.length-1]);out=next;
+    }
+    return out;
+  }
+  simplify(points,tol=4){
+    if(points.length<=2)return points.slice();const radial=[points[0]];let prev=points[0];
+    for(let i=1;i<points.length-1;i++){if(dist(points[i],prev)>=tol*.65){radial.push(points[i]);prev=points[i]}}radial.push(points[points.length-1]);
+    if(radial.length<=2)return radial;const sqTol=tol*tol;
+    const sqSeg=(p,a,b)=>{let x=a.x,y=a.y,dx=b.x-x,dy=b.y-y;if(dx||dy){const t=((p.x-x)*dx+(p.y-y)*dy)/(dx*dx+dy*dy);if(t>1){x=b.x;y=b.y}else if(t>0){x+=dx*t;y+=dy*t}}dx=p.x-x;dy=p.y-y;return dx*dx+dy*dy};
+    const rdp=(arr,first,last,out)=>{let max=sqTol,index=-1;for(let i=first+1;i<last;i++){const d=sqSeg(arr[i],arr[first],arr[last]);if(d>max){index=i;max=d}}if(index>0){if(index-first>1)rdp(arr,first,index,out);out.push(arr[index]);if(last-index>1)rdp(arr,index,last,out)}};
+    const out=[radial[0]];rdp(radial,0,radial.length-1,out);out.push(radial[radial.length-1]);return out;
+  }
+  cleanPolygon(points){
+    let pts=[];for(const p of points){if(!pts.length||dist(p,pts[pts.length-1])>2.5)pts.push({...p})}
+    if(pts.length>2&&dist(pts[0],pts[pts.length-1])<4)pts.pop();
+    let changed=true;while(changed&&pts.length>3){changed=false;const next=[];for(let i=0;i<pts.length;i++){const a=pts[(i-1+pts.length)%pts.length],b=pts[i],c=pts[(i+1)%pts.length];const ab={x:b.x-a.x,y:b.y-a.y},bc={x:c.x-b.x,y:c.y-b.y};const cross=Math.abs(ab.x*bc.y-ab.y*bc.x),scale=Math.max(1,Math.hypot(ab.x,ab.y)*Math.hypot(bc.x,bc.y));if(cross/scale<.025&&dist(a,b)<22){changed=true;continue}next.push(b)}pts=next}
+    if(this.polygonArea(pts)<0)pts.reverse();return pts;
+  }
+  orientation(a,b,c){const v=(b.y-a.y)*(c.x-b.x)-(b.x-a.x)*(c.y-b.y);return Math.abs(v)<1e-8?0:(v>0?1:2)}
+  segmentsIntersect(a,b,c,d){
+    const o1=this.orientation(a,b,c),o2=this.orientation(a,b,d),o3=this.orientation(c,d,a),o4=this.orientation(c,d,b);return o1!==o2&&o3!==o4;
+  }
+  polygonSelfIntersects(points){
+    const n=points.length;for(let i=0;i<n;i++){const a=points[i],b=points[(i+1)%n];for(let j=i+1;j<n;j++){if(Math.abs(i-j)<=1||(i===0&&j===n-1))continue;const c=points[j],d=points[(j+1)%n];if(this.segmentsIntersect(a,b,c,d))return true}}return false;
   }
   makeCapsule(x,y,length,thickness,angle=0,opts={}){
     const radius=Math.max(2,thickness/2),inner=Math.max(1,length-thickness);
-    if(length<=thickness*1.05){
-      const circle=M.Bodies.circle(x,y,length/2,{...opts});
-      M.Body.setAngle(circle,angle);
-      return circle;
-    }
-    const {isStatic:_static,label:_label,...childOpts}=opts;
-    const partOpts={...childOpts,isStatic:false,angle:0,label:_label||'capsulePart'};
-    const parts=[
-      M.Bodies.rectangle(x,y,inner,thickness,partOpts),
-      M.Bodies.circle(x-inner/2,y,radius,partOpts),
-      M.Bodies.circle(x+inner/2,y,radius,partOpts)
-    ];
-    const body=M.Body.create({parts,isStatic:!!opts.isStatic,label:opts.label||'capsule'});
-    M.Body.setAngle(body,angle);
-    return body;
+    if(length<=thickness*1.05){const circle=M.Bodies.circle(x,y,length/2,{...opts});M.Body.setAngle(circle,angle);return circle}
+    const {isStatic:_static,label:_label,...childOpts}=opts,partOpts={...childOpts,isStatic:false,angle:0,label:_label||'capsulePart'};
+    const parts=[M.Bodies.rectangle(x,y,inner,thickness,partOpts),M.Bodies.circle(x-inner/2,y,radius,partOpts),M.Bodies.circle(x+inner/2,y,radius,partOpts)];
+    const body=M.Body.create({parts,isStatic:!!opts.isStatic,label:opts.label||'capsule'});M.Body.setAngle(body,angle);return body;
   }
-  staticSolids(){return [...this.bodies.values()].filter(b=>b.isStatic&&!b.isSensor&&b.label!=='bound').concat(this.boundBodies)}
-  separateFromStatics(body,maxPasses=5){
-    if(!body||body.isStatic||body.isSensor)return;
-    const statics=this.staticSolids();
-    if(!statics.length)return;
-    for(let pass=0;pass<maxPasses;pass++){
-      const hits=M.Query.collides(body,statics).filter(c=>c.depth>.15);
-      if(!hits.length)break;
-      const c=hits.reduce((best,x)=>!best||x.depth>best.depth?x:best,null);
-      const aIsBody=c.bodyA===body||c.bodyA?.parent===body;
-      const sign=aIsBody?-1:1;
-      M.Body.translate(body,{x:c.normal.x*(c.depth+.7)*sign,y:c.normal.y*(c.depth+.7)*sign});
+  solidBodies(exclude=null){return [...this.bodies.values()].filter(b=>b!==exclude&&!b.isSensor&&b.label!=='bound').concat(this.boundBodies.filter(b=>b!==exclude))}
+  validateUserPlacement(body){
+    if(this.restoring)return true;let moved=0;
+    for(let pass=0;pass<4;pass++){
+      const hits=M.Query.collides(body,this.solidBodies(body)).filter(c=>c.depth>.12);if(!hits.length)return true;
+      const worst=hits.reduce((best,c)=>!best||c.depth>best.depth?c:best,null),other=worst.bodyA===body||worst.bodyA?.parent===body?worst.bodyB:worst.bodyA;
+      const hard=other?.isStatic||other?.label==='bound';const limit=hard?11:15;if(worst.depth>limit)return false;
+      if(!hard&&worst.depth<4.5)return true;
+      const remaining=9-moved;if(remaining<=0)return false;const shift=Math.min(worst.depth+.35,remaining);
+      const bodyIsA=worst.bodyA===body||worst.bodyA?.parent===body,normal=bodyIsA?M.Vector.neg(worst.normal):worst.normal;
+      M.Body.translate(body,M.Vector.mult(normal,shift));moved+=shift;
     }
-    M.Body.setVelocity(body,{x:0,y:0});
-    M.Body.setAngularVelocity(body,0);
+    return M.Query.collides(body,this.solidBodies(body)).every(c=>c.depth<.9);
   }
   addBody(body,visual={}){
-    body.plugin=body.plugin||{};
-    body.plugin.visual=visual;
-    body.plugin.uid=visual.uid||uid();
-    this.bodies.set(body.plugin.uid,body);
-    M.World.add(this.world,body);
-    if(!body.isStatic&&!body.isSensor)this.separateFromStatics(body);
-    return body;
+    if(!body)return null;if(visual.user&&!this.validateUserPlacement(body))return null;
+    body.plugin=body.plugin||{};body.plugin.visual=visual;body.plugin.uid=visual.uid||uid();body.plugin.prev={x:body.position.x,y:body.position.y,a:body.angle};
+    this.bodies.set(body.plugin.uid,body);M.World.add(this.world,body);return body;
   }
   addPlatform(p){
-    const collisionH=Math.max(22,p.h||20);
-    const mat={...this.materials.platform,name:'platform'};
-    // Cápsula fija: evita que ruedas y polígonos se enganchen en esquinas artificiales.
-    const b=this.makeCapsule(p.x,p.y,p.w,collisionH,p.a||0,{isStatic:true,label:'platform'});
-    this.applyMaterial(b,mat);
-    return this.addBody(b,{type:'platform',color:'#2d5f86',w:p.w,h:p.h,collisionH,static:true});
+    const collisionH=Math.max(22,p.h||20),b=this.makeCapsule(p.x,p.y,p.w,collisionH,p.a||0,{isStatic:true,label:'platform'});this.applyMaterial(b,{...this.materials.platform,name:'platform'});return this.addBody(b,{type:'platform',color:'#2d5f86',w:p.w,h:p.h,collisionH,static:true});
   }
-  addBall(x,y){
-    const mat={...this.materials.ball,name:'ball',sleepThreshold:100};
-    const b=M.Bodies.circle(x,y,21.5,{label:'ball'});
-    this.applyMaterial(b,mat);
-    this.ball=this.addBody(b,{type:'ball',color:'#dd594d',r:22});
-    this.ballStart={x,y};
-    return b;
-  }
-  addStar(s){
-    const b=M.Bodies.circle(s.x,s.y,s.r||22,{isStatic:true,isSensor:true,label:'star'});
-    b.plugin.collected=false;
-    this.stars.push(this.addBody(b,{type:'star',color:'#e7b541',r:s.r||22}));
-    return b;
-  }
+  addBall(x,y){const b=M.Bodies.circle(x,y,21.5,{label:'ball'});this.applyMaterial(b,{...this.materials.ball,name:'ball',sleepThreshold:90});this.ball=this.addBody(b,{type:'ball',color:'#dd594d',r:22});this.ballStart={x,y};return b}
+  addStar(s){const b=M.Bodies.circle(s.x,s.y,s.r||22,{isStatic:true,isSensor:true,label:'star'});b.plugin.collected=false;this.stars.push(this.addBody(b,{type:'star',color:'#e7b541',r:s.r||22}));return b}
   addBlock(bd,isUser=false){
-    const radius=Math.min(9,Math.max(2,Math.min(bd.w,bd.h)*.18));
-    const base=this.materials.block;
-    const b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',chamfer:{radius}});
-    const naturalMass=clamp(bd.w*bd.h*.00145,2.5,18);
-    this.applyMaterial(b,{...base,name:'block',friction:bd.friction??base.friction,restitution:bd.restitution??base.restitution,mass:bd.mass??naturalMass,sleepThreshold:95});
-    return this.addBody(b,{type:isUser?'box':'block',color:isUser?'#4e8b68':'#526f84',w:bd.w,h:bd.h,user:isUser,ink:bd.ink||0});
+    const radius=Math.min(9,Math.max(2,Math.min(bd.w,bd.h)*.18)),base=this.materials.block,b=M.Bodies.rectangle(bd.x,bd.y,bd.w,bd.h,{angle:bd.a||0,label:isUser?'user':'block',chamfer:{radius}}),naturalMass=clamp(bd.w*bd.h*.00145,1.2,24);
+    this.applyMaterial(b,{...base,name:'block',friction:bd.friction??base.friction,restitution:bd.restitution??base.restitution,mass:bd.mass??naturalMass,sleepThreshold:80});return this.addBody(b,{type:isUser?'box':'block',color:isUser?'#4e8b68':'#526f84',w:bd.w,h:bd.h,user:isUser,ink:bd.ink||0});
   }
   addWheel(w,isUser=false){
-    const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel'});
-    const mass=w.mass??clamp(Math.PI*w.r*w.r*.00142,3,18);
-    this.applyMaterial(b,{...this.materials.wheel,name:'wheel',mass,sleepThreshold:110});
-    return this.addBody(b,{type:'wheel',color:isUser?'#4e8b68':'#76558e',r:w.r,user:isUser,ink:w.ink||0});
+    const b=M.Bodies.circle(w.x,w.y,w.r,{label:isUser?'user':'wheel'}),mass=w.mass??clamp(Math.PI*w.r*w.r*.00135,1.2,24);this.applyMaterial(b,{...this.materials.wheel,name:'wheel',mass,sleepThreshold:95});
+    return this.addBody(b,{type:'wheel',color:isUser?'#4e8b68':'#76558e',r:w.r,user:isUser,ink:w.ink||0,rawPoints:w.rawPoints||null});
   }
   addRocket(r,isUser=false){
-    const rw=r.w||80,rh=r.h||28;
-    const b=M.Bodies.rectangle(r.x,r.y,rw,rh,{angle:r.a||0,label:'rocket',chamfer:{radius:Math.min(8,rh*.35)}});
-    const mass=r.mass??clamp(rw*rh*.00205,3.8,9);
-    this.applyMaterial(b,{...this.materials.rocket,name:'rocket',mass,sleepThreshold:120});
-    b.plugin.rocket={fuel:r.fuel||240,max:r.fuel||240,active:false,thrust:.0009};
-    return this.addBody(b,{type:'rocket',color:'#d97836',w:rw,h:rh,user:isUser,ink:r.ink||0});
+    const rw=r.w||80,rh=r.h||28,b=M.Bodies.rectangle(r.x,r.y,rw,rh,{angle:r.a||0,label:'rocket',chamfer:{radius:Math.min(8,rh*.35)}}),mass=r.mass??clamp(rw*rh*.00205,2.5,10);this.applyMaterial(b,{...this.materials.rocket,name:'rocket',mass,sleepThreshold:110});b.plugin.rocket={fuel:r.fuel||240,max:r.fuel||240,active:false,thrust:.0009};return this.addBody(b,{type:'rocket',color:'#d97836',w:rw,h:rh,user:isUser,ink:r.ink||0});
   }
   makeBounds(enabled=true){
-    this.boundBodies.forEach(b=>M.World.remove(this.world,b));
-    this.boundBodies=[];
-    if(!enabled)return;
-    const opts={isStatic:true,label:'bound',friction:.95,frictionStatic:1,restitution:0,slop:.01};
-    const arr=[M.Bodies.rectangle(-35,H/2,70,H*2,opts),M.Bodies.rectangle(W+35,H/2,70,H*2,opts),M.Bodies.rectangle(W/2,H+40,W*2,80,opts)];
-    arr.forEach(b=>{this.applyMaterial(b,opts);this.boundBodies.push(b);M.World.add(this.world,b)});
+    this.boundBodies.forEach(b=>M.World.remove(this.world,b));this.boundBodies=[];if(!enabled)return;const opts={isStatic:true,label:'bound',friction:.92,frictionStatic:1.1,restitution:0,slop:.018};
+    const arr=[M.Bodies.rectangle(-35,H/2,70,H*2,opts),M.Bodies.rectangle(W+35,H/2,70,H*2,opts),M.Bodies.rectangle(W/2,H+40,W*2,80,opts)];arr.forEach(b=>{this.applyMaterial(b,opts);this.boundBodies.push(b);M.World.add(this.world,b)});
   }
-  createStroke(points,{user=true,color='#4e8b68',ink=0,closed=false}={}){
-    if(points.length<2)return null;
-    const simp=this.simplify(points,4.25);
-    if(simp.length<2)return null;
-    if(closed&&dist(simp[0],simp[simp.length-1])<50){
-      const verts=simp.slice(0,-1);
-      if(verts.length>=3){
-        try{
-          const cx=verts.reduce((a,p)=>a+p.x,0)/verts.length,cy=verts.reduce((a,p)=>a+p.y,0)/verts.length;
-          const rel=verts.map(p=>({x:p.x-cx,y:p.y-cy}));
-          const b=M.Bodies.fromVertices(cx,cy,[rel],{label:user?'user':'shape'},true);
-          if(b){
-            this.applyMaterial(b,{...this.materials.shape,name:'shape',sleepThreshold:105});
-            return this.addBody(b,{type:'shape',color,user,ink,points:rel});
-          }
-        }catch(e){}
-      }
-    }
-    const thickness=16;
-    const radius=thickness/2;
-    const parts=[];
+  createClosedShape(points,{user=true,color='#4e8b68',ink=0}={}){
+    let verts=this.cleanPolygon(points);if(verts.length<3||Math.abs(this.polygonArea(verts))<260||this.polygonSelfIntersects(verts))return null;
+    const concave=!M.Vertices.isConvex(verts);if(concave&&!window.decomp)return null;if(window.decomp&&M.Common?.setDecomp)M.Common.setDecomp(window.decomp);
+    try{
+      const centre=this.polygonCentroid(verts),body=M.Bodies.fromVertices(centre.x,centre.y,[verts],{label:user?'user':'shape'},true,.01,12,.01);if(!body)return null;
+      const area=Math.abs(this.polygonArea(verts)),targetMass=clamp(area*this.materials.shape.density,.75,38);this.applyMaterial(body,{...this.materials.shape,name:'shape',sleepThreshold:90});
+      if(Number.isFinite(body.area)&&body.area>0)M.Body.setDensity(body,targetMass/body.area);else M.Body.setMass(body,targetMass);
+      const local=verts.map(p=>M.Vector.sub(p,body.position));return this.addBody(body,{type:'shape',color,user,ink,points:local,thickness:14});
+    }catch(e){return null}
+  }
+  createOpenStroke(points,{user=true,color='#4e8b68',ink=0}={}){
+    const fullLength=this.pathLength(points);if(fullLength<14)return null;let simp=this.simplify(points,3.8);if(simp.length<2)return null;
+    const straightness=dist(simp[0],simp[simp.length-1])/Math.max(1,this.pathLength(simp));if(straightness>.97)simp=[simp[0],simp[simp.length-1]];
+    const thickness=15,radius=thickness/2,parts=[];
     for(let i=1;i<simp.length;i++){
-      const a=simp[i-1],b=simp[i],len=dist(a,b);
-      if(len<7)continue;
-      const angle=Math.atan2(b.y-a.y,b.x-a.x);
-      const extended=len+radius*1.35;
-      parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,extended,thickness,{angle,chamfer:{radius:radius*.78}}));
+      const a=simp[i-1],b=simp[i],len=dist(a,b);if(len<6)continue;parts.push(M.Bodies.rectangle((a.x+b.x)/2,(a.y+b.y)/2,len+radius*.9,thickness,{angle:Math.atan2(b.y-a.y,b.x-a.x),chamfer:{radius:radius*.72},label:'strokePart'}));
     }
     for(let i=0;i<simp.length;i++){
-      if(i>0&&i<simp.length-1&&dist(simp[i-1],simp[i+1])<12)continue;
-      parts.push(M.Bodies.circle(simp[i].x,simp[i].y,radius*.98));
+      let add=i===0||i===simp.length-1;if(!add){const u=M.Vector.normalise(M.Vector.sub(simp[i],simp[i-1])),v=M.Vector.normalise(M.Vector.sub(simp[i+1],simp[i]));add=M.Vector.dot(u,v)<.9}if(add)parts.push(M.Bodies.circle(simp[i].x,simp[i].y,radius*.92,{label:'strokeJoint'}));
     }
-    if(!parts.length)return null;
-    const body=M.Body.create({parts,label:user?'user':'stroke'});
-    this.applyMaterial(body,{...this.materials.stroke,name:'stroke',sleepThreshold:105});
-    const local=simp.map(p=>({x:p.x-body.position.x,y:p.y-body.position.y}));
-    return this.addBody(body,{type:'stroke',color,user,ink,points:local,thickness});
+    if(!parts.length)return null;const body=M.Body.create({parts,label:user?'user':'stroke'});this.applyMaterial(body,{...this.materials.stroke,name:'stroke',sleepThreshold:90});
+    const targetMass=clamp(fullLength*thickness*this.materials.stroke.density,.65,34);if(Number.isFinite(body.area)&&body.area>0)M.Body.setDensity(body,targetMass/body.area);else M.Body.setMass(body,targetMass);
+    const local=simp.map(p=>M.Vector.sub(p,body.position));return this.addBody(body,{type:'stroke',color,user,ink,points:local,thickness});
   }
-  simplify(points,tol=5){
-    if(points.length<=2)return points.slice();
-    const radial=[points[0]];
-    let prev=points[0];
-    for(let i=1;i<points.length-1;i++){
-      const p=points[i];
-      if(dist(p,prev)>=tol*.65){radial.push(p);prev=p}
-    }
-    radial.push(points[points.length-1]);
-    const sqTol=tol*tol;
-    const sqSeg=(p,a,b)=>{let x=a.x,y=a.y,dx=b.x-x,dy=b.y-y;if(dx||dy){const t=((p.x-x)*dx+(p.y-y)*dy)/(dx*dx+dy*dy);if(t>1){x=b.x;y=b.y}else if(t>0){x+=dx*t;y+=dy*t}}dx=p.x-x;dy=p.y-y;return dx*dx+dy*dy};
-    const rdp=(arr,first,last,out)=>{let max=sqTol,index=-1;for(let i=first+1;i<last;i++){const d=sqSeg(arr[i],arr[first],arr[last]);if(d>max){index=i;max=d}}if(index>0){if(index-first>1)rdp(arr,first,index,out);out.push(arr[index]);if(last-index>1)rdp(arr,index,last,out)}};
-    if(radial.length<=2)return radial;
-    const out=[radial[0]];rdp(radial,0,radial.length-1,out);out.push(radial[radial.length-1]);
-    return out;
+  createStroke(points,{user=true,color='#4e8b68',ink=0,closed=false}={}){
+    if(points.length<2)return null;const sampled=this.resamplePath(points,4.8),smooth=this.smoothPath(sampled,closed,1),prepared=this.simplify(smooth,closed?3.2:3.8);if(prepared.length<2)return null;
+    return closed?this.createClosedShape(prepared,{user,color,ink}):this.createOpenStroke(prepared,{user,color,ink});
   }
   addPivot(x,y){const p={x,y,uid:uid(),used:false};this.pivots.push(p);return p}
+  pivotCanAttach(body,pivot){if(M.Query.point([body],pivot).length)return true;const b=body.bounds;return pivot.x>=b.min.x-18&&pivot.x<=b.max.x+18&&pivot.y>=b.min.y-18&&pivot.y<=b.max.y+18}
   attachPivot(body,pivot,user=true){
-    const local=M.Vector.rotate(M.Vector.sub(pivot,body.position),-body.angle);
-    const c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:.995,damping:.09,length:0,angularStiffness:0});
-    c.plugin={uid:uid(),kind:'pivot',user,pivot:{x:pivot.x,y:pivot.y},bodyUid:body.plugin.uid};
-    M.World.add(this.world,c);
-    (user?this.userConstraints:this.staticConstraints).push(c);
-    pivot.used=true;
-    M.Sleeping.set(body,false);
-    return c;
+    if(!body||!this.pivotCanAttach(body,pivot))return null;const local=M.Vector.rotate(M.Vector.sub(pivot,body.position),-body.angle),c=M.Constraint.create({bodyA:body,pointA:local,pointB:{x:pivot.x,y:pivot.y},stiffness:.99,damping:.045,length:0,angularStiffness:0});
+    c.plugin={uid:uid(),kind:'pivot',user,pivot:{x:pivot.x,y:pivot.y},bodyUid:body.plugin.uid};M.World.add(this.world,c);(user?this.userConstraints:this.staticConstraints).push(c);pivot.used=true;M.Sleeping.set(body,false);return c;
   }
   endpointAt(p){
-    const candidates=[...this.bodies.values()].filter(b=>!b.isSensor&&b.label!=='bound');
-    let hits=M.Query.point(candidates,p);
-    if(!hits.length){
-      const region={min:{x:p.x-14,y:p.y-14},max:{x:p.x+14,y:p.y+14}};
-      hits=M.Query.region(candidates,region).sort((a,b)=>dist(a.position,p)-dist(b.position,p));
+    const candidates=[...this.bodies.values()].filter(b=>!b.isSensor&&b.label!=='bound');let hits=M.Query.point(candidates,p);
+    if(!hits.length){const region={min:{x:p.x-14,y:p.y-14},max:{x:p.x+14,y:p.y+14}};hits=M.Query.region(candidates,region).sort((a,b)=>dist(a.position,p)-dist(b.position,p))}
+    const body=hits.find(b=>b.label!=='platform')||hits[0]||null;if(body){const local=M.Vector.rotate(M.Vector.sub(p,body.position),-body.angle);return{body,point:local,world:p}}return{body:null,point:{...p},world:p};
+  }
+  createRopeConstraint(ea,eb,user=true,restLength=null){
+    const rest=Math.max(8,restLength??dist(ea.world,eb.world)),opts={stiffness:0,damping:0,length:rest,angularStiffness:0};
+    if(ea.body){opts.bodyA=ea.body;opts.pointA=ea.point}else opts.pointA=ea.point;if(eb.body){opts.bodyB=eb.body;opts.pointB=eb.point}else opts.pointB=eb.point;
+    const c=M.Constraint.create(opts);c.plugin={uid:uid(),kind:'rope',user,restLength:rest,aUid:ea.body?.plugin.uid||null,bUid:eb.body?.plugin.uid||null,aPoint:ea.point,bPoint:eb.point,aWorld:ea.body?null:ea.point,bWorld:eb.body?null:eb.point};M.World.add(this.world,c);(user?this.userConstraints:this.staticConstraints).push(c);return c;
+  }
+  addRope(a,b,user=true,restLength=null){const ea=this.endpointAt(a),eb=this.endpointAt(b),c=this.createRopeConstraint(ea,eb,user,restLength);if(ea.body)M.Sleeping.set(ea.body,false);if(eb.body)M.Sleeping.set(eb.body,false);return c}
+  constraintWorldPoint(c,side){const body=side==='A'?c.bodyA:c.bodyB,point=side==='A'?c.pointA:c.pointB;return body?M.Vector.add(body.position,M.Vector.rotate(point||{x:0,y:0},body.angle)):point}
+  updateRopeTension(){
+    for(const c of [...this.staticConstraints,...this.userConstraints]){
+      if(c.plugin?.kind!=='rope')continue;const a=this.constraintWorldPoint(c,'A'),b=this.constraintWorldPoint(c,'B');if(!a||!b)continue;const rest=c.plugin.restLength||c.length||dist(a,b),stretch=dist(a,b)-rest,transition=Math.max(3,rest*.025),x=clamp(stretch/transition,0,1),smooth=x*x*(3-2*x);
+      c.length=rest;c.stiffness=.9*smooth;c.damping=.11*smooth;if(smooth>.04){if(c.bodyA)M.Sleeping.set(c.bodyA,false);if(c.bodyB)M.Sleeping.set(c.bodyB,false)}
     }
-    const body=hits.find(b=>b.label!=='platform')||hits[0]||null;
-    if(body){
-      const local=M.Vector.rotate(M.Vector.sub(p,body.position),-body.angle);
-      return {body,point:local,world:p};
-    }
-    return {body:null,point:p,world:p};
   }
-  addRope(a,b,user=true){
-    const ea=this.endpointAt(a),eb=this.endpointAt(b);
-    const opts={stiffness:.96,damping:.085,length:Math.max(8,dist(a,b)),angularStiffness:0};
-    if(ea.body){opts.bodyA=ea.body;opts.pointA=ea.point}else opts.pointA=a;
-    if(eb.body){opts.bodyB=eb.body;opts.pointB=eb.point}else opts.pointB=b;
-    const c=M.Constraint.create(opts);
-    c.plugin={uid:uid(),kind:'rope',user,aUid:ea.body?.plugin.uid||null,bUid:eb.body?.plugin.uid||null,aPoint:ea.point,bPoint:eb.point,aWorld:ea.body?null:a,bWorld:eb.body?null:b};
-    M.World.add(this.world,c);
-    (user?this.userConstraints:this.staticConstraints).push(c);
-    if(ea.body)M.Sleeping.set(ea.body,false);
-    if(eb.body)M.Sleeping.set(eb.body,false);
-    return c;
-  }
-  removeUserBody(body){
-    if(!body?.plugin?.visual?.user)return 0;
-    const ink=body.plugin.visual.ink||0;
-    [...this.userConstraints].forEach(c=>{if(c.bodyA===body||c.bodyB===body)this.removeConstraint(c)});
-    this.bodies.delete(body.plugin.uid);
-    M.World.remove(this.world,body);
-    return ink;
-  }
+  removeUserBody(body){if(!body?.plugin?.visual?.user)return 0;const ink=body.plugin.visual.ink||0;[...this.userConstraints].forEach(c=>{if(c.bodyA===body||c.bodyB===body)this.removeConstraint(c)});this.bodies.delete(body.plugin.uid);M.World.remove(this.world,body);return ink}
   removeConstraint(c){M.World.remove(this.world,c);this.userConstraints=this.userConstraints.filter(x=>x!==c);this.staticConstraints=this.staticConstraints.filter(x=>x!==c)}
-  bodyAt(p,userOnly=false){
-    const candidates=[...this.bodies.values()];
-    const hits=M.Query.point(candidates,p).reverse();
-    return hits.find(b=>!b.isSensor&&b.label!=='bound'&&(!userOnly||b.plugin?.visual?.user))||null;
-  }
+  userBodies(){return [...this.bodies.values()].filter(b=>b.plugin?.visual?.user)}
+  bodyAt(p,userOnly=false){const hits=M.Query.point([...this.bodies.values()],p).reverse();return hits.find(b=>!b.isSensor&&b.label!=='bound'&&(!userOnly||b.plugin?.visual?.user))||null}
   activateRocketAt(p){const b=this.bodyAt(p,false);if(b?.plugin?.rocket){b.plugin.rocket.active=true;M.Sleeping.set(b,false);return true}return false}
+  snapshotPrevious(){for(const b of this.bodies.values()){if(b.isStatic)continue;b.plugin=b.plugin||{};b.plugin.prev={x:b.position.x,y:b.position.y,a:b.angle}}}
   applyContinuousForces(stepMs){
-    for(const b of this.bodies.values()){
-      if(b.plugin?.rocket?.active&&b.plugin.rocket.fuel>0){
-        const r=b.plugin.rocket,dir={x:Math.cos(b.angle),y:Math.sin(b.angle)};
-        M.Sleeping.set(b,false);
-        M.Body.applyForce(b,{x:b.position.x-Math.sin(b.angle)*8,y:b.position.y+Math.cos(b.angle)*8},{x:dir.x*r.thrust,y:dir.y*r.thrust});
-        r.fuel-=stepMs*.06;
-        if(performance.now()-this.lastRocketSound>180){this.app.audio.rocket();this.lastRocketSound=performance.now()}
-      }
-    }
+    for(const b of this.bodies.values())if(b.plugin?.rocket?.active&&b.plugin.rocket.fuel>0){const r=b.plugin.rocket,dir={x:Math.cos(b.angle),y:Math.sin(b.angle)};M.Sleeping.set(b,false);M.Body.applyForce(b,{x:b.position.x-Math.sin(b.angle)*8,y:b.position.y+Math.cos(b.angle)*8},{x:dir.x*r.thrust,y:dir.y*r.thrust});r.fuel-=stepMs*.06;if(performance.now()-this.lastRocketSound>180){this.app.audio?.rocket?.();this.lastRocketSound=performance.now()}}
   }
-  stabiliseDynamics(){
+  maximumDynamicSpeed(){let max=0;for(const b of this.bodies.values())if(!b.isStatic&&!b.isSensor)max=Math.max(max,M.Vector.magnitude(b.velocity));return max}
+  sanitiseDynamics(){
     for(const b of this.bodies.values()){
-      if(b.isStatic||b.isSensor)continue;
-      const sp=M.Vector.magnitude(b.velocity);
-      // Solo limita estados extremos; las colisiones normales conservan su impulso.
-      if(sp>42)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),42));
-      if(Math.abs(b.angularVelocity)>2.4)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*2.4);
-      if(Math.abs(b.velocity.x)<.0008&&Math.abs(b.velocity.y)<.0008&&Math.abs(b.angularVelocity)<.00008){
-        M.Body.setVelocity(b,{x:0,y:0});
-        M.Body.setAngularVelocity(b,0);
-      }
-      if(!Number.isFinite(b.position.x)||!Number.isFinite(b.position.y)){M.Body.setPosition(b,{x:W/2,y:80});M.Body.setVelocity(b,{x:0,y:0});M.Body.setAngularVelocity(b,0)}
+      if(b.isStatic||b.isSensor)continue;if(!Number.isFinite(b.position.x)||!Number.isFinite(b.position.y)||!Number.isFinite(b.velocity.x)||!Number.isFinite(b.velocity.y)){M.Body.setPosition(b,{x:W/2,y:80});M.Body.setVelocity(b,{x:0,y:0});M.Body.setAngularVelocity(b,0);continue}
+      const speed=M.Vector.magnitude(b.velocity);if(speed>160)M.Body.setVelocity(b,M.Vector.mult(M.Vector.normalise(b.velocity),160));if(Math.abs(b.angularVelocity)>12)M.Body.setAngularVelocity(b,Math.sign(b.angularVelocity)*12);
     }
   }
   update(dt){
-    this.accumulator+=Math.min(dt,50);
-    let steps=0;
-    while(this.accumulator>=this.fixedDelta&&steps<this.maxSubSteps){
-      this.applyContinuousForces(this.fixedDelta);
-      M.Engine.update(this.engine,this.fixedDelta);
-      this.stabiliseDynamics();
-      this.accumulator-=this.fixedDelta;
-      steps++;
+    this.accumulator+=Math.min(dt,50);let frameSteps=0;
+    while(this.accumulator>=this.fixedDelta&&frameSteps<this.maxFrameSteps){
+      const travel=this.maximumDynamicSpeed()*(this.fixedDelta/(1000/60)),micro=clamp(Math.ceil(travel/Math.max(5,this.minimumColliderThickness*.42)),1,this.maxMicroSteps),step=this.fixedDelta/micro;this.snapshotPrevious();
+      for(let i=0;i<micro;i++){this.updateRopeTension();this.applyContinuousForces(step);M.Engine.update(this.engine,step,1);this.sanitiseDynamics()}
+      this.accumulator-=this.fixedDelta;frameSteps++;
     }
-    if(steps===this.maxSubSteps)this.accumulator=0;
+    if(frameSteps===this.maxFrameSteps)this.accumulator=Math.min(this.accumulator,this.fixedDelta);this.renderAlpha=clamp(this.accumulator/this.fixedDelta,0,1);
     if(this.ball&&(this.ball.position.y>H+180||this.ball.position.x<-160||this.ball.position.x>W+160))this.resetBall();
   }
-  resetBall(){
-    if(!this.ball)return;
-    M.Sleeping.set(this.ball,false);
-    M.Body.setPosition(this.ball,this.ballStart);
-    M.Body.setVelocity(this.ball,{x:0,y:0});
-    M.Body.setAngularVelocity(this.ball,0);
-    this.ball.positionPrev.x=this.ballStart.x;
-    this.ball.positionPrev.y=this.ballStart.y;
-  }
+  resetBall(){if(!this.ball)return;M.Sleeping.set(this.ball,false);M.Body.setPosition(this.ball,this.ballStart);M.Body.setVelocity(this.ball,{x:0,y:0});M.Body.setAngularVelocity(this.ball,0);this.ball.positionPrev.x=this.ballStart.x;this.ball.positionPrev.y=this.ballStart.y;this.ball.plugin.prev={x:this.ballStart.x,y:this.ballStart.y,a:0}}
   onCollisions(pairs){
-    for(const p of pairs){
-      const a=p.bodyA,b=p.bodyB;
-      if((a.label==='ball'&&b.label==='star')||(b.label==='ball'&&a.label==='star')){
-        const s=a.label==='star'?a:b;
-        this.app.collectStar(s);
-      }
-      const rocket=a.plugin?.rocket?a:b.plugin?.rocket?b:null;
-      if(rocket&&p.collision.depth>.4){rocket.plugin.rocket.active=true;M.Sleeping.set(rocket,false)}
-      if(!a.isSensor&&!b.isSensor){
-        const rel=M.Vector.magnitude(M.Vector.sub(a.velocity||{x:0,y:0},b.velocity||{x:0,y:0}));
-        this.app.audio.hit(rel);
-      }
-    }
+    for(const p of pairs){const a=p.bodyA,b=p.bodyB;if((a.label==='ball'&&b.label==='star')||(b.label==='ball'&&a.label==='star'))this.app.collectStar?.(a.label==='star'?a:b);const rocket=a.plugin?.rocket?a:b.plugin?.rocket?b:null;if(rocket&&p.collision.depth>.4){rocket.plugin.rocket.active=true;M.Sleeping.set(rocket,false)}if(!a.isSensor&&!b.isSensor){const rel=M.Vector.magnitude(M.Vector.sub(a.velocity||{x:0,y:0},b.velocity||{x:0,y:0}));this.app.audio?.hit?.(rel)}}
   }
   serializeUser(){
-    const bodies=[];
-    for(const b of this.bodies.values()){
-      const v=b.plugin?.visual;
-      if(!v?.user)continue;
-      const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity,physics:{mass:b.mass,friction:b.friction,frictionStatic:b.frictionStatic,frictionAir:b.frictionAir,restitution:b.restitution}};
-      if(v.points)base.points=v.points.map(p=>({...p}));
-      if(v.r)base.r=v.r;
-      if(v.w){base.w=v.w;base.h=v.h}
-      bodies.push(base);
-    }
-    const constraints=this.userConstraints.map(c=>({kind:c.plugin.kind,uid:c.plugin.uid,aUid:c.bodyA?.plugin?.uid||null,bUid:c.bodyB?.plugin?.uid||null,aPoint:c.pointA?{...c.pointA}:null,bPoint:c.pointB?{...c.pointB}:null,aWorld:c.bodyA?null:{...c.pointA},bWorld:c.bodyB?null:{...c.pointB},length:c.length,pivot:c.plugin.pivot||null,bodyUid:c.plugin.bodyUid||null}));
-    return {bodies,constraints,pivots:this.pivots.filter(p=>p.user).map(p=>({...p}))};
+    const bodies=[];for(const b of this.bodies.values()){const v=b.plugin?.visual;if(!v?.user)continue;const base={uid:b.plugin.uid,type:v.type,color:v.color,ink:v.ink||0,pos:{...b.position},angle:b.angle,vel:{...b.velocity},av:b.angularVelocity,physics:{mass:b.mass,friction:b.friction,frictionStatic:b.frictionStatic,frictionAir:b.frictionAir,restitution:b.restitution}};if(v.points)base.points=v.points.map(p=>({...p}));if(v.r)base.r=v.r;if(v.w){base.w=v.w;base.h=v.h}bodies.push(base)}
+    const constraints=this.userConstraints.map(c=>({kind:c.plugin.kind,uid:c.plugin.uid,aUid:c.bodyA?.plugin?.uid||null,bUid:c.bodyB?.plugin?.uid||null,aPoint:c.pointA?{...c.pointA}:null,bPoint:c.pointB?{...c.pointB}:null,aWorld:c.bodyA?null:{...c.pointA},bWorld:c.bodyB?null:{...c.pointB},length:c.length,restLength:c.plugin?.restLength||c.length,pivot:c.plugin.pivot||null,bodyUid:c.plugin.bodyUid||null}));return{bodies,constraints,pivots:this.pivots.filter(p=>p.user).map(p=>({...p}))};
   }
   restoreUser(state){
-    for(const b of [...this.bodies.values()])if(b.plugin?.visual?.user)this.removeUserBody(b);
-    for(const c of [...this.userConstraints])this.removeConstraint(c);
-    this.pivots=this.pivots.filter(p=>!p.user);
-    const map=new Map();
-    for(const s of state.bodies||[]){
-      let b;
-      if(s.type==='wheel')b=this.addWheel({x:s.pos.x,y:s.pos.y,r:s.r,ink:s.ink},true);
-      else if(s.type==='box')b=this.addBlock({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,ink:s.ink},true);
-      else if(s.type==='rocket')b=this.addRocket({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,fuel:240,ink:s.ink},true);
-      else if(s.type==='stroke'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink})}
-      else if(s.type==='shape'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));pts.push(pts[0]);b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink,closed:true})}
-      if(b){
-        const generatedUid=b.plugin.uid;
-        this.bodies.delete(generatedUid);
-        b.plugin.uid=s.uid;
-        this.bodies.set(s.uid,b);
-        if(s.physics)this.applyMaterial(b,s.physics);
-        M.Body.setPosition(b,s.pos);
-        M.Body.setAngle(b,s.angle||0);
-        M.Body.setVelocity(b,s.vel||{x:0,y:0});
-        M.Body.setAngularVelocity(b,s.av||0);
-        map.set(s.uid,b);
-      }
-    }
-    for(const p of state.pivots||[])this.pivots.push({...p});
-    for(const c of state.constraints||[]){
-      if(c.kind==='pivot'){
-        const body=map.get(c.bodyUid||c.aUid);
-        if(body){const p=c.pivot||c.bWorld||{x:body.position.x,y:body.position.y};this.attachPivot(body,p,true)}
-      }else{
-        const a=c.aUid?map.get(c.aUid):null,b=c.bUid?map.get(c.bUid):null;
-        const pa=a?M.Vector.add(a.position,M.Vector.rotate(c.aPoint||{x:0,y:0},a.angle)):(c.aWorld||c.aPoint);
-        const pb=b?M.Vector.add(b.position,M.Vector.rotate(c.bPoint||{x:0,y:0},b.angle)):(c.bWorld||c.bPoint);
-        this.addRope(pa,pb,true);
-      }
-    }
+    for(const b of [...this.bodies.values()])if(b.plugin?.visual?.user)this.removeUserBody(b);for(const c of [...this.userConstraints])this.removeConstraint(c);this.pivots=this.pivots.filter(p=>!p.user);const map=new Map();this.restoring=true;
+    try{
+      for(const s of state.bodies||[]){let b;if(s.type==='wheel')b=this.addWheel({x:s.pos.x,y:s.pos.y,r:s.r,ink:s.ink,mass:s.physics?.mass},true);else if(s.type==='box')b=this.addBlock({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,ink:s.ink,mass:s.physics?.mass},true);else if(s.type==='rocket')b=this.addRocket({x:s.pos.x,y:s.pos.y,w:s.w,h:s.h,a:s.angle,fuel:240,ink:s.ink,mass:s.physics?.mass},true);else if(s.type==='stroke'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink})}else if(s.type==='shape'){const pts=s.points.map(p=>M.Vector.add(p,s.pos));b=this.createStroke(pts,{user:true,color:s.color,ink:s.ink,closed:true})}if(b){const generatedUid=b.plugin.uid;this.bodies.delete(generatedUid);b.plugin.uid=s.uid;this.bodies.set(s.uid,b);if(s.physics)this.applyMaterial(b,s.physics);M.Body.setPosition(b,s.pos);M.Body.setAngle(b,s.angle||0);M.Body.setVelocity(b,s.vel||{x:0,y:0});M.Body.setAngularVelocity(b,s.av||0);map.set(s.uid,b)}}
+      for(const p of state.pivots||[])this.pivots.push({...p});
+      for(const c of state.constraints||[]){if(c.kind==='pivot'){const body=map.get(c.bodyUid||c.aUid);if(body){const p=c.pivot||c.bWorld||{x:body.position.x,y:body.position.y};this.attachPivot(body,p,true)}}else{const a=c.aUid?map.get(c.aUid):null,b=c.bUid?map.get(c.bUid):null,pa=a?M.Vector.add(a.position,M.Vector.rotate(c.aPoint||{x:0,y:0},a.angle)):(c.aWorld||c.aPoint),pb=b?M.Vector.add(b.position,M.Vector.rotate(c.bPoint||{x:0,y:0},b.angle)):(c.bWorld||c.bPoint),ea=a?{body:a,point:c.aPoint||{x:0,y:0},world:pa}:{body:null,point:pa,world:pa},eb=b?{body:b,point:c.bPoint||{x:0,y:0},world:pb}:{body:null,point:pb,world:pb};this.createRopeConstraint(ea,eb,true,c.restLength||c.length)}}
+    }finally{this.restoring=false}
+  }
+  runSelfTests(){
+    const report=[],pass=(name,ok,detail='')=>report.push({test:name,ok:!!ok,detail});
+    const fake={audio:{hit(){},rocket(){}},collectStar(){}},sim=(lab,ms=1500)=>{for(let t=0;t<ms;t+=16.67)lab.update(16.67)};
+    let lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:500,y:560,w:900,h:30});let ball=lab.addBall(500,120);sim(lab,2200);pass('1 caída',ball.position.y<550&&Math.abs(ball.velocity.y)<2,`y=${ball.position.y.toFixed(1)}`);
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:500,y:420,w:650,h:26,a:.42});ball=lab.addBall(300,220);const x0=ball.position.x;sim(lab,1800);pass('2 rampa',Math.abs(ball.position.x-x0)>35,`dx=${(ball.position.x-x0).toFixed(1)}`);
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:500,y:590,w:900,h:30});let beam=lab.createStroke([{x:330,y:120},{x:700,y:145}],{user:true});sim(lab,1600);pass('3 viga',!!beam&&Number.isFinite(beam.angle),'finita y estable');
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:500,y:590,w:900,h:30});const stack=[0,1,2].map(i=>lab.addBlock({x:500,y:520-i*65,w:70,h:60,mass:5},false));sim(lab,2500);pass('4 pila',stack.every(b=>Number.isFinite(b.position.x))&&stack.every(b=>Math.abs(b.velocity.y)<3),'3 cuerpos');
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:500,y:430,w:650,h:26,a:.35});const wheel=lab.addWheel({x:300,y:245,r:42},false),wx=wheel.position.x;sim(lab,1800);pass('5 rueda',Math.abs(wheel.position.x-wx)>30&&Math.abs(wheel.angularVelocity)>.02,`dx=${(wheel.position.x-wx).toFixed(1)}`);
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);beam=lab.addBlock({x:500,y:330,w:330,h:24,mass:6},false);const pv=lab.addPivot(500,330);const pc=lab.attachPivot(beam,pv,false);sim(lab,1200);pass('6 pivote',!!pc&&dist(lab.constraintWorldPoint(pc,'A'),lab.constraintWorldPoint(pc,'B'))<4,'anclaje estable');
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);const bob=lab.addBlock({x:620,y:330,w:55,h:55,mass:8},false),rope=lab.addRope({x:500,y:100},{x:620,y:330},false);sim(lab,2300);const ra=lab.constraintWorldPoint(rope,'A'),rb=lab.constraintWorldPoint(rope,'B');pass('7 péndulo',dist(ra,rb)<=rope.plugin.restLength+8,`L=${dist(ra,rb).toFixed(1)}`);
+    lab=new PhysicsWorld(fake);const slack=lab.addRope({x:300,y:200},{x:380,y:200},false,180);lab.updateRopeTension();pass('8 cuerda floja',slack.stiffness<.001,`k=${slack.stiffness.toFixed(3)}`);
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);lab.addPlatform({x:620,y:330,w:260,h:18,a:Math.PI/2});ball=lab.addBall(220,330);M.Body.setVelocity(ball,{x:55,y:0});sim(lab,900);pass('9 impacto rápido',ball.position.x<760,`x=${ball.position.x.toFixed(1)}`);
+    lab=new PhysicsWorld(fake);const u=[{x:320,y:220},{x:360,y:220},{x:360,y:380},{x:520,y:380},{x:520,y:220},{x:560,y:220},{x:560,y:430},{x:320,y:430},{x:320,y:220}];const ub=lab.createStroke(u,{user:true,closed:true});pass('10 forma cóncava',!!ub&&(!M.Vertices.isConvex(u.slice(0,-1))?ub.parts.length>2:true),ub?`parts=${ub.parts.length}`:'rechazada');
+    lab=new PhysicsWorld(fake);lab.addPlatform({x:500,y:520,w:700,h:28});const contact=lab.createStroke([{x:280,y:497},{x:650,y:497}],{user:true});pass('11 creación en contacto',!!contact&&Math.abs(contact.position.y-497)<18,contact?`y=${contact.position.y.toFixed(1)}`:'rechazada');
+    lab=new PhysicsWorld(fake);lab.makeBounds(true);const t0=performance.now();for(let i=0;i<20;i++)lab.addBlock({x:150+(i%5)*130,y:100+Math.floor(i/5)*80,w:45,h:45,mass:3},false);for(let i=0;i<5;i++)lab.addRope({x:120+i*150,y:60},{x:180+i*150,y:180},false);sim(lab,1000);const elapsed=performance.now()-t0;pass('12 estrés',lab.bodies.size>=20&&Number.isFinite(elapsed),`${elapsed.toFixed(0)} ms en este dispositivo`);
+    console.table(report);return report;
   }
 }
 
@@ -805,73 +690,74 @@ class GameRenderer{
   beginWorld(){const r=this.canvas.getBoundingClientRect();this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.ctx.clearRect(0,0,r.width,r.height);const dark=document.body.classList.contains('theme-dark');this.ctx.fillStyle=dark?'#080c10':'#d9d1b9';this.ctx.fillRect(0,0,r.width,r.height);this.ctx.save();this.ctx.translate(this.ox,this.oy);this.ctx.scale(this.scale,this.scale);this.ctx.beginPath();this.ctx.rect(0,0,W,H);this.ctx.clip();this.drawPaper()}
   endWorld(){this.ctx.restore()}
   drawPaper(){const ctx=this.ctx,dark=document.body.classList.contains('theme-dark');ctx.fillStyle=dark?'#151b21':'#f3ead2';ctx.fillRect(0,0,W,H);ctx.strokeStyle=dark?'rgba(151,188,216,.075)':'rgba(72,96,117,.07)';ctx.lineWidth=1;for(let y=20;y<H;y+=26){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}ctx.fillStyle=dark?'rgba(214,229,239,.025)':'rgba(72,50,30,.04)';for(let i=0;i<60;i++){const x=(i*173)%W,y=(i*97)%H;ctx.fillRect(x,y,2+(i%3),1)}}
-  draw(){this.beginWorld();const ctx=this.ctx,pw=this.app.physics;for(const b of pw.bodies.values())if(!b.isSensor&&b.label!=='bound')this.drawBody(b);for(const c of [...pw.staticConstraints,...pw.userConstraints])this.drawConstraint(c);for(const p of pw.pivots)this.drawPivot(p);for(const a of pw.anchors)this.drawAnchor(a);for(const s of pw.stars)if(!s.plugin.collected)this.drawStar(s);this.drawTrail();this.app.particles.draw(ctx);this.drawInput();this.endWorld()}
-  scribbleLine(points,color,width=12,closed=false){const ctx=this.ctx;if(points.length<2)return;ctx.lineCap='round';ctx.lineJoin='round';for(let pass=0;pass<3;pass++){ctx.beginPath();for(let i=0;i<points.length;i++){const p=points[i],j=(Math.sin(i*12.4+pass*2.2))*1.3;if(i===0)ctx.moveTo(p.x+j,p.y-j);else ctx.lineTo(p.x+j,p.y-j)}if(closed)ctx.closePath();ctx.strokeStyle=color;ctx.globalAlpha=pass===0?.84:.28;ctx.lineWidth=width+(pass-1)*2;ctx.stroke()}ctx.globalAlpha=1}
+  draw(){this.beginWorld();const ctx=this.ctx,pw=this.app.physics;for(const b of pw.bodies.values())if(!b.isSensor&&b.label!=='bound')this.drawBody(b);for(const c of [...pw.staticConstraints,...pw.userConstraints])this.drawConstraint(c);for(const p of pw.pivots)this.drawPivot(p);for(const a of pw.anchors)this.drawAnchor(a);for(const s of pw.stars)if(!s.plugin.collected)this.drawStar(s);this.drawTrail();this.app.particles.draw(ctx);this.drawInput();if(PHYSICS_DEBUG)this.drawPhysicsDebug(pw);this.endWorld()}
+  scribbleLine(points,color,width=12,closed=false){const ctx=this.ctx;if(points.length<2)return;ctx.lineCap='round';ctx.lineJoin='round';for(let pass=0;pass<3;pass++){ctx.beginPath();for(let i=0;i<points.length;i++){const p=points[i],j=Math.sin(i*12.4+pass*2.2)*1.3;if(i===0)ctx.moveTo(p.x+j,p.y-j);else ctx.lineTo(p.x+j,p.y-j)}if(closed)ctx.closePath();ctx.strokeStyle=color;ctx.globalAlpha=pass===0?.84:.28;ctx.lineWidth=width+(pass-1)*2;ctx.stroke()}ctx.globalAlpha=1}
   bodyPoints(b,v){return v.points.map(p=>M.Vector.add(b.position,M.Vector.rotate(p,b.angle)))}
   drawBody(b){
-    const ctx=this.ctx,v=b.plugin.visual||{};
-    ctx.save();
-    ctx.translate(b.position.x,b.position.y);
-    ctx.rotate(b.angle);
+    const ctx=this.ctx,v=b.plugin.visual||{};ctx.save();ctx.translate(b.position.x,b.position.y);ctx.rotate(b.angle);
     if(v.type==='platform'||v.type==='block'||v.type==='box'){
-      const w=v.w||50,h=v.type==='platform'?(v.collisionH||v.h||20):(v.h||20),color=v.color||'#2d5f86';
-      ctx.shadowColor='rgba(36,51,66,.13)';ctx.shadowBlur=5;ctx.shadowOffsetY=3;
-      ctx.fillStyle=color;ctx.globalAlpha=v.type==='platform'?.24:.48;
-      ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,Math.min(9,h*.3));ctx.fill();
-      ctx.shadowColor='transparent';ctx.lineCap='round';
-      const rows=clamp(Math.ceil(h/6),3,14),step=(h-5)/Math.max(1,rows-1);
-      for(let i=0;i<rows;i++){
-        const y=-h/2+2.5+i*step,j=Math.sin(i*2.17+b.id*.13)*1.2;
-        ctx.strokeStyle=color;ctx.globalAlpha=i%3===0?.72:.34;ctx.lineWidth=3.2+(i%2)*1.1;
-        ctx.beginPath();ctx.moveTo(-w/2+4,y+j);ctx.lineTo(w/2-4,y-j*.55);ctx.stroke();
-      }
-      ctx.globalAlpha=1;
-    }else if(v.type==='ball'){
-      ctx.fillStyle='#dd594d';ctx.beginPath();ctx.arc(0,0,v.r,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='rgba(126,35,31,.46)';ctx.lineWidth=3;
-      for(let i=-10;i<=10;i+=5){ctx.beginPath();ctx.arc(i*.25,i*.1,v.r*.75,0.25,2.8);ctx.stroke()}
-    }else if(v.type==='wheel'){
-      ctx.strokeStyle=v.color||'#76558e';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,v.r-5,0,Math.PI*2);ctx.stroke();
-      ctx.globalAlpha=.35;ctx.lineWidth=3;ctx.beginPath();ctx.arc(1,-1,v.r-11,0,Math.PI*2);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(-v.r+8,0);ctx.lineTo(v.r-8,0);ctx.moveTo(0,-v.r+8);ctx.lineTo(0,v.r-8);ctx.stroke();ctx.globalAlpha=1;
-    }else if(v.type==='rocket'){
-      ctx.fillStyle='#d97836';ctx.beginPath();ctx.roundRect(-v.w/2,-v.h/2,v.w,v.h,8);ctx.fill();
-      ctx.fillStyle=document.body.classList.contains('theme-dark')?'#151b21':'#f3ead2';ctx.beginPath();ctx.arc(v.w*.16,0,v.h*.23,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#76558e';ctx.beginPath();ctx.moveTo(-v.w/2,-v.h/2);ctx.lineTo(-v.w/2-18,0);ctx.lineTo(-v.w/2,v.h/2);ctx.closePath();ctx.fill();
-      const r=b.plugin.rocket;
-      if(r?.active&&r.fuel>0){ctx.fillStyle='#e7b541';ctx.beginPath();ctx.moveTo(-v.w/2-10,-8);ctx.lineTo(-v.w/2-28-Math.random()*16,0);ctx.lineTo(-v.w/2-10,8);ctx.fill();this.app.particles.dust(b.position.x-Math.cos(b.angle)*v.w/2,b.position.y-Math.sin(b.angle)*v.w/2,'#d97836')}
-    }
-    ctx.restore();
-    if(v.type==='stroke'||v.type==='shape')this.scribbleLine(this.bodyPoints(b,v),v.color||'#4e8b68',v.thickness||14,v.type==='shape');
-    if(v.type==='ball'&&M.Vector.magnitude(b.velocity)>3){this.trail.push({x:b.position.x,y:b.position.y,life:1});if(this.trail.length>18)this.trail.shift()}
+      const w=v.w||50,h=v.type==='platform'?(v.collisionH||v.h||20):(v.h||20),color=v.color||'#2d5f86';ctx.shadowColor='rgba(36,51,66,.13)';ctx.shadowBlur=5;ctx.shadowOffsetY=3;ctx.fillStyle=color;ctx.globalAlpha=v.type==='platform'?.24:.48;ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,Math.min(9,h*.3));ctx.fill();ctx.shadowColor='transparent';ctx.lineCap='round';const rows=clamp(Math.ceil(h/6),3,14),step=(h-5)/Math.max(1,rows-1);for(let i=0;i<rows;i++){const y=-h/2+2.5+i*step,j=Math.sin(i*2.17+b.id*.13)*1.2;ctx.strokeStyle=color;ctx.globalAlpha=i%3===0?.72:.34;ctx.lineWidth=3.2+(i%2)*1.1;ctx.beginPath();ctx.moveTo(-w/2+4,y+j);ctx.lineTo(w/2-4,y-j*.55);ctx.stroke()}ctx.globalAlpha=1;
+    }else if(v.type==='ball'){ctx.fillStyle='#dd594d';ctx.beginPath();ctx.arc(0,0,v.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(126,35,31,.46)';ctx.lineWidth=3;for(let i=-10;i<=10;i+=5){ctx.beginPath();ctx.arc(i*.25,i*.1,v.r*.75,.25,2.8);ctx.stroke()}}
+    else if(v.type==='wheel'){ctx.strokeStyle=v.color||'#76558e';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,v.r-5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=.35;ctx.lineWidth=3;ctx.beginPath();ctx.arc(1,-1,v.r-11,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(-v.r+8,0);ctx.lineTo(v.r-8,0);ctx.moveTo(0,-v.r+8);ctx.lineTo(0,v.r-8);ctx.stroke();ctx.globalAlpha=1}
+    else if(v.type==='rocket'){ctx.fillStyle='#d97836';ctx.beginPath();ctx.roundRect(-v.w/2,-v.h/2,v.w,v.h,8);ctx.fill();ctx.fillStyle=document.body.classList.contains('theme-dark')?'#151b21':'#f3ead2';ctx.beginPath();ctx.arc(v.w*.16,0,v.h*.23,0,Math.PI*2);ctx.fill();ctx.fillStyle='#76558e';ctx.beginPath();ctx.moveTo(-v.w/2,-v.h/2);ctx.lineTo(-v.w/2-18,0);ctx.lineTo(-v.w/2,v.h/2);ctx.closePath();ctx.fill();const r=b.plugin.rocket;if(r?.active&&r.fuel>0){ctx.fillStyle='#e7b541';ctx.beginPath();ctx.moveTo(-v.w/2-10,-8);ctx.lineTo(-v.w/2-28-Math.random()*16,0);ctx.lineTo(-v.w/2-10,8);ctx.fill();this.app.particles.dust(b.position.x-Math.cos(b.angle)*v.w/2,b.position.y-Math.sin(b.angle)*v.w/2,'#d97836')}}
+    ctx.restore();if(v.type==='stroke'||v.type==='shape')this.scribbleLine(this.bodyPoints(b,v),v.color||'#4e8b68',v.thickness||14,v.type==='shape');if(v.type==='ball'&&M.Vector.magnitude(b.velocity)>3){this.trail.push({x:b.position.x,y:b.position.y,life:1});if(this.trail.length>18)this.trail.shift()}
   }
-  drawStar(s){const ctx=this.ctx,x=s.position.x,y=s.position.y,r=s.plugin.visual.r||22;ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()*.00035);ctx.fillStyle='#e7b541';ctx.strokeStyle='rgba(128,94,26,.5)';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;const px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
-  drawConstraint(c){const ctx=this.ctx,a=c.bodyA?M.Vector.add(c.bodyA.position,M.Vector.rotate(c.pointA||{x:0,y:0},c.bodyA.angle)):c.pointA,b=c.bodyB?M.Vector.add(c.bodyB.position,M.Vector.rotate(c.pointB||{x:0,y:0},c.bodyB.angle)):c.pointB;if(!a||!b)return;if(c.plugin?.kind==='pivot'){this.drawPivot({x:b.x,y:b.y,used:true});return}ctx.strokeStyle='#76558e';ctx.lineWidth=5;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([])}
+  drawStar(s){const ctx=this.ctx,x=s.position.x,y=s.position.y,r=s.plugin.visual.r||22;ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()*.00035);ctx.fillStyle='#e7b541';ctx.strokeStyle='rgba(128,94,26,.5)';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r,px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
+  drawConstraint(c){
+    const ctx=this.ctx,a=this.app.physics.constraintWorldPoint(c,'A'),b=this.app.physics.constraintWorldPoint(c,'B');if(!a||!b)return;if(c.plugin?.kind==='pivot'){this.drawPivot({x:b.x,y:b.y,used:true});return}
+    ctx.strokeStyle='#76558e';ctx.lineWidth=5;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(a.x,a.y);
+    if(c.plugin?.kind==='rope'){const rest=c.plugin.restLength||c.length,d=dist(a,b),slack=Math.max(0,rest-d),sag=clamp(slack*.38,0,65),mx=(a.x+b.x)/2,my=(a.y+b.y)/2+sag;ctx.quadraticCurveTo(mx,my,b.x,b.y)}else ctx.lineTo(b.x,b.y);
+    ctx.stroke();ctx.setLineDash([]);
+  }
   drawPivot(p){const ctx=this.ctx;ctx.fillStyle=p.used?'#173f61':'#2d5f86';ctx.beginPath();ctx.arc(p.x,p.y,10,0,Math.PI*2);ctx.fill();ctx.strokeStyle=document.body.classList.contains('theme-dark')?'#dce9f2':'#f3ead2';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.stroke()}
   drawAnchor(a){const ctx=this.ctx;ctx.fillStyle='#76558e';ctx.beginPath();ctx.arc(a.x,a.y,9,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(a.x-12,a.y-12);ctx.lineTo(a.x+12,a.y+12);ctx.moveTo(a.x+12,a.y-12);ctx.lineTo(a.x-12,a.y+12);ctx.strokeStyle='#76558e';ctx.lineWidth=3;ctx.stroke()}
   drawTrail(){const ctx=this.ctx;for(let i=this.trail.length-1;i>=0;i--){const t=this.trail[i];t.life-=.06;if(t.life<=0){this.trail.splice(i,1);continue}ctx.globalAlpha=t.life*.22;ctx.fillStyle='#dd594d';ctx.beginPath();ctx.arc(t.x,t.y,8*t.life,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1}
   drawInput(){const d=this.app.drawing;if(d.points.length>1)this.scribbleLine(d.points,'#4e8b68',9,false);if(d.ropeStart){const p=d.pointer||d.ropeStart;this.ctx.strokeStyle='#76558e';this.ctx.lineWidth=3;this.ctx.setLineDash([7,6]);this.ctx.beginPath();this.ctx.moveTo(d.ropeStart.x,d.ropeStart.y);this.ctx.lineTo(p.x,p.y);this.ctx.stroke();this.ctx.setLineDash([])}}
+  drawPhysicsDebug(pw){
+    const ctx=this.ctx;ctx.save();ctx.font='11px ui-monospace,monospace';for(const b of pw.bodies.values()){
+      if(b.isSensor)continue;ctx.strokeStyle='rgba(220,50,47,.78)';ctx.lineWidth=1;for(const part of (b.parts?.length>1?b.parts.slice(1):[b])){ctx.beginPath();part.vertices.forEach((v,i)=>i?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y));ctx.closePath();ctx.stroke()}
+      ctx.strokeStyle='rgba(38,139,210,.7)';ctx.strokeRect(b.bounds.min.x,b.bounds.min.y,b.bounds.max.x-b.bounds.min.x,b.bounds.max.y-b.bounds.min.y);ctx.fillStyle='#d33682';ctx.beginPath();ctx.arc(b.position.x,b.position.y,3,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#2aa198';ctx.beginPath();ctx.moveTo(b.position.x,b.position.y);ctx.lineTo(b.position.x+b.velocity.x*5,b.position.y+b.velocity.y*5);ctx.stroke();ctx.fillStyle=document.body.classList.contains('theme-dark')?'#fff':'#111';ctx.fillText(`${b.plugin?.visual?.type||b.label} m=${b.mass.toFixed(2)}`,b.position.x+7,b.position.y-7)
+    }ctx.restore();
+  }
 }
 
 class DrawingSystem{
   constructor(app,canvas,renderer){this.app=app;this.canvas=canvas;this.renderer=renderer;this.tool='draw';this.points=[];this.pointer=null;this.downAt=0;this.start=null;this.ropeStart=null;this.pendingPivot=null;this.longTimer=null;this.bind()}
   bind(){this.canvas.addEventListener('contextmenu',e=>e.preventDefault());this.canvas.addEventListener('pointerdown',e=>this.down(e),{passive:false});this.canvas.addEventListener('pointermove',e=>this.move(e),{passive:false});this.canvas.addEventListener('pointerup',e=>this.up(e),{passive:false});this.canvas.addEventListener('pointercancel',e=>this.cancel(e),{passive:false})}
-  setTool(t){this.tool=t;this.points=[];this.ropeStart=null;$$('.tool-btn[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));this.app.audio.click()}
-  down(e){e.preventDefault();this.app.audio.ensure();this.canvas.setPointerCapture?.(e.pointerId);const p=this.renderer.toWorld(e.clientX,e.clientY);if(p.x<0||p.y<0||p.x>W||p.y>H)return;this.pointer=p;this.start=p;this.downAt=performance.now();
+  setTool(t){this.tool=t==='smart'?'draw':t;this.points=[];this.ropeStart=null;$$('.tool-btn[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===this.tool));this.app.audio.click()}
+  down(e){
+    e.preventDefault();this.app.audio.ensure();this.canvas.setPointerCapture?.(e.pointerId);const p=this.renderer.toWorld(e.clientX,e.clientY);if(p.x<0||p.y<0||p.x>W||p.y>H)return;this.pointer=p;this.start=p;this.downAt=performance.now();
     if(this.app.physics.activateRocketAt(p)){this.app.toast('Cohete encendido');return}
     if(this.tool==='erase'){this.eraseAt(p);return}
-    if(this.tool==='pivot'){if(!this.app.canSpendInk(45)){this.app.toast('No queda tinta suficiente');this.app.flashInk();return}this.app.pushHistory();const pv=this.app.physics.addPivot(p.x,p.y);pv.user=true;this.pendingPivot=pv;this.app.useInk(45);this.app.afterAction();this.app.toast('Pivote creado: dibuja una pieza cerca');return}
+    if(this.tool==='pivot'){if(!this.app.canSpendInk(45)){this.app.toast('No queda tinta suficiente');this.app.flashInk();return}this.app.pushHistory();const pv=this.app.physics.addPivot(p.x,p.y);pv.user=true;this.pendingPivot=pv;this.app.useInk(45);this.app.afterAction();this.app.toast('Pivote creado: dibuja una pieza sobre él');return}
     if(this.tool==='rope'){if(!this.ropeStart){this.ropeStart=p;this.app.toast('Elige el segundo extremo')}else{const ropeCost=70+dist(this.ropeStart,p)*.08;if(!this.app.canSpendInk(ropeCost)){this.app.toast('No queda tinta suficiente');this.app.flashInk();return}this.app.pushHistory();this.app.physics.addRope(this.ropeStart,p,true);this.app.useInk(ropeCost);this.ropeStart=null;this.app.usedTools.add('rope');this.app.afterAction()}return}
-    this.points=[p];clearTimeout(this.longTimer);this.longTimer=setTimeout(()=>{if(this.points.length===1){const b=this.app.physics.bodyAt(p,true);if(b){this.eraseBody(b);this.points=[]}}},450)
+    this.points=[p];clearTimeout(this.longTimer);this.longTimer=setTimeout(()=>{if(this.points.length===1){const b=this.app.physics.bodyAt(p,true);if(b){this.eraseBody(b);this.points=[]}}},450);
   }
-  move(e){e.preventDefault();if(!this.start)return;const p=this.renderer.toWorld(e.clientX,e.clientY);this.pointer=p;if(this.tool==='draw'||this.tool==='shape'||this.tool==='wheel'){if(!this.points.length)return;const last=this.points[this.points.length-1];if(dist(last,p)>3){this.points.push(p);this.app.particles.dust(p.x,p.y,'#4e8b68');if(this.points.length%7===0)this.app.audio.draw();if(dist(this.start,p)>9)clearTimeout(this.longTimer)}}}
-  up(e){e.preventDefault();clearTimeout(this.longTimer);const p=this.renderer.toWorld(e.clientX,e.clientY);const duration=performance.now()-this.downAt;const travelled=this.points.length>1?this.points.reduce((a,q,i)=>i?a+dist(q,this.points[i-1]):0,0):0;if((this.tool==='draw'||this.tool==='shape'||this.tool==='wheel')&&this.points.length){if(travelled<10&&duration<350&&this.app.physics.ball&&dist(p,this.app.physics.ball.position)<35){this.nudge(p);this.points=[];this.start=null;return}this.createFromPoints(travelled)}this.points=[];this.start=null;this.pointer=null}
+  move(e){e.preventDefault();if(!this.start)return;const p=this.renderer.toWorld(e.clientX,e.clientY);this.pointer=p;if(this.tool==='draw'&&this.points.length){const last=this.points[this.points.length-1];if(dist(last,p)>2.8){this.points.push(p);this.app.particles.dust(p.x,p.y,'#4e8b68');if(this.points.length%8===0)this.app.audio.draw();if(dist(this.start,p)>9)clearTimeout(this.longTimer)}}}
+  up(e){e.preventDefault();clearTimeout(this.longTimer);const p=this.renderer.toWorld(e.clientX,e.clientY),duration=performance.now()-this.downAt,travelled=this.points.length>1?this.points.reduce((a,q,i)=>i?a+dist(q,this.points[i-1]):0,0):0;if(this.tool==='draw'&&this.points.length){if(travelled<10&&duration<350&&this.app.physics.ball&&dist(p,this.app.physics.ball.position)<35){this.nudge(p);this.points=[];this.start=null;return}this.createFromPoints(travelled)}this.points=[];this.start=null;this.pointer=null}
   cancel(e){e.preventDefault();clearTimeout(this.longTimer);this.points=[];this.start=null;this.pointer=null}
-  createFromPoints(length){if(length<14)return;let cost=this.tool==='wheel'?Math.max(70,length*.25):Math.max(35,length*.28);if(this.tool==='shape')cost*=1.15;if(!this.app.canSpendInk(cost)){this.app.toast('No queda tinta suficiente');this.app.flashInk();return}this.app.pushHistory();let body=null;if(this.tool==='wheel'){const xs=this.points.map(p=>p.x),ys=this.points.map(p=>p.y),cx=xs.reduce((a,b)=>a+b,0)/xs.length,cy=ys.reduce((a,b)=>a+b,0)/ys.length,r=clamp(this.points.reduce((a,p)=>a+Math.hypot(p.x-cx,p.y-cy),0)/this.points.length,18,95);body=this.app.physics.addWheel({x:cx,y:cy,r,ink:cost},true);this.app.usedTools.add('wheel')}else{body=this.app.physics.createStroke(this.points,{user:true,color:'#4e8b68',ink:cost,closed:this.tool==='shape'});this.app.usedTools.add(this.tool)}if(!body){this.app.history.pop();this.app.toast('Dibujo demasiado pequeño o inválido');return}this.app.useInk(cost);if(this.pendingPivot&&dist(body.position,this.pendingPivot)<190){this.app.physics.attachPivot(body,this.pendingPivot,true);this.pendingPivot=null;this.app.usedTools.add('pivot')}this.app.afterAction();if(this.app.currentLevel?.tutorial)this.app.hideTip()}
-  eraseAt(p){const b=this.app.physics.bodyAt(p,true);if(b)this.eraseBody(b);else{const c=this.app.physics.userConstraints.find(c=>{const a=c.bodyA?M.Vector.add(c.bodyA.position,M.Vector.rotate(c.pointA||{x:0,y:0},c.bodyA.angle)):c.pointA,bp=c.bodyB?M.Vector.add(c.bodyB.position,M.Vector.rotate(c.pointB||{x:0,y:0},c.bodyB.angle)):c.pointB;return this.pointSegDistance(p,a,bp)<18});if(c){this.app.pushHistory();this.app.physics.removeConstraint(c);this.app.refundInk(50);this.app.afterAction();return}const pv=this.app.physics.pivots.find(x=>x.user&&dist(x,p)<20);if(pv){this.app.pushHistory();this.app.physics.pivots=this.app.physics.pivots.filter(x=>x!==pv);if(this.pendingPivot===pv)this.pendingPivot=null;this.app.refundInk(36);this.app.afterAction()}}}
+  analyseGesture(raw){
+    const pw=this.app.physics,points=pw.resamplePath(raw,4.8);if(points.length<2)return null;const length=pw.pathLength(points),xs=points.map(p=>p.x),ys=points.map(p=>p.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),width=maxX-minX,height=maxY-minY,diagonal=Math.hypot(width,height);
+    const endGap=dist(points[0],points[points.length-1]),closure=endGap/Math.max(1,diagonal);let turn=0;for(let i=1;i<points.length-1;i++){const a=Math.atan2(points[i].y-points[i-1].y,points[i].x-points[i-1].x),b=Math.atan2(points[i+1].y-points[i].y,points[i+1].x-points[i].x);let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;turn+=d}
+    const closed=diagonal>24&&closure<.22&&Math.abs(turn)>3.8;
+    if(!closed){const straightness=dist(points[0],points[points.length-1])/Math.max(1,length);return{kind:straightness>.965?'beam':'stroke',points:straightness>.965?[points[0],points[points.length-1]]:points}}
+    const polygon=pw.cleanPolygon(points.slice(0,-1));if(polygon.length<3)return null;const area=Math.abs(pw.polygonArea(polygon)),perimeter=pw.pathLength([...polygon,polygon[0]]),cx=polygon.reduce((s,p)=>s+p.x,0)/polygon.length,cy=polygon.reduce((s,p)=>s+p.y,0)/polygon.length,radii=polygon.map(p=>Math.hypot(p.x-cx,p.y-cy)),mean=radii.reduce((a,b)=>a+b,0)/radii.length,variance=radii.reduce((s,r)=>s+(r-mean)**2,0)/radii.length,aspect=width/Math.max(1,height),circularity=4*Math.PI*area/Math.max(1,perimeter*perimeter),radialCV=Math.sqrt(variance)/Math.max(1,mean);
+    const wheel=mean>=18&&mean<=100&&aspect>.7&&aspect<1.42&&radialCV<.22&&circularity>.64;return{kind:wheel?'wheel':'shape',points,center:{x:cx,y:cy},radius:clamp(mean,18,95)};
+  }
+  createFromPoints(length){
+    if(length<14){this.app.toast('Dibujo demasiado pequeño');return}if(this.app.physics.userBodies().length>=this.app.physics.maxUserBodies){this.app.toast(`Máximo de ${this.app.physics.maxUserBodies} objetos`);return}
+    const gesture=this.analyseGesture(this.points);if(!gesture){this.app.toast('Dibujo no válido');return}let cost=Math.max(35,length*.28);if(gesture.kind==='wheel')cost=Math.max(70,length*.25);else if(gesture.kind==='shape')cost*=1.15;if(!this.app.canSpendInk(cost)){this.app.toast('No queda tinta suficiente');this.app.flashInk();return}
+    this.app.pushHistory();let body=null;
+    if(gesture.kind==='wheel')body=this.app.physics.addWheel({x:gesture.center.x,y:gesture.center.y,r:gesture.radius,ink:cost,rawPoints:gesture.points},true);else body=this.app.physics.createStroke(gesture.points,{user:true,color:'#4e8b68',ink:cost,closed:gesture.kind==='shape'});
+    if(!body){this.app.history.pop();const selfCross=gesture.kind==='shape'&&this.app.physics.polygonSelfIntersects(this.app.physics.cleanPolygon(gesture.points.slice(0,-1)));this.app.toast(selfCross?'El contorno se cruza consigo mismo':'No hay espacio para crear la pieza');return}
+    this.app.useInk(cost);this.app.usedTools.add(gesture.kind);
+    if(this.pendingPivot){const c=this.app.physics.attachPivot(body,this.pendingPivot,true);if(c){this.pendingPivot=null;this.app.usedTools.add('pivot')}else this.app.toast('El pivote debe quedar sobre la pieza')}
+    this.app.afterAction();if(this.app.currentLevel?.tutorial)this.app.hideTip();const names={wheel:'Rueda',shape:'Sólido',beam:'Viga',stroke:'Trazo'};this.app.toast(names[gesture.kind]||'Dibujo');
+  }
+  eraseAt(p){const b=this.app.physics.bodyAt(p,true);if(b)this.eraseBody(b);else{const c=this.app.physics.userConstraints.find(c=>{const a=this.app.physics.constraintWorldPoint(c,'A'),bp=this.app.physics.constraintWorldPoint(c,'B');return this.pointSegDistance(p,a,bp)<18});if(c){this.app.pushHistory();this.app.physics.removeConstraint(c);this.app.refundInk(50);this.app.afterAction();return}const pv=this.app.physics.pivots.find(x=>x.user&&dist(x,p)<20);if(pv){this.app.pushHistory();this.app.physics.pivots=this.app.physics.pivots.filter(x=>x!==pv);if(this.pendingPivot===pv)this.pendingPivot=null;this.app.refundInk(36);this.app.afterAction()}}}
   eraseBody(b){this.app.pushHistory();const ink=this.app.physics.removeUserBody(b);this.app.refundInk(ink*.8);this.app.afterAction();this.app.audio.tone(180,.06,'triangle',.04,-70)}
   pointSegDistance(p,a,b){if(!a||!b)return 999;const l2=(b.x-a.x)**2+(b.y-a.y)**2;if(!l2)return dist(p,a);let t=((p.x-a.x)*(b.x-a.x)+(p.y-a.y)*(b.y-a.y))/l2;t=clamp(t,0,1);return dist(p,{x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)})}
-  nudge(p){const ball=this.app.physics.ball;if(!ball||performance.now()-this.app.lastNudge<1200)return;const dir=p.x<ball.position.x?1:-1;const impulse={x:dir*1.45,y:-.18};M.Body.setVelocity(ball,{x:ball.velocity.x+impulse.x,y:ball.velocity.y+impulse.y});M.Sleeping.set(ball,false);this.app.lastNudge=performance.now();this.app.nudges++;this.app.audio.tone(190,.06,'triangle',.06,80)}
+  nudge(p){const ball=this.app.physics.ball;if(!ball||performance.now()-this.app.lastNudge<1200)return;const dir=p.x<ball.position.x?1:-1,impulse={x:dir*1.45,y:-.18};M.Body.setVelocity(ball,{x:ball.velocity.x+impulse.x,y:ball.velocity.y+impulse.y});M.Sleeping.set(ball,false);this.app.lastNudge=performance.now();this.app.nudges++;this.app.audio.tone(190,.06,'triangle',.06,80)}
 }
 
 class Editor{
@@ -948,6 +834,7 @@ class GameApp{
 }
 
 window.app=new GameApp();
+window.runCrayonPhysicsTests=()=>window.app?.physics?.runSelfTests?.();
 })();
 </script>
 </body>
