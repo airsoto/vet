@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<script defer src="goat.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090d14" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="description" content="Buscador visual de literatura científica de INSPIRE-HEP / CERN." />
+  <title>CERN / INSPIRE-HEP Explorer</title>
+  <style>
+    :root{
+      --bg:#090d14; --panel:#111824; --panel2:#0d141f; --text:#edf3f8;
+      --muted:#93a3b5; --line:#243246; --accent:#ff9900; --blue:#4db3ff;
+      --green:#3ddc97; --red:#ff6b6b; --shadow:0 16px 42px rgba(0,0,0,.28);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0; background:
+      radial-gradient(circle at 15% -10%, rgba(77,179,255,.12), transparent 30%),
+      radial-gradient(circle at 90% 0%, rgba(255,153,0,.08), transparent 25%),
+      var(--bg);
+      color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
+      "Segoe UI",Roboto,Arial,sans-serif; min-height:100vh;
+    }
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+    button,input,select{font:inherit}
+    .wrap{width:min(1460px,calc(100% - 28px));margin:0 auto}
+    header{padding:28px 0 16px}
+    h1{margin:0;font-size:clamp(28px,5vw,54px);letter-spacing:-.035em;line-height:1}
+    .subtitle{color:var(--muted);max-width:900px;line-height:1.55;margin:16px 0 0}
+    .source{
+      margin-top:22px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;
+      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));
+      color:#cbd6e2;line-height:1.55
+    }
+    .source strong{color:#fff}
+    .home a{display:inline-flex;gap:7px;align-items:center;margin-top:4px}
+
+    .search-panel{
+      position:sticky;top:0;z-index:20;margin:18px 0 22px;padding:16px;border:1px solid var(--line);
+      background:rgba(9,13,20,.88);backdrop-filter:blur(16px);border-radius:20px;box-shadow:var(--shadow)
+    }
+    .search-main{display:grid;grid-template-columns:1fr auto;gap:10px}
+    .query{
+      width:100%;background:#0c131d;color:#fff;border:1px solid var(--line);border-radius:13px;
+      padding:14px 15px;outline:none
+    }
+    .query:focus,.field:focus{border-color:#467eab;box-shadow:0 0 0 3px rgba(77,179,255,.08)}
+    .btn{
+      border:0;border-radius:13px;padding:12px 16px;cursor:pointer;font-weight:700;
+      background:var(--accent);color:#16100a;transition:.15s transform,.15s opacity
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+    .btn.secondary{background:#1b2838;color:#e9f2fa;border:1px solid #30445c}
+    .btn.ghost{background:transparent;color:#d7e4ef;border:1px solid var(--line)}
+    .filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:10px}
+    .field{width:100%;background:#0c131d;color:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 11px;outline:none}
+    .filter-label{display:block;font-size:11px;color:var(--muted);margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.08em}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .chip{
+      border:1px solid #2a3a4f;background:#101925;color:#bfd0df;border-radius:999px;padding:7px 10px;
+      cursor:pointer;font-size:13px
+    }
+    .chip:hover{border-color:#4a6686;color:#fff}
+
+    .statusbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 2px 13px;color:var(--muted)}
+    #status strong{color:#fff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(315px,1fr));gap:16px}
+    .card{
+      display:flex;flex-direction:column;min-height:330px;padding:18px;border:1px solid var(--line);
+      border-radius:var(--radius);background:linear-gradient(180deg,#121b28,#0e151f);box-shadow:0 8px 22px rgba(0,0,0,.18);
+      transition:.18s transform,.18s border-color,.18s box-shadow
+    }
+    .card:hover{transform:translateY(-3px);border-color:#3a506c;box-shadow:0 16px 32px rgba(0,0,0,.26)}
+    .card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .year{font-size:12px;font-weight:800;background:rgba(255,153,0,.12);color:#ffb84d;border:1px solid rgba(255,153,0,.25);padding:5px 8px;border-radius:999px;white-space:nowrap}
+    .cites{font-size:12px;color:#9fb4c6}
+    .title{font-size:18px;line-height:1.32;margin:13px 0 9px;color:#fff;font-weight:780}
+    .authors{font-size:13px;color:#aebdcb;line-height:1.45;margin-bottom:11px}
+    .abstract{
+      color:#c7d1db;font-size:13.5px;line-height:1.55;
+      display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden
+    }
+    .tags{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0}
+    .tag{font-size:11px;padding:4px 7px;border-radius:999px;background:#172334;color:#9ec8ea;border:1px solid #23364c}
+    .card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:16px}
+    .smallbtn{font-size:12px;padding:8px 10px;border-radius:10px;border:1px solid #2d4159;background:#162234;color:#dbe9f4;cursor:pointer}
+    .smallbtn:hover{background:#1b2a3e}
+    .smallbtn.accent{color:#ffd59a;border-color:#68461c;background:#261b0d}
+    .empty{grid-column:1/-1;text-align:center;padding:60px 20px;border:1px dashed var(--line);border-radius:18px;color:var(--muted)}
+    .loader{width:22px;height:22px;border:3px solid #273649;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .pager{display:flex;justify-content:center;align-items:center;gap:10px;padding:28px 0 18px;flex-wrap:wrap}
+    .pageinfo{color:var(--muted);min-width:170px;text-align:center}
+
+    dialog{
+      width:min(880px,calc(100% - 22px));max-height:88vh;border:1px solid #344a64;border-radius:20px;
+      padding:0;background:#0e1621;color:var(--text);box-shadow:0 30px 90px rgba(0,0,0,.6)
+    }
+    dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
+    .modal-head{position:sticky;top:0;display:flex;justify-content:space-between;gap:16px;padding:18px 20px;background:#101a27;border-bottom:1px solid var(--line);z-index:1}
+    .modal-body{padding:20px;line-height:1.6}
+    .close{background:#1e2b3c;color:white;border:1px solid #34475e;border-radius:10px;padding:8px 11px;cursor:pointer}
+    .meta-grid{display:grid;grid-template-columns:140px 1fr;gap:8px 14px;margin:18px 0}
+    .meta-grid dt{color:var(--muted)} .meta-grid dd{margin:0;overflow-wrap:anywhere}
+    .notice{padding:10px 12px;background:#142235;border:1px solid #284665;border-radius:11px;color:#b8d2e8;font-size:12px}
+    .footer{margin:40px 0 0;padding:28px 16px 46px;border-top:1px solid var(--line);color:#9cabb9;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .footer h4 a{color:#ffb24b}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .error{color:#ff8e8e}
+
+    @media(max-width:1050px){.filters{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:650px){
+      .wrap{width:min(100% - 18px,1460px)}
+      header{padding-top:20px}.search-panel{position:relative;top:auto;padding:11px;border-radius:16px}
+      .search-main{grid-template-columns:1fr}.filters{grid-template-columns:repeat(2,1fr)}
+      .actions .btn{flex:1}.grid{grid-template-columns:1fr}.card{min-height:auto}
+      .meta-grid{grid-template-columns:1fr;gap:2px}.meta-grid dd{margin-bottom:9px}
+      .statusbar{align-items:flex-start;flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CERN / INSPIRE-HEP Explorer</h1>
+
+    <!-- BLOQUE DESARROLLADO POR + HOME -->
+    <div style="margin:10px 0 0 0;">
+      <h2 style="margin:0; font-size:clamp(13px,3vw,14px); font-weight:600;">
+        <span style="color:#ff9900;">Desarrollado por: Ángel Soto</span>
+      </h2>
+      <p class="home" style="margin:0; font-size:clamp(12px,2.8vw,13px);">
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">
+          🏠&nbsp;<span>volver a página de inicio</span>
+        </a>
+      </p>
+    </div>
+
+    <p class="subtitle">
+      Explorador visual de publicaciones de física de altas energías. Busca títulos, autores,
+      temas, DOI, arXiv y otros términos directamente sobre la API JSON de INSPIRE-HEP.
+    </p>
+
+    <div class="source">
+      <strong>Fuente de la información:</strong> los registros se obtienen de
+      <a href="https://inspirehep.net/" target="_blank" rel="noopener">INSPIRE-HEP</a>,
+      una plataforma especializada en literatura, autores, experimentos y otros recursos de
+      física de altas energías. Esta web consulta el endpoint público
+      <a href="https://inspirehep.net/api/literature" target="_blank" rel="noopener">INSPIRE REST API / literature</a>.
+      Los contenidos pertenecen a sus respectivas fuentes y autores.
+    </div>
+  </header>
+
+  <main>
+    <section class="search-panel" aria-label="Buscador">
+      <div class="search-main">
+        <label class="sr-only" for="q">Buscar</label>
+        <input id="q" class="query" type="search" autocomplete="off"
+               placeholder="Buscar: Higgs boson, CERN, LHC, dark matter, quantum gravity..." />
+        <button id="searchBtn" class="btn">🔎 Buscar</button>
+      </div>
+
+      <div class="filters">
+        <div>
+          <label class="filter-label" for="author">Autor</label>
+          <input id="author" class="field" placeholder="Ej. Witten" />
+        </div>
+        <div>
+          <label class="filter-label" for="yearFrom">Año desde</label>
+          <input id="yearFrom" class="field" type="number" min="1900" max="2100" placeholder="2012" />
+        </div>
+        <div>
+          <label class="filter-label" for="yearTo">Año hasta</label>
+          <input id="yearTo" class="field" type="number" min="1900" max="2100" placeholder="2026" />
+        </div>
+        <div>
+          <label class="filter-label" for="minCites">Citas mínimas</label>
+          <input id="minCites" class="field" type="number" min="0" placeholder="100" />
+        </div>
+        <div>
+          <label class="filter-label" for="sort">Ordenar</label>
+          <select id="sort" class="field">
+            <option value="">Relevancia</option>
+            <option value="mostrecent">Más recientes</option>
+            <option value="mostcited">Más citados</option>
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="size">Por página</label>
+          <select id="size" class="field">
+            <option>12</option><option selected>24</option><option>48</option><option>96</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="clearBtn" class="btn secondary">Limpiar filtros</button>
+        <button id="loadJsonBtn" class="btn ghost">📂 Cargar JSON local</button>
+        <button id="downloadBtn" class="btn ghost">⬇️ Descargar resultados JSON</button>
+        <input id="jsonFile" type="file" accept=".json,application/json" hidden />
+      </div>
+
+      <div class="chips" aria-label="Búsquedas rápidas">
+        <button class="chip" data-q="CERN">CERN</button>
+        <button class="chip" data-q="Higgs boson">Higgs</button>
+        <button class="chip" data-q="Large Hadron Collider">LHC</button>
+        <button class="chip" data-q="dark matter">Materia oscura</button>
+        <button class="chip" data-q="neutrino">Neutrinos</button>
+        <button class="chip" data-q="supersymmetry">Supersimetría</button>
+        <button class="chip" data-q="quantum gravity">Gravedad cuántica</button>
+        <button class="chip" data-q="antimatter">Antimateria</button>
+      </div>
+    </section>
+
+    <div class="statusbar">
+      <div id="status">Introduce una búsqueda o pulsa uno de los temas.</div>
+      <div id="networkState"></div>
+    </div>
+
+    <section id="results" class="grid" aria-live="polite"></section>
+
+    <nav class="pager" aria-label="Paginación">
+      <button id="prevBtn" class="btn secondary">← Anterior</button>
+      <span id="pageInfo" class="pageinfo">Página 1</span>
+      <button id="nextBtn" class="btn secondary">Siguiente →</button>
+    </nav>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+    <p style="text-align: center;"><strong>Si te ha gustado este proyecto y quieres invitarme a un caf&eacute;,</strong></p>
+    <p style="text-align: center;"><strong>puedes hacerlo aqu&iacute;:</strong></p>
+    <h4 style="text-align: center;"><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">BUY ME A COFFEE</a></h4>
+    <p><strong>________________________________________________</strong></p>
+    <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones m&oacute;viles MnemoVetDDX ni MnemoVetDDX (English Version))</p>
+    <p>DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE Version 2, Copyright (C) 2025 Angel Soto.
+    Everyone is permitted to copy and distribute verbatim or modified copies of this license document.</p>
+    <p>________________________________________________</p>
+  </footer>
+</div>
+
+<dialog id="detailDialog">
+  <div class="modal-head">
+    <strong id="modalHeading">Artículo</strong>
+    <button id="closeDialog" class="close">✕ Cerrar</button>
+  </div>
+  <div id="modalBody" class="modal-body"></div>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  const API = 'https://inspirehep.net/api/literature';
+  const $ = id => document.getElementById(id);
+
+  const state = {
+    page: 1, total: 0, items: [], apiMode: true, localItems: [],
+    lastUrl: '', translations: new Map()
+  };
+
+  const esc = (v='') => String(v).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[c]));
+
+  const stripHtml = (s='') => {
+    const d = document.createElement('div');
+    d.innerHTML = s;
+    return d.textContent || d.innerText || '';
+  };
+
+  function first(arr, fallback='') {
+    return Array.isArray(arr) && arr.length ? arr[0] : fallback;
+  }
+
+  function titleOf(m) {
+    return first(m.titles)?.title || 'Sin título';
+  }
+
+  function abstractOf(m) {
+    return stripHtml(first(m.abstracts)?.value || '');
+  }
+
+  function authorsOf(m) {
+    const arr = Array.isArray(m.authors) ? m.authors : [];
+    const names = arr.slice(0, 6).map(a => a.full_name).filter(Boolean);
+    if (arr.length > 6) names.push(`+${arr.length - 6} más`);
+    return names.join(', ') || 'Autoría no indicada';
+  }
+
+  function yearOf(m) {
+    const d = m.earliest_date || first(m.imprints)?.date || '';
+    const match = String(d).match(/\b(19|20)\d{2}\b/);
+    return match ? match[0] : '—';
+  }
+
+  function doiOf(m) {
+    return first(m.dois)?.value || '';
+  }
+
+  function arxivOf(m) {
+    return first(m.arxiv_eprints)?.value || '';
+  }
+
+  function journalOf(m) {
+    const p = first(m.publication_info);
+    if (!p) return '';
+    return [p.journal_title, p.journal_volume, p.artid || p.page_start].filter(Boolean).join(' ');
+  }
+
+  function keywordsOf(m) {
+    const ks = Array.isArray(m.keywords) ? m.keywords : [];
+    return ks.map(k => k.value).filter(Boolean).slice(0, 4);
+  }
+
+  function collaborationsOf(m) {
+    const cs = Array.isArray(m.collaborations) ? m.collaborations : [];
+    return cs.map(c => c.value).filter(Boolean).slice(0, 3);
+  }
+
+  function recidOf(item) {
+    return item.id || item.metadata?.control_number || '';
+  }
+
+  function inspireUrl(item) {
+    const id = recidOf(item);
+    return id ? `https://inspirehep.net/literature/${encodeURIComponent(id)}` : 'https://inspirehep.net/';
+  }
+
+  function buildQuery() {
+    const clauses = [];
+    const q = $('q').value.trim();
+    const author = $('author').value.trim();
+    const yf = $('yearFrom').value.trim();
+    const yt = $('yearTo').value.trim();
+    const minCites = $('minCites').value.trim();
+
+    if (q) clauses.push(q);
+    if (author) clauses.push(`a ${author}`);
+    if (yf && yt) clauses.push(`date ${yf}->${yt}`);
+    else if (yf) clauses.push(`date ${yf}->`);
+    else if (yt) clauses.push(`date ->${yt}`);
+    if (minCites) clauses.push(`topcite ${minCites}+`);
+
+    return clauses.join(' and ') || 'CERN';
+  }
+
+  function buildUrl(page = 1) {
+    const p = new URLSearchParams();
+    p.set('q', buildQuery());
+    p.set('size', $('size').value);
+    p.set('page', page);
+    if ($('sort').value) p.set('sort', $('sort').value);
+    return `${API}?${p.toString()}`;
+  }
+
+  function setLoading(on) {
+    $('searchBtn').disabled = on;
+    $('prevBtn').disabled = on || state.page <= 1;
+    const maxPage = Math.max(1, Math.ceil(state.total / Number($('size').value)));
+    $('nextBtn').disabled = on || state.page >= maxPage;
+    $('networkState').innerHTML = on ? '<span class="loader" aria-label="Cargando"></span>' : '';
+  }
+
+  async function search(page = 1) {
+    state.apiMode = true;
+    state.page = page;
+    const url = buildUrl(page);
+    state.lastUrl = url;
+    setLoading(true);
+    $('status').innerHTML = 'Consultando INSPIRE-HEP…';
+    $('results').innerHTML = '';
+
+    try {
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) {
+        if (r.status === 429) throw new Error('Demasiadas peticiones seguidas. Espera unos segundos y vuelve a buscar.');
+        throw new Error(`INSPIRE-HEP respondió con HTTP ${r.status}.`);
+      }
+      const data = await r.json();
+      state.items = data?.hits?.hits || [];
+      state.total = Number(data?.hits?.total || 0);
+      render();
+    } catch (err) {
+      console.error(err);
+      $('status').innerHTML = `<span class="error">Error: ${esc(err.message)}</span>`;
+      $('results').innerHTML = `<div class="empty">No se han podido obtener datos. Comprueba la conexión o prueba otra búsqueda.</div>`;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function render() {
+    const size = Number($('size').value);
+    const maxPage = Math.max(1, Math.ceil(state.total / size));
+    $('pageInfo').textContent = state.apiMode
+      ? `Página ${state.page} de ${maxPage.toLocaleString('es-ES')}`
+      : `${state.items.length} elementos locales`;
+
+    $('status').innerHTML = state.apiMode
+      ? `<strong>${state.total.toLocaleString('es-ES')}</strong> resultados encontrados`
+      : `<strong>${state.items.length.toLocaleString('es-ES')}</strong> registros cargados desde JSON local`;
+
+    $('prevBtn').style.display = state.apiMode ? '' : 'none';
+    $('nextBtn').style.display = state.apiMode ? '' : 'none';
+
+    if (!state.items.length) {
+      $('results').innerHTML = '<div class="empty">No se encontraron artículos con estos criterios.</div>';
+      return;
+    }
+
+    $('results').innerHTML = state.items.map((item, idx) => {
+      const m = item.metadata || item;
+      const title = titleOf(m);
+      const abs = abstractOf(m) || 'Este registro no incluye resumen.';
+      const tags = [...collaborationsOf(m), ...keywordsOf(m)].slice(0,4);
+      return `
+      <article class="card">
+        <div class="card-top">
+          <span class="year">${esc(yearOf(m))}</span>
+          <span class="cites">📚 ${(m.citation_count || 0).toLocaleString('es-ES')} citas</span>
+        </div>
+        <h3 class="title">${esc(title)}</h3>
+        <div class="authors">${esc(authorsOf(m))}</div>
+        <div class="abstract">${esc(abs)}</div>
+        ${tags.length ? `<div class="tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        <div class="card-actions">
+          <button class="smallbtn" data-detail="${idx}">Ver ficha</button>
+          <button class="smallbtn accent" data-translate="${idx}">🇪🇸 Traducir</button>
+          <a class="smallbtn" href="${esc(inspireUrl(item))}" target="_blank" rel="noopener">INSPIRE ↗</a>
+        </div>
+      </article>`;
+    }).join('');
+
+    document.querySelectorAll('[data-detail]').forEach(b =>
+      b.addEventListener('click', () => openDetail(Number(b.dataset.detail)))
+    );
+    document.querySelectorAll('[data-translate]').forEach(b =>
+      b.addEventListener('click', () => translateCard(Number(b.dataset.translate), b))
+    );
+  }
+
+  function openDetail(idx) {
+    const item = state.items[idx];
+    const m = item.metadata || item;
+    const doi = doiOf(m), arxiv = arxivOf(m), journal = journalOf(m);
+    const abs = abstractOf(m) || 'No disponible.';
+    const id = recidOf(item);
+
+    $('modalHeading').textContent = 'Ficha del artículo';
+    $('modalBody').innerHTML = `
+      <h2 style="margin-top:0">${esc(titleOf(m))}</h2>
+      <p style="color:#aebdcb">${esc(authorsOf(m))}</p>
+      <div class="notice">Los metadatos mostrados proceden del registro de INSPIRE-HEP.</div>
+      <dl class="meta-grid">
+        <dt>Año</dt><dd>${esc(yearOf(m))}</dd>
+        <dt>Citas</dt><dd>${Number(m.citation_count || 0).toLocaleString('es-ES')}</dd>
+        <dt>Revista</dt><dd>${esc(journal || '—')}</dd>
+        <dt>DOI</dt><dd>${doi ? `<a target="_blank" rel="noopener" href="https://doi.org/${encodeURIComponent(doi)}">${esc(doi)}</a>` : '—'}</dd>
+        <dt>arXiv</dt><dd>${arxiv ? `<a target="_blank" rel="noopener" href="https://arxiv.org/abs/${encodeURIComponent(arxiv)}">${esc(arxiv)}</a>` : '—'}</dd>
+        <dt>INSPIRE ID</dt><dd>${esc(id || '—')}</dd>
+      </dl>
+      <h3>Resumen</h3>
+      <p id="modalAbstract">${esc(abs)}</p>
+      <div class="card-actions">
+        <button class="smallbtn accent" id="modalTranslate">🇪🇸 Traducir título y resumen</button>
+        <a class="smallbtn" href="${esc(inspireUrl(item))}" target="_blank" rel="noopener">Abrir registro INSPIRE ↗</a>
+        ${id ? `<a class="smallbtn" href="https://inspirehep.net/api/literature/${encodeURIComponent(id)}" target="_blank" rel="noopener">Ver JSON ↗</a>` : ''}
+      </div>
+      <p style="font-size:11px;color:#7f90a3;margin-top:18px">
+        La traducción automática utiliza un servicio externo cuando está disponible y puede contener errores.
+      </p>`;
+    $('detailDialog').showModal();
+    $('modalTranslate').addEventListener('click', async () => {
+      const t = await translateText(titleOf(m));
+      const a = await translateText(abs);
+      $('modalBody').querySelector('h2').textContent = t || titleOf(m);
+      $('modalAbstract').textContent = a || abs;
+    });
+  }
+
+  async function translateText(text) {
+    if (!text) return '';
+    if (state.translations.has(text)) return state.translations.get(text);
+
+    // MyMemory tiene límites de longitud; se trocea el texto para mantener la interfaz funcional.
+    const chunks = text.match(/.{1,450}(?:\s|$)/gs) || [text];
+    const out = [];
+
+    try {
+      for (const chunk of chunks) {
+        const url = 'https://api.mymemory.translated.net/get?q=' +
+          encodeURIComponent(chunk.trim()) + '&langpair=en|es';
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('translation');
+        const j = await r.json();
+        out.push(j?.responseData?.translatedText || chunk);
+      }
+      const translated = out.join(' ');
+      state.translations.set(text, translated);
+      return translated;
+    } catch {
+      return '';
+    }
+  }
+
+  async function translateCard(idx, btn) {
+    const card = btn.closest('.card');
+    const item = state.items[idx];
+    const m = item.metadata || item;
+    const titleEl = card.querySelector('.title');
+    const absEl = card.querySelector('.abstract');
+    const originalTitle = titleOf(m);
+    const originalAbs = abstractOf(m) || 'Este registro no incluye resumen.';
+
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = 'Traduciendo…';
+    const [tt, ta] = await Promise.all([translateText(originalTitle), translateText(originalAbs)]);
+    if (tt || ta) {
+      titleEl.textContent = tt || originalTitle;
+      absEl.textContent = ta || originalAbs;
+      btn.textContent = '✓ Traducido';
+    } else {
+      btn.textContent = 'Traducción no disponible';
+      setTimeout(()=>{ btn.textContent = old; btn.disabled = false; }, 2200);
+    }
+  }
+
+  function normalizeLocal(data) {
+    if (Array.isArray(data)) return data.map(x => x.metadata ? x : ({metadata:x, id:x.id || x.control_number}));
+    if (data?.hits?.hits && Array.isArray(data.hits.hits)) return data.hits.hits;
+    if (Array.isArray(data?.items)) return data.items.map(x => x.metadata ? x : ({metadata:x, id:x.id || x.control_number}));
+    throw new Error('Formato JSON no reconocido.');
+  }
+
+  function filterLocal(items) {
+    const q = $('q').value.trim().toLowerCase();
+    const author = $('author').value.trim().toLowerCase();
+    const yf = Number($('yearFrom').value || 0);
+    const yt = Number($('yearTo').value || 9999);
+    const minC = Number($('minCites').value || 0);
+
+    let out = items.filter(item => {
+      const m = item.metadata || item;
+      const blob = [
+        titleOf(m), abstractOf(m), authorsOf(m), doiOf(m), arxivOf(m),
+        ...keywordsOf(m), ...collaborationsOf(m)
+      ].join(' ').toLowerCase();
+      const y = Number(yearOf(m)) || 0;
+      return (!q || blob.includes(q)) &&
+             (!author || authorsOf(m).toLowerCase().includes(author)) &&
+             (!y || (y >= yf && y <= yt)) &&
+             Number(m.citation_count || 0) >= minC;
+    });
+
+    if ($('sort').value === 'mostrecent')
+      out.sort((a,b)=>Number(yearOf(b.metadata||b))-Number(yearOf(a.metadata||a)));
+    if ($('sort').value === 'mostcited')
+      out.sort((a,b)=>Number((b.metadata||b).citation_count||0)-Number((a.metadata||a).citation_count||0));
+
+    return out;
+  }
+
+  $('searchBtn').addEventListener('click', () => {
+    if (state.localItems.length && !state.apiMode) {
+      state.items = filterLocal(state.localItems);
+      state.total = state.items.length; render();
+    } else search(1);
+  });
+
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
+  ['author','yearFrom','yearTo','minCites'].forEach(id =>
+    $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); })
+  );
+
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    $('q').value = c.dataset.q;
+    state.apiMode = true;
+    search(1);
+  }));
+
+  $('clearBtn').addEventListener('click', () => {
+    ['q','author','yearFrom','yearTo','minCites'].forEach(id => $(id).value = '');
+    $('sort').value = ''; $('size').value = '24';
+    state.localItems = []; state.apiMode = true; state.items = []; state.total = 0; state.page = 1;
+    $('results').innerHTML = '';
+    $('status').textContent = 'Filtros limpiados. Introduce una nueva búsqueda.';
+    $('pageInfo').textContent = 'Página 1';
+    $('prevBtn').style.display = ''; $('nextBtn').style.display = '';
+  });
+
+  $('prevBtn').addEventListener('click', () => { if (state.page > 1) search(state.page - 1); });
+  $('nextBtn').addEventListener('click', () => {
+    const max = Math.ceil(state.total / Number($('size').value));
+    if (state.page < max) search(state.page + 1);
+  });
+
+  $('loadJsonBtn').addEventListener('click', () => $('jsonFile').click());
+  $('jsonFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      state.localItems = normalizeLocal(data);
+      state.apiMode = false;
+      state.items = filterLocal(state.localItems);
+      state.total = state.items.length; state.page = 1;
+      render();
+    } catch (err) {
+      $('status').innerHTML = `<span class="error">No se pudo cargar el JSON: ${esc(err.message)}</span>`;
+    }
+  });
+
+  $('downloadBtn').addEventListener('click', () => {
+    if (!state.items.length) return;
+    const blob = new Blob([JSON.stringify({source: state.apiMode ? state.lastUrl : 'JSON local', items: state.items}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `inspire-hep-resultados-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  });
+
+  $('closeDialog').addEventListener('click', () => $('detailDialog').close());
+  $('detailDialog').addEventListener('click', e => {
+    if (e.target === $('detailDialog')) $('detailDialog').close();
+  });
+
+  window.addEventListener('online', () => $('networkState').textContent = '🟢 En línea');
+  window.addEventListener('offline', () => $('networkState').textContent = '🔴 Sin conexión');
+  $('networkState').textContent = navigator.onLine ? '🟢 En línea' : '🔴 Sin conexión';
+
+  // Búsqueda inicial útil.
+  $('q').value = 'CERN';
+  search(1);
+})();
+</script>
+</body>
+</html>
