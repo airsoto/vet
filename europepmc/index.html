@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<script defer src="goat.js"></script>
+<script defer src="../goat.js"></script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -284,8 +284,9 @@
   'use strict';
 
   const API = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
-  // Las consultas a Europe PMC se realizan mediante JSONP (callback) para evitar
-  // bloqueos CORS cuando esta página se publica como web estática en GitHub Pages.
+  // GitHub Pages puede sufrir bloqueos CORS con Europe PMC.
+  // Se intenta la API directamente y, si el navegador la bloquea,
+  // se usa automáticamente AllOrigins como proxy CORS de respaldo.
   const $ = id => document.getElementById(id);
 
   const state = {
@@ -380,38 +381,37 @@
   }
 
 
-  function jsonp(url, timeout=20000){
-    return new Promise((resolve,reject)=>{
-      const cb='epmc_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-      const script=document.createElement('script');
-      let timer;
+  async function fetchEuropePMC(url){
+    // 1) Intento directo.
+    try{
+      const direct = await fetch(url, {
+        method:'GET',
+        headers:{'Accept':'application/json'},
+        cache:'no-store'
+      });
+      if(direct.ok) return await direct.json();
+    }catch(e){
+      console.warn('Consulta directa bloqueada por CORS; se usará proxy.', e);
+    }
 
-      const cleanup=()=>{
-        clearTimeout(timer);
-        delete window[cb];
-        script.remove();
-      };
-
-      window[cb]=(data)=>{
-        cleanup();
-        resolve(data);
-      };
-
-      script.onerror=()=>{
-        cleanup();
-        reject(new Error('No se pudo conectar con Europe PMC.'));
-      };
-
-      timer=setTimeout(()=>{
-        cleanup();
-        reject(new Error('Europe PMC tardó demasiado en responder.'));
-      },timeout);
-
-      const u=new URL(url);
-      u.searchParams.set('callback',cb);
-      script.src=u.toString();
-      document.head.appendChild(script);
+    // 2) Respaldo CORS para páginas estáticas como GitHub Pages.
+    const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    const proxied = await fetch(proxy, {
+      method:'GET',
+      headers:{'Accept':'application/json'},
+      cache:'no-store'
     });
+
+    if(!proxied.ok){
+      throw new Error(`No se pudo acceder a Europe PMC (proxy HTTP ${proxied.status}).`);
+    }
+
+    const raw = await proxied.text();
+    try{
+      return JSON.parse(raw);
+    }catch(e){
+      throw new Error('La respuesta recibida de Europe PMC no era JSON válido.');
+    }
   }
 
   async function search(reset=true){
@@ -429,7 +429,7 @@
     $('results').innerHTML = '';
 
     try{
-      const data = await jsonp(url);
+      const data = await fetchEuropePMC(url);
       state.raw = data;
       state.items = data?.resultList?.result || [];
       state.total = Number(data?.hitCount || 0);
@@ -438,7 +438,7 @@
     }catch(err){
       console.error(err);
       $('status').innerHTML = `<span class="error">Error: ${esc(err.message)}</span>`;
-      $('results').innerHTML = '<div class="empty">No se pudieron recuperar resultados. Comprueba la conexión e inténtalo de nuevo.</div>';
+      $('results').innerHTML = '<div class="empty">No se pudieron recuperar resultados desde Europe PMC. Comprueba la conexión o vuelve a intentarlo en unos segundos.</div>';
     }finally{
       setLoading(false);
     }
