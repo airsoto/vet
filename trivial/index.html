@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Trivia Explorer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #121a2d;
+      --panel-2: #18233a;
+      --line: rgba(255,255,255,.10);
+      --text: #f7f9fc;
+      --muted: #aeb9cf;
+      --accent: #7aa2ff;
+      --accent-2: #9cc3ff;
+      --ok: #2ed18a;
+      --bad: #ff6f7d;
+      --warn: #f2c45e;
+      --shadow: 0 18px 50px rgba(0,0,0,.30);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(122,162,255,.15), transparent 32rem),
+        linear-gradient(180deg, #0b1020 0%, #090d18 100%);
+      color: var(--text);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    button, input, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app {
+      width: min(100%, 1100px);
+      margin: 0 auto;
+      padding: calc(18px + env(safe-area-inset-top)) 16px 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-icon {
+      width: 44px; height: 44px; border-radius: 14px;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, #7aa2ff, #456fe0);
+      box-shadow: 0 12px 28px rgba(73,112,224,.30);
+      font-size: 24px;
+      flex: 0 0 auto;
+    }
+    .brand h1 { margin: 0; font-size: clamp(1.25rem, 5vw, 1.75rem); letter-spacing: -.03em; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: .86rem; }
+
+    .card {
+      background: rgba(18,26,45,.94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section { padding: 20px; border-bottom: 1px solid var(--line); }
+    .section:last-child { border-bottom: 0; }
+    .section-title { margin: 0 0 6px; font-size: 1rem; }
+    .section-help { margin: 0 0 14px; color: var(--muted); font-size: .88rem; line-height: 1.4; }
+
+    .category-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tiny-btn {
+      border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+      padding: 9px 12px; border-radius: 12px; cursor: pointer; min-height: 40px;
+    }
+    .tiny-btn:active { transform: scale(.98); }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .category-card {
+      appearance: none;
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 16px;
+      min-height: 92px;
+      padding: 13px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+    .category-card .icon { font-size: 1.75rem; line-height: 1; }
+    .category-card .label { font-size: .82rem; line-height: 1.2; font-weight: 700; }
+    .category-card.selected {
+      border-color: var(--accent);
+      background: rgba(122,162,255,.16);
+      box-shadow: inset 0 0 0 1px rgba(122,162,255,.22);
+    }
+    .category-card:active { transform: scale(.98); }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 8px;
+    }
+    .segmented.cols-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .choice-btn {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      min-height: 48px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .choice-btn.selected { border-color: var(--accent); background: rgba(122,162,255,.17); }
+    .choice-btn:active { transform: scale(.985); }
+
+    .primary-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      min-height: 54px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #7aa2ff, #4e7ae8);
+      color: #07101f;
+      font-weight: 900;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(78,122,232,.27);
+    }
+    .primary-btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .primary-btn:active:not(:disabled) { transform: scale(.99); }
+
+    .secondary-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      min-height: 50px;
+      padding: 12px 16px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .danger-link {
+      border: 0; background: transparent; color: var(--muted); text-decoration: underline;
+      padding: 8px 0; cursor: pointer; font-size: .83rem;
+    }
+
+    .resume-box {
+      display: none;
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid rgba(122,162,255,.35);
+      background: rgba(122,162,255,.10);
+      border-radius: 16px;
+    }
+    .resume-box.show { display: block; }
+    .resume-box strong { display: block; margin-bottom: 8px; }
+    .resume-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .hidden { display: none !important; }
+
+    /* Quiz */
+    .quiz-card { padding: 0; }
+    .quiz-head { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .progress-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .progress-top strong { font-size: .95rem; }
+    .score-mini { color: var(--muted); font-size: .83rem; white-space: nowrap; }
+    .progress-track { height: 8px; background: rgba(255,255,255,.07); border-radius: 999px; overflow: hidden; margin-top: 11px; }
+    .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #99baff); transition: width .25s ease; }
+
+    .question-area { padding: 20px; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 13px; }
+    .pill { padding: 6px 9px; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--muted); font-size: .76rem; font-weight: 800; }
+    .question { margin: 0 0 18px; font-size: clamp(1.18rem, 5vw, 1.55rem); line-height: 1.35; letter-spacing: -.02em; }
+
+    .answers { display: grid; gap: 10px; }
+    .answer-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 16px;
+      min-height: 56px;
+      padding: 14px 15px;
+      text-align: left;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: .12s ease;
+    }
+    .answer-btn:active:not(:disabled) { transform: scale(.992); }
+    .answer-btn:disabled { cursor: default; opacity: 1; }
+    .answer-btn.correct { border-color: var(--ok); background: rgba(46,209,138,.14); }
+    .answer-btn.wrong { border-color: var(--bad); background: rgba(255,111,125,.14); }
+
+    .feedback {
+      margin-top: 14px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .feedback.ok { background: rgba(46,209,138,.12); color: #9cf0c9; }
+    .feedback.bad { background: rgba(255,111,125,.12); color: #ffadb5; }
+    .feedback.skip { background: rgba(242,196,94,.10); color: #f8daa0; }
+
+    .quiz-actions { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 14px; }
+    .skip-btn { background: transparent; border: 1px solid var(--line); color: var(--muted); min-height: 46px; border-radius: 14px; font-weight: 800; cursor: pointer; }
+
+    .loading {
+      min-height: 58vh;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 30px 20px;
+    }
+    .spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.12); border-top-color: var(--accent);
+      animation: spin .8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: var(--muted); margin: 7px 0 0; line-height: 1.45; }
+
+    /* Results */
+    .result-hero { text-align: center; padding: 24px 20px 18px; }
+    .result-score { font-size: clamp(3rem, 16vw, 5.3rem); font-weight: 950; letter-spacing: -.07em; line-height: .95; }
+    .result-label { margin-top: 9px; font-weight: 900; font-size: 1.15rem; }
+    .result-sub { color: var(--muted); margin-top: 5px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+    .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 15px; padding: 12px 8px; text-align: center; }
+    .stat strong { display: block; font-size: 1.25rem; }
+    .stat span { color: var(--muted); font-size: .74rem; }
+
+    .result-section { padding: 18px 20px; border-top: 1px solid var(--line); }
+    .result-section h3 { margin: 0 0 12px; font-size: 1rem; }
+    .breakdown { display: grid; gap: 9px; }
+    .break-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; }
+    .break-name { min-width: 0; }
+    .break-name strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .88rem; }
+    .break-name small { color: var(--muted); }
+    .break-score { font-weight: 900; }
+
+    .review-list { display: grid; gap: 12px; }
+    .review-item { border: 1px solid var(--line); background: var(--panel-2); border-radius: 15px; padding: 13px; }
+    .review-item .rq { font-weight: 800; line-height: 1.35; margin-bottom: 8px; }
+    .review-item .wrong-a { color: #ffadb5; font-size: .88rem; margin-bottom: 4px; }
+    .review-item .right-a { color: #9cf0c9; font-size: .88rem; }
+
+    .notice {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.45;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px 10px 6px;
+      font-size: .78rem;
+      line-height: 1.55;
+    }
+    footer a { color: var(--accent-2); }
+
+    @media (min-width: 650px) {
+      .app { padding-left: 24px; padding-right: 24px; }
+      .category-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+      .segmented.cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+      .quiz-actions { grid-template-columns: 1fr 1fr; }
+    }
+    @media (min-width: 920px) {
+      .category-grid { grid-template-columns: repeat(6, minmax(0,1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">🧠</div>
+        <div>
+          <h1>Trivia Explorer</h1>
+          <p>Preguntas aleatorias de Open Trivia DB</p>
+        </div>
+      </div>
+    </header>
+
+    <section id="configScreen">
+      <div id="resumeBox" class="resume-box">
+        <strong>Tienes una sesión sin terminar.</strong>
+        <div class="resume-actions">
+          <button id="resumeBtn" class="tiny-btn">Continuar</button>
+          <button id="discardBtn" class="tiny-btn">Descartar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h2 class="section-title">1. Categorías</h2>
+          <p class="section-help">Elige una, varias o todas. Las preguntas se seleccionan al azar entre los criterios elegidos.</p>
+          <div class="category-actions">
+            <button id="allCategoriesBtn" class="tiny-btn">✓ Todas</button>
+            <button id="clearCategoriesBtn" class="tiny-btn">Limpiar</button>
+          </div>
+          <div id="categoryGrid" class="category-grid" aria-live="polite"></div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">2. Dificultad</h2>
+          <div id="difficultyGroup" class="segmented cols-4">
+            <button class="choice-btn selected" data-value="any">Mezcladas</button>
+            <button class="choice-btn" data-value="easy">Fácil</button>
+            <button class="choice-btn" data-value="medium">Media</button>
+            <button class="choice-btn" data-value="hard">Difícil</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">3. Idioma</h2>
+          <p class="section-help">El idioma queda fijado al comenzar. El español se traduce automáticamente y se guarda en caché.</p>
+          <div id="languageGroup" class="segmented">
+            <button class="choice-btn selected" data-value="es">🇪🇸 Español</button>
+            <button class="choice-btn" data-value="en">🇬🇧 English</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">4. Número de preguntas</h2>
+          <div id="amountGroup" class="segmented cols-4">
+            <button class="choice-btn selected" data-value="10">10</button>
+            <button class="choice-btn" data-value="25">25</button>
+            <button class="choice-btn" data-value="50">50</button>
+            <button class="choice-btn" data-value="100">100</button>
+          </div>
+          <div style="margin-top:8px">
+            <button id="infiniteBtn" class="choice-btn" style="width:100%" data-value="infinite">∞ Práctica infinita</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <button id="startBtn" class="primary-btn">COMENZAR</button>
+          <div style="text-align:center; margin-top:8px">
+            <button id="resetSeenBtn" class="danger-link">Reiniciar memoria de preguntas vistas</button>
+          </div>
+          <p class="notice">Open Trivia DB permite un máximo de 50 preguntas por petición y una categoría por petición. Si eliges varias categorías o 100 preguntas, la carga puede hacerse en varios lotes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="loadingScreen" class="card hidden">
+      <div class="loading">
+        <div>
+          <div class="spinner"></div>
+          <strong id="loadingTitle">Preparando preguntas…</strong>
+          <p id="loadingText">Conectando con Open Trivia DB.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="quizScreen" class="card quiz-card hidden">
+      <div class="quiz-head">
+        <div class="progress-top">
+          <strong id="questionCounter">Pregunta 1/10</strong>
+          <span id="scoreMini" class="score-mini">✅ 0 · ❌ 0 · 0%</span>
+        </div>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      </div>
+      <div class="question-area">
+        <div id="metaRow" class="meta-row"></div>
+        <h2 id="questionText" class="question"></h2>
+        <div id="answers" class="answers"></div>
+        <div id="feedback" class="feedback hidden"></div>
+        <div class="quiz-actions">
+          <button id="skipBtn" class="skip-btn">Omitir</button>
+          <button id="nextBtn" class="primary-btn hidden">Siguiente pregunta</button>
+          <button id="finishPracticeBtn" class="skip-btn hidden" style="grid-column:1/-1">Finalizar práctica y ver resultado</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="resultsScreen" class="card hidden"></section>
+
+    <footer>
+      <div><strong>Desarrollado por: Ángel Soto</strong></div>
+      <div>Preguntas: Open Trivia DB · Traducción ES: MyMemory</div>
+      <div>Open Trivia DB: CC BY-SA 4.0</div>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const OTDB = 'https://opentdb.com';
+      const TRANSLATE = 'https://api.mymemory.translated.net/get';
+      const RATE_GAP_MS = 5200;
+      const LS = {
+        seen: 'trivia_seen_v2',
+        translations: 'trivia_translations_v2',
+        session: 'trivia_active_session_v2'
+      };
+
+      const fallbackCategories = [
+        [9,'General Knowledge'],[10,'Entertainment: Books'],[11,'Entertainment: Film'],[12,'Entertainment: Music'],
+        [13,'Entertainment: Musicals & Theatres'],[14,'Entertainment: Television'],[15,'Entertainment: Video Games'],
+        [16,'Entertainment: Board Games'],[17,'Science & Nature'],[18,'Science: Computers'],[19,'Science: Mathematics'],
+        [20,'Mythology'],[21,'Sports'],[22,'Geography'],[23,'History'],[24,'Politics'],[25,'Art'],[26,'Celebrities'],
+        [27,'Animals'],[28,'Vehicles'],[29,'Entertainment: Comics'],[30,'Science: Gadgets'],
+        [31,'Entertainment: Japanese Anime & Manga'],[32,'Entertainment: Cartoon & Animations']
+      ].map(([id,name]) => ({id,name}));
+
+      const categoryES = {
+        'General Knowledge':'Cultura general','Entertainment: Books':'Libros','Entertainment: Film':'Cine',
+        'Entertainment: Music':'Música','Entertainment: Musicals & Theatres':'Musicales y teatro',
+        'Entertainment: Television':'Televisión','Entertainment: Video Games':'Videojuegos',
+        'Entertainment: Board Games':'Juegos de mesa','Science & Nature':'Ciencia y naturaleza',
+        'Science: Computers':'Informática','Science: Mathematics':'Matemáticas','Mythology':'Mitología','Sports':'Deportes',
+        'Geography':'Geografía','History':'Historia','Politics':'Política','Art':'Arte','Celebrities':'Famosos',
+        'Animals':'Animales','Vehicles':'Vehículos','Entertainment: Comics':'Cómics','Science: Gadgets':'Tecnología',
+        'Entertainment: Japanese Anime & Manga':'Anime y manga','Entertainment: Cartoon & Animations':'Animación'
+      };
+
+      const difficultyES = { easy:'Fácil', medium:'Media', hard:'Difícil' };
+
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => [...document.querySelectorAll(s)];
+
+      const els = {
+        config: $('#configScreen'), loading: $('#loadingScreen'), quiz: $('#quizScreen'), results: $('#resultsScreen'),
+        categoryGrid: $('#categoryGrid'), allCats: $('#allCategoriesBtn'), clearCats: $('#clearCategoriesBtn'),
+        start: $('#startBtn'), infinite: $('#infiniteBtn'), resetSeen: $('#resetSeenBtn'),
+        loadingTitle: $('#loadingTitle'), loadingText: $('#loadingText'),
+        qCounter: $('#questionCounter'), scoreMini: $('#scoreMini'), progressBar: $('#progressBar'),
+        meta: $('#metaRow'), qText: $('#questionText'), answers: $('#answers'), feedback: $('#feedback'),
+        skip: $('#skipBtn'), next: $('#nextBtn'), finishPractice: $('#finishPracticeBtn'), resumeBox: $('#resumeBox'), resume: $('#resumeBtn'), discard: $('#discardBtn')
+      };
+
+      let categories = [];
+      let selectedCategories = new Set();
+      let difficulty = 'any';
+      let language = 'es';
+      let amount = 10;
+      let lastTriviaRequest = 0;
+      let fetchBusy = false;
+      let state = null;
+
+      function show(screen) {
+        [els.config, els.loading, els.quiz, els.results].forEach(x => x.classList.add('hidden'));
+        screen.classList.remove('hidden');
+        window.scrollTo({top:0, behavior:'instant'});
+      }
+
+      function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+      function shuffle(a) {
+        const arr = [...a];
+        for (let i=arr.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+        return arr;
+      }
+      function decodeHTML(s='') {
+        const t = document.createElement('textarea');
+        t.innerHTML = s;
+        return t.value;
+      }
+      function hashString(str) {
+        let h = 2166136261;
+        for (let i=0;i<str.length;i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return (h >>> 0).toString(36);
+      }
+      function qKey(q) { return hashString(`${q.category}|${q.question}|${q.correct_answer}`); }
+      function getJSON(key, fallback) {
+        try { const x = JSON.parse(localStorage.getItem(key)); return x ?? fallback; } catch { return fallback; }
+      }
+      function setJSON(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+      }
+
+      function iconFor(name) {
+        const n = name.toLowerCase();
+        if (n.includes('general')) return '🧠';
+        if (n.includes('book')) return '📚';
+        if (n.includes('film')) return '🎬';
+        if (n.includes('music')) return '🎵';
+        if (n.includes('musical') || n.includes('theatre')) return '🎭';
+        if (n.includes('television')) return '📺';
+        if (n.includes('video game')) return '🎮';
+        if (n.includes('board game')) return '🎲';
+        if (n.includes('nature')) return '🔬';
+        if (n.includes('computer')) return '💻';
+        if (n.includes('mathemat')) return '➗';
+        if (n.includes('myth')) return '⚡';
+        if (n.includes('sport')) return '🏆';
+        if (n.includes('geograph')) return '🌍';
+        if (n.includes('history')) return '🏛️';
+        if (n.includes('politic')) return '🗳️';
+        if (n === 'art' || n.endsWith(': art')) return '🎨';
+        if (n.includes('celeb')) return '⭐';
+        if (n.includes('animal')) return '🐾';
+        if (n.includes('vehicle')) return '🚗';
+        if (n.includes('comic')) return '💥';
+        if (n.includes('gadget')) return '📱';
+        if (n.includes('anime') || n.includes('manga')) return '🍥';
+        if (n.includes('cartoon') || n.includes('animation')) return '🧸';
+        return '❓';
+      }
+
+      async function loadCategories() {
+        try {
+          const r = await fetch(`${OTDB}/api_category.php`, {cache:'no-store'});
+          if (!r.ok) throw new Error('category');
+          const data = await r.json();
+          categories = Array.isArray(data.trivia_categories) ? data.trivia_categories : fallbackCategories;
+          lastTriviaRequest = Date.now();
+        } catch {
+          categories = fallbackCategories;
+        }
+        selectedCategories = new Set(categories.map(c => c.id));
+        renderCategories();
+      }
+
+      function renderCategories() {
+        els.categoryGrid.innerHTML = '';
+        categories.forEach(c => {
+          const b = document.createElement('button');
+          b.className = 'category-card' + (selectedCategories.has(c.id) ? ' selected' : '');
+          b.type = 'button';
+          b.innerHTML = `<span class="icon">${iconFor(c.name)}</span><span class="label">${categoryES[c.name] || c.name}</span>`;
+          b.addEventListener('click', () => {
+            selectedCategories.has(c.id) ? selectedCategories.delete(c.id) : selectedCategories.add(c.id);
+            renderCategories();
+          });
+          els.categoryGrid.appendChild(b);
+        });
+      }
+
+      function wireSegment(groupSelector, setter) {
+        $$(groupSelector + ' .choice-btn').forEach(btn => btn.addEventListener('click', () => {
+          $$(groupSelector + ' .choice-btn').forEach(x => x.classList.remove('selected'));
+          btn.classList.add('selected');
+          setter(btn.dataset.value);
+        }));
+      }
+
+      els.allCats.addEventListener('click', () => { selectedCategories = new Set(categories.map(c=>c.id)); renderCategories(); });
+      els.clearCats.addEventListener('click', () => { selectedCategories.clear(); renderCategories(); });
+      wireSegment('#difficultyGroup', v => difficulty = v);
+      wireSegment('#languageGroup', v => language = v);
+      wireSegment('#amountGroup', v => { amount = Number(v); els.infinite.classList.remove('selected'); });
+      els.infinite.addEventListener('click', () => {
+        $$('#amountGroup .choice-btn').forEach(x => x.classList.remove('selected'));
+        els.infinite.classList.add('selected');
+        amount = 'infinite';
+      });
+
+      els.resetSeen.addEventListener('click', () => {
+        if (!confirm('¿Reiniciar la memoria de preguntas vistas? Podrán volver a aparecer preguntas anteriores.')) return;
+        localStorage.removeItem(LS.seen);
+        alert('Memoria de preguntas vistas reiniciada.');
+      });
+
+      function setLoading(title, text) {
+        els.loadingTitle.textContent = title;
+        els.loadingText.textContent = text;
+      }
+
+      async function triviaFetch(url) {
+        const wait = Math.max(0, RATE_GAP_MS - (Date.now() - lastTriviaRequest));
+        if (wait) await sleep(wait);
+        lastTriviaRequest = Date.now();
+        const r = await fetch(url, {cache:'no-store'});
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }
+
+      function normalize(raw) {
+        const q = {
+          category: decodeHTML(raw.category),
+          type: raw.type,
+          difficulty: raw.difficulty,
+          question: decodeHTML(raw.question),
+          correct_answer: decodeHTML(raw.correct_answer),
+          incorrect_answers: raw.incorrect_answers.map(decodeHTML)
+        };
+        q.key = qKey(q);
+        q.choices = shuffle([
+          {text:q.correct_answer, correct:true},
+          ...q.incorrect_answers.map(text => ({text, correct:false}))
+        ]);
+        return q;
+      }
+
+      async function requestQuestions(count, categoryId=null) {
+        const params = new URLSearchParams({amount:String(Math.min(50, Math.max(1,count)))});
+        if (categoryId) params.set('category', categoryId);
+        if (difficulty !== 'any') params.set('difficulty', difficulty);
+        const data = await triviaFetch(`${OTDB}/api.php?${params}`);
+        if (data.response_code === 0) return data.results.map(normalize);
+        if (data.response_code === 1) return [];
+        if (data.response_code === 5) throw new Error('rate');
+        throw new Error(`Open Trivia DB response code ${data.response_code}`);
+      }
+
+      function seenSet() { return new Set(getJSON(LS.seen, [])); }
+      function rememberSeen(key) {
+        const arr = getJSON(LS.seen, []);
+        if (!arr.includes(key)) arr.push(key);
+        if (arr.length > 5000) arr.splice(0, arr.length - 5000);
+        setJSON(LS.seen, arr);
+      }
+
+      async function buildFixedPool(total) {
+        const selected = categories.filter(c => selectedCategories.has(c.id));
+        const seen = seenSet();
+        const collected = [];
+        const used = new Set();
+
+        // Con muchas categorías es más eficiente pedir un lote mezclado y filtrar localmente.
+        // Evita una petición por categoría, importante por el límite de frecuencia de Open Trivia DB.
+        if (selected.length === categories.length || selected.length >= 8) {
+          const allowed = new Set(selected.map(c => c.name));
+          let attempts = 0;
+          while (collected.length < total && attempts < 7) {
+            const need = Math.min(50, Math.max(20, total - collected.length + 12));
+            setLoading('Preparando preguntas…', `Lote ${attempts + 1} · ${collected.length}/${total} preparadas`);
+            const batch = await requestQuestions(need, null);
+            for (const q of batch) {
+              if (!allowed.has(q.category)) continue;
+              if (!used.has(q.key) && !seen.has(q.key)) { used.add(q.key); collected.push(q); }
+              if (collected.length >= total) break;
+            }
+            attempts++;
+          }
+        } else {
+          const cats = shuffle(selected);
+          const base = Math.floor(total / cats.length);
+          let rem = total % cats.length;
+          for (let i=0; i<cats.length && collected.length<total; i++) {
+            const target = Math.min(50, base + (rem-- > 0 ? 1 : 0));
+            if (target <= 0) continue;
+            setLoading('Preparando preguntas…', `${categoryES[cats[i].name] || cats[i].name} · ${collected.length}/${total} preparadas`);
+            const batch = await requestQuestions(target, cats[i].id);
+            let added = 0;
+            for (const q of batch) {
+              if (!used.has(q.key) && !seen.has(q.key)) { used.add(q.key); collected.push(q); added++; }
+              if (added >= target || collected.length >= total) break;
+            }
+          }
+        }
+
+        // Segunda pasada: si el historial dejó pocas preguntas nuevas, permitimos repetidas como último recurso.
+        if (collected.length < total) {
+          setLoading('Completando examen…', 'No quedan suficientes preguntas nuevas con estos filtros; se usarán algunas ya vistas.');
+          const selected2 = categories.filter(c => selectedCategories.has(c.id));
+          const allowed2 = new Set(selected2.map(c => c.name));
+          let loops = 0;
+          while (collected.length < total && loops < 6) {
+            const mixed = selected2.length === categories.length || selected2.length >= 8;
+            const cat = mixed ? null : selected2[loops % selected2.length]?.id;
+            const batch = await requestQuestions(Math.min(50, total - collected.length + 10), cat);
+            for (const q of batch) {
+              if (mixed && !allowed2.has(q.category)) continue;
+              if (!used.has(q.key)) { used.add(q.key); collected.push(q); }
+              if (collected.length >= total) break;
+            }
+            loops++;
+          }
+        }
+        return shuffle(collected).slice(0,total);
+      }
+
+      async function getInfiniteBatch() {
+        if (fetchBusy) return;
+        fetchBusy = true;
+        try {
+          const activeIds = new Set(state?.categoryIds || [...selectedCategories]);
+          const selected = categories.filter(c => activeIds.has(c.id));
+          const seen = seenSet();
+          const existing = new Set(state.questions.map(q => q.key));
+          let cat = null;
+          const mixed = selected.length === categories.length || selected.length >= 8;
+          if (!mixed) {
+            const idx = state.infiniteCategoryCursor % selected.length;
+            cat = selected[idx];
+            state.infiniteCategoryCursor++;
+          }
+          setLoading('Buscando más preguntas…', cat ? (categoryES[cat.name] || cat.name) : 'Categorías mezcladas');
+          const batch = await requestQuestions(mixed ? 35 : 20, cat?.id || null);
+          const allowed = new Set(selected.map(c => c.name));
+          const filtered = mixed ? batch.filter(q => allowed.has(q.category)) : batch;
+          let add = filtered.filter(q => !existing.has(q.key) && !seen.has(q.key));
+          if (!add.length) add = filtered.filter(q => !existing.has(q.key));
+          state.questions.push(...shuffle(add));
+          saveSession();
+        } finally { fetchBusy = false; }
+      }
+
+      function newStats() { return {correct:0, wrong:0, skipped:0, byCategory:{}, byDifficulty:{}, mistakes:[]}; }
+      function bumpBreakdown(group, key, correct) {
+        if (!group[key]) group[key] = {total:0, correct:0};
+        group[key].total++;
+        if (correct) group[key].correct++;
+      }
+
+      function saveSession() {
+        if (!state) return;
+        setJSON(LS.session, state);
+      }
+      function clearSession() { localStorage.removeItem(LS.session); }
+
+      els.start.addEventListener('click', startQuiz);
+      async function startQuiz() {
+        if (!selectedCategories.size) { alert('Selecciona al menos una categoría.'); return; }
+        show(els.loading);
+        setLoading('Preparando preguntas…', 'Conectando con Open Trivia DB.');
+        try {
+          state = {
+            language, difficulty, target: amount, index:0, questions:[], stats:newStats(),
+            categoryIds:[...selectedCategories],
+            answered:false, selectedIndex:null, infiniteCategoryCursor:0, startedAt:Date.now()
+          };
+          if (amount === 'infinite') {
+            await getInfiniteBatch();
+            if (!state.questions.length) throw new Error('No questions');
+          } else {
+            state.questions = await buildFixedPool(Number(amount));
+            if (!state.questions.length) throw new Error('No questions');
+            if (state.questions.length < Number(amount)) {
+              alert(`Solo se han podido obtener ${state.questions.length} preguntas con estos criterios.`);
+              state.target = state.questions.length;
+            }
+          }
+          saveSession();
+          show(els.quiz);
+          await renderQuestion();
+        } catch (e) {
+          console.error(e);
+          clearSession(); state = null;
+          show(els.config);
+          alert('No se han podido cargar las preguntas. Prueba de nuevo dentro de unos segundos o cambia los filtros.');
+        }
+      }
+
+      function translationCache() { return getJSON(LS.translations, {}); }
+      function saveTranslationCache(obj) {
+        const keys = Object.keys(obj);
+        if (keys.length > 500) keys.slice(0, keys.length - 500).forEach(k => delete obj[k]);
+        setJSON(LS.translations, obj);
+      }
+
+      async function translateBundle(parts) {
+        const cache = translationCache();
+        const key = hashString(parts.join('\u241f'));
+        if (cache[key]) return cache[key];
+        const sep = '\n§§§\n';
+        const bundle = parts.join(sep);
+        const bytes = new TextEncoder().encode(bundle).length;
+        let translated;
+
+        try {
+          if (bytes <= 490) {
+            const url = `${TRANSLATE}?q=${encodeURIComponent(bundle)}&langpair=en%7Ces`;
+            const r = await fetch(url);
+            const data = await r.json();
+            const text = decodeHTML(data?.responseData?.translatedText || '');
+            const split = text.split(/\s*§§§\s*/);
+            if (split.length === parts.length) translated = split;
+          }
+
+          if (!translated) {
+            translated = [];
+            for (const p of parts) {
+              const short = new TextEncoder().encode(p).length <= 500 ? p : p.slice(0, 450);
+              const url = `${TRANSLATE}?q=${encodeURIComponent(short)}&langpair=en%7Ces`;
+              const r = await fetch(url);
+              const data = await r.json();
+              translated.push(decodeHTML(data?.responseData?.translatedText || p));
+            }
+          }
+        } catch (e) {
+          console.warn('Translation failed', e);
+          translated = parts;
+        }
+
+        cache[key] = translated;
+        saveTranslationCache(cache);
+        return translated;
+      }
+
+      async function localizedQuestion(q) {
+        if (state.language === 'en') return {question:q.question, choices:q.choices.map(x=>x.text)};
+        const parts = [q.question, ...q.choices.map(x=>x.text)];
+        const t = await translateBundle(parts);
+        return {question:t[0] || q.question, choices:q.choices.map((x,i)=>t[i+1] || x.text)};
+      }
+
+      function scorePct() {
+        const answered = state.stats.correct + state.stats.wrong + state.stats.skipped;
+        return answered ? Math.round(state.stats.correct * 100 / answered) : 0;
+      }
+
+      async function renderQuestion() {
+        if (!state) return;
+        if (state.index >= state.questions.length) {
+          if (state.target === 'infinite') {
+            show(els.loading);
+            await getInfiniteBatch();
+            if (state.index >= state.questions.length) { finishQuiz(); return; }
+            show(els.quiz);
+          } else { finishQuiz(); return; }
+        }
+
+        if (state.target === 'infinite' && state.questions.length - state.index < 4 && !fetchBusy) {
+          // Prefetch sin bloquear la pregunta actual.
+          getInfiniteBatch().catch(console.warn);
+        }
+
+        const q = state.questions[state.index];
+        els.feedback.className = 'feedback hidden';
+        els.feedback.textContent = '';
+        els.next.classList.add('hidden');
+        els.skip.classList.remove('hidden');
+        els.finishPractice.classList.toggle('hidden', state.target !== 'infinite');
+        els.answers.innerHTML = '';
+        els.qText.textContent = state.language === 'es' ? 'Traduciendo…' : q.question;
+
+        const totalLabel = state.target === 'infinite' ? '∞' : state.target;
+        els.qCounter.textContent = `Pregunta ${state.index + 1}/${totalLabel}`;
+        els.scoreMini.textContent = `✅ ${state.stats.correct} · ❌ ${state.stats.wrong} · ${scorePct()}%`;
+        els.progressBar.style.width = state.target === 'infinite' ? '100%' : `${Math.min(100, (state.index / state.target) * 100)}%`;
+
+        const catLabel = state.language === 'es' ? (categoryES[q.category] || q.category) : q.category;
+        const diffLabel = state.language === 'es' ? (difficultyES[q.difficulty] || q.difficulty) : q.difficulty;
+        els.meta.innerHTML = `<span class="pill">${iconFor(q.category)} ${catLabel}</span><span class="pill">${diffLabel}</span><span class="pill">${q.type === 'boolean' ? '✓ / ✕' : '4 opciones'}</span>`;
+
+        const loc = await localizedQuestion(q);
+        // La sesión pudo cambiar mientras traducíamos.
+        if (!state || state.questions[state.index]?.key !== q.key) return;
+        els.qText.textContent = loc.question;
+
+        q.choices.forEach((choice, i) => {
+          const b = document.createElement('button');
+          b.className = 'answer-btn';
+          b.type = 'button';
+          b.textContent = loc.choices[i];
+          b.addEventListener('click', () => answerQuestion(i, loc));
+          els.answers.appendChild(b);
+        });
+
+        if (state.answered) restoreAnsweredState(loc);
+        saveSession();
+      }
+
+      function restoreAnsweredState(loc) {
+        const q = state.questions[state.index];
+        [...els.answers.children].forEach((b,i) => {
+          b.disabled = true;
+          if (q.choices[i].correct) b.classList.add('correct');
+          if (i === state.selectedIndex && !q.choices[i].correct) b.classList.add('wrong');
+        });
+        els.skip.classList.add('hidden');
+        els.next.classList.remove('hidden');
+        const skipped = state.selectedIndex === -1;
+        const correct = !skipped && q.choices[state.selectedIndex]?.correct;
+        els.feedback.className = `feedback ${skipped ? 'skip' : (correct ? 'ok' : 'bad')}`;
+        if (skipped) els.feedback.textContent = state.language === 'es' ? 'Pregunta omitida.' : 'Question skipped.';
+        else if (correct) els.feedback.textContent = state.language === 'es' ? '✅ Correcto' : '✅ Correct';
+        else els.feedback.textContent = `${state.language === 'es' ? '❌ Incorrecto · Correcta:' : '❌ Incorrect · Correct:'} ${loc.choices[q.choices.findIndex(x=>x.correct)]}`;
+      }
+
+      function answerQuestion(index, loc) {
+        if (state.answered) return;
+        state.answered = true;
+        state.selectedIndex = index;
+        const q = state.questions[state.index];
+        const selected = q.choices[index];
+        const correct = !!selected.correct;
+
+        if (correct) state.stats.correct++; else state.stats.wrong++;
+        bumpBreakdown(state.stats.byCategory, q.category, correct);
+        bumpBreakdown(state.stats.byDifficulty, q.difficulty, correct);
+        if (!correct) {
+          state.stats.mistakes.push({
+            question:q.question,
+            selected:selected.text,
+            correct:q.correct_answer,
+            category:q.category,
+            difficulty:q.difficulty
+          });
+        }
+        rememberSeen(q.key);
+        restoreAnsweredState(loc);
+        els.scoreMini.textContent = `✅ ${state.stats.correct} · ❌ ${state.stats.wrong} · ${scorePct()}%`;
+        saveSession();
+      }
+
+      els.skip.addEventListener('click', () => {
+        if (!state || state.answered) return;
+        const q = state.questions[state.index];
+        state.answered = true;
+        state.selectedIndex = -1;
+        state.stats.skipped++;
+        bumpBreakdown(state.stats.byCategory, q.category, false);
+        bumpBreakdown(state.stats.byDifficulty, q.difficulty, false);
+        state.stats.mistakes.push({question:q.question, selected:null, correct:q.correct_answer, category:q.category, difficulty:q.difficulty});
+        rememberSeen(q.key);
+        const loc = {choices:[...els.answers.children].map(b=>b.textContent)};
+        restoreAnsweredState(loc);
+        saveSession();
+      });
+
+      els.next.addEventListener('click', async () => {
+        if (!state?.answered) return;
+        state.index++;
+        state.answered = false;
+        state.selectedIndex = null;
+        saveSession();
+        if (state.target !== 'infinite' && state.index >= state.target) finishQuiz();
+        else await renderQuestion();
+      });
+
+      function classification(p) {
+        if (p < 50) return 'Insuficiente';
+        if (p < 70) return 'Aprobado';
+        if (p < 85) return 'Notable';
+        return 'Excelente';
+      }
+
+      function breakdownHTML(obj, type) {
+        const entries = Object.entries(obj).sort((a,b) => b[1].total - a[1].total);
+        if (!entries.length) return '<p class="notice">Sin datos.</p>';
+        return `<div class="breakdown">${entries.map(([k,v]) => {
+          const p = Math.round(v.correct*100/v.total);
+          let name = k;
+          if (type==='cat' && state.language==='es') name = categoryES[k] || k;
+          if (type==='diff' && state.language==='es') name = difficultyES[k] || k;
+          return `<div class="break-row"><div class="break-name"><strong>${escapeHTML(name)}</strong><small>${v.correct}/${v.total} correctas</small></div><div class="break-score">${p}%</div></div>`;
+        }).join('')}</div>`;
+      }
+
+      function escapeHTML(s='') { return s.replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+
+      function finishQuiz() {
+        if (!state) return;
+        const answered = state.stats.correct + state.stats.wrong + state.stats.skipped;
+        const pct = answered ? Math.round(state.stats.correct * 100 / answered) : 0;
+        const label = classification(pct);
+        const infinite = state.target === 'infinite';
+        const mistakes = state.stats.mistakes;
+
+        els.results.innerHTML = `
+          <div class="result-hero">
+            <div class="result-score">${pct}%</div>
+            <div class="result-label">${label}</div>
+            <div class="result-sub">${infinite ? `${answered} preguntas completadas` : `${state.stats.correct} de ${state.target} correctas`}</div>
+            <div class="stats-grid">
+              <div class="stat"><strong>${state.stats.correct}</strong><span>Correctas</span></div>
+              <div class="stat"><strong>${state.stats.wrong}</strong><span>Incorrectas</span></div>
+              <div class="stat"><strong>${state.stats.skipped}</strong><span>Omitidas</span></div>
+            </div>
+          </div>
+          <div class="result-section"><h3>Resultado por categoría</h3>${breakdownHTML(state.stats.byCategory,'cat')}</div>
+          <div class="result-section"><h3>Resultado por dificultad</h3>${breakdownHTML(state.stats.byDifficulty,'diff')}</div>
+          <div class="result-section">
+            <button id="reviewBtn" class="secondary-btn" ${mistakes.length ? '' : 'disabled'}>Revisar preguntas falladas (${mistakes.length})</button>
+            <div id="reviewArea" class="review-list hidden" style="margin-top:12px"></div>
+          </div>
+          <div class="result-section">
+            <button id="newQuizBtn" class="primary-btn">Nuevo examen</button>
+          </div>`;
+
+        show(els.results);
+        clearSession();
+
+        $('#newQuizBtn').addEventListener('click', () => { state=null; show(els.config); updateResumeBox(); });
+        const reviewBtn = $('#reviewBtn');
+        if (mistakes.length) reviewBtn.addEventListener('click', async () => {
+          const area = $('#reviewArea');
+          if (!area.classList.contains('hidden')) { area.classList.add('hidden'); reviewBtn.textContent = `Revisar preguntas falladas (${mistakes.length})`; return; }
+          reviewBtn.disabled = true; reviewBtn.textContent = 'Preparando revisión…';
+          area.innerHTML = '';
+          for (const m of mistakes) {
+            let vals = [m.question, m.selected || '—', m.correct];
+            if (state.language === 'es') vals = await translateBundle(vals);
+            const div = document.createElement('div');
+            div.className = 'review-item';
+            div.innerHTML = `<div class="rq">${escapeHTML(vals[0])}</div><div class="wrong-a">Tu respuesta: ${escapeHTML(vals[1])}</div><div class="right-a">Correcta: ${escapeHTML(vals[2])}</div>`;
+            area.appendChild(div);
+          }
+          area.classList.remove('hidden');
+          reviewBtn.disabled = false; reviewBtn.textContent = 'Ocultar revisión';
+        });
+      }
+
+      els.finishPractice.addEventListener('click', () => {
+        if (state?.target === 'infinite' && confirm('¿Finalizar la práctica infinita y ver el resultado?')) finishQuiz();
+      });
+
+      function updateResumeBox() {
+        const s = getJSON(LS.session, null);
+        els.resumeBox.classList.toggle('show', !!s?.questions?.length);
+      }
+      els.resume.addEventListener('click', async () => {
+        const s = getJSON(LS.session, null);
+        if (!s?.questions?.length) { updateResumeBox(); return; }
+        state = s;
+        language = state.language; difficulty = state.difficulty; amount = state.target;
+        if (Array.isArray(state.categoryIds)) selectedCategories = new Set(state.categoryIds);
+        show(els.quiz);
+        await renderQuestion();
+      });
+      els.discard.addEventListener('click', () => { clearSession(); updateResumeBox(); });
+
+      // Inicio
+      loadCategories();
+      updateResumeBox();
+    })();
+  </script>
+</body>
+</html>
