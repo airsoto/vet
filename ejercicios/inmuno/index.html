@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#07111f" />
-<title>Inmunología interactiva · 1.º Bachillerato</title>
+<title>Inmunología interactiva · 1.º Bachillerato · v2</title>
 <style>
 :root{
   --bg:#f6f9fc; --panel:#ffffff; --panel2:#eef5fb; --text:#102033; --muted:#5e7186;
@@ -84,10 +84,25 @@ main{max-width:1200px;margin:0 auto;padding:18px 18px 70px}
 .simstage{position:relative;min-height:290px;border-radius:18px;overflow:hidden;background:
   radial-gradient(circle at 35% 45%,rgba(72,212,192,.14),transparent 20%),
   linear-gradient(180deg,color-mix(in srgb,var(--panel2) 90%,transparent),var(--panel));
-  border:1px solid var(--line)
+  border:1px solid var(--line);padding-bottom:0
 }
 .simstage svg{width:100%;height:100%;display:block}
-.tip{position:absolute;left:14px;right:14px;bottom:14px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:64px}
+.tip{
+  position:relative;left:auto;right:auto;bottom:auto;margin-top:12px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel2) 86%,transparent),var(--panel));
+  border:1px solid var(--line);border-radius:16px;padding:14px 16px;min-height:72px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);color:var(--text)
+}
+.tip::before{
+  content:"Explicación";display:block;font-size:.72rem;letter-spacing:.10em;text-transform:uppercase;
+  color:var(--accent);font-weight:900;margin-bottom:5px
+}
+.tip.flash{animation:tipFlash .45s ease}
+@keyframes tipFlash{0%{transform:translateY(4px);opacity:.45}100%{transform:translateY(0);opacity:1}}
+.simstage{overflow:visible}
+.simstage svg{border-radius:18px;overflow:hidden}
+.touch.active{filter:drop-shadow(0 0 10px color-mix(in srgb,var(--accent) 70%,transparent));transform:scale(1.04)}
+
 .touch{cursor:pointer;transition:.18s ease;transform-box:fill-box;transform-origin:center}
 .touch:active{transform:scale(.95)}
 .touch:hover{filter:brightness(1.08)}
@@ -127,11 +142,25 @@ summary{font-weight:800;cursor:pointer}
 .match-item.selected{outline:2px solid var(--accent2)}
 .match-item.matched{opacity:.55;pointer-events:none}
 /* responsive */
+
+.cell-glow{filter:drop-shadow(0 0 12px rgba(72,212,192,.45))}
+.path-pulse{stroke-dasharray:10 10;animation:dashMove 1.2s linear infinite}
+@keyframes dashMove{to{stroke-dashoffset:-20}}
+.micro-particle{animation:particleDrift 2.2s ease-in-out infinite}
+@keyframes particleDrift{50%{transform:translateY(-7px) translateX(4px);opacity:.55}}
+.shake{animation:shake .38s ease-in-out 2}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.apoptosis{animation:apoptosis 1.1s ease forwards}
+@keyframes apoptosis{60%{transform:scale(.8);opacity:.55}100%{transform:scale(.58);opacity:.18;filter:grayscale(1)}}
+
 @media(max-width:850px){
   .hero-grid{grid-template-columns:1fr}.study-grid{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow-x:auto;gap:6px;padding:8px}
   .sidebar button{white-space:nowrap;width:auto}.grid2,.grid3{grid-template-columns:1fr}
 }
 @media(max-width:560px){
+  .tip{font-size:.98rem;line-height:1.5;padding:13px 14px}
+  .interactive{padding:13px}
+
   :root{--navh:66px}.hero{padding:22px 12px 10px}.hero-main{padding:20px;min-height:auto}.progresswrap{padding:18px}
   .mode-switch,main{padding-left:12px;padding-right:12px}.section{padding:18px}.appbar{padding-left:10px;padding-right:10px}
   .brand span:last-child{max-width:160px}.pillbtn .label{display:none}.simstage{min-height:250px}
@@ -595,15 +624,6 @@ const obs=new IntersectionObserver(entries=>{
 },{rootMargin:'-35% 0px -55% 0px',threshold:0});
 $$('.section[id]').forEach(s=>obs.observe(s));
 
-// Reusable info on SVG touch + legend
-document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-info]');
-  if(!t)return;
-  const container=t.closest('.interactive');
-  const tip=container?.querySelector('.tip');
-  if(tip) tip.textContent=t.dataset.info;
-});
-
 // Inline quiz
 $$('.quiz-inline').forEach(q=>{
   q.querySelectorAll('.option').forEach(btn=>btn.addEventListener('click',()=>{
@@ -617,26 +637,117 @@ $$('.quiz-inline').forEach(q=>{
   }));
 });
 
+
+function enhanceTips(){
+  $$('.simstage').forEach(stage=>{
+    const tip=stage.querySelector('.tip');
+    if(!tip) return;
+    tip.setAttribute('role','status');
+    tip.setAttribute('aria-live','polite');
+    tip.setAttribute('aria-atomic','true');
+    const interactive=stage.closest('.interactive');
+    if(interactive && tip.parentElement===stage){
+      stage.after(tip);
+    }
+  });
+}
+function setTip(tip,text){
+  if(!tip) return;
+  tip.textContent=text;
+  tip.classList.remove('flash');
+  void tip.offsetWidth;
+  tip.classList.add('flash');
+}
+enhanceTips();
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-info]');
+  if(!t)return;
+  const container=t.closest('.interactive');
+  const tip=container?.querySelector('.tip');
+  $$('.touch.active',container||document).forEach(x=>x.classList.remove('active'));
+  if(t.classList.contains('touch')) t.classList.add('active');
+  if(tip) setTip(tip,t.dataset.info);
+},true);
+
 // Fagocitosis animation with Web Animations API
 $('#phagoBtn').addEventListener('click',async()=>{
   const bac=$('#bacterium'), mac=$('#macro'), tip=$('#phagoTip');
-  $('#phagoBtn').disabled=true; tip.textContent='1. El fagocito detecta señales del foco infeccioso y se aproxima.';
-  await bac.animate([{transform:'translate(620px,165px)'},{transform:'translate(340px,165px)'}],{duration:1200,fill:'forwards',easing:'ease-in-out'}).finished;
-  tip.textContent='2. El macrófago rodea al microorganismo y lo engloba.';
-  await mac.animate([{transform:'translate(180px,165px) scale(1)'},{transform:'translate(250px,165px) scale(1.13)'}],{duration:900,fill:'forwards',easing:'ease'}).finished;
-  tip.textContent='3. El microorganismo queda incluido en una vesícula y es degradado.';
-  await bac.animate([{opacity:1},{opacity:0,transform:'translate(300px,165px) scale(.25)'}],{duration:900,fill:'forwards'}).finished;
-  setTimeout(()=>{bac.removeAttribute('style');mac.removeAttribute('style');$('#phagoBtn').disabled=false;},900);
+  const btn=$('#phagoBtn');
+  btn.disabled=true;
+  setTip(tip,'1. Quimiotaxis: el fagocito detecta señales químicas del foco y orienta su movimiento hacia el microorganismo.');
+  mac.classList.add('cell-glow');
+
+  await Promise.all([
+    mac.animate(
+      [{transform:'translate(180px,165px)'},{transform:'translate(245px,165px)'},{transform:'translate(285px,165px)'}],
+      {duration:1100,fill:'forwards',easing:'ease-in-out'}
+    ).finished,
+    bac.animate(
+      [{transform:'translate(620px,165px)'},{transform:'translate(500px,165px)'},{transform:'translate(420px,165px)'}],
+      {duration:1100,fill:'forwards',easing:'ease-in-out'}
+    ).finished
+  ]);
+
+  setTip(tip,'2. Reconocimiento y adhesión: receptores del macrófago se unen a estructuras del microorganismo o a moléculas que lo recubren.');
+  await mac.animate(
+    [{transform:'translate(285px,165px) scale(1)'},{transform:'translate(315px,165px) scale(1.10)'},{transform:'translate(325px,165px) scale(1.16)'}],
+    {duration:850,fill:'forwards',easing:'ease-out'}
+  ).finished;
+
+  setTip(tip,'3. Englobamiento: la membrana rodea a la bacteria y forma un fagosoma.');
+  await Promise.all([
+    bac.animate(
+      [{transform:'translate(420px,165px) scale(1)',opacity:1},{transform:'translate(360px,165px) scale(.55)',opacity:.85},{transform:'translate(340px,165px) scale(.25)',opacity:.45}],
+      {duration:1000,fill:'forwards',easing:'ease-in-out'}
+    ).finished,
+    mac.animate(
+      [{transform:'translate(325px,165px) scale(1.16)'},{transform:'translate(325px,165px) scale(1.28)'},{transform:'translate(325px,165px) scale(1.18)'}],
+      {duration:1000,fill:'forwards',easing:'ease-in-out'}
+    ).finished
+  ]);
+
+  setTip(tip,'4. Digestión: el fagosoma se fusiona con lisosomas; enzimas y otras sustancias destruyen el microorganismo.');
+  await bac.animate(
+    [{opacity:.45,filter:'blur(0px)'},{opacity:.1,filter:'blur(3px)'},{opacity:0,filter:'blur(7px)'}],
+    {duration:900,fill:'forwards',easing:'ease-in'}
+  ).finished;
+
+  setTip(tip,'Secuencia completada: detectar → reconocer → englobar → digerir.');
+  mac.classList.remove('cell-glow');
+  setTimeout(()=>{bac.removeAttribute('style');mac.removeAttribute('style');btn.disabled=false;},1100);
 });
 
 // T cell animation
 $('#tBtn').addEventListener('click',async()=>{
-  const tc=$('#tc'), inf=$('#infected'), tip=$('#tTip');
-  $('#tBtn').disabled=true; tip.textContent='El linfocito T citotóxico se aproxima y reconoce la célula diana.';
-  await tc.animate([{transform:'translate(190px,165px)'},{transform:'translate(455px,165px)'}],{duration:1000,fill:'forwards',easing:'ease-in-out'}).finished;
-  tip.textContent='Tras el reconocimiento, libera señales que inducen la muerte de la célula infectada.';
-  await inf.animate([{filter:'brightness(1)',transform:'translate(590px,165px) scale(1)'},{filter:'brightness(.4)',transform:'translate(590px,165px) scale(.7)',opacity:.3}],{duration:1000,fill:'forwards'}).finished;
-  setTimeout(()=>{tc.removeAttribute('style');inf.removeAttribute('style');$('#tBtn').disabled=false;},1200);
+  const tc=$('#tc'), inf=$('#infected'), tip=$('#tTip'), btn=$('#tBtn');
+  btn.disabled=true;
+  setTip(tip,'1. Reconocimiento: el linfocito T citotóxico identifica una célula que presenta señales de infección.');
+  tc.classList.add('cell-glow');
+
+  await tc.animate(
+    [{transform:'translate(190px,165px)'},{transform:'translate(355px,165px)'},{transform:'translate(455px,165px)'}],
+    {duration:1100,fill:'forwards',easing:'ease-in-out'}
+  ).finished;
+
+  setTip(tip,'2. Contacto: se forma una zona estrecha de interacción entre el linfocito T y la célula diana.');
+  await Promise.all([
+    tc.animate([{transform:'translate(455px,165px) scale(1)'},{transform:'translate(485px,165px) scale(1.05)'}],{duration:650,fill:'forwards'}).finished,
+    inf.animate([{transform:'translate(590px,165px)'},{transform:'translate(565px,165px)'}],{duration:650,fill:'forwards'}).finished
+  ]);
+
+  setTip(tip,'3. Señal de muerte: el T citotóxico libera moléculas que inducen apoptosis en la célula infectada.');
+  inf.classList.add('shake');
+  await inf.animate(
+    [{transform:'translate(565px,165px) scale(1)',opacity:1,filter:'brightness(1)'},
+     {transform:'translate(565px,165px) scale(.82)',opacity:.6,filter:'brightness(.65)'},
+     {transform:'translate(565px,165px) scale(.6)',opacity:.22,filter:'grayscale(1)'}],
+    {duration:1200,fill:'forwards',easing:'ease-in-out'}
+  ).finished;
+
+  setTip(tip,'Resultado: la célula infectada queda eliminada y se limita la producción de nuevos patógenos.');
+  tc.classList.remove('cell-glow'); inf.classList.remove('shake');
+  setTimeout(()=>{tc.removeAttribute('style');inf.removeAttribute('style');btn.disabled=false;},1200);
 });
 
 // Memory curves
@@ -644,19 +755,37 @@ $('#memoryBtn').addEventListener('click',()=>{
   const p=$('#primaryCurve'), s=$('#secondaryCurve'), tip=$('#memoryTip');
   p.style.transition='none';s.style.transition='none';p.style.strokeDashoffset='500';s.style.strokeDashoffset='620';
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    p.style.transition='stroke-dashoffset 1.6s ease';p.style.strokeDashoffset='0';tip.textContent='Primera exposición: la respuesta tarda más en alcanzar su máximo.';
-    setTimeout(()=>{s.style.transition='stroke-dashoffset 1.2s ease';s.style.strokeDashoffset='0';tip.textContent='Segunda exposición: gracias a la memoria, la respuesta aparece antes y alcanza mayor intensidad.'},1000);
+    p.style.transition='stroke-dashoffset 1.6s ease';p.style.strokeDashoffset='0';setTip(tip,'Primera exposición: hay un periodo de latencia antes de que aumenten los anticuerpos; la intensidad es moderada.');
+    setTimeout(()=>{s.style.transition='stroke-dashoffset 1.2s ease';s.style.strokeDashoffset='0';setTip(tip,'Segunda exposición: las células de memoria permiten una respuesta más rápida, intensa y duradera.')},1000);
   }));
 });
 
 // Allergy
 $('#allergyBtn').addEventListener('click',async()=>{
-  const a=$('#allergen'), g=$('#granules'), tip=$('#allergyTip');
-  $('#allergyBtn').disabled=true; tip.textContent='El alérgeno contacta con un sistema previamente sensibilizado.';
-  await a.animate([{transform:'translate(125px,85px)'},{transform:'translate(300px,135px)'}],{duration:900,fill:'forwards'}).finished;
-  tip.textContent='El mastocito libera mediadores inflamatorios, como histamina.';
-  await g.animate([{transform:'scale(1)',opacity:1},{transform:'scale(2.7)',opacity:0}],{duration:900,fill:'forwards'}).finished;
-  setTimeout(()=>{a.removeAttribute('style');g.removeAttribute('style');$('#allergyBtn').disabled=false;},1200);
+  const a=$('#allergen'), g=$('#granules'), tip=$('#allergyTip'), btn=$('#allergyBtn');
+  btn.disabled=true;
+  setTip(tip,'1. Exposición: el alérgeno entra en contacto con un organismo previamente sensibilizado.');
+  await a.animate(
+    [{transform:'translate(125px,85px) rotate(0deg)'},{transform:'translate(235px,110px) rotate(90deg)'},{transform:'translate(300px,135px) rotate(180deg)'}],
+    {duration:1000,fill:'forwards',easing:'ease-in-out'}
+  ).finished;
+
+  setTip(tip,'2. Activación del mastocito: el reconocimiento del alérgeno desencadena la degranulación.');
+  $('#mast').classList.add('cell-glow');
+  await $('#mast').animate(
+    [{transform:'translate(390px,165px) scale(1)'},{transform:'translate(390px,165px) scale(1.08)'},{transform:'translate(390px,165px) scale(1)'}],
+    {duration:700,fill:'forwards'}
+  ).finished;
+
+  setTip(tip,'3. Liberación de mediadores: sustancias como la histamina favorecen vasodilatación, edema, picor y otros signos de alergia.');
+  await g.animate(
+    [{transform:'scale(1)',opacity:1},{transform:'scale(1.8)',opacity:.65},{transform:'scale(3.1)',opacity:0}],
+    {duration:1100,fill:'forwards',easing:'ease-out'}
+  ).finished;
+
+  setTip(tip,'La intensidad clínica puede ir desde síntomas locales hasta una reacción sistémica grave como la anafilaxia.');
+  $('#mast').classList.remove('cell-glow');
+  setTimeout(()=>{a.removeAttribute('style');g.removeAttribute('style');$('#mast').removeAttribute('style');btn.disabled=false;},1200);
 });
 
 // Exam bank
