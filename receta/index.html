@@ -504,7 +504,7 @@
       <div class="app-title">
         <span class="brand-pill">💊 RECETA_Bot AB · desarrollado por Angel Soto</span>
         <h1>Receta veterinaria</h1>
-        <p>Modo oscuro, navegación rápida, carga externa desde <strong>/json/no_ab.json</strong> y salida preparada para PDF A4.</p>
+        <p>Por defecto se cargan los medicamentos no antibióticos desde <strong>/json/no_ab.json</strong>. Pulsa <strong>Receta AB</strong> para cambiar al listado de antibióticos de <strong>/json/ab.json</strong>.</p>
         <nav class="nav-actions" aria-label="Navegación rápida">
           <a href="#datos-paciente">Paciente</a>
           <a href="#medicamento-card">Medicamento</a>
@@ -512,9 +512,10 @@
           <a href="#clinica-card">Clínica</a>
           <a href="#excelArea">Excel</a>
         </nav>
-        <p id="jsonStatus" class="status-line">Cargando medicamentos desde /json/no_ab.json…</p>
+        <p id="jsonStatus" class="status-line">Cargando medicamentos no antibióticos desde /json/no_ab.json…</p>
       </div>
       <div class="top-actions">
+        <button id="modoRecetaBtn" class="button warn" type="button" onclick="togglePrescriptionMode()" aria-pressed="false">💊 Receta AB</button>
         <button class="button" type="button" onclick="generarReceta()">🖨️ Imprimir receta</button>
         <button class="button secondary" type="button" onclick="copyToClipboardExcel()">📋 Copiar filas</button>
         <button class="button success" type="button" onclick="ejecutarAmbas()">✅ Imprimir + copiar</button>
@@ -842,7 +843,19 @@
   <script>
     const PASSWORD_HASH = "16b9f129cef5311b6035fd018e0bd5c61cbbc4e499499812ac577e4781c8c0b1";
     const AUTH_KEY = "receta_bot_ab_auth";
-    const JSON_URLS = ["/json/no_ab.json", "json/no_ab.json", "./json/no_ab.json"];
+    const DATASETS = {
+      no_ab: {
+        label: "No antibiótico",
+        urls: ["/json/no_ab.json", "json/no_ab.json", "./json/no_ab.json"],
+        claseTratamiento: "NO es antibiótico"
+      },
+      ab: {
+        label: "Antibiótico",
+        urls: ["/json/ab.json", "json/ab.json", "./json/ab.json"],
+        claseTratamiento: "1"
+      }
+    };
+    let currentPrescriptionMode = "no_ab";
     let medicamentos = [];
     let loadedJsonUrl = "";
     let medicineGroups = new Map();
@@ -982,14 +995,53 @@
       medicineList.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
     }
 
+    function getCurrentDataset() {
+      return DATASETS[currentPrescriptionMode] || DATASETS.no_ab;
+    }
+
+    function aplicarClaseTratamientoPorModo() {
+      const select = $("claseTratamiento");
+      if (select) select.value = getCurrentDataset().claseTratamiento;
+    }
+
+    function updateModeUI() {
+      const btn = $("modoRecetaBtn");
+      if (!btn) return;
+      const isAB = currentPrescriptionMode === "ab";
+      btn.textContent = isAB ? "↩️ Receta no AB" : "💊 Receta AB";
+      btn.setAttribute("aria-pressed", isAB ? "true" : "false");
+      btn.title = isAB
+        ? "Volver al listado no antibiótico (/json/no_ab.json)"
+        : "Cargar antibióticos (/json/ab.json)";
+    }
+
+    async function togglePrescriptionMode() {
+      currentPrescriptionMode = currentPrescriptionMode === "no_ab" ? "ab" : "no_ab";
+      updateModeUI();
+      aplicarClaseTratamientoPorModo();
+
+      // Limpiamos la selección anterior para evitar mezclar registros de ambos JSON.
+      $("medicamento").value = "";
+      $("medicamentoEscrito").value = "";
+      $("formatoEscrito").value = "";
+      $("medicamentoResultados").hidden = true;
+      selectedGroupRecords = [];
+      clearMedicationDetails();
+
+      await cargarMedicamentosJSON();
+      $("medicamento").focus();
+    }
+
     async function cargarMedicamentosJSON() {
       const status = $("jsonStatus");
       const summary = $("sumJson");
       let lastError = null;
 
-      for (const url of JSON_URLS) {
+      const dataset = getCurrentDataset();
+      const isAB = currentPrescriptionMode === "ab";
+      for (const url of dataset.urls) {
         try {
-          status.textContent = `Cargando medicamentos desde ${url}…`;
+          status.textContent = `Cargando ${isAB ? "antibióticos" : "medicamentos no antibióticos"} desde ${url}…`;
           status.className = "status-line";
           const response = await fetch(url, { cache: "default" });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1003,9 +1055,10 @@
           buildMedicationIndex();
           loadedJsonUrl = url;
 
-          status.textContent = `Medicamentos cargados: ${medicamentos.length} registros · ${medicineList.length} fármacos indexados`;
+          status.textContent = `${isAB ? "Antibióticos" : "No antibióticos"}: ${medicamentos.length} registros · ${medicineList.length} fármacos indexados`;
           status.className = "status-line ok";
-          summary.textContent = `${medicamentos.length} registros · ${url}`;
+          summary.textContent = `${dataset.label} · ${medicamentos.length} registros · ${url}`;
+          aplicarClaseTratamientoPorModo();
           cargarMedicamentos("");
           updateSummary();
           return;
@@ -1017,7 +1070,7 @@
       medicamentos = [];
       medicineGroups.clear();
       medicineList = [];
-      status.textContent = `No se pudo cargar /json/no_ab.json. ${lastError ? lastError.message : ""}`;
+      status.textContent = `No se pudo cargar ${currentPrescriptionMode === "ab" ? "/json/ab.json" : "/json/no_ab.json"}. ${lastError ? lastError.message : ""}`;
       status.className = "status-line error";
       summary.textContent = "No cargado";
       cargarMedicamentos("");
@@ -1155,8 +1208,6 @@
         $("claseMedicamento").value = medClase(resultado);
         $("unidadDosisLabel").textContent = medUnidades(resultado);
 
-        // El JSON no contiene antibióticos: dejamos esta opción lista por defecto.
-        if ($("claseTratamiento")) $("claseTratamiento").value = "NO es antibiótico";
       } else {
         clearMedicationDetails();
       }
@@ -1766,7 +1817,10 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       bindEvents();
-      if (sessionStorage.getItem(AUTH_KEY) === "1") {
+      updateModeUI();
+    aplicarClaseTratamientoPorModo();
+
+    if (sessionStorage.getItem(AUTH_KEY) === "1") {
         unlockApp();
       }
     });
