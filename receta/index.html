@@ -408,6 +408,53 @@
       color: var(--text);
     }
 
+
+    .med-search-wrap { position: relative; }
+    .med-results {
+      position: absolute; left: 0; right: 0; top: 72px; z-index: 100;
+      max-height: 300px; overflow-y: auto;
+      background: #0b1220; border: 1px solid var(--line-strong);
+      border-radius: 12px; box-shadow: 0 18px 48px rgba(0,0,0,.5);
+    }
+    .med-result { padding: 9px 11px; cursor: pointer; border-bottom: 1px solid rgba(148,163,184,.14); }
+    .med-result:last-child { border-bottom: 0; }
+    .med-result:hover, .med-result.active { background: #172033; }
+    .med-result-name { font-weight: 800; color: #e5e7eb; line-height: 1.25; }
+    .med-result-meta { margin-top: 3px; color: var(--muted); font-size: .78rem; line-height: 1.25; }
+    .compact-hint { margin: 6px 0 0; font-size: .8rem; }
+
+    @media (min-width: 1180px) {
+      .app-shell { width: min(1580px, calc(100% - 20px)); padding-top: 10px; }
+      .app-header { position: static; padding: 10px 14px; margin-bottom: 10px; border-radius: 16px; }
+      .app-title h1 { font-size: 1.8rem; margin: 5px 0 3px; }
+      .app-title > p:not(.status-line), .nav-actions { display: none; }
+      .layout { display: block; }
+      .container { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 10px; }
+      .container > .card { margin: 0 !important; padding: 13px; border-radius: 14px; }
+      #datos-paciente { grid-column: span 4; }
+      #medicamento-card { grid-column: span 8; }
+      #pauta-card { grid-column: span 12; }
+      #clinica-card { grid-column: span 12; }
+      #excelArea { grid-column: span 12; }
+      .side-panel { display: none; }
+      .card h2 { margin: 0 0 8px; font-size: 1rem; }
+      .step-dot { width: 24px; height: 24px; }
+      .form-grid { gap: 7px 10px; }
+      #datos-paciente .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      #medicamento-card .form-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+      #pauta-card .form-grid { grid-template-columns: repeat(5,minmax(0,1fr)); }
+      #clinica-card .form-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+      .field { margin-bottom: 3px; }
+      label { margin-bottom: 4px; font-size: .82rem; }
+      input, select, textarea { min-height: 35px; padding: 7px 9px; font-size: .88rem; }
+      textarea { min-height: 60px; max-height: 90px; }
+      .button { min-height: 36px; padding: 7px 12px; font-size: .86rem; }
+      .top-actions { max-width: 420px; }
+      .status-line { margin-top: 4px; font-size: .78rem; }
+      .credits { margin-top: 10px; padding: 10px; }
+      .med-results { top: 62px; }
+    }
+
     @media (max-width: 1060px) {
       .app-header,
       .layout { grid-template-columns: 1fr; }
@@ -508,15 +555,12 @@
         <section id="medicamento-card" class="card">
           <h2><span class="step-dot">2</span> Medicamento y formato</h2>
           <div class="form-grid">
-            <div class="field full">
-              <label for="medicamentoFiltro">Buscar fármaco</label>
-              <input type="search" id="medicamentoFiltro" placeholder="Nombre, principio activo, código nacional o formato…" autocomplete="off" spellcheck="false">
-              <p class="hint">Búsqueda indexada en <code>/json/no_ab.json</code>. Escribe al menos 2 caracteres; se muestran los resultados más relevantes sin cargar miles de opciones en pantalla.</p>
-            </div>
-            <div class="field full">
+            <div class="field full med-search-wrap">
               <label for="medicamento">Fármaco</label>
-              <select id="medicamento"></select>
-              <input type="text" id="medicamentoEscrito" placeholder="O escriba otro fármaco manualmente" style="margin-top: 10px;">
+              <input type="search" id="medicamento" placeholder="Escribe nombre, principio activo o código nacional…" autocomplete="off" spellcheck="false">
+              <div id="medicamentoResultados" class="med-results" hidden></div>
+              <input type="text" id="medicamentoEscrito" placeholder="O escriba otro fármaco manualmente" style="margin-top: 7px;">
+              <p class="hint compact-hint">Escribe al menos 2 caracteres. Las coincidencias aparecen debajo del campo.</p>
             </div>
             <div class="field full">
               <label for="formato">Formato</label>
@@ -702,7 +746,7 @@
             </div>
             <div class="field full">
               <label for="firma">Firma</label>
-              <input type="text" id="firma" value="Angel Soto DVM PhD" placeholder="Angel Soto DVM PhD">
+              <input type="text" id="firma" value="Angel Soto DVM PhD" placeholder="Ángel Soto Bustos, DVM PhD" value="Ángel Soto Bustos, DVM PhD">
             </div>
           </div>
           <div class="button-row">
@@ -805,7 +849,9 @@
     let medicineList = [];
     let selectedGroupRecords = [];
     let searchTimer = null;
-    const MAX_SEARCH_RESULTS = 120;
+    let activeMedicationResult = -1;
+    let currentMedicationMatches = [];
+    const MAX_SEARCH_RESULTS = 60;
 
     const $ = (id) => document.getElementById(id);
 
@@ -993,31 +1039,16 @@
     }
 
     function cargarMedicamentos(filter = "") {
-      const selectMedicamento = $("medicamento");
+      const box = $("medicamentoResultados");
+      if (!box) return;
       const query = normalizarCadena(filter);
-      const currentValue = selectMedicamento.value;
       const tokens = query.split(/\s+/).filter(Boolean);
+      box.replaceChildren();
+      currentMedicationMatches = [];
+      activeMedicationResult = -1;
 
-      selectMedicamento.replaceChildren();
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-
-      if (!medicamentos.length) {
-        placeholder.textContent = "JSON no cargado";
-        selectMedicamento.appendChild(placeholder);
-        selectedGroupRecords = [];
-        updateFormatos();
-        return;
-      }
-
-      if (query.length < 2) {
-        placeholder.textContent = query.length ? "Escribe al menos 2 caracteres…" : "Busca un medicamento arriba…";
-        selectMedicamento.appendChild(placeholder);
-        if (currentValue) {
-          const currentGroup = medicineGroups.get(normalizarCadena(currentValue));
-          if (currentGroup) appendMedicationOption(selectMedicamento, currentGroup);
-          selectMedicamento.value = currentValue;
-        }
+      if (!medicamentos.length || query.length < 2) {
+        box.hidden = true;
         return;
       }
 
@@ -1026,29 +1057,39 @@
         if (!tokens.every(token => group.searchText.includes(token))) continue;
         matches.push({ group, score: scoreMedication(group, query, tokens) });
       }
-
       matches.sort((a, b) => a.score - b.score || a.group.name.localeCompare(b.group.name, "es", { sensitivity: "base" }));
-      const visible = matches.slice(0, MAX_SEARCH_RESULTS);
-      placeholder.textContent = visible.length
-        ? `Seleccione un medicamento (${Math.min(matches.length, MAX_SEARCH_RESULTS)}${matches.length > MAX_SEARCH_RESULTS ? "+" : ""} resultados)`
-        : "Sin resultados";
-      selectMedicamento.appendChild(placeholder);
+      currentMedicationMatches = matches.slice(0, MAX_SEARCH_RESULTS).map(x => x.group);
+
+      if (!currentMedicationMatches.length) {
+        const empty = document.createElement("div");
+        empty.className = "med-result";
+        empty.innerHTML = '<div class="med-result-meta">Sin coincidencias</div>';
+        box.appendChild(empty);
+        box.hidden = false;
+        return;
+      }
 
       const fragment = document.createDocumentFragment();
-      for (const { group } of visible) appendMedicationOption(fragment, group);
-      selectMedicamento.appendChild(fragment);
-
-      if (currentValue && visible.some(({ group }) => group.name === currentValue)) {
-        selectMedicamento.value = currentValue;
-      }
+      currentMedicationMatches.forEach((group, index) => {
+        const row = document.createElement("div");
+        row.className = "med-result";
+        row.dataset.index = String(index);
+        const codes = [...new Set(group.records.map(medCodigoNacional).filter(Boolean))];
+        const active = [...new Set(group.records.map(medSustanciaActiva).filter(Boolean))].slice(0, 2).join(" · ");
+        row.innerHTML = `<div class="med-result-name">${escapeHTML(group.name)}</div><div class="med-result-meta">${escapeHTML([codes.length === 1 ? "CN " + codes[0] : "", active].filter(Boolean).join(" · "))}</div>`;
+        row.addEventListener("mousedown", (e) => { e.preventDefault(); seleccionarMedicamento(group); });
+        fragment.appendChild(row);
+      });
+      box.appendChild(fragment);
+      box.hidden = false;
     }
 
-    function appendMedicationOption(parent, group) {
-      const option = document.createElement("option");
-      option.value = group.name;
-      const codes = [...new Set(group.records.map(medCodigoNacional).filter(Boolean))];
-      option.textContent = codes.length === 1 ? `${group.name} · CN ${codes[0]}` : group.name;
-      parent.appendChild(option);
+    function seleccionarMedicamento(group) {
+      $("medicamento").value = group.name;
+      $("medicamentoEscrito").value = "";
+      $("medicamentoResultados").hidden = true;
+      selectedGroupRecords = group.records;
+      updateFormatos();
     }
 
     function updateFormatos() {
@@ -1318,7 +1359,7 @@
                 <p>
                   <strong>RECETA Nº:</strong> ${escapeHTML(valores.recetaNumero)}<br>
                   <strong>Fecha:</strong> ${escapeHTML(fechaLegible)}<br>
-                  <strong>Responsable:</strong> Soto Bustos, Angel<br>
+                  <strong>Responsable:</strong> Ángel Soto Bustos, DVM PhD<br>
                   <strong>Nº Colegiado:</strong> 4337<br>
                   <strong>Provincia:</strong> MADRID<br>
                   <strong>Vigencia:</strong> ${escapeHTML(valores.vigencia)}
@@ -1350,7 +1391,7 @@
             ${qrBlock}
 
             <footer class="rx-footer">
-              <p>Firmado: ${escapeHTML(valores.firma || "Angel Soto DVM PhD")}<br>Nº Colegiado: 4337<br><em>${escapeHTML(ejemplar)}</em></p>
+              <p>Firmado: ${escapeHTML(valores.firma || "Ángel Soto Bustos, DVM PhD")}<br>Nº Colegiado: 4337<br><em>${escapeHTML(ejemplar)}</em></p>
               <div class="presvet-footer">${Array(28).fill("PresVet es una PUTA MIERDA").join(" · ")}</div>
             </footer>
           </div>
@@ -1393,7 +1434,7 @@
                 @page { size: A4; margin: 12mm; }
                 * { box-sizing: border-box; }
                 html, body { margin: 0; padding: 0; background: #fff; color: #111827; }
-                body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; line-height: 1.32; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 9.3pt; line-height: 1.3; }
                 .recipe-page {
                   position: relative;
                   width: 186mm;
@@ -1418,7 +1459,7 @@
                 }
                 .rx-header {
                   display: grid;
-                  grid-template-columns: 1.15fr 0.85fr;
+                  grid-template-columns: 1.08fr 0.92fr;
                   gap: 7mm;
                   align-items: start;
                   border-bottom: 0.6mm solid #0f172a;
@@ -1523,10 +1564,7 @@
                   .recipe-content { box-shadow: none; }
                   .presvet-white,
                   .presvet-footer {
-                    color: #ffffff !important;
-                    -webkit-text-fill-color: #ffffff !important;
-                    background: #ffffff !important;
-                    text-shadow: none !important;
+                    display: none !important;
                   }
                 }
               </style>
@@ -1673,15 +1711,30 @@
 
     function bindEvents() {
       $("loginForm").addEventListener("submit", handleLogin);
-      $("medicamentoFiltro").addEventListener("input", (e) => {
+      $("medicamento").addEventListener("input", (e) => {
         clearTimeout(searchTimer);
         const value = e.target.value;
-        searchTimer = setTimeout(() => cargarMedicamentos(value), 90);
+        selectedGroupRecords = [];
+        clearMedicationDetails();
+        searchTimer = setTimeout(() => cargarMedicamentos(value), 70);
       });
-      $("medicamento").addEventListener("change", () => {
-        if ($("medicamento").value) $("medicamentoEscrito").value = "";
-        updateFormatos();
+      $("medicamento").addEventListener("keydown", (e) => {
+        const box = $("medicamentoResultados");
+        if (box.hidden || !currentMedicationMatches.length) return;
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          activeMedicationResult += e.key === "ArrowDown" ? 1 : -1;
+          activeMedicationResult = (activeMedicationResult + currentMedicationMatches.length) % currentMedicationMatches.length;
+          [...box.querySelectorAll(".med-result")].forEach((el, i) => el.classList.toggle("active", i === activeMedicationResult));
+          box.querySelector(`.med-result[data-index="${activeMedicationResult}"]`)?.scrollIntoView({ block: "nearest" });
+        } else if (e.key === "Enter" && activeMedicationResult >= 0) {
+          e.preventDefault();
+          seleccionarMedicamento(currentMedicationMatches[activeMedicationResult]);
+        } else if (e.key === "Escape") {
+          box.hidden = true;
+        }
       });
+      $("medicamento").addEventListener("blur", () => setTimeout(() => { $("medicamentoResultados").hidden = true; }, 130));
       $("formato").addEventListener("change", updateUnidades);
       $("dosis").addEventListener("change", (event) => {
         const manual = $("dosisEscrita");
