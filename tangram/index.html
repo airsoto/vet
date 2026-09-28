@@ -1,0 +1,889 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tangram JSON</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #16202a;
+      --muted: #637083;
+      --paper: #f7f4ec;
+      --panel: #ffffff;
+      --line: #d9d3c8;
+      --accent: #0f8b8d;
+      --accent-2: #e4572e;
+      --good: #238636;
+      --warn: #a15c00;
+      --shadow: 0 18px 45px rgba(28, 37, 51, .13);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(15, 139, 141, .08), transparent 36%),
+        linear-gradient(315deg, rgba(228, 87, 46, .08), transparent 34%),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      min-height: 42px;
+      border-radius: var(--radius);
+      padding: 0 12px;
+      cursor: pointer;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
+    }
+
+    button.primary {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    button.accent {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    select, input[type="file"] {
+      width: 100%;
+      min-height: 42px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 10px;
+    }
+
+    .app {
+      width: min(1220px, calc(100vw - 24px));
+      margin: 0 auto;
+      padding: 18px 0 24px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: 0;
+      line-height: 1;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 7px;
+      max-width: 760px;
+      line-height: 1.4;
+    }
+
+    .status {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.72);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      min-width: min(460px, 100%);
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .status strong { color: var(--ink); }
+    .status.good { border-color: rgba(35, 134, 54, .35); }
+    .status.warn { border-color: rgba(161, 92, 0, .35); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    aside, .board-wrap {
+      background: rgba(255,255,255,.82);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    aside {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .field { display: grid; gap: 6px; }
+    .label { font-size: 13px; color: var(--muted); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 10px 8px;
+      min-width: 0;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .board-wrap {
+      padding: 10px;
+      min-height: 560px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 3px 3px 10px;
+    }
+
+    .toolbar .group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .game {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: min(70vh, 720px);
+      min-height: 500px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(rgba(22, 32, 42, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(22, 32, 42, .045) 1px, transparent 1px),
+        #fbfaf6;
+      background-size: 28px 28px;
+      touch-action: none;
+      user-select: none;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .target {
+      fill: rgba(22, 32, 42, .12);
+      stroke: rgba(22, 32, 42, .33);
+      stroke-width: 2;
+      stroke-dasharray: 7 5;
+    }
+
+    .target-piece {
+      fill: rgba(22, 32, 42, .075);
+      stroke: rgba(22, 32, 42, .25);
+      stroke-width: 1.4;
+    }
+
+    .piece {
+      cursor: grab;
+      filter: drop-shadow(0 8px 8px rgba(0, 0, 0, .16));
+      transition: filter .12s ease, opacity .12s ease;
+    }
+
+    .piece:active { cursor: grabbing; }
+    .piece.selected polygon { stroke: #111827; stroke-width: 2.6; }
+    .piece.snapped { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .1)); }
+    .piece polygon { stroke: rgba(255,255,255,.8); stroke-width: 1.8; }
+    .piece text { pointer-events: none; font-size: 13px; fill: rgba(255,255,255,.92); font-weight: 700; }
+
+    .toast {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      color: #fff;
+      background: rgba(22, 32, 42, .9);
+      transform: translateY(140%);
+      transition: transform .2s ease;
+      pointer-events: none;
+      line-height: 1.35;
+    }
+
+    .toast.show { transform: translateY(0); }
+
+    @media (max-width: 900px) {
+      header { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; }
+      aside { order: 2; }
+      .board-wrap { order: 1; min-height: auto; }
+      .game { height: 62vh; min-height: 420px; }
+    }
+
+    @media (max-width: 560px) {
+      .app { width: min(100vw - 14px, 1220px); padding-top: 10px; }
+      .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .stat strong { font-size: 17px; }
+      .actions, .toolbar .group { grid-template-columns: 1fr; width: 100%; }
+      .toolbar button, .actions button { flex: 1; }
+      .game { height: 58vh; min-height: 390px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>Tangram JSON</h1>
+        <div class="subtitle">Juego autocontenido que intenta leer figuras desde <strong>../json/tangram.json</strong>. Si el archivo no trae geometría suficiente, usa sus nombres o anotaciones como retos y genera una silueta honesta para jugar.</div>
+      </div>
+      <div id="dataStatus" class="status warn"><strong>Cargando JSON...</strong><br>Buscando ../json/tangram.json</div>
+    </header>
+
+    <section class="layout">
+      <aside>
+        <div class="field">
+          <label class="label" for="puzzleSelect">Figura</label>
+          <select id="puzzleSelect"></select>
+        </div>
+
+        <div class="actions">
+          <button id="randomBtn" class="primary">Aleatoria</button>
+          <button id="resetBtn">Reiniciar</button>
+          <button id="checkBtn" class="accent">Comprobar</button>
+          <button id="hintBtn">Pista</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><span>Tiempo</span><strong id="timeStat">00:00</strong></div>
+          <div class="stat"><span>Movs.</span><strong id="movesStat">0</strong></div>
+          <div class="stat"><span>Puntos</span><strong id="scoreStat">0</strong></div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="fileInput">Cargar JSON manualmente</label>
+          <input id="fileInput" type="file" accept="application/json,.json">
+        </div>
+
+        <p class="hint">Arrastra las piezas. Toca una pieza y usa rotar, o haz doble clic/doble toque sobre ella. En móvil funciona con el dedo. La comprobación exacta solo se activa cuando el JSON permite deducir posiciones de piezas.</p>
+        <p id="modeNote" class="hint"></p>
+      </aside>
+
+      <section class="board-wrap">
+        <div class="toolbar">
+          <div class="group">
+            <button id="rotateLeftBtn" title="Rotar a la izquierda">↶ 15°</button>
+            <button id="rotateRightBtn" title="Rotar a la derecha">↷ 15°</button>
+            <button id="flipBtn" title="Voltear pieza">Voltear</button>
+          </div>
+          <div class="group">
+            <button id="fitBtn">Centrar</button>
+          </div>
+        </div>
+        <div id="game" class="game">
+          <svg id="svg" viewBox="0 0 1000 700" aria-label="Tablero de tangram"></svg>
+          <div id="toast" class="toast"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const COLORS = ["#e4572e", "#17bebb", "#ffc914", "#2e86ab", "#8f2d56", "#76b041", "#7d5fff"];
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const CANONICAL = [
+      { id: "L1", kind: "tri", pts: [[0,0],[160,0],[0,160]] },
+      { id: "L2", kind: "tri", pts: [[0,0],[160,0],[0,160]] },
+      { id: "M", kind: "tri", pts: [[0,0],[115,0],[0,115]] },
+      { id: "S1", kind: "tri", pts: [[0,0],[82,0],[0,82]] },
+      { id: "S2", kind: "tri", pts: [[0,0],[82,0],[0,82]] },
+      { id: "SQ", kind: "quad", pts: [[0,0],[72,0],[72,72],[0,72]] },
+      { id: "P", kind: "quad", pts: [[0,0],[100,0],[140,58],[40,58]] }
+    ];
+
+    const FALLBACK_PUZZLES = [
+      { name: "Gato", annotation: "Reto incluido", generated: true },
+      { name: "Casa", annotation: "Reto incluido", generated: true },
+      { name: "Barco", annotation: "Reto incluido", generated: true },
+      { name: "Ave", annotation: "Reto incluido", generated: true }
+    ];
+
+    const state = {
+      raw: null,
+      puzzles: [],
+      current: null,
+      pieces: [],
+      targets: [],
+      selected: null,
+      drag: null,
+      moves: 0,
+      score: 0,
+      startedAt: Date.now(),
+      timer: null,
+      solved: false,
+      mode: "generated"
+    };
+
+    const els = {
+      svg: document.getElementById("svg"),
+      game: document.getElementById("game"),
+      select: document.getElementById("puzzleSelect"),
+      status: document.getElementById("dataStatus"),
+      modeNote: document.getElementById("modeNote"),
+      time: document.getElementById("timeStat"),
+      moves: document.getElementById("movesStat"),
+      score: document.getElementById("scoreStat"),
+      toast: document.getElementById("toast"),
+      file: document.getElementById("fileInput")
+    };
+
+    function el(name, attrs = {}) {
+      const node = document.createElementNS(SVG_NS, name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      return node;
+    }
+
+    function pointsAttr(points) {
+      return points.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(" ");
+    }
+
+    function centroid(points) {
+      const total = points.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
+      return [total[0] / points.length, total[1] / points.length];
+    }
+
+    function boundsOfPolys(polys) {
+      const pts = polys.flat();
+      if (!pts.length) return { minX: 0, minY: 0, maxX: 1, maxY: 1, w: 1, h: 1 };
+      const xs = pts.map(p => p[0]);
+      const ys = pts.map(p => p[1]);
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+      return { minX, minY, maxX, maxY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+    }
+
+    function normalizePolys(polys, box = { x: 330, y: 90, w: 360, h: 360 }) {
+      const b = boundsOfPolys(polys);
+      const scale = Math.min(box.w / b.w, box.h / b.h);
+      const ox = box.x + (box.w - b.w * scale) / 2 - b.minX * scale;
+      const oy = box.y + (box.h - b.h * scale) / 2 - b.minY * scale;
+      return polys.map(poly => poly.map(p => [p[0] * scale + ox, p[1] * scale + oy]));
+    }
+
+    function isPointPair(value) {
+      return Array.isArray(value) && value.length >= 2 && Number.isFinite(+value[0]) && Number.isFinite(+value[1]);
+    }
+
+    function asPoints(value) {
+      if (!Array.isArray(value)) return null;
+      if (value.every(isPointPair)) return value.map(p => [+p[0], +p[1]]);
+      if (value.every(v => v && typeof v === "object" && Number.isFinite(+v.x) && Number.isFinite(+v.y))) {
+        return value.map(p => [+p.x, +p.y]);
+      }
+      return null;
+    }
+
+    function collectPolygons(obj) {
+      if (!obj || typeof obj !== "object") return [];
+      const keys = ["points", "vertices", "polygon", "poly", "coords", "coordinates", "path", "outline"];
+      const found = [];
+      for (const key of keys) {
+        const value = obj[key];
+        const pts = asPoints(value);
+        if (pts && pts.length >= 3) found.push(pts);
+        if (Array.isArray(value)) {
+          for (const entry of value) {
+            const nested = asPoints(entry);
+            if (nested && nested.length >= 3) found.push(nested);
+          }
+        }
+      }
+      return found;
+    }
+
+    function textBits(value) {
+      if (value == null) return [];
+      if (typeof value === "string" || typeof value === "number") return [String(value)];
+      if (Array.isArray(value)) return value.flatMap(textBits);
+      if (typeof value === "object") {
+        return ["name", "title", "label", "caption", "id", "slug", "type", "class", "category", "tag", "tags", "annotation", "description", "text", "keywords"]
+          .flatMap(key => textBits(value[key]));
+      }
+      return [];
+    }
+
+    function cleanLabel(text) {
+      return String(text || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+    function findName(obj, fallback) {
+      if (!obj || typeof obj !== "object") return fallback;
+      return obj.name || obj.title || obj.label || obj.caption || obj.id || obj.slug || obj.type || obj.class || fallback;
+    }
+
+    function extractPieces(obj) {
+      if (!obj || typeof obj !== "object") return [];
+      const candidates = [];
+      for (const key of ["pieces", "parts", "tiles", "polygons", "shapes", "figures"]) {
+        if (Array.isArray(obj[key])) candidates.push(...obj[key]);
+      }
+      return candidates.map((item, index) => {
+        const polys = collectPolygons(item);
+        if (!polys.length && asPoints(item)) polys.push(asPoints(item));
+        return { id: findName(item, `pieza ${index + 1}`), polygons: polys, raw: item };
+      }).filter(piece => piece.polygons.length);
+    }
+
+    function extractPuzzles(raw) {
+      const roots = Array.isArray(raw) ? raw : [raw];
+      const out = [];
+      const seen = new Set();
+
+      function visit(node, path) {
+        if (!node || typeof node !== "object") return;
+        const pieces = extractPieces(node);
+        const ownPolys = collectPolygons(node);
+        const hasName = Boolean(findName(node, ""));
+        const annotation = node.annotation || node.description || node.text || node.category || node.tags || node.keywords || node.type || node.class;
+        if ((pieces.length || ownPolys.length || hasName) && (pieces.length || ownPolys.length || annotation || path.length > 1)) {
+          const key = path.join(".") + JSON.stringify(findName(node, ""));
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push({
+              name: String(findName(node, `Figura ${out.length + 1}`)),
+              annotation: Array.isArray(annotation) ? annotation.join(", ") : (annotation || ""),
+              pieces,
+              outline: ownPolys,
+              raw: node
+            });
+          }
+        }
+        for (const [key, value] of Object.entries(node)) {
+          if (Array.isArray(value)) value.forEach((item, i) => visit(item, path.concat(`${key}[${i}]`)));
+          else if (value && typeof value === "object") visit(value, path.concat(key));
+        }
+      }
+
+      roots.forEach((root, i) => visit(root, [`root[${i}]`]));
+      const useful = out.filter(p => p.pieces.length || p.outline.length || p.annotation || p.name);
+      return useful.length ? useful.slice(0, 300) : FALLBACK_PUZZLES;
+    }
+
+    function hashText(text) {
+      let h = 2166136261;
+      for (const ch of String(text)) {
+        h ^= ch.charCodeAt(0);
+        h = Math.imul(h, 16777619);
+      }
+      return Math.abs(h >>> 0);
+    }
+
+    function classifyPuzzle(puzzle) {
+      const text = cleanLabel(textBits(puzzle.raw || puzzle).concat(puzzle.name, puzzle.annotation).join(" "));
+      const tests = [
+        ["cat", /\b(cat|gato|gata|kitten|felino)\b/],
+        ["house", /\b(house|casa|home|hut|cabana|cabin)\b/],
+        ["boat", /\b(boat|barco|ship|velero|sail|buque)\b/],
+        ["bird", /\b(bird|ave|pajaro|pato|swan|cisne|goose|ganso)\b/],
+        ["fish", /\b(fish|pez|pescado)\b/],
+        ["rabbit", /\b(rabbit|conejo|liebre|bunny)\b/],
+        ["person", /\b(person|persona|hombre|mujer|human|runner|dancer)\b/]
+      ];
+      const hit = tests.find(([, rx]) => rx.test(text));
+      return hit ? hit[0] : "abstract";
+    }
+
+    function generatedTargets(puzzle) {
+      const presets = {
+        cat: [
+          [430, 315, -135, 1], [550, 315, 45, 1], [458, 452, -45, 1],
+          [555, 205, 0, 1], [642, 205, 90, 1], [542, 318, 45, 1], [625, 405, -18, 1]
+        ],
+        house: [
+          [402, 184, 0, 1], [562, 184, 90, 1], [420, 335, 0, 1],
+          [545, 342, 0, 1], [545, 430, 180, 1], [478, 430, 45, 1], [622, 430, 0, 1]
+        ],
+        boat: [
+          [352, 372, 0, 1], [512, 372, 180, 1], [646, 373, 180, 1],
+          [505, 220, 0, 1], [586, 300, 180, 1], [496, 335, 45, 1], [650, 455, 0, 1]
+        ],
+        bird: [
+          [350, 305, -20, 1], [530, 305, 110, 1], [606, 338, 25, 1],
+          [685, 300, 135, 1], [450, 420, -80, 1], [565, 432, 45, 1], [670, 436, 0, 1]
+        ],
+        fish: [
+          [405, 305, -45, 1], [520, 305, 135, 1], [620, 328, 45, 1],
+          [310, 342, 45, 1], [735, 340, -135, 1], [500, 425, 45, 1], [615, 425, 0, 1]
+        ],
+        rabbit: [
+          [410, 355, -135, 1], [540, 355, 45, 1], [556, 185, 45, 1],
+          [690, 155, 25, 1], [620, 165, 75, 1], [594, 303, 45, 1], [540, 470, 0, 1]
+        ],
+        person: [
+          [430, 335, -45, 1], [550, 335, 135, 1], [505, 468, -45, 1],
+          [420, 220, -40, 1], [595, 220, 130, 1], [505, 225, 45, 1], [522, 575, 0, 1]
+        ],
+        abstract: [
+          [358, 322, -45, 1], [475, 205, 45, 1], [542, 323, 135, 1],
+          [455, 407, -90, 1], [615, 410, 180, 1], [528, 470, 45, 1], [356, 454, 0, 1]
+        ]
+      };
+      const kind = classifyPuzzle(puzzle);
+      const fallbackKinds = ["house", "boat", "bird", "fish", "rabbit", "person", "abstract"];
+      const choice = kind === "abstract" ? fallbackKinds[hashText(puzzle.name) % fallbackKinds.length] : kind;
+      return presets[choice].map((t, i) => ({
+        id: CANONICAL[i].id,
+        pts: CANONICAL[i].pts,
+        x: t[0],
+        y: t[1],
+        rot: t[2],
+        flip: t[3],
+        generatedKind: choice
+      }));
+    }
+
+    function makeTargets(puzzle) {
+      if (puzzle.pieces && puzzle.pieces.length >= 3) {
+        const polys = normalizePolys(puzzle.pieces.map(p => p.polygons[0]));
+        state.mode = puzzle.pieces.length === 7 ? "exact" : "partial";
+        return polys.map((pts, i) => ({ id: puzzle.pieces[i].id, pts, x: 0, y: 0, rot: 0, flip: 1, absolute: true }));
+      }
+      if (puzzle.outline && puzzle.outline.length) {
+        state.mode = "outline";
+        return normalizePolys(puzzle.outline).map((pts, i) => ({ id: `objetivo ${i + 1}`, pts, x: 0, y: 0, rot: 0, flip: 1, absolute: true, outlineOnly: true }));
+      }
+      state.mode = "generated";
+      return generatedTargets(puzzle);
+    }
+
+    function buildPieces(targets) {
+      if (state.mode === "exact" || state.mode === "partial") {
+        return targets.map((target, i) => ({
+          id: target.id,
+          pts: target.pts.map(p => [p[0], p[1]]),
+          color: COLORS[i % COLORS.length],
+          x: 36 + (i % 2) * 112,
+          y: 88 + Math.floor(i / 2) * 108,
+          rot: 0,
+          flip: 1,
+          target: target,
+          snapped: false
+        }));
+      }
+      return CANONICAL.map((base, i) => ({
+        id: base.id,
+        pts: base.pts,
+        color: COLORS[i % COLORS.length],
+        x: 45 + (i % 2) * 110,
+        y: 75 + Math.floor(i / 2) * 105,
+        rot: [0, 35, -20, 90, -45, 25, 0][i],
+        flip: 1,
+        target: state.mode === "generated" ? targets[i] : null,
+        snapped: false
+      }));
+    }
+
+    function transformFor(piece) {
+      return `translate(${piece.x} ${piece.y}) rotate(${piece.rot}) scale(${piece.flip} 1)`;
+    }
+
+    function draw() {
+      els.svg.innerHTML = "";
+      const targetGroup = el("g", { id: "targets" });
+      state.targets.forEach(target => {
+        const poly = el("polygon", {
+          points: pointsAttr(target.pts),
+          class: target.outlineOnly ? "target" : "target-piece",
+          transform: target.absolute ? "" : `translate(${target.x} ${target.y}) rotate(${target.rot}) scale(${target.flip} 1)`
+        });
+        targetGroup.appendChild(poly);
+      });
+      els.svg.appendChild(targetGroup);
+
+      state.pieces.forEach((piece, i) => {
+        const g = el("g", { class: `piece ${piece === state.selected ? "selected" : ""} ${piece.snapped ? "snapped" : ""}`, "data-index": i, transform: transformFor(piece) });
+        const poly = el("polygon", { points: pointsAttr(piece.pts), fill: piece.color });
+        g.appendChild(poly);
+        const c = centroid(piece.pts);
+        const text = el("text", { x: c[0], y: c[1], "text-anchor": "middle", "dominant-baseline": "middle" });
+        text.textContent = piece.id;
+        g.appendChild(text);
+        g.addEventListener("pointerdown", onPointerDown);
+        g.addEventListener("dblclick", () => rotateSelected(45));
+        els.svg.appendChild(g);
+      });
+      updateStats();
+    }
+
+    function svgPoint(evt) {
+      const pt = els.svg.createSVGPoint();
+      pt.x = evt.clientX;
+      pt.y = evt.clientY;
+      return pt.matrixTransform(els.svg.getScreenCTM().inverse());
+    }
+
+    function onPointerDown(evt) {
+      const index = +evt.currentTarget.dataset.index;
+      state.selected = state.pieces[index];
+      const p = svgPoint(evt);
+      state.drag = { id: evt.pointerId, start: p, ox: state.selected.x, oy: state.selected.y, moved: false };
+      evt.currentTarget.setPointerCapture(evt.pointerId);
+      els.svg.addEventListener("pointermove", onPointerMove);
+      els.svg.addEventListener("pointerup", onPointerUp, { once: true });
+      draw();
+    }
+
+    function onPointerMove(evt) {
+      if (!state.drag || !state.selected) return;
+      const p = svgPoint(evt);
+      state.selected.x = state.drag.ox + (p.x - state.drag.start.x);
+      state.selected.y = state.drag.oy + (p.y - state.drag.start.y);
+      state.selected.snapped = false;
+      state.drag.moved = true;
+      draw();
+    }
+
+    function onPointerUp() {
+      els.svg.removeEventListener("pointermove", onPointerMove);
+      if (state.drag && state.drag.moved) state.moves += 1;
+      trySnap(state.selected);
+      state.drag = null;
+      draw();
+    }
+
+    function angleDelta(a, b) {
+      let d = Math.abs((((a - b) % 360) + 540) % 360 - 180);
+      return Math.min(d, Math.abs(d - 360));
+    }
+
+    function trySnap(piece) {
+      if (!piece || !piece.target || piece.target.absolute) return;
+      const t = piece.target;
+      if (Math.hypot(piece.x - t.x, piece.y - t.y) < 34 && angleDelta(piece.rot, t.rot) < 18 && piece.flip === t.flip) {
+        piece.x = t.x;
+        piece.y = t.y;
+        piece.rot = t.rot;
+        piece.snapped = true;
+        showToast("Pieza encajada.");
+      }
+    }
+
+    function rotateSelected(deg) {
+      if (!state.selected) return showToast("Selecciona primero una pieza.");
+      state.selected.rot = Math.round((state.selected.rot + deg) / 15) * 15;
+      state.selected.snapped = false;
+      state.moves += 1;
+      trySnap(state.selected);
+      draw();
+    }
+
+    function flipSelected() {
+      if (!state.selected) return showToast("Selecciona primero una pieza.");
+      state.selected.flip *= -1;
+      state.selected.snapped = false;
+      state.moves += 1;
+      trySnap(state.selected);
+      draw();
+    }
+
+    function checkSolution() {
+      let message = "";
+      let solved = false;
+      if (state.mode === "generated") {
+        solved = state.pieces.every(p => p.snapped);
+        message = solved ? "Solucionado: todas las piezas están encajadas." : `Faltan ${state.pieces.filter(p => !p.snapped).length} piezas por encajar.`;
+      } else if (state.mode === "exact" || state.mode === "partial") {
+        const targetCenters = state.targets.map(t => centroid(t.pts));
+        const hits = state.pieces.filter(piece => {
+          const center = [piece.x + centroid(piece.pts)[0], piece.y + centroid(piece.pts)[1]];
+          return targetCenters.some(c => Math.hypot(center[0] - c[0], center[1] - c[1]) < 38);
+        }).length;
+        solved = hits === state.pieces.length;
+        message = solved ? "La composición coincide suficientemente con las piezas del JSON." : `${hits}/${state.pieces.length} piezas cerca de su zona objetivo.`;
+      } else {
+        message = "Este JSON solo permite dibujar una silueta general. La comprobación exacta no es fiable; úsala como reto visual.";
+      }
+      if (solved && !state.solved) {
+        state.solved = true;
+        const elapsed = Math.max(1, Math.floor((Date.now() - state.startedAt) / 1000));
+        state.score += Math.max(50, 1000 - elapsed * 3 - state.moves * 8);
+      }
+      showToast(message);
+      updateStats();
+    }
+
+    function showHint() {
+      if (state.mode === "outline") return showToast("Pista: el archivo trae silueta, pero no posiciones individuales. Reproduce el contorno con las 7 piezas.");
+      const next = state.pieces.find(p => !p.snapped && p.target && !p.target.absolute);
+      if (!next) return showToast("No hay más pistas automáticas para esta figura.");
+      next.x += (next.target.x - next.x) * .45;
+      next.y += (next.target.y - next.y) * .45;
+      next.rot += angleDelta(next.rot, next.target.rot) > 90 ? 45 : (next.target.rot - next.rot) * .45;
+      state.moves += 1;
+      trySnap(next);
+      draw();
+    }
+
+    function updateStats() {
+      const secs = Math.floor((Date.now() - state.startedAt) / 1000);
+      const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+      const ss = String(secs % 60).padStart(2, "0");
+      els.time.textContent = `${mm}:${ss}`;
+      els.moves.textContent = state.moves;
+      els.score.textContent = state.score;
+    }
+
+    function showToast(text) {
+      els.toast.textContent = text;
+      els.toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2600);
+    }
+
+    function modeText() {
+      const count = state.puzzles.length;
+      if (state.mode === "exact") return `Modo exacto: el JSON parece traer 7 piezas con geometría. Figuras detectadas: ${count}.`;
+      if (state.mode === "partial") return `Modo parcial: el JSON trae piezas, pero no necesariamente las 7 clásicas. La validación usa cercanía al objetivo. Figuras detectadas: ${count}.`;
+      if (state.mode === "outline") return `Modo silueta: el JSON trae contorno, pero no posiciones de piezas. La solución exacta no se puede comprobar de forma fiable. Figuras detectadas: ${count}.`;
+      return `Modo generado: no se ha encontrado geometría suficiente. El juego usa nombres/anotaciones del JSON para generar retos reproducibles. Figuras detectadas: ${count}.`;
+    }
+
+    function startPuzzle(index) {
+      state.current = state.puzzles[index] || FALLBACK_PUZZLES[0];
+      state.targets = makeTargets(state.current);
+      state.pieces = buildPieces(state.targets);
+      state.selected = null;
+      state.moves = 0;
+      state.startedAt = Date.now();
+      state.solved = false;
+      els.modeNote.textContent = modeText();
+      draw();
+    }
+
+    function populateSelect() {
+      els.select.innerHTML = "";
+      state.puzzles.forEach((p, i) => {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = p.annotation ? `${p.name} · ${String(p.annotation).slice(0, 44)}` : p.name;
+        els.select.appendChild(option);
+      });
+    }
+
+    function installData(raw, source) {
+      state.raw = raw;
+      state.puzzles = extractPuzzles(raw);
+      populateSelect();
+      els.status.className = "status good";
+      els.status.innerHTML = `<strong>JSON cargado</strong><br>${source}. ${state.puzzles.length} posibles figuras detectadas.`;
+      startPuzzle(0);
+    }
+
+    function useFallback(reason) {
+      state.puzzles = FALLBACK_PUZZLES;
+      populateSelect();
+      els.status.className = "status warn";
+      els.status.innerHTML = `<strong>Sin JSON externo</strong><br>${reason}. Puedes cargarlo manualmente o servir esta página junto a ../json/tangram.json.`;
+      startPuzzle(0);
+    }
+
+    async function loadJson() {
+      try {
+        const response = await fetch("../json/tangram.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        installData(await response.json(), "../json/tangram.json");
+      } catch (err) {
+        useFallback(`No se pudo leer ../json/tangram.json (${err.message})`);
+      }
+    }
+
+    document.getElementById("rotateLeftBtn").addEventListener("click", () => rotateSelected(-15));
+    document.getElementById("rotateRightBtn").addEventListener("click", () => rotateSelected(15));
+    document.getElementById("flipBtn").addEventListener("click", flipSelected);
+    document.getElementById("checkBtn").addEventListener("click", checkSolution);
+    document.getElementById("hintBtn").addEventListener("click", showHint);
+    document.getElementById("resetBtn").addEventListener("click", () => startPuzzle(+els.select.value || 0));
+    document.getElementById("fitBtn").addEventListener("click", () => draw());
+    document.getElementById("randomBtn").addEventListener("click", () => {
+      const index = Math.floor(Math.random() * state.puzzles.length);
+      els.select.value = index;
+      startPuzzle(index);
+    });
+    els.select.addEventListener("change", () => startPuzzle(+els.select.value));
+    els.file.addEventListener("change", async () => {
+      const file = els.file.files[0];
+      if (!file) return;
+      try {
+        installData(JSON.parse(await file.text()), file.name);
+      } catch (err) {
+        showToast(`No pude leer ese JSON: ${err.message}`);
+      }
+    });
+    window.addEventListener("keydown", evt => {
+      if (evt.key === "ArrowLeft") rotateSelected(-15);
+      if (evt.key === "ArrowRight") rotateSelected(15);
+      if (evt.key.toLowerCase() === "f") flipSelected();
+      if (evt.key === "Enter") checkSolution();
+    });
+
+    state.timer = setInterval(updateStats, 1000);
+    loadJson();
+  </script>
+</body>
+</html>
