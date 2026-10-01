@@ -49,6 +49,18 @@
     .result-title { display:block; font-weight:750; letter-spacing:-.015em; }
     .result-meta { display:block; color:var(--muted); font-size:.84rem; }
     .score { color:var(--good); font-size:.84rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .catalog { margin-top:30px; padding:20px; border:1px solid var(--line); border-radius:20px; background:rgba(19,21,27,.72); }
+    .catalog h2 { margin:0; font-size:1.08rem; letter-spacing:-.025em; }
+    .catalog-copy { margin:5px 0 14px; color:var(--muted); font-size:.88rem; }
+    .search-label { display:block; margin-bottom:7px; color:var(--muted); font-size:.78rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+    .search-input { width:100%; min-height:49px; padding:0 14px; border:1px solid var(--line); border-radius:13px; background:#0c0e13; color:var(--text); outline:none; font:inherit; }
+    .search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .catalog-status { min-height:1.35em; margin:10px 0 7px; color:var(--muted); font-size:.83rem; }
+    .catalog-results { display:grid; gap:7px; }
+    .catalog-row { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:10px 0; border-top:1px solid rgba(255,255,255,.07); }
+    .catalog-row:first-child { border-top:0; }
+    .catalog-row a { color:var(--accent); font-size:.82rem; text-decoration:none; white-space:nowrap; }
+    .catalog-row a:hover { text-decoration:underline; }
     .how { margin:34px 0 12px; padding:16px 18px; border-left:2px solid var(--accent); color:var(--muted); font-size:.9rem; }
     .how b { color:var(--text); }
     .footer { margin-top:30px; padding:22px 0 0; border-top:1px solid var(--line); color:var(--muted); font-size:.76rem; }
@@ -90,6 +102,14 @@
       <section id="results" class="results" aria-live="polite">
         <div class="empty">Las coincidencias aparecerán aquí.</div>
       </section>
+      <section class="catalog" aria-labelledby="catalogTitle">
+        <h2 id="catalogTitle">Catálogo Million Song Dataset</h2>
+        <p id="catalogCopy" class="catalog-copy">Cargando el índice de canciones…</p>
+        <label class="search-label" for="catalogQuery">Busca por título</label>
+        <input id="catalogQuery" class="search-input" type="search" placeholder="Ej.: Billie Jean" autocomplete="off" spellcheck="false">
+        <p id="catalogStatus" class="catalog-status" aria-live="polite">Escribe al menos dos letras.</p>
+        <div id="catalogResults" class="catalog-results" aria-live="polite"></div>
+      </section>
       <p class="how"><b>Cómo funciona:</b> se guardan los intervalos entre tus pulsaciones, se elimina la diferencia de velocidad y se comparan con patrones rítmicos. Esta versión incluye un catálogo local de demostración; puede conectarse a una API con tu base de datos procesada.</p>
     </main>
 
@@ -127,12 +147,23 @@
     const guessButton = document.querySelector('#guessButton');
     const status = document.querySelector('#status');
     const results = document.querySelector('#results');
+    const catalogQuery = document.querySelector('#catalogQuery');
+    const catalogCopy = document.querySelector('#catalogCopy');
+    const catalogStatus = document.querySelector('#catalogStatus');
+    const catalogResults = document.querySelector('#catalogResults');
     let taps = [];
     let feedbackTimer;
+    let catalogTimer;
+    let catalogRequest = 0;
+    const catalogCache = new Map();
 
     function normalise(values) {
       const average = values.reduce((sum, value) => sum + value, 0) / values.length;
       return values.map(value => value / average);
+    }
+
+    function normaliseText(value) {
+      return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
     function cyclicDistance(input, pattern) {
@@ -219,6 +250,68 @@
       }
     }
 
+    async function getCatalogShard(name) {
+      if (catalogCache.has(name)) return catalogCache.get(name);
+      const response = await fetch(`data/catalog-${name}.json`);
+      if (!response.ok) throw new Error('No se pudo cargar este índice');
+      const records = await response.json();
+      catalogCache.set(name, records);
+      return records;
+    }
+
+    function renderCatalog(matches) {
+      catalogResults.replaceChildren();
+      matches.forEach(([title, artist]) => {
+        const row = document.createElement('article');
+        row.className = 'catalog-row';
+        const text = document.createElement('div');
+        const heading = document.createElement('span');
+        heading.className = 'result-title';
+        heading.textContent = title;
+        const meta = document.createElement('span');
+        meta.className = 'result-meta';
+        meta.textContent = artist;
+        text.append(heading, meta);
+        const link = document.createElement('a');
+        link.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist} ${title}`)}`;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Buscar en YouTube';
+        row.append(text, link);
+        catalogResults.append(row);
+      });
+    }
+
+    async function searchCatalog() {
+      const current = ++catalogRequest;
+      const query = normaliseText(catalogQuery.value);
+      catalogResults.replaceChildren();
+      if (query.length < 2) {
+        catalogStatus.textContent = 'Escribe al menos dos letras.';
+        return;
+      }
+      const shard = /^[a-z0-9]$/.test(query.charAt(0)) ? query.charAt(0) : 'other';
+      catalogStatus.textContent = 'Buscando en el catálogo…';
+      try {
+        const records = await getCatalogShard(shard);
+        if (current !== catalogRequest) return;
+        const matches = records.filter(([title]) => normaliseText(title).includes(query)).slice(0, 12);
+        if (!matches.length) {
+          catalogStatus.textContent = 'No hay coincidencias por título en este índice.';
+          return;
+        }
+        renderCatalog(matches);
+        catalogStatus.textContent = `${matches.length} coincidencia${matches.length === 1 ? '' : 's'} mostrada${matches.length === 1 ? '' : 's'}.`;
+      } catch (error) {
+        catalogStatus.textContent = 'No se ha podido cargar el catálogo.';
+      }
+    }
+
+    fetch('data/catalog-meta.json')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(meta => { catalogCopy.textContent = `${Number(meta.records).toLocaleString('es-ES')} canciones del Million Song Dataset. Elige una coincidencia para buscarla en YouTube.`; })
+      .catch(() => { catalogCopy.textContent = 'Índice local de canciones del Million Song Dataset.'; });
+
     document.addEventListener('keydown', event => {
       if (event.code !== 'Space' || event.repeat) return;
       event.preventDefault();
@@ -227,6 +320,10 @@
     tapZone.addEventListener('pointerdown', event => { event.preventDefault(); addTap(); });
     resetButton.addEventListener('click', reset);
     guessButton.addEventListener('click', guess);
+    catalogQuery.addEventListener('input', () => {
+      clearTimeout(catalogTimer);
+      catalogTimer = setTimeout(searchCatalog, 180);
+    });
   </script>
 </body>
 </html>
