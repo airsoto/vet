@@ -1,0 +1,605 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hospi_planning · Prototipo v3</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7f8;
+      --panel: #ffffff;
+      --panel-2: #eef5f4;
+      --text: #142023;
+      --muted: #607276;
+      --line: #d9e4e3;
+      --brand: #0f8b8d;
+      --brand-2: #f2a65a;
+      --danger: #d64545;
+      --warn: #d9921f;
+      --ok: #238b5b;
+      --blue: #3366cc;
+      --shadow: 0 12px 34px rgba(20, 32, 35, .10);
+    }
+    .dark {
+      color-scheme: dark;
+      --bg: #101516;
+      --panel: #182122;
+      --panel-2: #202c2e;
+      --text: #edf5f4;
+      --muted: #a4b6b8;
+      --line: #314244;
+      --brand: #2db6b7;
+      --brand-2: #f2b36f;
+      --shadow: 0 14px 36px rgba(0, 0, 0, .32);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--brand); }
+    .app { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+    .brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--brand);
+      color: white;
+      font-weight: 800;
+    }
+    h1, h2, h3 { margin: 0; line-height: 1.12; }
+    h1 { font-size: clamp(22px, 3vw, 34px); }
+    h2 { font-size: 22px; }
+    h3 { font-size: 16px; }
+    .sub { color: var(--muted); font-size: 14px; margin-top: 3px; }
+    .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: end; }
+    main { max-width: 1240px; width: 100%; margin: 0 auto; padding: 18px 18px 98px; }
+    .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; }
+    .tab.active, .primary { background: var(--brand); color: white; border-color: var(--brand); }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .patient-card {
+      grid-column: span 4;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .card-top { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; }
+    .avatar, .path-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .path-icon img { width: 38px; height: 38px; object-fit: contain; }
+    .avatar { font-weight: 800; color: var(--brand); }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 13px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .alert { color: white; border: 0; }
+    .alert.alta { background: var(--danger); }
+    .alert.media { background: var(--warn); }
+    .alert.baja { background: var(--ok); }
+    .mini-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .status-btn.active { background: var(--brand-2); color: #1f1408; border-color: var(--brand-2); }
+    .view { display: none; }
+    .view.active { display: block; }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .quick-action {
+      min-height: 78px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      gap: 4px;
+      font-weight: 760;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(20, 32, 35, .06);
+    }
+    .quick-action span { display: block; font-size: 25px; line-height: 1; }
+    .turn-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .turn-stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .turn-stat b { display: block; font-size: 24px; line-height: 1.1; }
+    .turn-stat small { color: var(--muted); }
+    .vitals {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .vital {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 5px;
+      text-align: center;
+    }
+    .vital small { display: block; color: var(--muted); font-size: 11px; }
+    .vital b { font-size: 17px; }
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .tool-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 11px;
+      font-weight: 760;
+    }
+    .tool-card small { display: block; color: var(--muted); font-weight: 500; margin-top: 4px; }
+    .detail-head {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+    .detail-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 14px; align-items: start; }
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .med, .timeline-item, .analysis-row, .fluid-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--panel-2);
+      margin-top: 8px;
+    }
+    .med { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .med.done { opacity: .66; }
+    .med.late { border-color: color-mix(in srgb, var(--danger) 65%, var(--line)); }
+    .tag-ok { color: var(--ok); }
+    .tag-warn { color: var(--warn); }
+    .tag-danger { color: var(--danger); }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px;
+    }
+    .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .photo {
+      aspect-ratio: 4 / 3;
+      border-radius: 8px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 25%, var(--panel-2)), var(--panel-2));
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+    }
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 18;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+      margin: 0;
+      padding: 7px max(8px, calc((100vw - 1240px) / 2)) calc(7px + env(safe-area-inset-bottom));
+      display: flex;
+      justify-content: space-around;
+      gap: 4px;
+    }
+    .nav-item {
+      flex: 1 1 0;
+      min-width: 58px;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 5px 3px;
+      font-size: 11px;
+      font-weight: 720;
+      text-align: center;
+    }
+    .nav-item b { display: block; font-size: 21px; line-height: 1.05; margin-bottom: 2px; }
+    .nav-item.active { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
+    .hidden-input { display: none; }
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 78px;
+      background: var(--text);
+      color: var(--bg);
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: .2s ease;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 900px) {
+      .patient-card { grid-column: span 6; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-head { grid-template-columns: auto 1fr; }
+      .detail-head .actions { grid-column: 1 / -1; justify-content: start; }
+      .tool-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .topbar { grid-template-columns: 1fr; }
+      .actions { justify-content: start; }
+      .patient-card { grid-column: 1 / -1; }
+      .card-top { grid-template-columns: 46px 1fr; }
+      .path-icon { grid-column: 1 / -1; width: 100%; height: 42px; }
+      .gallery { grid-template-columns: 1fr 1fr; }
+      .quick-actions { grid-template-columns: repeat(2, 1fr); }
+      .turn-stats, .vitals { grid-template-columns: repeat(4, 1fr); }
+      .tool-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <div class="mark">HP</div>
+          <div>
+            <h1>Hospi_planning</h1>
+            <div class="sub">Prototipo v3 · Hospitalización, tratamientos, imágenes y evolución clínica</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="summaryBtn">Resumen</button>
+          <button id="themeBtn">Modo oscuro</button>
+          <button id="exportTopBtn">Exportar</button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <nav class="tabs" id="patientTabs"></nav>
+      <section class="view active" id="summaryView">
+        <div class="grid" id="patientGrid"></div>
+      </section>
+      <section class="view" id="detailView"></section>
+      <div class="bottom-nav">
+        <button class="nav-item active" data-nav="patients"><b>🏥</b>Pacientes</button>
+        <button class="nav-item" data-jump="meds" data-nav="pending"><b>⏱</b>Pendientes</button>
+        <button class="nav-item" data-action="register" data-nav="register"><b>＋</b>Registrar</button>
+        <button class="nav-item" data-jump="pase" data-nav="handoff"><b>🔄</b>Guardia</button>
+        <button class="nav-item" data-jump="auditoria" data-nav="more"><b>⚙️</b>Más</button>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast">Actualizado</div>
+  <script>
+    const pathologyIcons = {
+      laboratorio: "/images/alteracioneslaboratoriales.png",
+      cardio: "/images/cardiologia.png",
+      derma: "/images/dermatologia.png",
+      dx: "/images/dxgeneralk.png",
+      ecocardio: "/images/ecocardiografia.png",
+      ecoabd: "/images/ecografiaabdominal.png",
+      electro: "/images/electrocardiografia.png",
+      endocrino: "/images/endocrino.png",
+      gastro: "/images/gastrointestinal.png",
+      general: "/images/generales.png",
+      hemato: "/images/hematologia.png",
+      infecciosas: "/images/infecciosas.png",
+      nefro: "/images/nefrologia.png",
+      neuro: "/images/neurologia.png",
+      oftalmo: "/images/oftalmologia.png",
+      onco: "/images/oncologia.png",
+      torax: "/images/radiografiatoracica.png",
+      terio: "/images/teriogenologia.png",
+      trauma: "/images/traumatologia.png",
+      search: "/images/searchdd.png",
+      postq: "/images/postq.png"
+    };
+    const patients = [
+      { id:"kira", name:"Kira", nhc:"Q58943", species:"Canina", breed:"Border Collie", weight:"18,4 kg", age:"7 años", pathology:"Postquirúrgico abdominal con control de herida", icon:"postq", alert:"media", status:"mejoria", cage:"UCI 2", vet:"AS", meds:[["08:00","Cefazolina IV","done"],["12:00","Metadona SC","pending"],["14:00","Meloxicam PO","late"]], analysis:["Hemograma realizado: leucocitosis leve","Bioquímica pendiente de control 18:00"], fluids:"Ringer lactato 2,5 ml/kg/h · Balance +140 ml" },
+      { id:"macaldo", name:"Macaldo", nhc:"Q60118", species:"Felina", breed:"Europeo común", weight:"5,2 kg", age:"11 años", pathology:"Insuficiencia renal aguda / control de diuresis", icon:"nefro", alert:"alta", status:"dudoso", cage:"Gatos 4", vet:"CR", meds:[["09:00","Maropitant SC","done"],["11:00","Buprenorfina transmucosa","pending"],["13:00","Amlodipino PO","pending"]], analysis:["Creatinina realizada: 4,1 mg/dl","Ionograma pendiente"], fluids:"NaCl 0,9% 3 ml/kg/h · Diuresis 1,1 ml/kg/h" },
+      { id:"puma", name:"Puma", nhc:"Q57702", species:"Canina", breed:"Mestizo", weight:"26 kg", age:"9 años", pathology:"Gastroenteritis hemorrágica", icon:"gastro", alert:"media", status:"igual", cage:"Perros 7", vet:"MV", meds:[["08:30","Omeprazol IV","done"],["10:30","Metronidazol IV","done"],["15:00","Ondansetrón IV","pending"]], analysis:["PCV/TP realizado: estable","Coprológico pendiente"], fluids:"Plasmalyte 4 ml/kg/h · Balance -80 ml" },
+      { id:"bruno", name:"Bruno", nhc:"Q56391", species:"Canina", breed:"Labrador Retriever", weight:"31,7 kg", age:"6 años", pathology:"Neumonía por aspiración", icon:"cardio", alert:"alta", status:"mejoria", cage:"Oxígeno 1", vet:"AS", meds:[["07:00","Ampicilina/sulbactam IV","done"],["12:00","Nebulización","pending"],["16:00","Control FR/SpO2","pending"]], analysis:["Radiografía torácica realizada","Gasometría pendiente si empeora"], fluids:"Mantenimiento reducido · Balance +40 ml" },
+      { id:"tomasin", name:"Tomasín", nhc:"Q62004", species:"Felina", breed:"Siamés", weight:"4,8 kg", age:"13 años", pathology:"Hipertiroidismo descompensado", icon:"endocrino", alert:"media", status:"empeoramiento", cage:"Gatos 1", vet:"CR", meds:[["09:00","Metimazol PO","late"],["10:00","Atenolol PO","pending"],["18:00","Control TA","pending"]], analysis:["T4 realizada: elevada","Presión arterial pendiente"], fluids:"Sin fluidoterapia · Ingesta reducida" },
+      { id:"dulcinea", name:"Dulcinea", nhc:"Q59987", species:"Canina", breed:"Galgo", weight:"22,3 kg", age:"4 años", pathology:"Herida cutánea infectada", icon:"derma", alert:"baja", status:"mejoria", cage:"Perros 3", vet:"MV", meds:[["08:00","Amoxicilina/clavulánico PO","done"],["12:00","Cura local","pending"],["20:00","Gabapentina PO","pending"]], analysis:["Cultivo enviado","Antibiograma pendiente"], fluids:"Sin fluidoterapia · Come voluntariamente" },
+      { id:"conrad", name:"Conrad", nhc:"Q61550", species:"Canina", breed:"Teckel", weight:"8,9 kg", age:"8 años", pathology:"Dolor neurológico / sospecha IVDD", icon:"neuro", alert:"alta", status:"igual", cage:"UCI 4", vet:"AS", meds:[["08:00","Metadona IV","done"],["09:00","Reposo estricto","done"],["13:00","Gabapentina PO","pending"]], analysis:["Exploración neurológica realizada","RM pendiente de valoración"], fluids:"Mantenimiento 2 ml/kg/h · Balance +20 ml" }
+    ];
+    const statusLabels = { mejoria:"↗ Mejoría", empeoramiento:"↘ Empeora", igual:"→ Igual", dudoso:"? Dudoso" };
+    const alertOrder = ["baja", "media", "alta"];
+    let selected = patients[0].id;
+    const $ = sel => document.querySelector(sel);
+    function toast(text) {
+      const node = $("#toast");
+      node.textContent = text;
+      node.classList.add("show");
+      setTimeout(() => node.classList.remove("show"), 1300);
+    }
+    function iconImg(p) {
+      return `<div class="path-icon" title="${p.pathology}"><img src="${pathologyIcons[p.icon]}" alt="${p.pathology}" onerror="this.parentElement.textContent='${p.icon.toUpperCase()}'"></div>`;
+    }
+    function renderTabs() {
+      $("#patientTabs").innerHTML = `<button class="tab active" data-summary>Todos</button>` + patients.map(p => `<button class="tab" data-id="${p.id}">${p.name}</button>`).join("");
+      document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+        if (tab.dataset.summary !== undefined) showSummary(); else showDetail(tab.dataset.id);
+      }));
+    }
+    function renderSummary() {
+      $("#patientGrid").innerHTML = patients.map(p => `
+        <article class="patient-card">
+          <div class="card-top">
+            <div class="avatar">${p.name.slice(0,2).toUpperCase()}</div>
+            <div>
+              <h2>${p.name}</h2>
+              <div class="meta"><span>${p.nhc}</span><span>${p.species}</span><span>${p.breed}</span><span>${p.weight}</span></div>
+            </div>
+            ${iconImg(p)}
+          </div>
+          <div><strong>${p.pathology}</strong><div class="sub">${p.cage} · Responsable ${p.vet}</div></div>
+          <div class="mini-row">
+            <button class="pill alert ${p.alert}" data-alert="${p.id}">Alerta ${p.alert}</button>
+            <span class="pill">${statusLabels[p.status]}</span>
+          </div>
+          <div class="mini-row">
+            ${p.meds.map(m => `<span class="pill ${m[2] === "late" ? "tag-danger" : m[2] === "done" ? "tag-ok" : "tag-warn"}">${m[0]} ${m[2] === "done" ? "✓" : m[2] === "late" ? "!" : "○"}</span>`).join("")}
+          </div>
+          <button class="primary" data-open="${p.id}">Abrir ficha</button>
+        </article>`).join("");
+      document.querySelectorAll("[data-open]").forEach(btn => btn.addEventListener("click", () => showDetail(btn.dataset.open)));
+      document.querySelectorAll("[data-alert]").forEach(btn => btn.addEventListener("click", () => cycleAlert(btn.dataset.alert)));
+    }
+    function renderDetail(id) {
+      const p = patients.find(x => x.id === id);
+      $("#detailView").innerHTML = `
+        <div class="detail-head">
+          <div class="avatar">${p.name.slice(0,2).toUpperCase()}</div>
+          <div>
+            <h2>${p.name} · ${p.nhc}</h2>
+            <div class="meta"><span>${p.species}</span><span>${p.breed}</span><span>${p.age}</span><span>${p.weight}</span><span>${p.cage}</span></div>
+            <div class="sub">${p.pathology}</div>
+          </div>
+          <div class="actions">${iconImg(p)}<button class="pill alert ${p.alert}" data-alert="${p.id}">Alerta ${p.alert}</button></div>
+        </div>
+        <div class="quick-actions">
+          <button class="quick-action" data-jump-local="meds"><span>💊</span>Medicación</button>
+          <button class="quick-action" data-jump-local="exploracion"><span>🩺</span>Exploración</button>
+          <button class="quick-action" id="quickPhotoBtn"><span>📷</span>Foto / vídeo</button>
+          <button class="quick-action" id="quickIncidentBtn"><span>📝</span>Incidencia</button>
+        </div>
+        <div class="turn-stats">
+          <div class="turn-stat"><b class="tag-danger">${p.meds.filter(m => m[2] === "late").length}</b><small>retrasadas</small></div>
+          <div class="turn-stat"><b class="tag-warn">${p.meds.filter(m => m[2] === "pending").length}</b><small>pendientes</small></div>
+          <div class="turn-stat"><b class="tag-ok">${p.meds.filter(m => m[2] === "done").length}</b><small>hechas</small></div>
+          <div class="turn-stat"><b>${p.analysis.filter(a => a.toLowerCase().includes("pendiente")).length}</b><small>pruebas</small></div>
+        </div>
+        <div class="detail-grid">
+          <div>
+            <section class="section" id="meds">
+              <div class="section-title"><h3>Medicaciones</h3><button id="addMedBtn">Añadir</button></div>
+              ${p.meds.map((m, i) => `<div class="med ${m[2]}" data-med="${i}">
+                <div><strong>${m[0]} · ${m[1]}</strong><div class="sub">${m[2] === "done" ? "Completada" : m[2] === "late" ? "Retrasada" : "Pendiente"}</div></div>
+                <button data-toggle-med="${i}">${m[2] === "done" ? "Reabrir" : "Completar"}</button>
+              </div>`).join("")}
+            </section>
+            <section class="section" id="exploracion">
+              <div class="section-title"><h3>Exploración periódica editable</h3><button id="saveExamBtn">Guardar</button></div>
+              <div class="vitals" style="margin-bottom:10px">
+                <div class="vital"><small>Temp</small><b>38,2</b></div>
+                <div class="vital"><small>FC</small><b>108</b></div>
+                <div class="vital"><small>FR</small><b>28</b></div>
+                <div class="vital"><small>PAM</small><b>86</b></div>
+                <div class="vital"><small>SpO2</small><b>97%</b></div>
+                <div class="vital"><small>Glucosa</small><b>104</b></div>
+                <div class="vital"><small>Dolor</small><b>0/24</b></div>
+                <div class="vital"><small>Peso</small><b>${p.weight}</b></div>
+              </div>
+              <textarea>Paciente alerta. Mucosas rosadas. TRC &lt; 2 s. Auscultación sin nuevos hallazgos. Dolor controlado con pauta actual. Revisar apetito y diuresis en próximo pase.</textarea>
+              <div class="mini-row" style="margin-top:10px">
+                ${Object.keys(statusLabels).map(s => `<button class="status-btn ${p.status === s ? "active" : ""}" data-status="${s}">${statusLabels[s]}</button>`).join("")}
+              </div>
+            </section>
+            <section class="section" id="analisis">
+              <div class="section-title"><h3>Análisis realizados y pendientes</h3><button>Solicitar prueba</button></div>
+              ${p.analysis.map(a => `<div class="analysis-row">${a}</div>`).join("")}
+            </section>
+            <section class="section">
+              <div class="section-title"><h3>Fluidoterapia y balance</h3><button>Editar balance</button></div>
+              <div class="fluid-row">${p.fluids}</div>
+            </section>
+          </div>
+          <div>
+            <section class="section" id="fotos">
+              <div class="section-title"><h3>Historial cronológico</h3><button id="attachBtn">Adjuntar foto/vídeo</button></div>
+              <input class="hidden-input" id="fileInput" type="file" accept="image/*,video/*">
+              <div class="timeline-item"><strong>08:12 · Medicación</strong><div class="sub">Administración registrada por ${p.vet}</div></div>
+              <div class="timeline-item"><strong>09:05 · Exploración</strong><div class="sub">Evolución respecto a ayer: ${statusLabels[p.status]}</div></div>
+              <div class="timeline-item"><strong>10:20 · Imagen clínica</strong><div class="sub">Zona de interés añadida al historial. Vista previa simulada.</div></div>
+            </section>
+            <section class="section">
+              <div class="section-title"><h3>Galería</h3><button>Comparar</button></div>
+              <div class="gallery"><div class="photo">Herida<br>01/10</div><div class="photo">Herida<br>02/10</div><div class="photo">Vídeo<br>marcha</div></div>
+            </section>
+            <section class="section">
+              <div class="section-title"><h3>Incidencias</h3><button>Nueva</button></div>
+              <div class="timeline-item">Apetito parcial. Avisar si vomita o rechaza medicación oral.</div>
+            </section>
+            <section class="section" id="pase">
+              <div class="section-title"><h3>Pase de guardia</h3><button>Copiar pase</button></div>
+              <textarea>Vigilar dolor, apetito, diuresis y medicaciones de tarde. Prioridad: ${p.alert.toUpperCase()}.</textarea>
+            </section>
+            <section class="section" id="auditoria">
+              <div class="section-title"><h3>Exportar y auditoría</h3><button id="exportBtn">Exportar PDF/Excel/JSON</button></div>
+              <div class="timeline-item">Última edición simulada · ${new Date().toLocaleString("es-ES")} · usuario actual</div>
+            </section>
+            <section class="section" id="mas">
+              <div class="section-title"><h3>Más funciones</h3><button id="protocolBtn">Protocolos</button></div>
+              <div class="tool-grid">
+                <div class="tool-card">🔄 Pase de guardia<small>Resumen automático del turno</small></div>
+                <div class="tool-card">📋 Protocolos<small>Planes reutilizables</small></div>
+                <div class="tool-card">💉 Transfusión<small>Producto, bolsa, volumen y controles</small></div>
+                <div class="tool-card">🏥 Mapa de jaulas<small>UCI, perros, gatos y aislamiento</small></div>
+                <div class="tool-card">💊 Stock / controlados<small>Registro de consumo</small></div>
+                <div class="tool-card">💶 Cargos<small>Conceptos pendientes de facturar</small></div>
+                <div class="tool-card">📄 Alta / informe<small>Borrador de hospitalización</small></div>
+                <div class="tool-card">📤 Exportar<small>PDF, Excel y JSON</small></div>
+                <div class="tool-card">🕘 Auditoría<small>Quién cambió qué y cuándo</small></div>
+              </div>
+            </section>
+          </div>
+        </div>`;
+      bindDetail(p);
+    }
+    function bindDetail(p) {
+      document.querySelectorAll("[data-toggle-med]").forEach(btn => btn.addEventListener("click", () => {
+        const med = p.meds[Number(btn.dataset.toggleMed)];
+        med[2] = med[2] === "done" ? "pending" : "done";
+        renderDetail(p.id);
+        toast("Medicación actualizada");
+      }));
+      document.querySelectorAll("[data-status]").forEach(btn => btn.addEventListener("click", () => {
+        p.status = btn.dataset.status;
+        renderDetail(p.id);
+        toast("Estado del paciente actualizado");
+      }));
+      document.querySelectorAll("[data-alert]").forEach(btn => btn.addEventListener("click", () => cycleAlert(btn.dataset.alert)));
+      $("#attachBtn").addEventListener("click", () => $("#fileInput").click());
+      $("#fileInput").addEventListener("change", e => toast(e.target.files.length ? "Archivo preparado para adjuntar" : "Sin archivo seleccionado"));
+      $("#saveExamBtn").addEventListener("click", () => toast("Exploración guardada localmente"));
+      $("#addMedBtn").addEventListener("click", () => { p.meds.push(["Ahora", "Nueva medicación simulada", "pending"]); renderDetail(p.id); toast("Medicación añadida"); });
+      $("#exportBtn").addEventListener("click", () => toast("Exportación simulada preparada"));
+      $("#quickPhotoBtn").addEventListener("click", () => $("#fileInput").click());
+      $("#quickIncidentBtn").addEventListener("click", () => toast("Nueva incidencia simulada"));
+      $("#protocolBtn").addEventListener("click", () => toast("Protocolos simulados abiertos"));
+      document.querySelectorAll("[data-jump-local]").forEach(btn => btn.addEventListener("click", () => {
+        document.getElementById(btn.dataset.jumpLocal)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }));
+    }
+    function setActiveTab() {
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", (t.dataset.id === selected) || (t.dataset.summary !== undefined && $("#summaryView").classList.contains("active"))));
+    }
+    function showSummary() {
+      $("#summaryView").classList.add("active");
+      $("#detailView").classList.remove("active");
+      renderSummary();
+      setActiveTab();
+    }
+    function showDetail(id) {
+      selected = id;
+      $("#summaryView").classList.remove("active");
+      $("#detailView").classList.add("active");
+      renderDetail(id);
+      setActiveTab();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    function cycleAlert(id) {
+      const p = patients.find(x => x.id === id);
+      p.alert = alertOrder[(alertOrder.indexOf(p.alert) + 1) % alertOrder.length];
+      if ($("#detailView").classList.contains("active")) renderDetail(p.id); else renderSummary();
+      toast("Nivel de alerta cambiado");
+    }
+    $("#summaryBtn").addEventListener("click", showSummary);
+    $("#themeBtn").addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      $("#themeBtn").textContent = document.body.classList.contains("dark") ? "Modo claro" : "Modo oscuro";
+    });
+    $("#exportTopBtn").addEventListener("click", () => toast("Exportación global simulada"));
+    document.querySelectorAll("[data-nav]").forEach(btn => btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-nav]").forEach(item => item.classList.remove("active"));
+      btn.classList.add("active");
+      if (btn.dataset.nav === "patients") showSummary();
+      if (btn.dataset.action === "register") {
+        if ($("#summaryView").classList.contains("active")) showDetail(selected);
+        setTimeout(() => document.getElementById("fotos")?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+        toast("Registrar nueva actuación");
+      }
+    }));
+    document.querySelectorAll("[data-jump]").forEach(btn => btn.addEventListener("click", () => {
+      if ($("#summaryView").classList.contains("active")) showDetail(selected);
+      setTimeout(() => document.getElementById(btn.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+    }));
+    renderTabs();
+    renderSummary();
+  </script>
+</body>
+</html>
