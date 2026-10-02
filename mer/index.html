@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <script defer src="goat.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Necesidades Energéticas | Ángel Soto</title>
+
+  <style>
+    :root{
+      --bg:#030712;
+      --bg2:#0b1120;
+      --panel:#0f172a;
+      --panel2:#111c34;
+      --soft:#172033;
+      --line:rgba(255,255,255,.08);
+      --line-strong:rgba(255,255,255,.14);
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --accent:#f59e0b;
+      --accent-2:#fb923c;
+      --good:#4ade80;
+      --danger:#f87171;
+      --blue:#60a5fa;
+      --violet:#a78bfa;
+      --input:#0b1222;
+      --shadow:0 22px 60px rgba(0,0,0,.45);
+      --radius:18px;
+      --radius-sm:12px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html{ scroll-behavior:smooth; }
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top, rgba(245,158,11,.10), transparent 24%),
+        radial-gradient(circle at 85% 20%, rgba(96,165,250,.08), transparent 18%),
+        linear-gradient(180deg, #020617 0%, #030712 50%, #000 100%);
+      min-height:100vh;
+      padding:24px;
+    }
+
+    .app{
+      max-width:1180px;
+      margin:0 auto;
+      display:flex;
+      flex-direction:column;
+      gap:20px;
+    }
+
+    .hero{
+      background:linear-gradient(145deg, rgba(15,23,42,.92), rgba(8,13,24,.92));
+      border:1px solid var(--line);
+      border-radius:26px;
+      padding:28px 24px 22px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(circle at top right, rgba(245,158,11,.18), transparent 26%),
+        radial-gradient(circle at left bottom, rgba(96,165,250,.12), transparent 22%);
+      pointer-events:none;
+    }
+
+    .hero-inner{
+      position:relative;
+      z-index:1;
+    }
+
+    .hero h1{
+      margin:0;
+      font-size:clamp(1.6rem, 3vw, 2.4rem);
+      line-height:1.08;
+      letter-spacing:.01em;
+    }
+
+    .hero p{
+      margin:.65rem 0 0;
+      color:var(--muted);
+      max-width:780px;
+      line-height:1.55;
+    }
+
+    .badge-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(245,158,11,.18);
+      background:rgba(245,158,11,.08);
+      color:#fde68a;
+      font-size:.88rem;
+      font-weight:600;
+    }
+
+    .dev-block{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      padding:14px 18px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:rgba(10,15,28,.82);
+      box-shadow:var(--shadow);
+    }
+
+    .dev-block .left{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .dev-block .title{
+      font-size:.95rem;
+      font-weight:700;
+    }
+
+    .dev-block .title span{
+      color:var(--accent);
+    }
+
+    .dev-block a{
+      color:var(--accent);
+      text-decoration:none;
+      font-size:.92rem;
+    }
+
+    .dev-block a:hover{ text-decoration:underline; }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:20px;
+    }
+
+    .card{
+      background:linear-gradient(155deg, rgba(15,23,42,.95), rgba(8,14,27,.96));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      min-width:0;
+    }
+
+    .card-header{
+      padding:18px 18px 14px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .card-header h2{
+      margin:0;
+      font-size:1.15rem;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .card-header p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+
+    .card-body{
+      padding:18px;
+      display:grid;
+      gap:16px;
+    }
+
+    .field-group{
+      display:grid;
+      gap:8px;
+    }
+
+    .field-group label{
+      font-size:.9rem;
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    .field-group input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:var(--input);
+      color:var(--text);
+      border:1px solid var(--line-strong);
+      border-radius:12px;
+      padding:14px 14px;
+      font-size:1rem;
+      transition:.2s ease;
+      -moz-appearance:textfield;
+    }
+
+    .field-group input::-webkit-inner-spin-button,
+    .field-group input::-webkit-outer-spin-button{
+      -webkit-appearance:none;
+      margin:0;
+    }
+
+    .field-group input:focus{
+      border-color:rgba(245,158,11,.85);
+      box-shadow:0 0 0 3px rgba(245,158,11,.12);
+      background:#0c1528;
+    }
+
+    .bcs-box{
+      display:grid;
+      gap:8px;
+    }
+
+    .bcs-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .bcs-title span{
+      color:var(--muted);
+      font-size:.9rem;
+      font-weight:600;
+    }
+
+    .bcs-grid{
+      display:grid;
+      grid-template-columns:repeat(9, 1fr);
+      gap:8px;
+    }
+
+    .bcs-item{
+      appearance:none;
+      border:1px solid var(--line-strong);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      color:var(--text);
+      border-radius:12px;
+      min-height:52px;
+      font-weight:800;
+      font-size:.98rem;
+      cursor:pointer;
+      transition:.16s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+      margin:0;
+      width:100%;
+      box-shadow:none;
+    }
+
+    .bcs-item:hover{
+      transform:translateY(-1px);
+      border-color:rgba(245,158,11,.42);
+      background:rgba(245,158,11,.08);
+    }
+
+    .bcs-item.active{
+      color:#111827;
+      background:linear-gradient(180deg, #fbbf24, #f59e0b);
+      border-color:#fed7aa;
+      box-shadow:0 10px 26px rgba(245,158,11,.28);
+    }
+
+    .bcs-helper{
+      font-size:.86rem;
+      color:var(--muted);
+      min-height:1.5em;
+    }
+
+    .bcs-helper strong{ color:var(--accent); }
+
+    .btn-row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:999px;
+      font-weight:800;
+      padding:13px 16px;
+      font-size:.96rem;
+      transition:.16s ease;
+    }
+
+    .btn-primary{
+      background:linear-gradient(135deg, #fbbf24, #f97316);
+      color:#111827;
+      box-shadow:0 16px 34px rgba(249,115,22,.22);
+    }
+
+    .btn-secondary{
+      background:linear-gradient(135deg, rgba(96,165,250,.18), rgba(167,139,250,.18));
+      color:#dbeafe;
+      border:1px solid rgba(96,165,250,.25);
+    }
+
+    button:hover{ transform:translateY(-1px); }
+    button:active{ transform:translateY(0); }
+
+    .results{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+
+    .result{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:rgba(15,23,42,.55);
+      padding:14px;
+      min-height:90px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:8px;
+    }
+
+    .result .k{
+      font-size:.82rem;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .result .v{
+      font-size:1.15rem;
+      font-weight:800;
+      color:var(--text);
+    }
+
+    .result .v.accent{ color:var(--accent); }
+    .result .v.good{ color:var(--good); }
+    .result .v.blue{ color:var(--blue); }
+
+    .info-block{
+      border:1px dashed rgba(245,158,11,.25);
+      border-radius:14px;
+      background:rgba(245,158,11,.06);
+      padding:12px 14px;
+      color:#fef3c7;
+      font-size:.88rem;
+      line-height:1.55;
+    }
+
+    .owner-sheet{
+      display:none;
+      background:#fff;
+      color:#111827;
+      border-radius:20px;
+      padding:28px;
+      border:1px solid #e5e7eb;
+      box-shadow:var(--shadow);
+    }
+
+    .owner-sheet.show{
+      display:block;
+    }
+
+    .sheet-top{
+      display:flex;
+      justify-content:space-between;
+      gap:20px;
+      flex-wrap:wrap;
+      border-bottom:2px solid #e5e7eb;
+      padding-bottom:14px;
+      margin-bottom:18px;
+    }
+
+    .sheet-top h2{
+      margin:0;
+      font-size:1.45rem;
+      color:#111827;
+    }
+
+    .sheet-top p{
+      margin:5px 0 0;
+      color:#4b5563;
+      line-height:1.45;
+    }
+
+    .sheet-meta{
+      text-align:right;
+      font-size:.92rem;
+      color:#374151;
+    }
+
+    .sheet-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .sheet-box{
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      padding:14px 16px;
+    }
+
+    .sheet-box h3{
+      margin:0 0 10px;
+      font-size:1rem;
+      color:#92400e;
+    }
+
+    .sheet-box p{
+      margin:7px 0;
+      line-height:1.5;
+    }
+
+    .sheet-box strong{
+      color:#111827;
+    }
+
+    .chart-wrap{
+      margin-top:14px;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      padding:16px;
+      background:#fff;
+    }
+
+    .chart-wrap h3{
+      margin:0 0 10px;
+      color:#111827;
+      font-size:1rem;
+    }
+
+    .chart-note{
+      font-size:.88rem;
+      color:#4b5563;
+      margin-bottom:12px;
+      line-height:1.45;
+    }
+
+    #printChart{
+      width:100%;
+      height:auto;
+      display:block;
+      background:#fff;
+      border-radius:10px;
+    }
+
+    .sheet-footer{
+      margin-top:16px;
+      font-size:.85rem;
+      color:#4b5563;
+      line-height:1.55;
+      border-top:1px solid #e5e7eb;
+      padding-top:12px;
+    }
+
+    .print-actions{
+      display:flex;
+      justify-content:flex-end;
+      margin-top:14px;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .print-actions button{
+      min-width:210px;
+    }
+
+    .footer{
+      border-top:1px solid var(--line);
+      padding-top:18px;
+      color:var(--muted);
+      font-size:.86rem;
+      line-height:1.6;
+      text-align:center;
+    }
+
+    .footer a{
+      color:var(--accent);
+      text-decoration:none;
+    }
+
+    .footer a:hover{
+      text-decoration:underline;
+    }
+
+    @media (max-width: 980px){
+      .grid,
+      .sheet-grid,
+      .results,
+      .btn-row{
+        grid-template-columns:1fr;
+      }
+
+      .bcs-grid{
+        grid-template-columns:repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 680px){
+      body{ padding:14px; }
+
+      .hero,
+      .card-body,
+      .card-header,
+      .owner-sheet{
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .sheet-top{
+        flex-direction:column;
+      }
+
+      .sheet-meta{
+        text-align:left;
+      }
+    }
+
+    @media print{
+      body{
+        background:#fff !important;
+        padding:0;
+      }
+
+      .hero,
+      .dev-block,
+      .grid,
+      .footer,
+      .print-actions{
+        display:none !important;
+      }
+
+      .owner-sheet{
+        display:block !important;
+        box-shadow:none;
+        border:none;
+        border-radius:0;
+        padding:0;
+        margin:0;
+      }
+
+      @page{
+        size:A4 portrait;
+        margin:16mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-inner">
+        <h1>Calculadora de Necesidades Energéticas</h1>
+        <p>
+          Herramienta para estimar peso ideal, requerimiento energético, gramos diarios de pienso
+          y velocidad esperada de pérdida de peso en perros y gatos con sobrepeso.
+        </p>
+        <div class="badge-row">
+          <div class="badge">🐶 Perros</div>
+          <div class="badge">🐱 Gatos</div>
+          <div class="badge">🖨️ Hoja imprimible para propietario</div>
+          <div class="badge">📉 Gráfico cronológico de pérdida de peso</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="dev-block">
+      <div class="left">
+        <div class="title"><span>Desarrollado por: Ángel Soto</span> — DVM, PhD</div>
+        <a href="https://airsoto.github.io/vet/" target="_blank" rel="noopener">🏠 volver a página de inicio</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- PERRO -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>🐶 Perros</h2>
+            <p>Cálculo de peso ideal, kcal/día, gramos de pienso y objetivo de pérdida de peso.</p>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="field-group">
+            <label for="pesoCorporal">Peso corporal actual (kg)</label>
+            <input type="number" id="pesoCorporal" min="0" step="0.1" placeholder="Ej. 32.4">
+          </div>
+
+          <div class="bcs-box">
+            <div class="bcs-title">
+              <span>Condición corporal (1 muy delgado — 9 muy obeso)</span>
+            </div>
+            <div class="bcs-grid" id="bcsPerro"></div>
+            <div class="bcs-helper" id="bcsLabelPerro">Selecciona la condición corporal.</div>
+            <input type="hidden" id="condicionCorporal" value="5">
+          </div>
+
+          <div class="field-group">
+            <label for="kcalPienso">Densidad energética del pienso (kcal/kg)</label>
+            <input type="number" id="kcalPienso" min="1" step="1" placeholder="Ej. 3200">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-primary" onclick="calcular('perro')">Calcular perro</button>
+            <button class="btn-secondary" onclick="generarHojaPropietario('perro')">Generar hoja imprimible</button>
+          </div>
+
+          <div class="results">
+            <div class="result">
+              <div class="k">Peso ideal estimado</div>
+              <div class="v accent" id="pesoIdeal">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Exceso de peso estimado</div>
+              <div class="v" id="excesoPeso">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Necesidades energéticas para adelgazamiento</div>
+              <div class="v good" id="MER">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Pienso diario durante adelgazamiento</div>
+              <div class="v blue" id="gramosPienso">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Rango de pérdida de peso por semana</div>
+              <div class="v" id="rangoPerdida">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Pienso diario de mantenimiento al alcanzar peso ideal</div>
+              <div class="v" id="mantenimientoPerro">—</div>
+            </div>
+          </div>
+
+          <div class="info-block">
+            En la hoja imprimible se mostrará además una proyección cronológica con dos curvas:
+            pérdida lenta y pérdida rápida, con fechas estimadas de llegada al peso ideal.
+          </div>
+        </div>
+      </section>
+
+      <!-- GATO -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>🐱 Gatos</h2>
+            <p>Cálculo de peso ideal, kcal/día, gramos de pienso y objetivo de pérdida de peso.</p>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="field-group">
+            <label for="pesoCorporalGato">Peso corporal actual (kg)</label>
+            <input type="number" id="pesoCorporalGato" min="0" step="0.1" placeholder="Ej. 7.2">
+          </div>
+
+          <div class="bcs-box">
+            <div class="bcs-title">
+              <span>Condición corporal (1 muy delgado — 9 muy obeso)</span>
+            </div>
+            <div class="bcs-grid" id="bcsGato"></div>
+            <div class="bcs-helper" id="bcsLabelGato">Selecciona la condición corporal.</div>
+            <input type="hidden" id="condicionCorporalGato" value="5">
+          </div>
+
+          <div class="field-group">
+            <label for="kcalPiensoGato">Densidad energética del pienso (kcal/kg)</label>
+            <input type="number" id="kcalPiensoGato" min="1" step="1" placeholder="Ej. 3600">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-primary" onclick="calcular('gato')">Calcular gato</button>
+            <button class="btn-secondary" onclick="generarHojaPropietario('gato')">Generar hoja imprimible</button>
+          </div>
+
+          <div class="results">
+            <div class="result">
+              <div class="k">Peso ideal estimado</div>
+              <div class="v accent" id="pesoIdealGato">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Exceso de peso estimado</div>
+              <div class="v" id="excesoPesoGato">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Necesidades energéticas para adelgazamiento</div>
+              <div class="v good" id="MERGato">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Pienso diario durante adelgazamiento</div>
+              <div class="v blue" id="gramosPiensoGato">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Rango de pérdida de peso por semana</div>
+              <div class="v" id="rangoPerdidaGato">—</div>
+            </div>
+            <div class="result">
+              <div class="k">Pienso diario de mantenimiento al alcanzar peso ideal</div>
+              <div class="v" id="mantenimientoGato">—</div>
+            </div>
+          </div>
+
+          <div class="info-block">
+            Para la hoja del propietario se generará un plan imprimible con peso actual, peso ideal,
+            kcal/día, gramos/día, rango semanal de pérdida y gráfica temporal.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- HOJA PROPIETARIO -->
+    <section class="owner-sheet" id="ownerSheet">
+      <div class="sheet-top">
+        <div>
+          <h2 id="sheetTitle">Plan de control de peso</h2>
+          <p id="sheetSubtitle">Resumen imprimible para el propietario.</p>
+        </div>
+        <div class="sheet-meta" id="sheetMeta"></div>
+      </div>
+
+      <div class="sheet-grid">
+        <div class="sheet-box">
+          <h3>Datos principales</h3>
+          <p><strong>Peso actual:</strong> <span id="sheetPesoActual">—</span></p>
+          <p><strong>Condición corporal:</strong> <span id="sheetBCS">—</span></p>
+          <p><strong>Peso ideal estimado:</strong> <span id="sheetPesoIdeal">—</span></p>
+          <p><strong>Exceso de peso estimado:</strong> <span id="sheetExceso">—</span></p>
+        </div>
+
+        <div class="sheet-box">
+          <h3>Plan nutricional</h3>
+          <p><strong>Kcal/día durante adelgazamiento:</strong> <span id="sheetKcal">—</span></p>
+          <p><strong>Pienso al día durante adelgazamiento:</strong> <span id="sheetGramos">—</span></p>
+          <p><strong>Pienso de mantenimiento al alcanzar el peso ideal:</strong> <span id="sheetMantenimiento">—</span></p>
+          <p><strong>Densidad energética usada:</strong> <span id="sheetDensidad">—</span></p>
+        </div>
+
+        <div class="sheet-box">
+          <h3>Velocidad prevista de pérdida</h3>
+          <p><strong>Pérdida lenta:</strong> <span id="sheetPerdidaLenta">—</span></p>
+          <p><strong>Pérdida rápida:</strong> <span id="sheetPerdidaRapida">—</span></p>
+          <p><strong>Fecha estimada de llegada (lenta):</strong> <span id="sheetFechaLenta">—</span></p>
+          <p><strong>Fecha estimada de llegada (rápida):</strong> <span id="sheetFechaRapida">—</span></p>
+        </div>
+
+        <div class="sheet-box">
+          <h3>Notas</h3>
+          <p id="sheetNotas">
+            Estas cifras son orientativas y deben ajustarse según evolución clínica, revisiones de peso,
+            actividad, apetito y condición corporal.
+          </p>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <h3>Proyección cronológica de pérdida de peso</h3>
+        <div class="chart-note">
+          El gráfico parte de la fecha actual con el peso actual y muestra dos trayectorias:
+          una curva de pérdida lenta y otra de pérdida rápida hasta el peso ideal.
+        </div>
+        <canvas id="printChart" width="1100" height="520"></canvas>
+      </div>
+
+      <div class="sheet-footer">
+        Recomendación orientativa para seguimiento: controles periódicos de peso y reevaluación del plan
+        si la pérdida es demasiado lenta, demasiado rápida o si cambian las necesidades clínicas del paciente.
+      </div>
+
+      <div class="print-actions">
+        <button class="btn-secondary" onclick="window.print()">🖨️ Imprimir hoja</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Creado por: Angel Soto DVM PhD (<a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a>)</p>
+      <p><strong>Si te ha gustado este proyecto y quieres invitarme a un café, puedes hacerlo aquí:</strong></p>
+      <p><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer"><strong>BUY ME A COFFEE</strong></a></p>
+      <p><strong>Proyectos con licencia WTFPL</strong> (no aplica para las aplicaciones móviles MnemoVetDDX)</p>
+    </footer>
+  </div>
+
+  <script>
+    const estado = {
+      perro: null,
+      gato: null
+    };
+
+    function descripcionBCS(valor) {
+      if (valor <= 2) return "muy delgado";
+      if (valor === 3) return "delgado";
+      if (valor === 4) return "ligeramente delgado";
+      if (valor === 5) return "peso ideal";
+      if (valor === 6) return "ligero sobrepeso";
+      if (valor === 7) return "sobrepeso moderado";
+      if (valor === 8) return "obeso";
+      if (valor === 9) return "obesidad marcada";
+      return "";
+    }
+
+    function construirBCS(tipo) {
+      const contenedor = document.getElementById(tipo === "perro" ? "bcsPerro" : "bcsGato");
+      contenedor.innerHTML = "";
+
+      for (let i = 1; i <= 9; i++) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "bcs-item";
+        btn.dataset.value = i;
+        btn.textContent = i;
+        btn.addEventListener("click", () => setBCS(tipo, i));
+        contenedor.appendChild(btn);
+      }
+    }
+
+    function setBCS(tipo, valor) {
+      const hiddenId = tipo === "perro" ? "condicionCorporal" : "condicionCorporalGato";
+      const scaleId = tipo === "perro" ? "bcsPerro" : "bcsGato";
+      const labelId = tipo === "perro" ? "bcsLabelPerro" : "bcsLabelGato";
+
+      document.getElementById(hiddenId).value = valor;
+
+      document.querySelectorAll(`#${scaleId} .bcs-item`).forEach(el => {
+        el.classList.toggle("active", parseInt(el.dataset.value, 10) === valor);
+      });
+
+      document.getElementById(labelId).innerHTML =
+        `Condición corporal: <strong>${valor}/9 — ${descripcionBCS(valor)}</strong>`;
+    }
+
+    function redondear(valor, dec = 2) {
+      return Number(valor).toFixed(dec);
+    }
+
+    function formatearFecha(fecha) {
+      return fecha.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    }
+
+    function sumarDias(fecha, dias) {
+      const f = new Date(fecha);
+      f.setDate(f.getDate() + dias);
+      return f;
+    }
+
+    function calcularPesoIdeal(pesoCorporal, condicionCorporal) {
+      const sobrepesoPorPunto = 0.10;
+      const desviacion = condicionCorporal - 5;
+      const pesoIdeal = pesoCorporal - (pesoCorporal * (sobrepesoPorPunto * desviacion));
+      return Math.max(pesoIdeal, pesoCorporal * 0.4);
+    }
+
+    function calcular(tipo) {
+      const esPerro = tipo === "perro";
+
+      const ids = esPerro ? {
+        peso: "pesoCorporal",
+        bcs: "condicionCorporal",
+        kcal: "kcalPienso",
+        pesoIdeal: "pesoIdeal",
+        exceso: "excesoPeso",
+        mer: "MER",
+        gramos: "gramosPienso",
+        rango: "rangoPerdida",
+        mantenimiento: "mantenimientoPerro"
+      } : {
+        peso: "pesoCorporalGato",
+        bcs: "condicionCorporalGato",
+        kcal: "kcalPiensoGato",
+        pesoIdeal: "pesoIdealGato",
+        exceso: "excesoPesoGato",
+        mer: "MERGato",
+        gramos: "gramosPiensoGato",
+        rango: "rangoPerdidaGato",
+        mantenimiento: "mantenimientoGato"
+      };
+
+      const pesoCorporal = parseFloat(document.getElementById(ids.peso).value);
+      const condicionCorporal = parseFloat(document.getElementById(ids.bcs).value);
+      const kcalPienso = parseFloat(document.getElementById(ids.kcal).value);
+
+      if (isNaN(pesoCorporal) || pesoCorporal <= 0 || isNaN(condicionCorporal) || isNaN(kcalPienso) || kcalPienso <= 0) {
+        alert("Por favor, rellena peso, condición corporal y kcal/kg del pienso.");
+        return null;
+      }
+
+      const pesoIdeal = calcularPesoIdeal(pesoCorporal, condicionCorporal);
+      const excesoPeso = Math.max(0, pesoCorporal - pesoIdeal);
+
+      let MER;
+      if (esPerro) {
+        MER = 0.8 * 70 * Math.pow(pesoIdeal, 0.75);
+      } else {
+        if (condicionCorporal >= 8) {
+          MER = 35 * pesoIdeal;
+        } else if (condicionCorporal >= 6) {
+          MER = 30 * pesoIdeal;
+        } else {
+          MER = 0.8 * 70 * Math.pow(pesoIdeal, 0.75);
+        }
+      }
+
+      const gramosPienso = (MER / kcalPienso) * 1000;
+
+      const perdidaMinPct = esPerro ? 0.01 : 0.005;
+      const perdidaMaxPct = esPerro ? 0.02 : 0.01;
+
+      const perdidaMinKgSemana = pesoCorporal * perdidaMinPct;
+      const perdidaMaxKgSemana = pesoCorporal * perdidaMaxPct;
+
+      const mantenimientoKcal = 70 * Math.pow(pesoIdeal, 0.75) * 1;
+      const gramosMantenimiento = (mantenimientoKcal / kcalPienso) * 1000;
+
+      document.getElementById(ids.pesoIdeal).textContent = `${redondear(pesoIdeal)} kg`;
+      document.getElementById(ids.exceso).textContent = `${redondear(excesoPeso)} kg`;
+      document.getElementById(ids.mer).textContent = `${redondear(MER, 0)} kcal/día`;
+      document.getElementById(ids.gramos).textContent = `${redondear(gramosPienso, 0)} g/día`;
+      document.getElementById(ids.rango).textContent =
+        `${redondear(perdidaMinKgSemana * 1000, 0)} - ${redondear(perdidaMaxKgSemana * 1000, 0)} g/semana`;
+      document.getElementById(ids.mantenimiento).textContent = `${redondear(gramosMantenimiento, 0)} g/día`;
+
+      const semanasLenta = excesoPeso > 0 ? excesoPeso / perdidaMinKgSemana : 0;
+      const semanasRapida = excesoPeso > 0 ? excesoPeso / perdidaMaxKgSemana : 0;
+
+      const hoy = new Date();
+      const fechaLenta = sumarDias(hoy, Math.ceil(semanasLenta * 7));
+      const fechaRapida = sumarDias(hoy, Math.ceil(semanasRapida * 7));
+
+      const datos = {
+        tipo,
+        especie: esPerro ? "Perro" : "Gato",
+        pesoActual: pesoCorporal,
+        bcs: condicionCorporal,
+        pesoIdeal,
+        excesoPeso,
+        kcalPienso,
+        merAdelgazamiento: MER,
+        gramosAdelgazamiento: gramosPienso,
+        mantenimientoKcal,
+        gramosMantenimiento,
+        perdidaMinKgSemana,
+        perdidaMaxKgSemana,
+        semanasLenta,
+        semanasRapida,
+        fechaLenta,
+        fechaRapida,
+        fechaBase: hoy
+      };
+
+      estado[tipo] = datos;
+      return datos;
+    }
+
+    function generarHojaPropietario(tipo) {
+      const datos = calcular(tipo);
+      if (!datos) return;
+
+      const sheet = document.getElementById("ownerSheet");
+      sheet.classList.add("show");
+
+      const lentaTxt = `${redondear(datos.perdidaMinKgSemana * 1000, 0)} g/semana`;
+      const rapidaTxt = `${redondear(datos.perdidaMaxKgSemana * 1000, 0)} g/semana`;
+
+      document.getElementById("sheetTitle").textContent = `Plan de control de peso — ${datos.especie}`;
+      document.getElementById("sheetSubtitle").textContent =
+        `Hoja orientativa para seguimiento nutricional y control progresivo de peso.`;
+
+      document.getElementById("sheetMeta").innerHTML = `
+        <div><strong>Fecha de emisión:</strong> ${formatearFecha(datos.fechaBase)}</div>
+        <div><strong>Paciente:</strong> ____________________</div>
+        <div><strong>Propietario/a:</strong> ____________________</div>
+      `;
+
+      document.getElementById("sheetPesoActual").textContent = `${redondear(datos.pesoActual)} kg`;
+      document.getElementById("sheetBCS").textContent = `${datos.bcs}/9 — ${descripcionBCS(datos.bcs)}`;
+      document.getElementById("sheetPesoIdeal").textContent = `${redondear(datos.pesoIdeal)} kg`;
+      document.getElementById("sheetExceso").textContent = `${redondear(datos.excesoPeso)} kg`;
+
+      document.getElementById("sheetKcal").textContent = `${redondear(datos.merAdelgazamiento, 0)} kcal/día`;
+      document.getElementById("sheetGramos").textContent = `${redondear(datos.gramosAdelgazamiento, 0)} g/día`;
+      document.getElementById("sheetMantenimiento").textContent =
+        `${redondear(datos.gramosMantenimiento, 0)} g/día (${redondear(datos.mantenimientoKcal, 0)} kcal/día)`;
+      document.getElementById("sheetDensidad").textContent = `${redondear(datos.kcalPienso, 0)} kcal/kg`;
+
+      document.getElementById("sheetPerdidaLenta").textContent = lentaTxt;
+      document.getElementById("sheetPerdidaRapida").textContent = rapidaTxt;
+      document.getElementById("sheetFechaLenta").textContent = formatearFecha(datos.fechaLenta);
+      document.getElementById("sheetFechaRapida").textContent = formatearFecha(datos.fechaRapida);
+
+      document.getElementById("sheetNotas").innerHTML = `
+        Durante la fase de adelgazamiento se estima una pauta de <strong>${redondear(datos.gramosAdelgazamiento, 0)} g/día</strong>.
+        Al alcanzar el peso ideal, la pauta orientativa de mantenimiento sería de
+        <strong>${redondear(datos.gramosMantenimiento, 0)} g/día</strong>, calculada con un factor energético de mantenimiento
+        de <strong>70 × peso<sup>0.75</sup> × 1</strong>.
+      `;
+
+      dibujarGrafico(datos);
+      sheet.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function dibujarGrafico(datos) {
+      const canvas = document.getElementById("printChart");
+      const ctx = canvas.getContext("2d");
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const pad = { top: 40, right: 60, bottom: 70, left: 80 };
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+
+      const maxSemanas = Math.max(
+        Math.ceil(datos.semanasLenta),
+        Math.ceil(datos.semanasRapida),
+        1
+      );
+
+      const yMax = Math.max(datos.pesoActual, datos.pesoIdeal) * 1.05;
+      const yMin = Math.max(0, datos.pesoIdeal * 0.95);
+
+      const x0 = pad.left;
+      const y0 = H - pad.bottom;
+      const chartW = W - pad.left - pad.right;
+      const chartH = H - pad.top - pad.bottom;
+
+      function xScale(semana) {
+        return x0 + (semana / maxSemanas) * chartW;
+      }
+
+      function yScale(peso) {
+        return y0 - ((peso - yMin) / (yMax - yMin)) * chartH;
+      }
+
+      // grid
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= 5; i++) {
+        const y = pad.top + (chartH / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x0 + chartW, y);
+        ctx.stroke();
+
+        const pesoTick = yMax - ((y - pad.top) / chartH) * (yMax - yMin);
+        ctx.fillStyle = "#4b5563";
+        ctx.font = "13px system-ui";
+        ctx.textAlign = "right";
+        ctx.fillText(`${pesoTick.toFixed(1)} kg`, x0 - 10, y + 4);
+      }
+
+      const marcasX = Math.min(maxSemanas, 10);
+      for (let i = 0; i <= marcasX; i++) {
+        const semana = (maxSemanas / marcasX) * i;
+        const x = xScale(semana);
+
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, y0);
+        ctx.stroke();
+
+        const fecha = sumarDias(datos.fechaBase, Math.round(semana * 7));
+        ctx.save();
+        ctx.translate(x, y0 + 18);
+        ctx.rotate(-0.28);
+        ctx.fillStyle = "#4b5563";
+        ctx.font = "12px system-ui";
+        ctx.textAlign = "right";
+        ctx.fillText(formatearFecha(fecha), 0, 0);
+        ctx.restore();
+      }
+
+      // axes
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x0, pad.top);
+      ctx.lineTo(x0, y0);
+      ctx.lineTo(x0 + chartW, y0);
+      ctx.stroke();
+
+      // ideal line
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = "#9ca3af";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x0, yScale(datos.pesoIdeal));
+      ctx.lineTo(x0 + chartW, yScale(datos.pesoIdeal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#374151";
+      ctx.font = "bold 13px system-ui";
+      ctx.textAlign = "left";
+      ctx.fillText(`Peso ideal: ${datos.pesoIdeal.toFixed(2)} kg`, x0 + 8, yScale(datos.pesoIdeal) - 8);
+
+      // curve generator
+      function pesoEnSemana(rateKgSemana, semana) {
+        const peso = datos.pesoActual - rateKgSemana * semana;
+        return Math.max(datos.pesoIdeal, peso);
+      }
+
+      function trazar(rate, color, label, semanasFinales, fechaFinal) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+
+        for (let s = 0; s <= semanasFinales; s += 0.1) {
+          const peso = pesoEnSemana(rate, s);
+          const x = xScale(s);
+          const y = yScale(peso);
+          if (s === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        const xFin = xScale(semanasFinales);
+        const yFin = yScale(datos.pesoIdeal);
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(xFin, yFin, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = color;
+        ctx.font = "bold 13px system-ui";
+        ctx.textAlign = "left";
+        ctx.fillText(label, xFin - 110, yFin - 12);
+
+        ctx.font = "12px system-ui";
+        ctx.fillText(`Meta: ${formatearFecha(fechaFinal)}`, xFin - 110, yFin + 8);
+      }
+
+      // current point
+      ctx.fillStyle = "#111827";
+      ctx.beginPath();
+      ctx.arc(xScale(0), yScale(datos.pesoActual), 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.font = "bold 13px system-ui";
+      ctx.textAlign = "left";
+      ctx.fillText(`Inicio: ${datos.pesoActual.toFixed(2)} kg`, xScale(0) + 10, yScale(datos.pesoActual) - 10);
+      ctx.font = "12px system-ui";
+      ctx.fillText(formatearFecha(datos.fechaBase), xScale(0) + 10, yScale(datos.pesoActual) + 8);
+
+      trazar(
+        datos.perdidaMinKgSemana,
+        "#2563eb",
+        `Pérdida lenta (${(datos.perdidaMinKgSemana * 1000).toFixed(0)} g/sem)`,
+        datos.semanasLenta,
+        datos.fechaLenta
+      );
+
+      trazar(
+        datos.perdidaMaxKgSemana,
+        "#dc2626",
+        `Pérdida rápida (${(datos.perdidaMaxKgSemana * 1000).toFixed(0)} g/sem)`,
+        datos.semanasRapida,
+        datos.fechaRapida
+      );
+
+      // axis labels
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("Tiempo", x0 + chartW / 2, H - 18);
+
+      ctx.save();
+      ctx.translate(22, pad.top + chartH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Peso corporal (kg)", 0, 0);
+      ctx.restore();
+
+      // note inside chart
+      ctx.textAlign = "right";
+      ctx.font = "12px system-ui";
+      ctx.fillStyle = "#374151";
+      ctx.fillText(
+        `Pienso al alcanzar peso ideal: ${datos.gramosMantenimiento.toFixed(0)} g/día`,
+        W - 12,
+        22
+      );
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      construirBCS("perro");
+      construirBCS("gato");
+      setBCS("perro", 5);
+      setBCS("gato", 5);
+    });
+  </script>
+</body>
+</html>
