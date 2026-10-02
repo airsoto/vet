@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ecos del Bucle · Puzzle temporal</title>
+  <style>
+    :root{--bg:#080b12;--panel:#111827;--panel2:#172033;--line:#314158;--ink:#eef5ff;--muted:#9fb0c8;--cyan:#66e3ff;--violet:#9e8cff;--gold:#ffd166;--red:#ff6b82;--green:#6ee7b7}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% -15%,#25365d 0,#080b12 46%);color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif;min-height:100svh}
+    button{font:inherit;color:inherit;touch-action:manipulation}.app{width:min(100%,820px);margin:auto;padding:calc(14px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom))}
+    header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.eyebrow{color:var(--cyan);font-size:.72rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase}.title{font-size:clamp(1.5rem,6vw,2.25rem);font-weight:900;letter-spacing:-.05em;margin:.14em 0}.subtitle{margin:0;color:var(--muted);font-size:.88rem;line-height:1.35}.icon-btn,.tiny-btn{border:1px solid var(--line);background:#0d1320;border-radius:12px;padding:.65rem .8rem;cursor:pointer}.icon-btn{font-size:1.1rem}.tiny-btn{font-size:.76rem;padding:.45rem .6rem;color:var(--muted)}
+    .status{display:grid;grid-template-columns:1.15fr .85fr .85fr;gap:8px;margin:12px 0}.stat{background:linear-gradient(145deg,#18243a,#101724);border:1px solid var(--line);border-radius:15px;padding:10px 11px;min-height:66px}.stat small{display:block;color:var(--muted);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}.stat strong{display:block;font-size:1.3rem;margin-top:2px}.timerbar{height:6px;border-radius:10px;background:#07101c;overflow:hidden;margin-top:8px}.timerbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .1s linear}
+    .tower{background:rgba(11,16,27,.78);border:1px solid var(--line);border-radius:23px;padding:12px;box-shadow:0 24px 70px #0007;min-height:510px}.map{display:flex;gap:5px;overflow:auto;padding:1px 1px 10px;scrollbar-width:none}.map::-webkit-scrollbar{display:none}.floor-dot{flex:0 0 34px;height:34px;border-radius:10px;background:#131b2a;border:1px solid #2a3549;color:var(--muted);font-size:.75rem;font-weight:800;display:grid;place-items:center}.floor-dot.current{background:var(--cyan);color:#07111b;border-color:#b8f5ff;box-shadow:0 0 18px #66e3ff88}.floor-dot.done{color:var(--gold);border-color:#8f7640}.floor-dot.locked{opacity:.45}
+    .room-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 2px 9px}.room-head h2{font-size:1.1rem;margin:0}.room-head p{color:var(--muted);font-size:.77rem;margin:.2rem 0 0}.room{position:relative;min-height:405px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#17253a 0,#111827 58%,#19152d 100%);border:1px solid #394a66}.grid{position:absolute;inset:0;opacity:.25;background-image:linear-gradient(#7792b522 1px,transparent 1px),linear-gradient(90deg,#7792b522 1px,transparent 1px);background-size:32px 32px;transform:skewY(-5deg) scale(1.12)}
+    .room-copy{position:relative;padding:18px;max-width:80%;z-index:1}.room-copy .tag{display:inline-block;color:var(--cyan);border:1px solid #66e3ff55;border-radius:999px;padding:4px 8px;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em}.room-copy h3{font-size:clamp(1.3rem,5vw,1.75rem);line-height:1.05;letter-spacing:-.04em;margin:.55rem 0 .35rem}.room-copy p{font-size:.88rem;line-height:1.4;color:var(--muted);margin:0}
+    .objects{position:absolute;inset:0;z-index:2}.object{position:absolute;border:1px solid #667794;border-radius:14px;background:#18243ad9;min-width:78px;min-height:58px;padding:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:0 6px 15px #0005;cursor:pointer;user-select:none;transition:transform .14s,background .14s,border-color .14s;touch-action:none}.object:active{transform:scale(.94)}.object .glyph{font-size:1.35rem;line-height:1}.object .label{font-size:.65rem;line-height:1;text-align:center;font-weight:800}.object .hint{font-size:.56rem;color:var(--muted)}.object.active,.object.ready{border-color:var(--cyan);background:#17516b;box-shadow:0 0 19px #66e3ff66}.object.hold{border-color:var(--violet);background:#382a67}.object.disabled{opacity:.38;filter:grayscale(1);cursor:not-allowed}.object.collectible{border-radius:50%;min-width:42px;min-height:42px;width:42px;height:42px;background:#302b14;border-color:#ab8d35}.object.collectible.collected{opacity:.25;transform:scale(.75)}
+    .stairs{position:absolute;z-index:3;right:18px;bottom:17px;border:1px solid #7ae9ff;background:linear-gradient(135deg,#176176,#263e89);border-radius:16px;padding:10px 14px;cursor:pointer;font-weight:900;box-shadow:0 0 24px #66e3ff4d}.stairs.disabled{opacity:.35;filter:grayscale(1);pointer-events:none}.stairs.down{right:auto;left:18px;background:#202b3d;border-color:#53647e}.ghosts{position:absolute;bottom:16px;left:14px;display:flex;gap:5px;z-index:3}.ghost{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#443b72;color:#dcd4ff;border:1px solid #a497ff;font-size:.65rem;font-weight:900;box-shadow:0 0 12px #9e8cff55}.ghost.holding{background:#198b80;border-color:#78ffe0;color:#041817}.active-cursor{position:absolute;z-index:4;width:28px;height:28px;display:grid;place-items:center;border-radius:50% 50% 50% 4px;background:var(--cyan);color:#04151d;font-weight:900;box-shadow:0 0 22px #66e3ff;pointer-events:none;transform:translate(-40%,-65%);transition:left .06s,top .06s}.pulse{position:absolute;z-index:1;width:14px;height:14px;border-radius:50%;background:#9e8cff99;animation:pulse .7s ease-out forwards;pointer-events:none}@keyframes pulse{to{transform:scale(5);opacity:0}}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:11px}.nav{display:flex;gap:8px;flex:1}.nav button,.start{border:1px solid var(--line);border-radius:13px;padding:.8rem .9rem;background:#162235;font-weight:800;cursor:pointer;flex:1}.start{background:linear-gradient(135deg,#4fd7ed,#7271e9);border:none;color:#071019;max-width:155px}.nav button:disabled{opacity:.35}.legend{display:flex;flex-wrap:wrap;gap:7px;margin:12px 2px 0;color:var(--muted);font-size:.71rem}.legend span{display:flex;align-items:center;gap:4px}.dot{width:8px;height:8px;border-radius:50%;display:inline-block}.how{margin-top:13px;padding:13px 14px;border:1px solid #263650;background:#0d1422b5;border-radius:16px;color:var(--muted);font-size:.79rem;line-height:1.42}.how strong{color:var(--ink)}
+    dialog{max-width:min(94vw,470px);border:1px solid #49617f;border-radius:22px;background:#111a2a;color:var(--ink);padding:0;box-shadow:0 25px 90px #000a}.modal{padding:23px}.modal h2{margin:0 0 .5rem;font-size:1.6rem}.modal p{line-height:1.45;color:var(--muted)}.modal ul{padding-left:1.1rem;line-height:1.45;color:var(--muted);font-size:.9rem}.modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:17px}.modal button{border:0;border-radius:12px;padding:.75rem 1rem;background:var(--cyan);color:#06111c;font-weight:900;cursor:pointer}.modal button.secondary{background:#253249;color:var(--ink)}
+    @media (max-width:520px){.app{padding-left:10px;padding-right:10px}.status{gap:6px}.stat{padding:8px}.stat strong{font-size:1.13rem}.tower{padding:9px;min-height:500px}.room{min-height:398px}.room-copy{padding:15px;max-width:90%}.object{min-width:70px;min-height:54px}.controls{flex-wrap:wrap}.start{max-width:none;flex-basis:100%;order:-1}.nav{width:100%}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div><div class="eyebrow">Puzzle temporal · 1 jugador cooperativo</div><h1 class="title">Ecos del Bucle</h1><p class="subtitle">Tu pasado no desaparece: se queda a trabajar contigo.</p></div>
+    <button class="icon-btn" id="help" aria-label="Cómo jugar">?</button>
+  </header>
+  <section class="status" aria-label="Estado de la partida">
+    <div class="stat"><small>Ciclo activo</small><strong id="cycle">1 / 10</strong><div class="timerbar"><i id="timer"></i></div></div>
+    <div class="stat"><small>Sala</small><strong id="floorStat">01</strong></div>
+    <div class="stat"><small>Ecos activos</small><strong id="ghostStat">0</strong></div>
+  </section>
+  <section class="tower">
+    <div class="map" id="map" aria-label="Mapa de las salas"></div>
+    <div class="room-head"><div><h2 id="floorTitle">Sala 01 · Umbral</h2><p id="objective"></p></div><button class="tiny-btn" id="restart">Reiniciar</button></div>
+    <section class="room" id="room" aria-live="polite"><div class="grid"></div><div class="room-copy"><span class="tag" id="roomTag">Inicio</span><h3 id="roomName"></h3><p id="roomText"></p></div><div class="objects" id="objects"></div><div class="ghosts" id="ghosts"></div><div class="active-cursor" id="cursor">1</div><button class="stairs down" id="down">↓ Bajar</button><button class="stairs" id="up">↑ Subir</button></section>
+    <div class="controls"><div class="nav"><button id="prev">← Sala anterior</button><button id="next">Sala siguiente →</button></div><button class="start" id="start">Iniciar ciclo</button></div>
+    <div class="legend"><span><i class="dot" style="background:var(--cyan)"></i>cursor activo</span><span><i class="dot" style="background:var(--violet)"></i>eco de un ciclo previo</span><span><i class="dot" style="background:var(--green)"></i>eco manteniendo un nodo</span><span><i class="dot" style="background:var(--gold)"></i>fragmento opcional</span></div>
+    <div class="how"><strong>Atajo para probar:</strong> explora libremente durante el primer ciclo. En los siguientes, deja un cursor manteniendo los nodos de anclaje. Las acciones de cada eco se repiten al mismo segundo del ciclo.</div>
+  </section>
+</main>
+
+<dialog id="dialog"><div class="modal"><h2>Ecos del Bucle</h2><p>Un juego original de sincronía temporal inspirado en la idea de colaborar con tus jugadas anteriores.</p><ul><li>Cada ciclo dura <strong>22 segundos</strong>.</li><li>Pulsa objetos o mantenlos presionados. Al acabar el tiempo, esas acciones se convierten en ecos.</li><li>Los nodos mantenidos por ecos pueden abrir rutas para el siguiente cursor.</li><li>Para abrir la salida de la sala 15, necesitas el anclaje de la 6 y los tres resonadores de la 15 a la vez.</li></ul><div class="row"><button class="secondary" id="closeHelp">Cerrar</button><button id="playHelp">Jugar</button></div></div></dialog>
+
+<script>
+(() => {
+  const LOOP_MS=22000, MAX_LOOPS=10;
+  const $=id=>document.getElementById(id);
+  const els={cycle:$('cycle'),floor:$('floorStat'),ghost:$('ghostStat'),timer:$('timer'),map:$('map'),title:$('floorTitle'),objective:$('objective'),tag:$('roomTag'),name:$('roomName'),text:$('roomText'),objects:$('objects'),ghosts:$('ghosts'),cursor:$('cursor'),up:$('up'),down:$('down'),prev:$('prev'),next:$('next'),start:$('start'),room:$('room')};
+  const R=[
+    ['Umbral','Orientación','La primera escalera responde a tu toque.','free'],
+    ['Galería','Fragmentos','Los fragmentos son opcionales: suman memoria, no abren puertas.','free'],
+    ['Niebla','Ritmo','Aprende a llegar con tiempo al siguiente módulo.','free'],
+    ['Archivo variable','Caja cambiante','Una de las cajas desvela la ruta. Cambia de lugar al reiniciar.','cache'],
+    ['Jardín de datos','Fragmentos','Recoge recuerdos si el tiempo te sobra.','free'],
+    ['Anclaje','Mantener','Mantén el nodo hasta el final del ciclo: será necesario mucho después.','anchor'],
+    ['Pasaje','Fragmentos','Un espacio breve para que los ecos alcancen su posición.','free'],
+    ['Batería','Carga compartida','Mantén el colector; todos los ecos contribuyen a la carga.','battery'],
+    ['Mirador','Fragmentos','Guarda segundos para el núcleo.','free'],
+    ['Núcleo','Impulsos','Toca repetidamente el núcleo. Cada eco repetirá sus impulsos.','core'],
+    ['Resonancia','Fragmentos','El núcleo estabilizado ilumina el camino.','free'],
+    ['Espejo','Fragmentos','Las rutas de tus ecos son parte del puzle.','free'],
+    ['Altura','Fragmentos','Prepara un eco para uno de los resonadores finales.','free'],
+    ['Antesala','Fragmentos','La salida está cerca.','free'],
+    ['Cámara coral','Sincronía','Activa los tres resonadores a la vez; el anclaje de la sala 6 debe seguir vivo.','final'],
+    ['Apertura','Victoria','El bucle se ha convertido en una escalera.','win']
+  ];
+  const state={running:false,started:false,loop:0,floor:1,start:0,events:[],runs:[],ghosts:[],held:new Map(),charge:0,core:0,fragments:new Set(),cache:Math.floor(Math.random()*4),lastTick:0,done:false};
+  const pos={cache:[[22,57],[66,54],[44,75],[74,25]],anchor:[54,65],battery:[50,65],core:[50,64],left:[23,66],mid:[50,70],right:[77,66]};
+  function now(){return state.running?performance.now()-state.start:0}
+  function floorObjects(f){
+    const a=[]; const add=(id,type,label,glyph,x,y,extra={})=>a.push({id,type,label,glyph,x,y,...extra});
+    if([2,3,5,7,9,11,12,13,14].includes(f)) add('fragment-'+f,'tap','Fragmento','◆',28+(f*9)%50,50+(f*7)%25,{optional:true});
+    if(f===4){for(let i=0;i<4;i++)add('cache-'+i,'tap',i===state.cache?'Caja señal':'Caja','▣',...pos.cache[i],{chosen:i===state.cache});}
+    if(f===6)add('anchor','hold','Nodo ancla','⌁',...pos.anchor,{need:'Mantener'});
+    if(f===8)add('battery','hold','Colector '+Math.min(250,state.charge)+'/250','ϟ',...pos.battery,{need:'Mantener'});
+    if(f===10)add('core','tap','Núcleo '+Math.min(36,state.core)+'/36','◉',...pos.core,{need:'Tocar'});
+    if(f===15){add('left','hold','Resonador I','◌',...pos.left,{need:'Mantener'});add('mid','hold','Resonador II','◌',...pos.mid,{need:'Mantener'});add('right','hold','Resonador III','◌',...pos.right,{need:'Mantener'});}
+    return a;
+  }
+  function heldBy(target){return [...state.held.values()].filter(v=>v.target===target).length}
+  function holding(target){return heldBy(target)>0}
+  function clearState(){state.held.clear();state.charge=0;state.core=0;state.fragments=new Set();}
+  function exitReady(){
+    if(state.floor<=3||[5,7,9,11,12,13,14].includes(state.floor))return true;
+    if(state.floor===4)return state.events.some(e=>e.type==='tap'&&e.target==='cache-'+state.cache)||state.ghosts.some(g=>g.fired.some(e=>e.target==='cache-'+state.cache));
+    if(state.floor===6)return true;
+    if(state.floor===8)return state.charge>=250;
+    if(state.floor===10)return state.core>=36;
+    if(state.floor===15)return holding('anchor')&&holding('left')&&holding('mid')&&holding('right');
+    return true;
+  }
+  function emit(type,target){
+    if(!state.running||state.done)return;
+    const event={type,target,t:now(),floor:state.floor}; state.events.push(event); apply(event,'active');
+  }
+  function apply(e,who){
+    if(e.type==='tap'){
+      if(e.target.startsWith('fragment')) state.fragments.add(e.target);
+      if(e.target==='core') state.core++;
+      if(e.target.startsWith('cache') && e.target==='cache-'+state.cache) toast('La caja vibra: la ruta está disponible.');
+    }
+    if(e.type==='holdStart')state.held.set(who+':'+e.target,{target:e.target,who});
+    if(e.type==='holdEnd')state.held.delete(who+':'+e.target);
+  }
+  function replay(){
+    const t=now();
+    state.runs.forEach((run,i)=>{
+      const g=state.ghosts[i];
+      while(g.index<run.length&&run[g.index].t<=t){const e=run[g.index++];apply(e,'g'+i);g.fired.push(e); if(e.floor)g.floor=e.floor;}
+    });
+  }
+  function tick(){
+    if(!state.running)return;
+    replay();
+    const dt=now()-state.lastTick; state.lastTick=now();
+    if(holding('battery'))state.charge+=dt/75;
+    const remain=Math.max(0,1-now()/LOOP_MS);els.timer.style.width=(remain*100)+'%';
+    updateLive();
+    if(now()>=LOOP_MS){finishLoop();return;} requestAnimationFrame(tick);
+  }
+  function startLoop(){
+    if(state.running||state.done)return; state.started=true;state.running=true;state.events=[];clearState();state.ghosts=state.runs.map(()=>({index:0,fired:[],floor:1}));state.start=performance.now();state.lastTick=0;state.floor=1;els.start.textContent='Ciclo en curso';els.start.disabled=true;toast('Ciclo '+(state.loop+1)+' iniciado. Tus acciones quedarán grabadas.');render();requestAnimationFrame(tick);
+  }
+  function finishLoop(){
+    if(!state.running)return; state.running=false;
+    [...state.held.values()].filter(x=>x.who==='active').forEach(x=>state.events.push({type:'holdEnd',target:x.target,t:LOOP_MS,floor:state.floor}));
+    state.runs.push(state.events); state.loop++;
+    if(state.loop>=MAX_LOOPS){toast('No quedan más ciclos. Reinicia para intentarlo de nuevo.');}
+    else toast('Eco '+state.loop+' guardado. En el siguiente ciclo repetirá exactamente sus acciones.');
+    els.start.disabled=state.loop>=MAX_LOOPS;els.start.textContent=state.loop>=MAX_LOOPS?'Sin ciclos':'Iniciar ciclo '+(state.loop+1);clearState();state.ghosts=[];render();
+  }
+  function move(d){if(state.running){if(d===1&&!exitReady()){toast('La ruta todavía no está activa. Coordina los ecos.');return;} state.events.push({type:'move',floor:state.floor+d,t:now()});} state.floor=Math.max(1,Math.min(16,state.floor+d));if(state.floor===16){state.done=true;state.running=false;els.start.disabled=true;els.start.textContent='Bucle completado';toast('Has convertido tus diez posibilidades en una sola salida.');}render();}
+  function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';t.style.cssText='position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;background:#eaf6ff;color:#07111c;padding:10px 14px;border-radius:999px;font-size:.8rem;font-weight:800;box-shadow:0 12px 30px #0008;max-width:90vw;text-align:center';document.body.append(t)}t.textContent=msg;t.style.opacity=1;clearTimeout(t._timer);t._timer=setTimeout(()=>t.style.opacity=0,2800)}
+  function render(full=true){
+    const f=state.floor,r=R[f-1],objs=floorObjects(f);els.cycle.textContent=(state.loop+1)+' / '+MAX_LOOPS;els.floor.textContent=String(f).padStart(2,'0');els.ghost.textContent=state.running?state.ghosts.length:state.runs.length;els.title.textContent='Sala '+String(f).padStart(2,'0')+' · '+r[0];els.objective.textContent=r[2];els.tag.textContent=r[1];els.name.textContent=r[0];els.text.textContent=r[2];
+    if(full){els.map.innerHTML=R.map((_,i)=>`<button class="floor-dot ${i+1===f?'current':''} ${i+1<f?'done':''} ${i+1>f+1?'locked':''}" data-floor="${i+1}">${String(i+1).padStart(2,'0')}</button>`).join('');els.map.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(!state.running||Number(b.dataset.floor)<=state.floor+1){state.floor=Number(b.dataset.floor);render()}})}
+    els.objects.innerHTML='';objs.forEach(o=>{const b=document.createElement('button');b.className='object '+o.type+(o.optional&&state.fragments.has(o.id)?' collected':'')+(holding(o.id)?' active':'')+(o.type==='hold'?' hold':'');b.style.left=`calc(${o.x}% - 39px)`;b.style.top=`calc(${o.y}% - 29px)`;b.innerHTML=`<span class="glyph">${o.glyph}</span><span class="label">${o.label}</span><span class="hint">${o.need||'Tocar'}</span>`;
+      if(o.type==='tap')b.addEventListener('click',()=>{emit('tap',o.id);pulse(b);render(false)});
+      else {b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);emit('holdStart',o.id);b.classList.add('active');pulse(b);updateLive()});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,e=>{if(state.running)emit('holdEnd',o.id);b.classList.remove('active');updateLive()}));}
+      els.objects.append(b);
+    });
+    els.ghosts.innerHTML=(state.running?state.ghosts:state.runs.map(()=>({}))).map((g,i)=>`<span class="ghost ${[...state.held.values()].some(v=>v.who==='g'+i)?'holding':''}" title="Eco ${i+1}">${i+1}</span>`).join('');
+    els.cursor.textContent=state.loop+1;els.up.classList.toggle('disabled',f>=16||!exitReady());els.up.textContent=f===15&&exitReady()?'↑ Abrir salida':f===16?'✓ Completado':'↑ Subir';els.down.style.display=f===1?'none':'';els.prev.disabled=f===1;els.next.disabled=f===16||(!state.running&&f>=1);els.timer.style.width=state.running?Math.max(0,100-now()/LOOP_MS*100)+'%':'100%';
+  }
+  function updateLive(){
+    els.cycle.textContent=(state.loop+1)+' / '+MAX_LOOPS;
+    els.ghost.textContent=state.ghosts.length;
+    els.ghosts.innerHTML=state.ghosts.map((g,i)=>`<span class="ghost ${[...state.held.values()].some(v=>v.who==='g'+i)?'holding':''}" title="Eco ${i+1}">${i+1}</span>`).join('');
+    els.up.classList.toggle('disabled',state.floor>=16||!exitReady());
+    if(state.floor===15&&exitReady())els.up.textContent='↑ Abrir salida';
+  }
+  function pulse(node){const p=document.createElement('i');p.className='pulse';p.style.left=(node.offsetLeft+node.offsetWidth/2-7)+'px';p.style.top=(node.offsetTop+node.offsetHeight/2-7)+'px';els.objects.append(p);setTimeout(()=>p.remove(),750)}
+  els.room.addEventListener('pointermove',e=>{const r=els.room.getBoundingClientRect();els.cursor.style.left=(e.clientX-r.left)+'px';els.cursor.style.top=(e.clientY-r.top)+'px'});
+  els.up.onclick=()=>move(1);els.down.onclick=()=>move(-1);els.prev.onclick=()=>move(-1);els.next.onclick=()=>move(1);els.start.onclick=startLoop;
+  $('restart').onclick=()=>{Object.assign(state,{running:false,started:false,loop:0,floor:1,events:[],runs:[],ghosts:[],held:new Map(),charge:0,core:0,fragments:new Set(),cache:Math.floor(Math.random()*4),done:false});els.start.disabled=false;els.start.textContent='Iniciar ciclo';render();toast('La torre se ha reconfigurado.');};
+  const dialog=$('dialog');$('help').onclick=()=>dialog.showModal();$('closeHelp').onclick=()=>dialog.close();$('playHelp').onclick=()=>{dialog.close();startLoop()};
+  render();dialog.showModal();
+})();
+</script>
+</body>
+</html>
