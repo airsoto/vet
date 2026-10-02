@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <script defer src="goat.js"></script>
+  <script defer src="../goat.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calculadora de Necesidades Energéticas | Ángel Soto</title>
@@ -509,6 +509,153 @@
       text-decoration:underline;
     }
 
+
+    /* Buscador de alimentos */
+    .food-search-wrap{
+      display:grid;
+      gap:8px;
+      position:relative;
+    }
+
+    .food-search-line{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px;
+      align-items:center;
+    }
+
+    .food-search-input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:var(--input);
+      color:var(--text);
+      border:1px solid var(--line-strong);
+      border-radius:12px;
+      padding:14px;
+      font-size:1rem;
+      transition:.2s ease;
+    }
+
+    .food-search-input:focus{
+      border-color:rgba(96,165,250,.85);
+      box-shadow:0 0 0 3px rgba(96,165,250,.12);
+      background:#0c1528;
+    }
+
+    .food-clear{
+      border-radius:12px;
+      padding:12px 14px;
+      min-width:auto;
+      background:rgba(248,113,113,.10);
+      color:#fecaca;
+      border:1px solid rgba(248,113,113,.22);
+    }
+
+    .food-status{
+      font-size:.82rem;
+      color:var(--muted);
+      line-height:1.4;
+      min-height:1.25em;
+    }
+
+    .food-selected{
+      display:none;
+      border:1px solid rgba(74,222,128,.22);
+      background:rgba(74,222,128,.07);
+      color:#dcfce7;
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:.86rem;
+      line-height:1.45;
+    }
+
+    .food-selected.show{
+      display:block;
+    }
+
+    .food-results{
+      display:none;
+      position:absolute;
+      top:100%;
+      left:0;
+      right:0;
+      z-index:40;
+      margin-top:4px;
+      max-height:320px;
+      overflow:auto;
+      border:1px solid var(--line-strong);
+      border-radius:14px;
+      background:#08111f;
+      box-shadow:0 22px 50px rgba(0,0,0,.55);
+    }
+
+    .food-results.show{
+      display:block;
+    }
+
+    .food-option{
+      width:100%;
+      text-align:left;
+      border:0;
+      border-bottom:1px solid var(--line);
+      border-radius:0;
+      background:transparent;
+      color:var(--text);
+      padding:12px 14px;
+      display:grid;
+      gap:4px;
+      cursor:pointer;
+    }
+
+    .food-option:last-child{
+      border-bottom:0;
+    }
+
+    .food-option:hover,
+    .food-option:focus{
+      transform:none;
+      background:rgba(96,165,250,.10);
+      outline:none;
+    }
+
+    .food-option-title{
+      font-size:.9rem;
+      font-weight:800;
+      line-height:1.35;
+    }
+
+    .food-option-meta{
+      font-size:.78rem;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .food-option-kcal{
+      color:#93c5fd;
+      font-weight:800;
+    }
+
+    .manual-note{
+      color:var(--muted);
+      font-size:.8rem;
+      line-height:1.4;
+    }
+
+    @media (max-width:680px){
+      .food-search-line{
+        grid-template-columns:1fr;
+      }
+
+      .food-clear{
+        width:100%;
+      }
+
+      .food-results{
+        max-height:42vh;
+      }
+    }
+
     @media (max-width: 980px){
       .grid,
       .sheet-grid,
@@ -581,12 +728,6 @@
           Herramienta para estimar peso ideal, requerimiento energético, gramos diarios de pienso
           y velocidad esperada de pérdida de peso en perros y gatos con sobrepeso.
         </p>
-        <div class="badge-row">
-          <div class="badge">🐶 Perros</div>
-          <div class="badge">🐱 Gatos</div>
-          <div class="badge">🖨️ Hoja imprimible para propietario</div>
-          <div class="badge">📉 Gráfico cronológico de pérdida de peso</div>
-        </div>
       </div>
     </section>
 
@@ -623,8 +764,31 @@
           </div>
 
           <div class="field-group">
-            <label for="kcalPienso">Densidad energética del pienso (kcal/kg)</label>
+            <label for="foodSearchPerro">Buscar alimento comercial</label>
+            <div class="food-search-wrap">
+              <div class="food-search-line">
+                <input
+                  type="search"
+                  id="foodSearchPerro"
+                  class="food-search-input"
+                  placeholder="Marca o nombre del alimento…"
+                  autocomplete="off"
+                  aria-label="Buscar alimento para perro"
+                >
+                <button type="button" class="food-clear" onclick="limpiarAlimento('perro')">Quitar selección</button>
+              </div>
+              <div class="food-results" id="foodResultsPerro"></div>
+              <div class="food-selected" id="foodSelectedPerro"></div>
+              <div class="food-status" id="foodStatusPerro">Cargando base de alimentos…</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="kcalPienso">Densidad energética (kcal/kg)</label>
             <input type="number" id="kcalPienso" min="1" step="1" placeholder="Ej. 3200">
+            <div class="manual-note">
+              Puedes seleccionar un alimento de la base de datos o introducir/modificar manualmente las kcal/kg.
+            </div>
           </div>
 
           <div class="btn-row">
@@ -691,8 +855,31 @@
           </div>
 
           <div class="field-group">
-            <label for="kcalPiensoGato">Densidad energética del pienso (kcal/kg)</label>
+            <label for="foodSearchGato">Buscar alimento comercial</label>
+            <div class="food-search-wrap">
+              <div class="food-search-line">
+                <input
+                  type="search"
+                  id="foodSearchGato"
+                  class="food-search-input"
+                  placeholder="Marca o nombre del alimento…"
+                  autocomplete="off"
+                  aria-label="Buscar alimento para gato"
+                >
+                <button type="button" class="food-clear" onclick="limpiarAlimento('gato')">Quitar selección</button>
+              </div>
+              <div class="food-results" id="foodResultsGato"></div>
+              <div class="food-selected" id="foodSelectedGato"></div>
+              <div class="food-status" id="foodStatusGato">Cargando base de alimentos…</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="kcalPiensoGato">Densidad energética (kcal/kg)</label>
             <input type="number" id="kcalPiensoGato" min="1" step="1" placeholder="Ej. 3600">
+            <div class="manual-note">
+              Puedes seleccionar un alimento de la base de datos o introducir/modificar manualmente las kcal/kg.
+            </div>
           </div>
 
           <div class="btn-row">
@@ -759,6 +946,7 @@
           <p><strong>Kcal/día durante adelgazamiento:</strong> <span id="sheetKcal">—</span></p>
           <p><strong>Pienso al día durante adelgazamiento:</strong> <span id="sheetGramos">—</span></p>
           <p><strong>Pienso de mantenimiento al alcanzar el peso ideal:</strong> <span id="sheetMantenimiento">—</span></p>
+          <p id="sheetFoodRow" style="display:none;"><strong>Alimento seleccionado:</strong> <span id="sheetFood">—</span></p>
           <p><strong>Densidad energética usada:</strong> <span id="sheetDensidad">—</span></p>
         </div>
 
@@ -811,6 +999,248 @@
       perro: null,
       gato: null
     };
+
+    const FOOD_DB_URL = "../json/petfood_kcal_database.json";
+    let foodDatabase = [];
+    let foodDatabaseLoaded = false;
+    let actualizandoKcalDesdeSeleccion = false;
+
+    const alimentoSeleccionado = {
+      perro: null,
+      gato: null
+    };
+
+
+    function normalizarTexto(texto) {
+      return String(texto ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function especieRegistro(item) {
+      const raw = normalizarTexto(item.species || item.especie || "");
+      if (["dog", "perro", "canine", "canino"].includes(raw)) return "perro";
+      if (["cat", "gato", "feline", "felino"].includes(raw)) return "gato";
+      return raw;
+    }
+
+    function kcalKgRegistro(item) {
+      const direct = Number(item.kcal_kg);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+
+      const kcal100 = Number(item.kcal_100g);
+      if (Number.isFinite(kcal100) && kcal100 > 0) return kcal100 * 10;
+
+      const kcalg = Number(item.kcal_g);
+      if (Number.isFinite(kcalg) && kcalg > 0) return kcalg * 1000;
+
+      return null;
+    }
+
+    function nombreAlimento(item) {
+      const marca = item.brand || item.marca || "";
+      const gama = item.range || item.gama || "";
+      const producto = item.product || item.producto || item.name || item.nombre || "";
+
+      return [marca, gama, producto]
+        .filter(Boolean)
+        .join(" · ");
+    }
+
+    function formatoAlimento(item) {
+      const fmt = normalizarTexto(item.format || item.formato || "");
+      if (["wet", "humedo", "húmedo"].includes(fmt)) return "Húmedo";
+      if (["dry", "seco"].includes(fmt)) return "Seco";
+      return item.format || item.formato || "";
+    }
+
+    async function cargarBaseAlimentos() {
+      const statusPerro = document.getElementById("foodStatusPerro");
+      const statusGato = document.getElementById("foodStatusGato");
+
+      try {
+        const response = await fetch(FOOD_DB_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const registros = Array.isArray(data) ? data : (Array.isArray(data.foods) ? data.foods : []);
+
+        foodDatabase = registros.filter(item => kcalKgRegistro(item));
+        foodDatabaseLoaded = true;
+
+        const perros = foodDatabase.filter(item => especieRegistro(item) === "perro").length;
+        const gatos = foodDatabase.filter(item => especieRegistro(item) === "gato").length;
+
+        if (statusPerro) statusPerro.textContent = `${perros} alimentos para perro disponibles. Escribe marca o nombre para buscar.`;
+        if (statusGato) statusGato.textContent = `${gatos} alimentos para gato disponibles. Escribe marca o nombre para buscar.`;
+      } catch (error) {
+        console.error("Error cargando la base de alimentos:", error);
+        const msg = "No se pudo cargar la base de alimentos. Puedes introducir las kcal/kg manualmente.";
+        if (statusPerro) statusPerro.textContent = msg;
+        if (statusGato) statusGato.textContent = msg;
+      }
+    }
+
+    function configurarBuscadorAlimentos(tipo) {
+      const esPerro = tipo === "perro";
+      const input = document.getElementById(esPerro ? "foodSearchPerro" : "foodSearchGato");
+      const results = document.getElementById(esPerro ? "foodResultsPerro" : "foodResultsGato");
+      const kcalInput = document.getElementById(esPerro ? "kcalPienso" : "kcalPiensoGato");
+
+      input.addEventListener("input", () => {
+        alimentoSeleccionado[tipo] = null;
+        actualizarTarjetaSeleccion(tipo);
+        buscarAlimentos(tipo, input.value);
+      });
+
+      input.addEventListener("focus", () => {
+        if (input.value.trim().length >= 1) buscarAlimentos(tipo, input.value);
+      });
+
+      kcalInput.addEventListener("input", () => {
+        if (actualizandoKcalDesdeSeleccion) return;
+        if (alimentoSeleccionado[tipo]) {
+          alimentoSeleccionado[tipo] = null;
+          actualizarTarjetaSeleccion(tipo);
+        }
+      });
+
+      document.addEventListener("click", (ev) => {
+        if (!results.contains(ev.target) && ev.target !== input) {
+          results.classList.remove("show");
+        }
+      });
+    }
+
+    function buscarAlimentos(tipo, termino) {
+      const esPerro = tipo === "perro";
+      const results = document.getElementById(esPerro ? "foodResultsPerro" : "foodResultsGato");
+
+      if (!foodDatabaseLoaded) {
+        results.innerHTML = "";
+        results.classList.remove("show");
+        return;
+      }
+
+      const q = normalizarTexto(termino);
+      if (!q) {
+        results.innerHTML = "";
+        results.classList.remove("show");
+        return;
+      }
+
+      const palabras = q.split(/\s+/).filter(Boolean);
+
+      const encontrados = foodDatabase
+        .filter(item => especieRegistro(item) === tipo)
+        .map(item => {
+          const searchable = normalizarTexto([
+            item.brand, item.range, item.product, item.name,
+            item.marca, item.gama, item.producto, item.nombre,
+            item.format, item.formato, item.life_stage
+          ].filter(Boolean).join(" "));
+          const coincide = palabras.every(p => searchable.includes(p));
+          if (!coincide) return null;
+
+          let score = 0;
+          const brand = normalizarTexto(item.brand || item.marca || "");
+          const product = normalizarTexto(item.product || item.producto || item.name || item.nombre || "");
+          if (product.startsWith(q)) score += 5;
+          if (brand.startsWith(q)) score += 4;
+          if (searchable.startsWith(q)) score += 3;
+          score += palabras.filter(p => product.includes(p)).length;
+
+          return { item, score };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score || nombreAlimento(a.item).localeCompare(nombreAlimento(b.item), "es"))
+        .slice(0, 30);
+
+      results.innerHTML = "";
+
+      if (!encontrados.length) {
+        const empty = document.createElement("div");
+        empty.className = "food-option";
+        empty.innerHTML = `<span class="food-option-title">Sin coincidencias</span><span class="food-option-meta">Prueba con otra marca o nombre.</span>`;
+        results.appendChild(empty);
+        results.classList.add("show");
+        return;
+      }
+
+      encontrados.forEach(({ item }) => {
+        const kcal = kcalKgRegistro(item);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "food-option";
+
+        const titulo = document.createElement("span");
+        titulo.className = "food-option-title";
+        titulo.textContent = nombreAlimento(item);
+
+        const meta = document.createElement("span");
+        meta.className = "food-option-meta";
+        const formato = formatoAlimento(item);
+        const etapa = item.life_stage ? ` · ${item.life_stage}` : "";
+        meta.innerHTML = `${formato || "Formato no indicado"}${etapa} · <span class="food-option-kcal">${Math.round(kcal)} kcal/kg</span>`;
+
+        btn.appendChild(titulo);
+        btn.appendChild(meta);
+        btn.addEventListener("click", () => seleccionarAlimento(tipo, item));
+
+        results.appendChild(btn);
+      });
+
+      results.classList.add("show");
+    }
+
+    function seleccionarAlimento(tipo, item) {
+      const esPerro = tipo === "perro";
+      const input = document.getElementById(esPerro ? "foodSearchPerro" : "foodSearchGato");
+      const results = document.getElementById(esPerro ? "foodResultsPerro" : "foodResultsGato");
+      const kcalInput = document.getElementById(esPerro ? "kcalPienso" : "kcalPiensoGato");
+      const kcal = kcalKgRegistro(item);
+
+      alimentoSeleccionado[tipo] = item;
+      input.value = nombreAlimento(item);
+
+      actualizandoKcalDesdeSeleccion = true;
+      kcalInput.value = Math.round(kcal);
+      actualizandoKcalDesdeSeleccion = false;
+
+      results.classList.remove("show");
+      actualizarTarjetaSeleccion(tipo);
+    }
+
+    function actualizarTarjetaSeleccion(tipo) {
+      const esPerro = tipo === "perro";
+      const box = document.getElementById(esPerro ? "foodSelectedPerro" : "foodSelectedGato");
+      const item = alimentoSeleccionado[tipo];
+
+      if (!item) {
+        box.classList.remove("show");
+        box.textContent = "";
+        return;
+      }
+
+      const kcal = kcalKgRegistro(item);
+      const formato = formatoAlimento(item);
+      box.textContent = `Seleccionado: ${nombreAlimento(item)}${formato ? ` · ${formato}` : ""} · ${Math.round(kcal)} kcal/kg`;
+      box.classList.add("show");
+    }
+
+    function limpiarAlimento(tipo) {
+      const esPerro = tipo === "perro";
+      const input = document.getElementById(esPerro ? "foodSearchPerro" : "foodSearchGato");
+      const results = document.getElementById(esPerro ? "foodResultsPerro" : "foodResultsGato");
+
+      alimentoSeleccionado[tipo] = null;
+      input.value = "";
+      results.innerHTML = "";
+      results.classList.remove("show");
+      actualizarTarjetaSeleccion(tipo);
+    }
 
     function descripcionBCS(valor) {
       if (valor <= 2) return "muy delgado";
@@ -963,6 +1393,8 @@
         pesoIdeal,
         excesoPeso,
         kcalPienso,
+        alimento: alimentoSeleccionado[tipo] ? nombreAlimento(alimentoSeleccionado[tipo]) : null,
+        alimentoRegistro: alimentoSeleccionado[tipo],
         merAdelgazamiento: MER,
         gramosAdelgazamiento: gramosPienso,
         mantenimientoKcal,
@@ -1009,6 +1441,17 @@
       document.getElementById("sheetGramos").textContent = `${redondear(datos.gramosAdelgazamiento, 0)} g/día`;
       document.getElementById("sheetMantenimiento").textContent =
         `${redondear(datos.gramosMantenimiento, 0)} g/día (${redondear(datos.mantenimientoKcal, 0)} kcal/día)`;
+      const sheetFoodRow = document.getElementById("sheetFoodRow");
+      const sheetFood = document.getElementById("sheetFood");
+
+      if (datos.alimento) {
+        sheetFood.textContent = datos.alimento;
+        sheetFoodRow.style.display = "";
+      } else {
+        sheetFood.textContent = "";
+        sheetFoodRow.style.display = "none";
+      }
+
       document.getElementById("sheetDensidad").textContent = `${redondear(datos.kcalPienso, 0)} kcal/kg`;
 
       document.getElementById("sheetPerdidaLenta").textContent = lentaTxt;
@@ -1218,6 +1661,10 @@
       construirBCS("gato");
       setBCS("perro", 5);
       setBCS("gato", 5);
+
+      configurarBuscadorAlimentos("perro");
+      configurarBuscadorAlimentos("gato");
+      cargarBaseAlimentos();
     });
   </script>
 </body>
