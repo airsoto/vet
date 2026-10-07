@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+  <script defer src="../goat.js"></script>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>¿Quién lo propuso?</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--green:#248a3d;--red:#d70015;--shadow:0 18px 50px rgba(0,0,0,.08)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex;justify-content:center;padding:env(safe-area-inset-top) 18px env(safe-area-inset-bottom)}
+.app{width:min(760px,100%);padding:34px 0 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}.brand{font-weight:750;font-size:18px;letter-spacing:-.02em}.score{font-size:14px;color:var(--muted);white-space:nowrap}.progress{height:6px;background:#e5e5ea;border-radius:99px;overflow:hidden;margin-bottom:28px}.progress>div{height:100%;width:0;background:var(--blue);transition:width .3s ease}
+.card{background:var(--card);border-radius:28px;padding:clamp(24px,5vw,42px);box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04)}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.pill{font-size:12px;font-weight:650;background:#f2f2f7;color:#636366;padding:7px 10px;border-radius:999px}.question{font-size:clamp(23px,4.4vw,35px);line-height:1.18;letter-spacing:-.035em;font-weight:750;margin:0 0 30px}.options{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.option{appearance:none;border:1.5px solid var(--line);background:#fff;border-radius:20px;min-height:116px;padding:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s ease,border-color .18s,background .18s;position:relative}.option:hover{transform:translateY(-2px);border-color:#86868b}.option:disabled{cursor:default;transform:none}.option img{display:block;max-width:100%;max-height:68px;object-fit:contain}.option.correct{border-color:var(--green);background:#f0fff3}.option.wrong{border-color:var(--red);background:#fff2f3}.option.correct::after,.option.wrong::after{position:absolute;right:10px;top:9px;font-size:17px;font-weight:800}.option.correct::after{content:'✓';color:var(--green)}.option.wrong::after{content:'×';color:var(--red)}
+.feedback{min-height:28px;margin-top:20px;font-size:15px;font-weight:650}.feedback.ok{color:var(--green)}.feedback.bad{color:var(--red)}.next{display:none;width:100%;margin-top:8px;border:0;border-radius:15px;padding:15px 18px;background:var(--text);color:#fff;font:inherit;font-weight:700;cursor:pointer}.next.show{display:block}
+.final{text-align:center;padding:22px 0 8px}.final .eyebrow{font-size:14px;color:var(--muted);font-weight:650}.grade{font-size:clamp(76px,20vw,132px);font-weight:800;letter-spacing:-.075em;line-height:.95;margin:14px 0}.grade span{font-size:.3em;color:var(--muted);letter-spacing:-.02em}.resultline{font-size:18px;color:var(--muted);margin:0 0 28px}.restart{border:0;border-radius:15px;background:var(--blue);color:#fff;padding:14px 22px;font:inherit;font-weight:700;cursor:pointer}.error{padding:28px;background:#fff;border-radius:24px;box-shadow:var(--shadow);line-height:1.5}.error code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}.hidden{display:none!important}
+@media(max-width:540px){.app{padding-top:20px}.card{border-radius:24px;padding:24px 18px}.options{grid-template-columns:1fr 1fr;gap:10px}.option{min-height:92px;padding:13px}.option img{max-height:54px}.question{margin-bottom:23px}.top{margin-bottom:15px}}
+</style>
+</head>
+<body>
+<main class="app">
+  <div id="game">
+    <header class="top"><div class="brand">¿Quién lo propuso?</div><div class="score"><span id="hits">0</span> aciertos · <span id="misses">0</span> errores</div></header>
+    <div class="progress"><div id="bar"></div></div>
+    <section class="card">
+      <div class="meta"><span class="pill" id="counter">1 de 10</span><span class="pill" id="topic"></span><span class="pill" id="year"></span></div>
+      <h1 class="question" id="question">Cargando medidas…</h1>
+      <div class="options" id="options"></div>
+      <div class="feedback" id="feedback"></div>
+      <button class="next" id="next">Siguiente</button>
+    </section>
+  </div>
+  <section class="card final hidden" id="final">
+    <div class="eyebrow">Resultado final</div><div class="grade" id="grade">0<span>/10</span></div>
+    <p class="resultline" id="resultline"></p><button class="restart" id="restart">Nuevo examen</button>
+  </section>
+  <section class="error hidden" id="error"></section>
+</main>
+<script>
+(() => {
+  'use strict';
+  const DATA_URL='../json/programa_partidos.json';
+  const IMG_DIR='../imagenes/';
+  const PARTY_INFO={
+    pp:{label:'PP',img:'pp.png'}, psoe:{label:'PSOE',img:'psoe.png'}, podemos:{label:'Podemos',img:'podemos.png'},
+    vox:{label:'Vox',img:'vox.png'}, ciudadanos:{label:'Ciudadanos',img:'ciudadanos.png'}, sumar:{label:'Sumar',img:'sumar.png'}
+  };
+  const ALL=Object.keys(PARTY_INFO), TOTAL=10;
+  let pool=[], quiz=[], pos=0, hits=0, misses=0, locked=false;
+  const $=s=>document.querySelector(s);
+  const els={game:$('#game'),final:$('#final'),error:$('#error'),hits:$('#hits'),misses:$('#misses'),bar:$('#bar'),counter:$('#counter'),topic:$('#topic'),year:$('#year'),question:$('#question'),options:$('#options'),feedback:$('#feedback'),next:$('#next'),grade:$('#grade'),resultline:$('#resultline'),restart:$('#restart')};
+  const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  function normalizeParty(v){const s=String(v??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(s.includes('ciudad'))return'ciudadanos';if(s.includes('psoe')||s.includes('socialista'))return'psoe';if(s==='pp'||s.includes('partido popular'))return'pp';if(s.includes('podemos')||s.includes('unidas podemos')||s.includes('unidos podemos'))return'podemos';if(s.includes('vox'))return'vox';if(s.includes('sumar'))return'sumar';return s}
+  function get(obj,...keys){for(const k of keys)if(obj[k]!=null)return obj[k];const map=Object.fromEntries(Object.keys(obj).map(k=>[k.toLowerCase(),k]));for(const k of keys){const real=map[k.toLowerCase()];if(real)return obj[real]}return''}
+  function clean(raw){const arr=Array.isArray(raw)?raw:(Array.isArray(raw?.medidas)?raw.medidas:Array.isArray(raw?.data)?raw.data:[]);return arr.map(x=>({measure:String(get(x,'Medida','medida')).trim(),party:normalizeParty(get(x,'partido','Partido')),year:Number(get(x,'año','ano','Año','year'))||'',topic:String(get(x,'tema','Tema')).trim()})).filter(x=>x.measure&&ALL.includes(x.party))}
+  // Ciudadanos solo puede aparecer como distractor para medidas entre 2010 y 2018, ambos inclusive.
+  function distractors(item){let candidates=ALL.filter(p=>p!==item.party);if(!(Number(item.year)>=2010&&Number(item.year)<=2018))candidates=candidates.filter(p=>p!=='ciudadanos');return shuffle(candidates).slice(0,3)}
+  function makeQuiz(){const chosen=[];for(const item of shuffle(pool)){if(distractors(item).length>=3)chosen.push(item);if(chosen.length===Math.min(TOTAL,pool.length))break}return chosen}
+  function start(){quiz=makeQuiz();pos=hits=misses=0;locked=false;els.hits.textContent=0;els.misses.textContent=0;els.final.classList.add('hidden');els.game.classList.remove('hidden');render()}
+  function render(){if(pos>=quiz.length)return finish();locked=false;const q=quiz[pos];els.counter.textContent=`${pos+1} de ${quiz.length}`;els.topic.textContent=q.topic||'General';els.year.textContent=q.year||'—';els.question.textContent=q.measure;els.feedback.textContent='';els.feedback.className='feedback';els.next.classList.remove('show');els.bar.style.width=`${(pos/quiz.length)*100}%`;els.options.innerHTML='';const choices=shuffle([q.party,...distractors(q)]);choices.forEach(p=>{const b=document.createElement('button');b.className='option';b.dataset.party=p;b.setAttribute('aria-label',PARTY_INFO[p].label);const img=document.createElement('img');img.src=IMG_DIR+PARTY_INFO[p].img;img.alt=PARTY_INFO[p].label;img.onerror=()=>{img.remove();b.textContent=PARTY_INFO[p].label;b.style.fontWeight='800';b.style.fontSize='20px'};b.appendChild(img);b.addEventListener('click',()=>answer(p,b));els.options.appendChild(b)})}
+  function answer(p,button){if(locked)return;locked=true;const q=quiz[pos],ok=p===q.party;ok?hits++:misses++;els.hits.textContent=hits;els.misses.textContent=misses;[...els.options.children].forEach(b=>{b.disabled=true;if(b.dataset.party===q.party)b.classList.add('correct')});if(!ok)button.classList.add('wrong');els.feedback.textContent=ok?'Correcto':`Incorrecto · La respuesta era ${PARTY_INFO[q.party].label}`;els.feedback.classList.add(ok?'ok':'bad');els.next.textContent=pos===quiz.length-1?'Ver nota':'Siguiente';els.next.classList.add('show');els.bar.style.width=`${((pos+1)/quiz.length)*100}%`}
+  function finish(){els.game.classList.add('hidden');els.final.classList.remove('hidden');const grade=quiz.length?Math.round((hits/quiz.length)*100)/10:0;els.grade.innerHTML=`${String(grade).replace('.',',')}<span>/10</span>`;els.resultline.textContent=`${hits} aciertos · ${misses} errores · ${quiz.length} preguntas`}
+  function fail(e){els.game.classList.add('hidden');els.error.classList.remove('hidden');els.error.innerHTML=`<strong>No se pudo cargar el examen.</strong><br><br>Comprueba que existe <code>${DATA_URL}</code> y abre la web desde un servidor HTTP (no directamente con <code>file://</code>).<br><br><small>${String(e.message||e)}</small>`}
+  els.next.addEventListener('click',()=>{pos++;render()});els.restart.addEventListener('click',start);
+  fetch(DATA_URL,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}).then(raw=>{pool=clean(raw);if(pool.length<10)throw new Error(`Solo hay ${pool.length} medidas válidas; hacen falta al menos 10.`);start()}).catch(fail);
+})();
+</script>
+</body>
+</html>
