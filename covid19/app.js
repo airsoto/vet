@@ -99,7 +99,7 @@ function render(){
     if(to)filtered=filtered.filter(row=>row[dateIndex]<=to);
   }
   el['table-title'].textContent=TITLES[key];
-  el.chartPanel.hidden=!isHistorical;
+  el['chart-panel'].hidden=!isHistorical;
   renderStats(key,filtered,currentColumns);
   renderTable(filtered,currentColumns);
   if(isHistorical)drawChart(filtered,currentColumns);
@@ -128,7 +128,7 @@ function renderTable(rows,columns){
   el['table-note'].textContent=rows.length>cap?`Se muestran ${fmt(cap)} filas de ${fmt(rows.length)}. Refina la búsqueda para acotar los resultados.`:'';
 }
 function drawChart(rows=currentRows,columns=currentColumns){
-  if(!data||el.chartPanel.hidden)return;
+  if(!data||el['chart-panel'].hidden)return;
   const canvas=el.chart,ctx=canvas.getContext('2d'),box=canvas.getBoundingClientRect();
   if(!box.width||!box.height)return;
   const dpr=window.devicePixelRatio||1;canvas.width=box.width*dpr;canvas.height=box.height*dpr;ctx.scale(dpr,dpr);
