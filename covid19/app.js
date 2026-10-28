@@ -1,4 +1,5 @@
-const DATA_URL = '../json/covid19.json';
+const DATA_DIR = '../json/covid19json/';
+const DATA_URL = `${DATA_DIR}covid19_summary.json`;
 const TITLES = {
   country_summary: 'Resumen por país', latest: 'Último registro',
   top10_countries: 'Top 10 · serie histórica', complete: 'Histórico completo',
@@ -7,7 +8,7 @@ const TITLES = {
 };
 const NUMBER_FORMAT = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
 const el = Object.fromEntries(['dataset','search','country','metric','date-from','date-to','country-wrap','metric-wrap','from-wrap','to-wrap','status','stats','chart-panel','chart','chart-title','chart-unit','chart-note','table-title','table-head','table-body','table-note','result-count'].map(id=>[id,document.getElementById(id)]));
-let data, currentRows=[], currentColumns=[], resizeObserver;
+let data, completeCache=new Map(), currentRows=[], currentColumns=[], resizeObserver;
 
 function rowsOf(table){return table.rows.map(values=>Object.fromEntries(table.columns.map((key,i)=>[key,values[i]??null])))}
 function fmt(value){if(value===null||value===undefined||value===''||!Number.isFinite(Number(value)))return '—';return NUMBER_FORMAT.format(Number(value))}
@@ -22,12 +23,54 @@ async function init(){
     data=await response.json();
     const names=rowsOf(data.datasets.latest).filter(row=>String(row.iso_code??'').length===3).map(row=>row.location).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
     el.country.innerHTML='<option value="">Todos</option>'+names.map(name=>`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-    el.status.textContent=`Datos cargados · ${fmt(data.metadata.complete_rows)} filas históricas · ${data.metadata.date_range}`;
+    el.status.textContent=`Índice cargado · ${fmt(data.metadata.complete_rows)} filas históricas en ${data.metadata.complete_chunks.length} archivos · ${data.metadata.date_range}`;
     el.status.classList.remove('error');
     render();
-    ['dataset','search','country','metric','date-from','date-to'].forEach(id=>el[id].addEventListener(id==='search'?'input':'change',render));
+    el.dataset.addEventListener('change',async()=>{
+      if(el.dataset.value==='complete'){
+        data.datasets.complete={source:data.metadata.sources.complete,columns:completeColumnNames(),rows:[]};
+        if(el.country.value){try{await loadComplete(el.country.value)}catch(error){showError(error.message)}}
+        else el.status.textContent='Elige un país para cargar sus datos históricos.';
+      }
+      render();
+    });
+    el.country.addEventListener('change',async()=>{
+      if(el.dataset.value==='complete'&&el.country.value){
+        try{await loadComplete(el.country.value)}catch(error){showError(error.message)}
+      }else if(el.dataset.value==='complete'){
+        data.datasets.complete={source:data.metadata.sources.complete,columns:completeColumnNames(),rows:[]};
+        el.status.textContent='Elige un país para cargar sus datos históricos.';
+      }
+      render();
+    });
+    ['search','metric','date-from','date-to'].forEach(id=>el[id].addEventListener(id==='search'?'input':'change',render));
     resizeObserver=new ResizeObserver(()=>drawChart());resizeObserver.observe(el.chart.parentElement);
   }catch(error){showError(`${error.message} Comprueba que la web se sirve por HTTP y que ${DATA_URL} existe.`)}
+}
+function completeColumnNames(){
+  const dictionary=data.datasets.data_dictionary,index=dictionary.columns.indexOf('Column');
+  return dictionary.rows.map(row=>row[index]);
+}
+async function loadComplete(country){
+  if(completeCache.has(country)){
+    data.datasets.complete=completeCache.get(country);
+    el.status.textContent=`Histórico cargado · ${fmt(data.datasets.complete.rows.length)} filas de ${country}`;
+    return;
+  }
+  const columns=completeColumnNames(),locationIndex=columns.indexOf('location'),rows=[];
+  const chunks=data.metadata.complete_chunks.filter(chunk=>chunk.locations.includes(country));
+  for(let i=0;i<chunks.length;i++){
+    const chunk=chunks[i];
+    el.status.textContent=`Cargando ${country} · parte ${i+1} de ${chunks.length}…`;
+    const response=await fetch(`${DATA_DIR}${chunk.file}`);
+    if(!response.ok)throw new Error(`No se pudo cargar ${chunk.file} (${response.status}).`);
+    const part=await response.json();
+    for(const row of part.rows)if(row[locationIndex]===country)rows.push(row);
+  }
+  const table={source:data.metadata.sources.complete,columns,rows};
+  completeCache.set(country,table);
+  data.datasets.complete=table;
+  el.status.textContent=`Histórico cargado · ${fmt(rows.length)} filas de ${country}`;
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toggleFilters(isHistorical){['country-wrap','metric-wrap','from-wrap','to-wrap'].forEach(id=>el[id].hidden=!isHistorical)}
@@ -36,7 +79,7 @@ function render(){
   if(!data)return;
   const key=el.dataset.value, isHistorical=key==='complete'||key==='top10_countries';
   toggleFilters(isHistorical);
-  const table=data.datasets[key];
+  const table=data.datasets[key]||(key==='complete'?{columns:completeColumnNames(),rows:[]}:null);
   currentColumns=table.columns;
   currentRows=table.rows;
   const query=el.search.value.trim().toLocaleLowerCase('es');
