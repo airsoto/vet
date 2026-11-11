@@ -1,5 +1,5 @@
 const state = {
-  species: 'feline',
+  species: 'canine',
   data: { feline: null, canine: null },
   selected: new Map(),
   specialty: 'Todas',
@@ -21,11 +21,11 @@ async function loadData() {
       if (!response.ok) throw new Error(`No se pudo cargar ${url}`);
       return response.json();
     })));
-    $('#data-status').textContent = 'Bases cargadas · 2 especies';
+    $('#data-status').textContent = '';
     renderSpecialties();
     renderFindings();
   } catch (error) {
-    $('#data-status').textContent = 'No se pudo cargar la base';
+    $('#data-status').textContent = '';
     $('#finding-list').innerHTML = '<div class="no-results">Abre la aplicación desde un servidor local para permitir la carga de los JSON.</div>';
     console.error(error);
   }
@@ -114,10 +114,24 @@ function renderResults() {
   list.innerHTML = state.results.slice(0, 60).map((result) => {
     const [level, className, color] = scoreLevel(result.score);
     const percent = Math.round(result.score * 100);
-    const link = result.urls[0] ? `<a href="${escapeAttribute(result.urls[0])}" target="_blank" rel="noopener" title="Abrir referencia Cornell">${escapeHtml(result.diagnosis)} ↗</a>` : escapeHtml(result.diagnosis);
-    return `<article class="diagnosis-card"><div class="diagnosis-top"><div class="score-ring" style="--score:${percent};--score-color:${color}"><b>${percent}%</b></div><div class="diagnosis-main"><h3>${link}</h3><span class="level ${className}">Coincidencia ${level}</span></div></div><div class="evidence"><div class="evidence-label"><span>${result.weight} de ${selectedWeightTotal()} puntos ponderados</span><span>${result.findings.length} hallazgo${result.findings.length === 1 ? '' : 's'}</span></div><div class="evidence-bar"><i style="--score:${percent}%;--bar-color:${color}"></i></div><div class="matched">${result.findings.map((finding) => `<span class="${finding.principal ? 'principal' : ''}">${finding.principal ? '★ ' : ''}${escapeHtml(finding.name)}</span>`).join('')}</div></div></article>`;
+    return `<article class="diagnosis-card" data-result-index="${state.results.indexOf(result)}" role="button" tabindex="0" aria-label="Ver evidencia de ${escapeAttribute(result.diagnosis)}"><div class="diagnosis-top"><div class="score-ring" style="--score:${percent};--score-color:${color}"><b>${percent}%</b></div><div class="diagnosis-main"><h3>${escapeHtml(result.diagnosis)}</h3><span class="level ${className}">Coincidencia ${level}</span></div><span class="open-evidence">Ver evidencia →</span></div><div class="evidence"><div class="evidence-label"><span>${result.weight} de ${selectedWeightTotal()} puntos ponderados</span><span>${result.findings.length} hallazgo${result.findings.length === 1 ? '' : 's'}</span></div><div class="evidence-bar"><i style="--score:${percent}%;--bar-color:${color}"></i></div><div class="matched">${result.findings.map((finding) => `<span class="${finding.principal ? 'principal' : ''}">${finding.principal ? '★ ' : ''}${escapeHtml(finding.name)}</span>`).join('')}</div></div></article>`;
   }).join('');
+  list.querySelectorAll('[data-result-index]').forEach((card) => {
+    const open = () => openEvidence(state.results[Number(card.dataset.resultIndex)]);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+  });
   if ($('#matrix-toggle').checked) renderMatrix();
+}
+
+function openEvidence(result) {
+  if (!result) return;
+  $('#evidence-title').textContent = result.diagnosis;
+  $('#evidence-score').textContent = `${Math.round(result.score * 100)}% de coincidencia · síntomas y hallazgos que lo respaldan`;
+  $('#evidence-findings').innerHTML = result.findings.map((finding) => `<div class="dialog-finding ${finding.principal ? 'principal' : ''}"><span>${finding.principal ? '★' : '●'}</span><p>${escapeHtml(finding.name)}<small>${finding.principal ? 'Hallazgo principal · peso ×2' : 'Hallazgo secundario · peso ×1'}</small></p></div>`).join('');
+  const dialog = $('#evidence-dialog');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
 }
 
 function selectedWeightTotal() { return [...state.selected.values()].reduce((sum, entry) => sum + (entry.principal ? 2 : 1), 0); }
@@ -147,6 +161,8 @@ $('#clear-selection').addEventListener('click', () => { state.selected.clear(); 
 $('#analyse-button').addEventListener('click', analyse);
 $('#matrix-toggle').addEventListener('change', (event) => { if (event.target.checked) renderMatrix(); else $('#matrix-panel').hidden = true; });
 $('#close-matrix').addEventListener('click', () => { $('#matrix-toggle').checked = false; $('#matrix-panel').hidden = true; });
+$('#evidence-close').addEventListener('click', () => $('#evidence-dialog').close());
+$('#evidence-dialog').addEventListener('click', (event) => { if (event.target === $('#evidence-dialog')) $('#evidence-dialog').close(); });
 document.addEventListener('keydown', (event) => { if (event.key === '/' && document.activeElement.tagName !== 'INPUT') { event.preventDefault(); $('#finding-search').focus(); } });
 renderSelected();
 loadData();
