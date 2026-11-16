@@ -1,1 +1,645 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Validador y corrector local de archivos XLSX para PRESVET, animales de compañía, otras formas farmacéuticas.">
+  <title>Validador y corrector XLSX PRESVET · Ángel Soto</title>
+
+  <!-- Esta página se publica en /vet/validador_xlsx/index.html.
+       goat.js y las imágenes están comprobados en la raíz /vet/. -->
+  <script defer src="../goat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg:#080f1c; --panel:#101d30; --panel2:#132239;
+      --txt:#edf4fc; --muted:#a5b7cb; --line:#2b3d52;
+      --amber:#ffb347; --blue:#67b7ff; --green:#4bdfaa;
+      --red:#ff727c; --shadow:0 16px 40px rgba(0,0,0,.24);
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;color:var(--txt);font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(1000px 420px at 12% -2%,rgba(57,131,220,.17),transparent 65%),
+                 radial-gradient(700px 420px at 93% 0,rgba(255,163,71,.10),transparent 65%),var(--bg)}
+    button,input,textarea,select{font:inherit}
+    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+    a{color:#9bd1ff;text-decoration:none} a:hover{text-decoration:underline}
+    .wrap{width:min(1170px,calc(100% - 32px));margin:0 auto;padding:26px 0 42px}
+    .topline{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+    .brand{font-weight:760;letter-spacing:.03em;color:#eaf4ff}
+    .brand span{color:var(--amber)}
+    .home{font-size:13px}
+    .hero,.card,.results,.footer{background:linear-gradient(160deg,rgba(24,43,67,.96),rgba(12,24,42,.96));border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+    .hero{padding:clamp(22px,4vw,39px)}
+    .eyebrow{display:inline-flex;align-items:center;gap:9px;color:var(--amber);text-transform:uppercase;font-weight:760;letter-spacing:.12em;font-size:11px}
+    h1{font-size:clamp(27px,4.2vw,45px);line-height:1.13;letter-spacing:-.035em;max-width:820px;margin:14px 0}
+    .lead{max-width:830px;font-size:clamp(14px,2vw,17px);color:#c1d2e3;margin:0 0 21px}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{font-size:12px;color:#c0d3e7;background:#142943;border:1px solid #36506b;padding:5px 11px;border-radius:99px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+    .card{padding:23px;min-width:0}
+    .headrow{display:flex;align-items:center;gap:11px;margin-bottom:9px}
+    .num{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#273d55;color:var(--amber);font-size:13px;font-weight:800}
+    h2{font-size:18px;line-height:1.3;margin:0}
+    h3{font-size:14px;margin:0 0 8px}
+    .hint,.muted{font-size:13px;color:var(--muted);margin:8px 0 14px}
+    input[type=file],textarea,select{width:100%;border:1px solid #3a5069;border-radius:12px;background:#0b1829;color:var(--txt)}
+    input[type=file]{padding:12px;min-height:53px;cursor:pointer}
+    input[type=file]::file-selector-button{border:0;background:#273e58;border-radius:7px;color:white;padding:7px 10px;margin-right:14px;cursor:pointer}
+    textarea{min-height:153px;resize:vertical;padding:13px;font-size:13px;line-height:1.45;tab-size:4}
+    select{padding:11px 12px;min-height:45px}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+    button{border:1px solid #4a617b;background:#243c55;color:var(--txt);font-weight:700;border-radius:11px;padding:10px 14px;cursor:pointer;transition:background .15s,transform .15s}
+    button:hover{background:#31516e;transform:translateY(-1px)}
+    button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    .primary{border-color:#edac4e;color:#172335;background:var(--amber)}
+    .primary:hover{background:#ffd08b}
+    .subtle{background:transparent}
+    .tools{display:grid;grid-template-columns:minmax(170px,290px) 1fr;align-items:center;gap:17px;padding:19px 22px;margin:18px 0;border:1px solid #38516b;border-radius:16px;background:rgba(24,44,67,.65)}
+    .field label{display:block;font-size:12px;font-weight:760;color:#d0e1f1;margin-bottom:6px}
+    .tools p{margin:0;color:var(--muted);font-size:13px}
+    .tools strong{color:#e7f4ff}
+    .rules{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;padding:0 2px 2px}
+    .rules p{color:var(--muted);font-size:12px;margin:0}
+    .rules code{color:#f5cd91}
+    .results{padding:22px;margin-top:21px}
+    .results[hidden],.hide[hidden]{display:none!important}
+    .result-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap}
+    .outcome{font-size:clamp(18px,2.5vw,26px);font-weight:800;line-height:1.25;margin:0}
+    .outcome.ok{color:var(--green)} .outcome.bad{color:var(--red)}
+    #metaMsg{color:var(--muted);font-size:13px;margin:7px 0 0}
+    .metrics{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}
+    .metric{padding:10px 15px;border:1px solid #3b5168;border-radius:11px;background:#11243a;font-size:12px;color:var(--muted)}
+    .metric strong{font-size:19px;color:#eff8ff;display:block;line-height:1.2}
+    .result-art{width:min(215px,100%);height:135px;object-fit:contain;object-position:center;border-radius:12px;background:#0a1525;border:1px solid #31475e}
+    .result-art[hidden]{display:none}
+    .section-title{margin:20px 0 9px;font-size:15px}
+    .tablewrap{overflow:auto;border:1px solid #364c63;border-radius:12px;max-height:430px}
+    table{border-collapse:collapse;min-width:810px;width:100%;font-size:12.5px}
+    thead th{position:sticky;top:0;z-index:1;background:#1e344e;text-align:left;color:#e5f1fb}
+    th,td{border-bottom:1px solid #2b4055;padding:10px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}
+    tr:last-child td{border-bottom:0}
+    tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0a1728;border:1px solid #2d4760;padding:2px 5px;border-radius:5px}
+    .notice{margin:12px 0 0;color:#c7d8e9;font-size:13px;border-left:3px solid var(--amber);padding:8px 12px;background:#14273d;border-radius:0 8px 8px 0}
+    .footer{margin-top:18px;padding:18px 22px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+    .footer p{margin:0 0 5px}
+    #gc-visitcount{min-height:18px;font-size:12px}
+    @media(max-width:820px){.grid{grid-template-columns:1fr}.tools{grid-template-columns:1fr}.hero{padding:23px}.card{padding:18px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button{transition:none}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topline">
+      <div class="brand">VET<span>TOOLS</span> <span aria-hidden="true">/</span> PRESVET</div>
+      <a class="home" href="../index.html">⌂ Volver a la página de inicio</a>
+    </div>
+
+    <header class="hero">
+      <div class="eyebrow">◈ Herramienta local · animales de compañía</div>
+      <h1>Valida y corrige tus archivos XLSX para PRESVET</h1>
+      <p class="lead">Detecta errores de estructura y contenido, prepara la nueva columna de tipo de prescripción y elimina los decimales y signos de porcentaje de «Porcentaje Envase Total».</p>
+      <div class="chips">
+        <span class="chip">17 columnas y orden exacto</span>
+        <span class="chip">Ordinaria = 1 · Excepcional = 2</span>
+        <span class="chip">Porcentaje entero de 0 a 100</span>
+        <span class="chip">Procesamiento local en el navegador</span>
+      </div>
+    </header>
+
+    <section class="tools" aria-label="Configuración de corrección">
+      <div class="field">
+        <label for="defaultType">Tipo para prescripciones sin especificar</label>
+        <select id="defaultType">
+          <option value="1">1 — Ordinaria</option>
+          <option value="2">2 — Excepcional</option>
+        </select>
+      </div>
+      <p><strong>Importante:</strong> si el archivo todavía tiene 16 columnas o deja vacío «Tipo Prescripcion», el corrector utilizará el código que selecciones. No modifica los tipos <strong>1</strong> o <strong>2</strong> ya presentes. Confirma que corresponde a las prescripciones reales antes de enviarlas.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="fileTitle">
+        <div class="headrow"><span class="num">01</span><h2 id="fileTitle">Archivo Excel</h2></div>
+        <p class="hint">Se procesa solo la primera hoja, con independencia de su nombre. Se conservan las otras hojas al generar una copia corregida.</p>
+        <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Elegir archivo XLSX">
+        <div class="actions">
+          <button id="btnValidateFile" class="primary" type="button">Validar archivo</button>
+          <button id="btnFixFile" type="button">Corregir y descargar XLSX</button>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="pasteTitle">
+        <div class="headrow"><span class="num">02</span><h2 id="pasteTitle">Pegar desde Excel</h2></div>
+        <p class="hint">Pega las cabeceras y las filas en formato tabulado. También admite las 16 columnas anteriores para preparar un archivo nuevo.</p>
+        <textarea id="pasteBox" spellcheck="false" placeholder="Provincia&#9;NIF&#9;Nombre&#9;...&#9;Tipo Prescripcion" aria-label="Tabla tabulada de Excel"></textarea>
+        <div class="actions">
+          <button id="btnValidatePaste" class="primary" type="button">Validar pegado</button>
+          <button id="btnFixPaste" type="button">Corregir y descargar XLSX</button>
+          <button id="btnLoadExample" class="subtle" type="button">Ejemplo</button>
+          <button id="btnClearAll" class="subtle" type="button">Limpiar</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="rules" aria-label="Reglas de validación">
+      <p>✓ Se ignoran filas completamente vacías · ✓ Se comprueba cada celda informada</p>
+      <p>Ejemplos: <code>75,9%</code> → <code>75</code> · <code>0,759</code> con formato % → <code>75</code></p>
+    </div>
+
+    <section id="statusBox" class="results" aria-live="polite" hidden>
+      <div class="result-top">
+        <div>
+          <p id="bigMsg" class="outcome"></p>
+          <p id="metaMsg"></p>
+          <div class="metrics">
+            <div class="metric"><strong id="numRows">0</strong>filas con datos</div>
+            <div class="metric"><strong id="numErrors">0</strong>errores</div>
+            <div class="metric"><strong id="numWarnings">0</strong>avisos</div>
+            <div class="metric"><strong id="numChanges">0</strong>correcciones</div>
+          </div>
+        </div>
+        <img id="resultImg" class="result-art" alt="Ilustración del resultado" hidden>
+      </div>
+      <p id="resultNote" class="notice" hidden></p>
+      <div id="changesBlock" hidden>
+        <h3 class="section-title">Cambios aplicados</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Celda</th><th>Campo</th><th>Antes</th><th>Después</th></tr></thead>
+            <tbody id="changesBody"></tbody>
+          </table>
+        </div>
+        <p id="changesExtra" class="muted"></p>
+      </div>
+      <div id="errorBlock" hidden>
+        <h3 class="section-title">Errores que debes revisar</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Fila</th><th>Columna</th><th>Celda</th><th>Problema</th><th>Valor</th></tr></thead>
+            <tbody id="errorBody"></tbody>
+          </table>
+        </div>
+        <p id="errorsExtra" class="muted"></p>
+      </div>
+      <div id="warningBlock" hidden>
+        <h3 class="section-title">Avisos no bloqueantes</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Fila</th><th>Columna</th><th>Celda</th><th>Revisión recomendada</th><th>Valor</th></tr></thead>
+            <tbody id="warningsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div>
+        <p>Desarrollado por <strong>Ángel Soto DVM PhD</strong> · <a href="mailto:airsoto@gmail.com">airsoto@gmail.com</a></p>
+        <p><a href="https://buymeacoffee.com/airsoto" target="_blank" rel="noopener noreferrer">☕ Invitarme a un café</a> · Proyecto web con licencia WTFPL v2</p>
+      </div>
+      <div id="gc-visitcount" aria-label="Contador de visitas"></div>
+    </footer>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const EXPECTED_HEADERS = [
+      "Provincia", "NIF", "Nombre", "Primer Apellido", "Segundo Apellido",
+      "Numero Colegiado", "Fecha Prescripcion", "Codigo Nacional", "Especie REGA",
+      "Numero de Envases", "Numero Receta", "Tipo Dispensacion", "Clase Tratamiento",
+      "Porcentaje Envase Total", "Duracion Tratamiento", "Codigo Medicamento",
+      "Tipo Prescripcion"
+    ];
+    const PREVIOUS_HEADERS = EXPECTED_HEADERS.slice(0, -1);
+    const PROVINCIAS = new Set(Array.from({length:52}, (_, i) => String(i + 1).padStart(2, "0")));
+    const ESPECIES_COMPANIA = new Set(["22","28","63","67","69","73","80","81","87","232","245","246","288","291","292","293","999"]);
+    const TIPO_DISPENSACION = new Set(["1","2","3"]);
+    const CLASE_TRATAMIENTO = new Set(["1","2","3"]);
+    const TIPO_PRESCRIPCION = new Set(["1","2"]);
+    const CUT_DATE = new Date(2021, 3, 1);
+    const MAX_RENDERED = 150;
+
+    // Los nombres se han contrastado con la raíz pública del repositorio airsoto/vet.
+    // Se ha eliminado ebb8a13c-8037-4932-a29b-bb7f0d20a1f5.png, que no existe allí.
+    const OK_IMAGES = [
+      "118cb7cb-52d1-40b4-8cb6-48212904768e.png",
+      "21 may 2025, 14_28_02.png",
+      "ChatGPT Image 21 may 2025, 15_04_22.png",
+      "ec428bc3-c02a-4c8a-9a2a-feec89421e5a.png",
+      "0de71300-91ed-4021-bfdb-5da502307dc3.png",
+      "33e104e3-97ec-4748-9f9c-6342ed35572a.png",
+      "b7c3dc36-2771-46db-8ed6-35265b08e154.png",
+      "761cc418-7270-4ce8-be6a-39990baf2aac.png",
+      "1c6a473e-6246-433f-a1f5-583cb7b0dab3.png",
+      "fce5e2be-017b-4775-a7c3-e6e3bbbb93cd.png",
+      "dc38b046-e5ed-4cc6-bbbb-142dda6d471f.png"
+    ];
+    const BAD_IMAGES = ["xlsno1.png", "xlsno2.png", "xlsno3.png"];
+    const $ = id => document.getElementById(id);
+    let loadedFile = null;
+
+    const isBlank = v => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+    const asString = v => v === null || v === undefined ? "" : String(v).trim();
+    const isEmptyRow = row => !row || row.every(isBlank);
+    const cellRef = (row, col) => `${columnLetter(col)}${row}`;
+    function columnLetter(n) {
+      let out = "";
+      while (n > 0) { n--; out = String.fromCharCode(65 + n % 26) + out; n = Math.floor(n / 26); }
+      return out;
+    }
+    function parseNumberStrict(v) {
+      if (typeof v === "number") return Number.isFinite(v) ? v : null;
+      const s = asString(v).replace(",", ".");
+      if (!/^[+-]?\d+(?:\.\d+)?$/.test(s)) return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+    function parseDateAny(v) {
+      if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : new Date(v.getFullYear(), v.getMonth(), v.getDate());
+      if (typeof v === "number" && Number.isFinite(v)) {
+        // Fecha numérica de Excel. Se evitan fechas implausibles y desbordamientos.
+        if (v < 1 || v > 2958465) return null;
+        const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
+        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
+      const s = asString(v);
+      let y, m, d, match;
+      if ((match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {
+        y = +match[1]; m = +match[2]; d = +match[3];
+      } else if ((match = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/))) {
+        d = +match[1]; m = +match[2]; y = +match[3];
+      } else return null;
+      if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+      const date = new Date(y, m - 1, d);
+      return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d ? date : null;
+    }
+    function validNifFormat(v) {
+      const s = asString(v).toUpperCase();
+      return /^\d{8}[A-Z]$/.test(s) || /^[XYZ]\d{7}[A-Z]$/.test(s) || /^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/.test(s);
+    }
+    function actualHeaderRow(rows) {
+      const h = [...(rows[0] || [])];
+      while (h.length && isBlank(h[h.length - 1])) h.pop();
+      return h.map(asString);
+    }
+    function headerMatches(actual, expected) {
+      return actual.length === expected.length && expected.every((name, i) => actual[i] === name);
+    }
+    function percentFormatted(cell) {
+      return Boolean(cell && ((typeof cell.z === "string" && cell.z.includes("%")) ||
+        (typeof cell.w === "string" && /%\s*$/.test(cell.w))));
+    }
+    function sourceCell(source, row0, col0) {
+      if (!source || !source.ws || typeof XLSX === "undefined") return null;
+      return source.ws[XLSX.utils.encode_cell({r:row0, c:col0})] || null;
+    }
+    function makeError(row, col, name, msg, val) {
+      return {row, colName:name, cell:cellRef(row, col), msg, val:asString(val)};
+    }
+
+    function validateDataset(rows, source = null) {
+      const errors = [], warnings = [];
+      const data = Array.isArray(rows) ? rows : [];
+      const headers = actualHeaderRow(data);
+      let rowCount = 0, hasBeforeCut = false, hasAfterCut = false;
+
+      if (!data.length || !headers.length) {
+        errors.push(makeError(1, 1, "Cabeceras", "El archivo no contiene una primera fila de cabeceras.", ""));
+        return {ok:false, errors, warnings, rowCount};
+      }
+      if (headers.length !== EXPECTED_HEADERS.length) {
+        errors.push(makeError(1, 1, "Cabeceras", `Se necesitan ${EXPECTED_HEADERS.length} columnas; hay ${headers.length}. La última debe ser «Tipo Prescripcion».`, headers.join(" | ")));
+      }
+      EXPECTED_HEADERS.forEach((expected, i) => {
+        if (headers[i] !== expected) {
+          errors.push(makeError(1, i + 1, "Cabecera", `Se esperaba «${expected}» en la posición ${columnLetter(i + 1)}.`, headers[i] || "(vacía)"));
+        }
+      });
+      const headerIndex = new Map(headers.map((name, i) => [name, i]));
+      const get = (r, name) => {
+        const idx = headerIndex.get(name);
+        return idx === undefined ? null : {v:(data[r] || [])[idx], col:idx + 1, idx};
+      };
+      const today = new Date(); today.setHours(0,0,0,0);
+      const required = (r, name) => {
+        const f = get(r, name);
+        if (!f) return null; // Una cabecera ausente ya se informa arriba.
+        if (isBlank(f.v)) errors.push(makeError(r + 1, f.col, name, "Campo obligatorio vacío.", f.v));
+        return f;
+      };
+      const maxLength = (r, name, max, optional = false) => {
+        const f = optional ? get(r, name) : required(r, name);
+        if (f && !isBlank(f.v) && asString(f.v).length > max)
+          errors.push(makeError(r + 1, f.col, name, `Longitud máxima de ${max} caracteres.`, f.v));
+      };
+      const memberOf = (r, name, set, desc) => {
+        const f = required(r, name);
+        if (!f || isBlank(f.v)) return;
+        if (!/^\d+$/.test(asString(f.v)) || !set.has(String(Number(f.v))))
+          errors.push(makeError(r + 1, f.col, name, `Código no válido (${desc}).`, f.v));
+      };
+
+      for (let r = 1; r < data.length; r++) {
+        if (isEmptyRow(data[r])) continue;
+        rowCount++;
+
+        const province = required(r, "Provincia");
+        if (province && !isBlank(province.v)) {
+          const s = asString(province.v);
+          const norm = /^\d{1,2}$/.test(s) ? s.padStart(2, "0") : s;
+          if (!PROVINCIAS.has(norm)) errors.push(makeError(r + 1, province.col, "Provincia", "Código provincial inválido (01–52).", province.v));
+        }
+        const nif = required(r, "NIF");
+        if (nif && !isBlank(nif.v)) {
+          if (asString(nif.v).length > 10) errors.push(makeError(r + 1, nif.col, "NIF", "Máximo 10 caracteres.", nif.v));
+          else if (!validNifFormat(nif.v)) warnings.push(makeError(r + 1, nif.col, "NIF", "Formato NIF/NIE/CIF no reconocido; revisa el dato.", nif.v));
+        }
+        maxLength(r, "Nombre", 50);
+        maxLength(r, "Primer Apellido", 55);
+        maxLength(r, "Segundo Apellido", 55, true);
+        const colegiado = required(r, "Numero Colegiado");
+        if (colegiado && !isBlank(colegiado.v) && !/^\d{7}$/.test(asString(colegiado.v)))
+          errors.push(makeError(r + 1, colegiado.col, "Numero Colegiado", "Debe tener exactamente 7 dígitos.", colegiado.v));
+
+        const dateField = required(r, "Fecha Prescripcion");
+        if (dateField && !isBlank(dateField.v)) {
+          const d = parseDateAny(dateField.v);
+          if (!d) errors.push(makeError(r + 1, dateField.col, "Fecha Prescripcion", "Fecha no válida. Usa DD/MM/AAAA o AAAA-MM-DD.", dateField.v));
+          else {
+            if (d > today) errors.push(makeError(r + 1, dateField.col, "Fecha Prescripcion", "No puede ser posterior a hoy.", dateField.v));
+            if (d < CUT_DATE) hasBeforeCut = true; else hasAfterCut = true;
+          }
+        }
+        const cn = get(r, "Codigo Nacional"), cm = get(r, "Codigo Medicamento");
+        if (cn && cm && isBlank(cn.v) && isBlank(cm.v))
+          errors.push(makeError(r + 1, cn.col, "Codigo Nacional / Codigo Medicamento", "Es obligatorio informar al menos uno de los dos códigos.", ""));
+        if (cm && asString(cm.v).length > 10)
+          errors.push(makeError(r + 1, cm.col, "Codigo Medicamento", "Máximo 10 caracteres.", cm.v));
+
+        memberOf(r, "Especie REGA", ESPECIES_COMPANIA, "especies de compañía admitidas");
+        const envases = required(r, "Numero de Envases");
+        if (envases && !isBlank(envases.v)) {
+          const n = parseNumberStrict(envases.v), s = asString(envases.v).replace(",", ".");
+          if (n === null || n <= 0 || !/^[+]?\d{1,8}(?:\.\d{1,4})?$/.test(s))
+            errors.push(makeError(r + 1, envases.col, "Numero de Envases", "Debe ser mayor que 0, con hasta 8 enteros y 4 decimales.", envases.v));
+        }
+        maxLength(r, "Numero Receta", 50);
+        memberOf(r, "Tipo Dispensacion", TIPO_DISPENSACION, "1, 2 o 3");
+        memberOf(r, "Clase Tratamiento", CLASE_TRATAMIENTO, "1, 2 o 3");
+
+        const porcentaje = required(r, "Porcentaje Envase Total");
+        if (porcentaje && !isBlank(porcentaje.v)) {
+          const n = parseNumberStrict(porcentaje.v), cell = sourceCell(source, r, porcentaje.idx);
+          if (n === null || !Number.isInteger(n) || /%/.test(asString(porcentaje.v)) || percentFormatted(cell))
+            errors.push(makeError(r + 1, porcentaje.col, "Porcentaje Envase Total", "Debe ser un entero sin decimales y sin formato ni símbolo %.", porcentaje.v));
+          else if (n < 0 || n > 100)
+            errors.push(makeError(r + 1, porcentaje.col, "Porcentaje Envase Total", "Fuera del intervalo 0–100.", porcentaje.v));
+        }
+
+        const duracion = required(r, "Duracion Tratamiento");
+        if (duracion && !isBlank(duracion.v)) {
+          const n = parseNumberStrict(duracion.v), s = asString(duracion.v).replace(",", ".");
+          if (n === null || n < .1 || n > 600 || !/^\d{1,3}(?:\.\d)?$/.test(s))
+            errors.push(makeError(r + 1, duracion.col, "Duracion Tratamiento", "Debe estar entre 0,1 y 600 días, con máximo 1 decimal.", duracion.v));
+        }
+        memberOf(r, "Tipo Prescripcion", TIPO_PRESCRIPCION, "1 Ordinaria, 2 Excepcional");
+      }
+      if (!rowCount) errors.push(makeError(2, 1, "Datos", "No hay ninguna fila de datos rellena.", ""));
+      if (hasBeforeCut && hasAfterCut)
+        errors.push(makeError(1, 7, "Fecha Prescripcion", "No se pueden mezclar fechas anteriores y posteriores al 01/04/2021 en el mismo envío.", ""));
+      return {ok:errors.length === 0, errors, warnings, rowCount};
+    }
+
+    // Recorta la parte decimal (no redondea). Reconoce porcentajes de Excel
+    // almacenados como fracción: 0,759 con formato 0,0% equivale a 75,9%.
+    function correctedPercentage(value, cell) {
+      if (isBlank(value)) return null;
+      const s = asString(value), explicitPercent = s.includes("%");
+      let n;
+      if (typeof value === "number") n = value;
+      else {
+        let cleaned = s.replace(/\s/g, "");
+        if (explicitPercent) cleaned = cleaned.replace(/%$/, "");
+        if (cleaned.includes("%")) return null;
+        n = parseNumberStrict(cleaned);
+      }
+      if (n === null || !Number.isFinite(n)) return null;
+      if (!explicitPercent && percentFormatted(cell) && typeof value === "number") n *= 100;
+      // No se deben ocultar valores originalmente fuera de rango mediante truncamiento.
+      if (n < 0 || n > 100) return null;
+      return Math.trunc(n);
+    }
+    function normalizedType(value) {
+      const s = asString(value);
+      if (s === "1" || /^ordinaria$/i.test(s)) return 1;
+      if (s === "2" || /^excepcional$/i.test(s)) return 2;
+      return null;
+    }
+    function correctDataset(source, fallbackType) {
+      const rows = source.rows.map(row => [...row]);
+      const headers = actualHeaderRow(rows);
+      const legacy = headerMatches(headers, PREVIOUS_HEADERS);
+      const modern = headerMatches(headers, EXPECTED_HEADERS);
+      if (!legacy && !modern) {
+        return {fatal:"Las cabeceras no coinciden con la plantilla de 16 o 17 columnas. Revisa los títulos y el orden antes de corregir."};
+      }
+      const changes = [];
+      const newHeaders = [...EXPECTED_HEADERS];
+      if (!rows.length) rows.push(newHeaders);
+      else rows[0] = [...newHeaders];
+      if (legacy) changes.push({cell:"Q1", field:"Cabeceras", before:"(no existe)", after:"Tipo Prescripcion"});
+      const pctIdx = EXPECTED_HEADERS.indexOf("Porcentaje Envase Total");
+      const typeIdx = EXPECTED_HEADERS.indexOf("Tipo Prescripcion");
+      for (let r = 1; r < rows.length; r++) {
+        if (isEmptyRow(rows[r])) continue;
+        const oldPct = rows[r][pctIdx], pctCell = sourceCell(source, r, pctIdx);
+        if (!isBlank(oldPct)) {
+          const repaired = correctedPercentage(oldPct, pctCell);
+          if (repaired !== null) {
+            // Incluso un 100 con formato % requiere convertirlo a número plano.
+            if (oldPct !== repaired || percentFormatted(pctCell)) {
+              changes.push({cell:cellRef(r + 1, pctIdx + 1), field:"Porcentaje Envase Total",
+                before:percentFormatted(pctCell) && pctCell.w ? pctCell.w : asString(oldPct), after:String(repaired)});
+            }
+            rows[r][pctIdx] = repaired;
+          }
+        }
+        const oldType = rows[r][typeIdx];
+        const chosen = isBlank(oldType) ? Number(fallbackType) : normalizedType(oldType);
+        if (chosen !== null && (!Number.isNaN(chosen)) && (isBlank(oldType) || String(oldType) !== String(chosen))) {
+          rows[r][typeIdx] = chosen;
+          changes.push({cell:cellRef(r + 1, typeIdx + 1), field:"Tipo Prescripcion",
+            before:asString(oldType) || "(vacía)", after:`${chosen} — ${chosen === 1 ? "Ordinaria" : "Excepcional"}`});
+        }
+      }
+      return {rows, changes, legacy};
+    }
+
+    function isXlsxReady() {
+      if (typeof XLSX === "undefined") throw new Error("La biblioteca XLSX no ha cargado. Revisa tu conexión a Internet y vuelve a abrir la página.");
+    }
+    async function getFileSource() {
+      isXlsxReady();
+      const input = $("fileInput");
+      const file = input.files && input.files[0];
+      if (!file) throw new Error("Selecciona primero un archivo .xlsx.");
+      if (!/\.xlsx$/i.test(file.name)) throw new Error("Selecciona un archivo con extensión .xlsx.");
+      if (loadedFile && loadedFile.file === file) return loadedFile;
+      const wb = XLSX.read(await file.arrayBuffer(), {type:"array", cellDates:true, cellNF:true, cellText:true});
+      if (!wb.SheetNames.length) throw new Error("El libro no contiene ninguna hoja.");
+      const name = wb.SheetNames[0], ws = wb.Sheets[name];
+      if (!ws) throw new Error("No se puede leer la primera hoja.");
+      // range:0 fuerza a incluir las filas desde la primera y mantiene sus números reales.
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", blankrows:true, raw:true, range:0});
+      loadedFile = {kind:"file", file, wb, ws, sheetName:name, rows};
+      return loadedFile;
+    }
+    function getPasteSource() {
+      const text = $("pasteBox").value;
+      if (!text.trim()) throw new Error("Pega primero los datos de Excel, incluyendo las cabeceras.");
+      const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+      return {kind:"paste", rows:lines.map(line => line.split("\t"))};
+    }
+
+    function appendCell(tr, text, tag = "td") {
+      const el = document.createElement(tag);
+      el.textContent = text === undefined || text === null ? "" : String(text);
+      tr.appendChild(el);
+    }
+    function fillTable(bodyId, entries, fields) {
+      const body = $(bodyId);
+      body.replaceChildren();
+      entries.slice(0, MAX_RENDERED).forEach(item => {
+        const tr = document.createElement("tr");
+        for (const field of fields) appendCell(tr, item[field]);
+        body.appendChild(tr);
+      });
+    }
+    function displayResult(result, description, changes = [], note = "") {
+      $("statusBox").hidden = false;
+      const outcome = $("bigMsg");
+      outcome.textContent = result.ok ? "✓ Sin errores bloqueantes" : "✕ Se han detectado errores";
+      outcome.className = `outcome ${result.ok ? "ok" : "bad"}`;
+      $("metaMsg").textContent = description;
+      $("numRows").textContent = result.rowCount || 0;
+      $("numErrors").textContent = result.errors.length;
+      $("numWarnings").textContent = result.warnings.length;
+      $("numChanges").textContent = changes.length;
+      $("resultNote").hidden = !note;
+      $("resultNote").textContent = note;
+      $("changesBlock").hidden = changes.length === 0;
+      $("errorBlock").hidden = result.errors.length === 0;
+      $("warningBlock").hidden = result.warnings.length === 0;
+      fillTable("changesBody", changes, ["cell","field","before","after"]);
+      fillTable("errorBody", result.errors, ["row","colName","cell","msg","val"]);
+      fillTable("warningsBody", result.warnings, ["row","colName","cell","msg","val"]);
+      $("changesExtra").textContent = changes.length > MAX_RENDERED ? `Se muestran las primeras ${MAX_RENDERED} de ${changes.length} correcciones.` : "";
+      $("errorsExtra").textContent = result.errors.length > MAX_RENDERED ? `Se muestran los primeros ${MAX_RENDERED} de ${result.errors.length} errores.` : "";
+      const img = $("resultImg");
+      const pool = result.ok ? OK_IMAGES : BAD_IMAGES;
+      img.hidden = false;
+      img.src = "../" + encodeURI(pool[Math.floor(Math.random() * pool.length)]);
+      $("statusBox").scrollIntoView({behavior:"smooth", block:"start"});
+    }
+    $("resultImg").addEventListener("error", () => { $("resultImg").hidden = true; });
+    function displayFatal(message) {
+      displayResult({ok:false, errors:[makeError(1, 1, "Archivo", message, "")], warnings:[], rowCount:0}, "No se ha podido completar la operación.");
+    }
+
+    function writeCorrectedFile(source, correctedRows) {
+      isXlsxReady();
+      let wb, ws, fileName;
+      if (source.kind === "file") {
+        wb = source.wb;
+        ws = source.ws;
+        fileName = source.file.name.replace(/\.xlsx$/i, "") + "_PRESVET_corregido.xlsx";
+        const oldHeaders = actualHeaderRow(source.rows);
+        if (headerMatches(oldHeaders, PREVIOUS_HEADERS)) {
+          XLSX.utils.sheet_add_aoa(ws, [["Tipo Prescripcion"]], {origin:"Q1"});
+        }
+        for (let row = 1; row < correctedRows.length; row++) {
+          if (isEmptyRow(correctedRows[row])) continue;
+          // Columna N (índice 13): forzar entero real y formato numérico, sin %.
+          const valueN = correctedRows[row][13];
+          if (!isBlank(valueN)) {
+            const addressN = XLSX.utils.encode_cell({r:row, c:13});
+            ws[addressN] = {t:"n", v:Number(valueN), z:"0", w:String(valueN)};
+          }
+          // Columna Q (índice 16): código numérico 1 / 2.
+          const typeQ = correctedRows[row][16];
+          if (!isBlank(typeQ)) {
+            const addressQ = XLSX.utils.encode_cell({r:row, c:16});
+            ws[addressQ] = {t:"n", v:Number(typeQ), z:"0", w:String(typeQ)};
+          }
+        }
+        if (ws["!ref"]) {
+          const range = XLSX.utils.decode_range(ws["!ref"]);
+          range.e.c = Math.max(range.e.c, 16);
+          ws["!ref"] = XLSX.utils.encode_range(range);
+        }
+      } else {
+        wb = XLSX.utils.book_new();
+        ws = XLSX.utils.aoa_to_sheet(correctedRows, {cellDates:true});
+        ws["!cols"] = EXPECTED_HEADERS.map((name, i) => ({wch:Math.min(30, Math.max(13, name.length + (i === 10 ? 7 : 2)))}));
+        XLSX.utils.book_append_sheet(wb, ws, "Datos");
+        fileName = "PRESVET_corregido.xlsx";
+      }
+      XLSX.writeFile(wb, fileName, {bookType:"xlsx", compression:true});
+      return fileName;
+    }
+
+    async function handleValidate(kind) {
+      try {
+        const source = kind === "file" ? await getFileSource() : getPasteSource();
+        const result = validateDataset(source.rows, source);
+        displayResult(result, kind === "file" ? `Archivo «${source.file.name}» · primera hoja «${source.sheetName}».` : "Tabla pegada desde Excel.", [],
+          "Esta operación solo valida. Para añadir la columna Q y convertir los porcentajes a enteros, utiliza «Corregir y descargar XLSX»." );
+      } catch (e) { displayFatal(e.message || String(e)); }
+    }
+    async function handleFix(kind) {
+      try {
+        const source = kind === "file" ? await getFileSource() : getPasteSource();
+        const fixed = correctDataset(source, $("defaultType").value);
+        if (fixed.fatal) { displayFatal(fixed.fatal); return; }
+        // Tras corregir, el control de porcentaje ya no usa el formato previo del XLSX.
+        const result = validateDataset(fixed.rows, null);
+        if (!result.ok) {
+          displayResult(result, "Se han normalizado los campos permitidos, pero quedan errores que impiden generar un archivo válido.", fixed.changes,
+            "No se ha descargado ningún XLSX. Corrige los errores restantes en el archivo original y repite la operación.");
+          return;
+        }
+        const downloadedName = writeCorrectedFile(source, fixed.rows);
+        // El libro de SheetJS se ha modificado para exportarlo. En la próxima acción
+        // volveremos a leer el fichero original para evitar usar celdas ya mutadas.
+        if (source.kind === "file") loadedFile = null;
+        displayResult(result, `Archivo generado: «${downloadedName}».`, fixed.changes,
+          "Verifica los tipos de prescripción asignados antes de enviarlo. La exportación puede alterar algunos estilos avanzados de Excel; conserva el original.");
+      } catch (e) { displayFatal(e.message || String(e)); }
+    }
+
+    $("btnValidateFile").addEventListener("click", () => handleValidate("file"));
+    $("btnFixFile").addEventListener("click", () => handleFix("file"));
+    $("btnValidatePaste").addEventListener("click", () => handleValidate("paste"));
+    $("btnFixPaste").addEventListener("click", () => handleFix("paste"));
+    $("fileInput").addEventListener("change", () => { loadedFile = null; $("statusBox").hidden = true; });
+    $("btnClearAll").addEventListener("click", () => {
+      $("fileInput").value = ""; $("pasteBox").value = ""; loadedFile = null;
+      $("statusBox").hidden = true;
+    });
+    $("btnLoadExample").addEventListener("click", () => {
+      $("pasteBox").value = EXPECTED_HEADERS.join("\t") + "\n" +
+        ["28","12345678Z","Ana","Pérez","Gómez","2801234","2025-01-10","","80","1","RX-001","1","1","75,9%","10","FM123","1"].join("\t");
+      $("statusBox").hidden = true;
+    });
+  })();
+  </script>
+</body>
+</html>
