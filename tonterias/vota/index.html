@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#f7f8fb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Simulador de voto</title>
+  <style>
+    :root { color-scheme: light; --ink:#20283b; --muted:#81899a; --pp:#0873d1; --psoe:#e52332; --bg:#f7f8fb; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { width:100%; min-height:100%; margin:0; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif; background:radial-gradient(ellipse at 50% 20%,#fff 0%,#f7f8fb 68%,#f0f2f8 100%); color:var(--ink); overflow:hidden; }
+    .app { width:100%; min-height:100svh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; padding:calc(24px + env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom)); position:relative; isolation:isolate; }
+    header { text-align:center; flex:0 0 auto; z-index:2; }
+    .eyebrow { text-transform:uppercase; letter-spacing:.22em; font-size:10px; font-weight:800; color:#9aa4b5; margin-bottom:10px; }
+    h1 { font-size:clamp(26px,7vw,44px); font-weight:770; letter-spacing:-.055em; line-height:1.1; margin:0; }
+    .subtitle { font-size:clamp(12px,3.3vw,15px); color:var(--muted); margin:12px 0 0; }
+    .stage { width:min(100%,850px); flex:1 1 auto; min-height:370px; position:relative; margin:8px auto 0; touch-action:none; }
+    .floor { position:absolute; width:min(85%,630px); height:38px; bottom:13%; left:50%; transform:translateX(-50%); border-radius:50%; background:radial-gradient(ellipse,#b8c3d2aa 0%,#dce1ec55 47%,transparent 75%); filter:blur(11px); pointer-events:none; }
+    .ballotbox { width:clamp(180px,45vw,270px); height:clamp(182px,40vw,250px); position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); z-index:3; pointer-events:none; }
+    .box-lid { position:absolute; top:0; left:1%; width:98%; height:15%; background:linear-gradient(180deg,#fff,#e7ebf3); border:1.5px solid #d6deea; border-radius:15px 15px 7px 7px; box-shadow:0 8px 13px #50607815; z-index:5; }
+    .slot { position:absolute; top:36%; left:32%; width:36%; height:12%; background:#394357; border-radius:100px; box-shadow:inset 0 2px 4px #15203955; }
+    .box-body { position:absolute; top:12%; width:91%; height:86%; left:4.5%; border:2px solid #cbd6e8; border-radius:7px 7px 17px 17px; background:linear-gradient(135deg,#ffffffb9,#dde8f5a3); box-shadow:inset 13px 0 24px #fff9,inset -16px 0 28px #b4c5de2e,0 18px 30px #8593a326; backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+    .box-body:after { content:""; position:absolute; width:60%; height:25%; top:49%; left:20%; border:1px solid #c9d4e2; border-radius:10px; background:#fff9; }
+    .box-label { position:absolute; z-index:2; left:50%; top:71%; transform:translate(-50%,-50%); font-size:clamp(9px,2.3vw,12px); text-transform:uppercase; letter-spacing:.25em; color:#75869d; font-weight:800; }
+    .envelope { position:absolute; width:clamp(116px,29vw,176px); aspect-ratio:1.6; border:1px solid #dee4ed; border-radius:8px; background:#fff; box-shadow:0 14px 27px #26395619,0 3px 9px #2639560e; display:grid; place-items:center; cursor:grab; z-index:6; will-change:transform,left,top; user-select:none; -webkit-user-select:none; touch-action:none; }
+    .envelope:before { content:""; position:absolute; inset:0; background:linear-gradient(150deg,transparent 49.5%,#e9edf5 50%,transparent 50.5%) left/50% 100% no-repeat,linear-gradient(210deg,transparent 49.5%,#e9edf5 50%,transparent 50.5%) right/50% 100% no-repeat; opacity:.62; border-radius:8px; pointer-events:none; }
+    .envelope:after { content:""; position:absolute; bottom:0; left:0; right:0; height:44%; border-radius:0 0 8px 8px; background:linear-gradient(154deg,transparent 49%,#eef1f6 49.5%,#fff 50.5%) left/50% 100% no-repeat,linear-gradient(206deg,transparent 49%,#eef1f6 49.5%,#fff 50.5%) right/50% 100% no-repeat; pointer-events:none; opacity:.5; }
+    .pp { left:8%; top:35%; transform:rotate(-9deg); transition:box-shadow .2s; }
+    .pp:hover { box-shadow:0 20px 34px #26395624; }
+    .psoe { right:8%; top:35%; transform:rotate(9deg); transition:left .27s cubic-bezier(.2,.8,.2,1),top .27s cubic-bezier(.2,.8,.2,1),transform .27s,box-shadow .2s; cursor:not-allowed; }
+    .party-mark { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; font-weight:850; }
+    .pp-mark { font-size:clamp(26px,6.5vw,43px); font-style:italic; color:var(--pp); letter-spacing:-.11em; padding-right:.16em; }
+    .pp-mark:after { content:""; position:absolute; width:62%; height:5px; border-radius:50%; background:#f5a623; bottom:-5px; right:0; transform:rotate(-8deg); }
+    .psoe-mark { background:var(--psoe); color:white; font-size:clamp(15px,4vw,24px); letter-spacing:-.045em; border-radius:3px; padding:7px 9px; }
+    .party-caption { position:absolute; top:calc(100% + 18px); left:50%; transform:translateX(-50%); color:#7e8799; white-space:nowrap; text-transform:uppercase; letter-spacing:.16em; font-size:10px; font-weight:750; pointer-events:none; }
+    .tip { position:absolute; bottom:5%; left:0; right:0; text-align:center; color:#a1a9b7; font-size:12px; pointer-events:none; }
+    .result { position:absolute; top:17%; left:50%; width:max-content; max-width:94%; transform:translate(-50%,12px); padding:11px 19px; border:1px solid #c3dfcc; border-radius:40px; background:#edfff3; color:#286b43; font-size:clamp(14px,3.8vw,19px); font-weight:750; opacity:0; pointer-events:none; z-index:12; box-shadow:0 9px 24px #3b805c16; transition:opacity .35s,transform .35s; }
+    .result.show { opacity:1; transform:translate(-50%,0); }
+    .reset { position:absolute; z-index:14; bottom:calc(26px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); appearance:none; border:1px solid #d9e0ea; background:#fff; color:#667083; border-radius:50px; padding:11px 21px; font:600 13px inherit; cursor:pointer; display:none; box-shadow:0 5px 20px #33456012; }
+    .reset.show { display:block; }
+    .dragging { transition:none!important; cursor:grabbing; z-index:11; }
+    .drop-anim { transition:left .45s cubic-bezier(.45,0,.15,1),top .45s cubic-bezier(.45,0,.15,1),transform .45s cubic-bezier(.45,0,.15,1),opacity .45s!important; z-index:11; }
+    .footnote { color:#aab1bd; text-align:center; font-size:10px; letter-spacing:.01em; flex:0 0 auto; }
+    @media(max-width:600px) { .app { padding-left:9px; padding-right:9px; } .stage { min-height:390px; } .ballotbox { top:53%; } .pp { left:3%; top:23%; } .psoe { right:3%; top:23%; } .party-caption { top:calc(100% + 12px); font-size:9px; } .tip { bottom:10%; } .result { top:9%; } }
+    @media(max-width:360px) { .envelope { width:106px; } .ballotbox { width:175px; height:186px; top:55%; } .pp,.psoe { top:25%; } }
+    @media(max-height:650px) { .app { padding-top:calc(12px + env(safe-area-inset-top)); padding-bottom:calc(10px + env(safe-area-inset-bottom)); } .stage { min-height:290px; } .ballotbox { top:53%; height:165px; width:170px; } .tip { bottom:3%; } .subtitle { margin-top:6px; } }
+    @media(prefers-reduced-motion:reduce) { .psoe,.result,.drop-anim { transition-duration:.01ms!important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header><div class="eyebrow">Experimento interactivo</div><h1>Simulador de voto</h1><p class="subtitle">Elige un sobre e introducelo en la urna.</p></header>
+    <section class="stage" id="stage" aria-label="Simulador humorístico con dos sobres y una urna">
+      <div class="result" id="result" role="status" aria-live="polite">✓ Has votado al PP</div>
+      <div class="floor"></div>
+      <div class="ballotbox" id="ballotbox" aria-label="Urna"><div class="box-body"><div class="box-label">URNA</div></div><div class="box-lid"><div class="slot"></div></div></div>
+      <div class="envelope pp" id="pp" role="button" tabindex="0" aria-label="Sobre del PP. Toca para introducirlo en la urna o arrástralo."><span class="party-mark pp-mark">PP</span><span class="party-caption">Partido Popular</span></div>
+      <div class="envelope psoe" id="psoe" role="button" tabindex="0" aria-label="Sobre del PSOE. Este sobre esquiva el contacto."><span class="party-mark psoe-mark">PSOE</span><span class="party-caption">PSOE</span></div>
+      <p class="tip" id="tip">Toca un sobre o arrastra el del PP ✨</p>
+    </section>
+    <p class="footnote"></p>
+    <button type="button" class="reset" id="reset">↻ Reiniciar</button>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const stage = document.getElementById('stage'), pp = document.getElementById('pp');
+      const psoe = document.getElementById('psoe'), box = document.getElementById('ballotbox');
+      const result = document.getElementById('result'), reset = document.getElementById('reset');
+      const tip = document.getElementById('tip');
+      let voted = false, dragging = false, moved = false, down = null, lastDodge = 0;
+      let dodgeCount = 0;
+      const clamp = (x,a,b) => Math.max(a, Math.min(b,x));
+      const rectCenter = el => { const r=el.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; };
+      function localPoint(clientX,clientY) { const r=stage.getBoundingClientRect(); return {x:clientX-r.left,y:clientY-r.top}; }
+      function dodge(x,y,force=false) {
+        if(voted || dragging) return;
+        const now=performance.now(); if(now-lastDodge<190) return;
+        const pr=psoe.getBoundingClientRect(); const sr=stage.getBoundingClientRect();
+        const cx=pr.left+pr.width/2, cy=pr.top+pr.height/2;
+        const distance=Math.hypot(x-cx,y-cy);
+        if(!force && distance>100) return;
+        lastDodge=now; dodgeCount++;
+        const preferredX = (dodgeCount%2===0) ? sr.width*.69 : sr.width*.81;
+        const preferredY = dodgeCount%3===0 ? sr.height*.64 : (dodgeCount%3===1 ? sr.height*.12 : sr.height*.34);
+        const padding=8;
+        const tx=clamp(preferredX-pr.width/2,padding,sr.width-pr.width-padding);
+        const ty=clamp(preferredY-pr.height/2,padding,sr.height-pr.height-35);
+        psoe.style.right='auto'; psoe.style.left=tx+'px'; psoe.style.top=ty+'px';
+        psoe.style.transform=`rotate(${dodgeCount%2?14:-14}deg)`;
+        if(dodgeCount===2) tip.textContent='';
+      }
+      stage.addEventListener('pointermove', e=>{ if(e.pointerType==='mouse') dodge(e.clientX,e.clientY); });
+      psoe.addEventListener('pointerenter',e=>dodge(e.clientX,e.clientY,true));
+      psoe.addEventListener('pointerdown',e=>{ e.preventDefault(); dodge(e.clientX,e.clientY,true); });
+      psoe.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; if(t) dodge(t.clientX,t.clientY,true); },{passive:false});
+      psoe.addEventListener('click',e=>{ e.preventDefault(); dodge(e.clientX,e.clientY,true); });
+      psoe.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' ') { e.preventDefault(); const c=rectCenter(psoe); dodge(c.x,c.y,true); } });
+      function completeVote(){
+        if(voted) return; voted=true; dragging=false; pp.classList.remove('dragging');
+        const sr=stage.getBoundingClientRect(),br=box.getBoundingClientRect();
+        pp.classList.add('drop-anim');
+        pp.style.left=(br.left+br.width/2-sr.left-pp.offsetWidth/2)+'px';
+        pp.style.top=(br.top+br.height*.045-sr.top-pp.offsetHeight/2)+'px';
+        pp.style.transform='rotate(0deg) scale(.35)'; pp.style.opacity='0';
+        setTimeout(()=>{ result.classList.add('show'); reset.classList.add('show'); tip.textContent='Voto depositado correctamente'; },470);
+      }
+      pp.addEventListener('pointerdown',e=>{
+        if(voted) return;
+        e.preventDefault(); dragging=true; moved=false;
+        const r=pp.getBoundingClientRect(),s=stage.getBoundingClientRect();
+        down={sx:e.clientX,sy:e.clientY,offsetX:e.clientX-r.left,offsetY:e.clientY-r.top,startLeft:r.left-s.left,startTop:r.top-s.top};
+        pp.classList.add('dragging'); pp.style.transform='rotate(-4deg) scale(1.04)';
+        pp.style.left=down.startLeft+'px'; pp.style.top=down.startTop+'px';
+        pp.setPointerCapture(e.pointerId);
+      });
+      pp.addEventListener('pointermove',e=>{
+        if(!dragging||!down) return;
+        const diff=Math.hypot(e.clientX-down.sx,e.clientY-down.sy); if(diff>8) moved=true;
+        if(!moved) return;
+        const p=localPoint(e.clientX,e.clientY);
+        pp.style.left=clamp(p.x-down.offsetX,0,stage.clientWidth-pp.offsetWidth)+'px';
+        pp.style.top=clamp(p.y-down.offsetY,0,stage.clientHeight-pp.offsetHeight-10)+'px';
+      });
+      pp.addEventListener('pointerup',e=>{
+        if(!dragging) return; dragging=false; pp.classList.remove('dragging');
+        const c=rectCenter(pp),b=rectCenter(box);
+        if(!moved || Math.hypot(c.x-b.x,c.y-b.y)<box.offsetWidth*.8) completeVote();
+        else { pp.style.transform='rotate(-9deg)'; tip.textContent='Acerca el sobre del PP a la urna'; }
+      });
+      pp.addEventListener('pointercancel',()=>{ dragging=false; pp.classList.remove('dragging'); });
+      pp.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&!voted){ e.preventDefault(); completeVote(); } });
+      reset.addEventListener('click',()=>window.location.reload());
+    })();
+  </script>
+</body>
+</html>
